@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  buf:
+    name: contratos (lint + codegen limpio)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar buf (versión fijada igual que local)
+        run: |
+          curl -sSLo /usr/local/bin/buf \
+            https://github.com/bufbuild/buf/releases/download/v1.73.0/buf-Linux-x86_64
+          chmod +x /usr/local/bin/buf
+          buf --version
+      - name: buf lint
+        run: cd contracts && buf lint
+      - name: buf generate (stubs en repo deben estar al día)
+        run: cd contracts && buf generate && git diff --exit-code
+
+  go:
+    name: go (vet + unit + integración con PostgreSQL real)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: plentypay_ci
+          POSTGRES_PASSWORD: plentypay_ci
+          POSTGRES_DB: plentypay_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plentypay_ci -d plentypay_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      IDENTITY_TEST_DATABASE_URL: postgres://plentypay_ci:plentypay_ci@127.0.0.1:5432/plentypay_ci?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+      - name: gofmt (sin diffs)
+        run: test -z "$(gofmt -l services/identity)" || { gofmt -l services/identity; exit 1; }
+      - name: go vet
+        run: go vet ./...
+      - name: go test (unit)
+        run: go test ./...
+      - name: go test (integración contra PostgreSQL real)
+        run: go test -tags integration ./...
+
+  rust:
+    name: rust (fmt + clippy + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ledger
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/ledger
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  docker:
+    name: docker build (identity, distroless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build imagen
+        run: docker build -f services/identity/Dockerfile -t plentypay/identity:ci .
