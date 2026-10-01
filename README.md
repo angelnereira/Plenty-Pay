@@ -4,7 +4,26 @@ Plataforma financiera modular: POS + pagos/wallet + cumplimiento fiscal, de grad
 
 ## Estado
 
-**Etapa 1 — Foundation en progreso**. Detalle vivo en `docs/40-ESTADO-IMPLEMENTACION.md` y estados por servicio en cada `services/*/README.md` (convención §22: `IMPLEMENTED / PARTIAL / MOCK / STUB / TODO / BLOCKED`).
+**Etapa 1 — Foundation en progreso**. Detalle vivo en `docs/40-ESTADO-IMPLEMENTACION.md`, estados por servicio en cada `services/*/README.md` (convención §22: `IMPLEMENTED / PARTIAL / MOCK / STUB / TODO / BLOCKED`), y el camino completo por fases e hitos en `docs/50-HOJA-DE-RUTA.md`.
+
+## Arquitectura
+
+Una transacción, de extremo a extremo, con trazabilidad W3C propagada en metadata gRPC (`traceparent` / `x-correlation-id` / `x-request-id`, ADR-0004):
+
+```
+Flutter → api-gateway → payments → rail-adapter → ledger → PostgreSQL
+```
+
+| Servicio | Lenguaje | Responsabilidad única | Estado |
+|---|---|---|---|
+| `identity` | Go | auth, sesiones, roles/permisos/features, auditoría append-only | IMPLEMENTADO (memoria + PostgreSQL sqlc/pgx, migraciones fail-secure); mTLS TODO |
+| `api-gateway` | Go | BFF hacia Flutter; validación de sesión por llamada | TODO (Etapa 1) |
+| `ledger` | Rust | doble partida, holds, reversos, inmutabilidad, dinero exacto | dominio IMPLEMENTADO (15 tests, clippy limpio); PostgreSQL+gRPC Etapa 2 |
+| `payments` | Rust | orquestador Intent/Payment/Attempt + wallet (ADR-0006) | TODO (Etapa 2) |
+| `notifications` | Go | salida única de notificaciones | TODO (Etapa 2) |
+| `settlement` | Go | liquidación marketplace | TODO (Etapa 3) |
+
+Contratos: 6 servicios v1 en `contracts/proto/` (`buf lint` OK, stubs Go generados y compilando). Comunicación SOLO por contratos gRPC; acceso cruzado a BD prohibido.
 
 ## Estructura
 
@@ -28,16 +47,22 @@ tests/               Integración y contrato a nivel repo
 
 ## Quickstart
 
+Requisitos: Go, Rust (stable), `buf`, Docker.
+
 ```bash
-# Backend: entorno completo
+# Backend: postgres:17 + identity (gRPC :50051, healthcheck incluido)
 cd deployment/compose && cp .env.example .env && docker compose up --build -d
 
-# Verificar todo (format/lint/test/contratos/compose)
+# Verificar todo (fmt / lint / test + integración PG real / contratos / compose)
 ./scripts/dev.sh all
 
 # Núcleo contable (dominio puro, 15 tests)
 cd services/ledger && cargo test
 ```
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) sobre runner self-hosted arm64: `buf` (lint + codegen sin diff), `go` (vet + unit + integración contra PostgreSQL real en BD desechable), `rust` (fmt/clippy/test). Estado: en estabilización (ver `docs/40-ESTADO-IMPLEMENTACION.md`).
 
 ## Reglas de oro (doctrina completa: `docs/MASTER-ENGINEERING-INSTRUCTIONS.md`)
 
@@ -55,4 +80,15 @@ cd services/ledger && cargo test
 | `docs/00-DIAGNOSTICO-INGENIERIA.md` | Auditoría, contradicciones C-1..C-8 y resoluciones |
 | `docs/10-PLAN-DE-IMPLEMENTACION.md` | Etapas 1-5, DoD, registro UNVERIFIED/BLOCKED |
 | `docs/20-DECISIONES-ARQUITECTURA.md` | ADRs (decisiones con contexto y consecuencias) |
-| `docs/40-ESTADO-IMPLEMENTACION.md` | Estado vivo por componente |
+| `docs/30-ESTRUCTURA-REPOSITORIO.md` | Árbol objetivo vs. actual; servicios futuros por etapa |
+| `docs/40-ESTADO-IMPLEMENTACION.md` | Estado vivo por componente (actualizar en cada commit) |
+| `docs/50-HOJA-DE-RUTA.md` | Fases 0-6, hitos con aceptación verificable, gates duros, matriz de dependencias |
+
+## Hoja de ruta (ejecutivo)
+
+- **Fase 0 ✅**: diagnóstico, ADRs 0001-0010, contratos v1, dominio ledger (15 tests), CI en curso.
+- **Fase 1 — Foundation** (en progreso): identity→PostgreSQL ✅; sigue api-gateway, Flutter vía CI x64, compose completo.
+- **Fase 2 — Core financiero**: ledger persistente (sqlx, append-only por rol de BD), payments core Rust con `UNDETERMINED`, wallet, ≥500 TPS sostenidos.
+- **Fases 3-6**: commerce, integraciones con **gates duros** (`GATE-LEGAL` registro SBP, `GATE-EXT` rieles Yappy/TELERED/PSP, `GATE-TOOLCHAIN`), escala solo con métricas reales.
+
+Detalle hito por hito, con criterios de aceptación ejecutables: `docs/50-HOJA-DE-RUTA.md`.
