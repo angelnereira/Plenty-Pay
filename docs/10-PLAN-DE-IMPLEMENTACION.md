@@ -1,5 +1,7 @@
 # Plan de Implementación por Etapas
 
+> Resumen de alcance por etapas (mandato §25). El detalle completo de fases, hitos, criterios de aceptación y gates vive en **`docs/50-HOJA-DE-RUTA.md`** — ese documento es la referencia operativa; este es el resumen. Estado vivo: `docs/40-ESTADO-IMPLEMENTACION.md`.
+
 Sigue mandato §25. Cada etapa tiene alcance, Definition of Done (§30) y estado. El estado viva en `docs/ESTADO-IMPLEMENTACION.md` (actualizado en cada commit de código).
 
 ## Etapa 0 — Diagnóstico y contratos (actual)
