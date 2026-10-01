@@ -1,0 +1,9 @@
+name: smoke
+on:
+  push:
+    branches: [main]
+jobs:
+  hello:
+    runs-on: self-hosted
+    steps:
+      - run: echo "smoke ok"
