@@ -9,17 +9,18 @@ Sucesor de `MIGRATION_STATUS.md` referenciado por doc 01 (C-4). Actualizar en CA
 | Estructura repo + docs vivos + ADRs | IMPLEMENTADO | docs/, README |
 | Contratos proto v1 (6 servicios) + buf lint | IMPLEMENTADO | `buf lint` OK; `buf generate` OK; stubs Go compilando |
 | Stub Go generados (contrato compartido) | IMPLEMENTADO | contracts/gen (go build OK) |
-| identity: dominio (hash/sesiones/authz/store) | IMPLEMENTADO (store memoria) | go vet/test OK — 5 suites |
+| identity: dominio (hash/sesiones/authz/store) | IMPLEMENTADO (store memoria + PostgreSQL) | go vet/test OK; integración contra PG real (compose) |
 | identity: servidor gRPC + correlación | IMPLEMENTADO | bufconn tests: flujo completo, salud, anti-enumeración |
-| identity: PostgreSQL + migraciones | TODO | Etapa 1 completion |
-| identity: TLS/mTLS | TODO | plaintext solo red interna |
+| identity: **PostgreSQL** (sqlc pgx/v5) + migraciones checksum fail-secure | IMPLEMENTADO | `go test -tags integration` OK contra compose postgres |
+| identity: auditoría append-only (login ok/failed, logout) | IMPLEMENTADO | verificada por SQL en integración |
+| identity: TLS/mTLS | TODO | hitos Fase 1-5 |
 | api-gateway | TODO | README con alcance |
 | ledger: dominio contable | IMPLEMENTADO | cargo test 15/15, clippy -D warnings |
 | ledger: sqlx/PostgreSQL + gRPC tonic | TODO | Etapa 2 |
 | payments / notifications / settlement | TODO | READMEs con alcance |
-| Compose postgres+identity | IMPLEMENTADO | docker compose config OK |
+| Compose postgres+identity (DATABASE_URL + healthcheck) | IMPLEMENTADO | contenedor identity sirviendo en 50051 con PG (smoke verificado) |
 | Flutter app | BLOCKED-LOCAL | arm64 sin Flutter x64; CI x64 plan |
-| CI (GitHub Actions) | TODO | siguiente paso Etapa 1 |
+| CI (GitHub Actions: go/rust/buf/docker) | IMPLEMENTADO | `.github/workflows/ci.yml`; primera corrida en GitHub en curso |
 | output/ artefactos | BLOCKED-LOCAL | backend binarios al construir; APK vía CI |
 
 ## Bloqueos activos

@@ -1,9 +1,10 @@
 // identity-service: autenticación, sesiones y contexto de autorización
-// (mandato §7). Estado Etapa 1: IMPLEMENTADO con store en memoria;
-// persistencia PostgreSQL y TLS server-side en la culminación de la etapa.
+// (mandato §7). Estado Etapa 1: PostgreSQL como store (fail secure:
+// sin DATABASE_URL el servicio no arranca). TLS server-side: TODO.
 package main
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net"
@@ -12,11 +13,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 
 	commonv1 "plentypay.dev/contracts/gen/go/plentypay/common/v1"
 	identityv1 "plentypay.dev/contracts/gen/go/plentypay/identity/v1"
 	"plentypay.dev/services/identity/internal/auth"
+	"plentypay.dev/services/identity/internal/migrate"
 	"plentypay.dev/services/identity/internal/server"
 	"plentypay.dev/services/identity/internal/store"
 )
@@ -24,14 +27,43 @@ import (
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(log)
+	ctx := context.Background()
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "50051"
 	}
-	// TLS: UNVERIFIED hasta emitir certificados internos (Etapa 1 completion).
-	// Hoy plaintext SOLO en red interna de Compose; nunca expuesto.
+	// TLS: UNVERIFIED hasta emitir certificados internos (hitos Fase 1-5).
+	// Plaintext SOLO dentro de la red interna de Compose; nunca expuesto.
 	useTLS := os.Getenv("GRPC_TLS") == "1"
+
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		// Fail secure (mandato §13/§29): identidad SIN su base de datos no
+		// puede garantizar sesiones durables ni auditoría — no arranca.
+		log.Error("DATABASE_URL requerido: el servicio no arranca sin su base de datos")
+		os.Exit(1)
+	}
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		log.Error("conexión a PostgreSQL", "err", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+	if err := pool.Ping(ctx); err != nil {
+		log.Error("ping a PostgreSQL", "err", err)
+		os.Exit(1)
+	}
+
+	applied, err := migrate.Up(ctx, pool)
+	if err != nil {
+		log.Error("migraciones", "err", err)
+		os.Exit(1)
+	}
+	if len(applied) > 0 {
+		log.Info("migraciones aplicadas", "count", len(applied), "migraciones", applied)
+	}
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
@@ -43,16 +75,22 @@ func main() {
 		grpc.UnaryInterceptor(server.UnaryCorrelation(log)),
 	)
 
-	db := store.NewMemoryStore() // PARTIAL: PostgreSQL en culminación Etapa 1
-	identity := server.NewIdentity(db, auth.NewPasswordHasher(), 24*time.Hour, log)
+	identity := server.NewIdentity(server.Options{
+		DB:       store.NewPostgresStore(pool),
+		Sessions: store.NewPostgresSessions(pool, 24*time.Hour),
+		Auditor:  store.NewPostgresAuditor(pool, log),
+		Hasher:   auth.NewPasswordHasher(),
+		Log:      log,
+	})
 	identityv1.RegisterIdentityServiceServer(grpcServer, identity)
 	commonv1.RegisterHealthServiceServer(grpcServer, identity)
 
 	if useTLS {
-		log.Warn("GRPC_TLS=1 pero no hay certificados configurados: cayendo a plaintext") // fail visible, no silencioso (§13 Fail Secure en producción)
+		log.Warn("GRPC_TLS=1 pero no hay certificados configurados: cayendo a plaintext") // fail visible, no silencioso
 	}
+
 	go func() {
-		log.Info("identity-service escuchando", "port", port, "tls", useTLS)
+		log.Info("identity-service escuchando", "port", port, "tls", useTLS, "db", "postgres")
 		if err := grpcServer.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Error("serve", "err", err)
 			os.Exit(1)

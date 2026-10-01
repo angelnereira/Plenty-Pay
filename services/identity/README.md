@@ -2,7 +2,7 @@
 
 Autenticación, sesiones y contexto de autorización para la app dinámica (mandato §7). Contrato: `plentypay.identity.v1` + `plentypay.common.v1.HealthService`.
 
-**Estado: PARTIAL**
+**Estado: PARTIAL** (auth/sesiones/roles/PG/auditoría IMPLEMENTADOS; TLS y passkeys pendientes)
 
 | Componente | Estado |
 |---|---|
@@ -12,10 +12,12 @@ Autenticación, sesiones y contexto de autorización para la app dinámica (mand
 | Anti-enumeración de usuarios (error uniforme) | IMPLEMENTADO (test) |
 | Contexto de autorización roles→permisos→features | IMPLEMENTADO (tests) |
 | Interceptor de correlación x-correlation-id/x-request-id (ADR-0004) | IMPLEMENTADO (test) |
-| Store en memoria (interfaz `store.Storage`) | PARTIAL — sustituir por PostgreSQL+sqlc (ADR-0010) |
-| TLS server-side (mTLS interno) | TODO — plaintext SOLO dentro de red interna Compose |
+| Store **PostgreSQL** (sqlc pgx/v5, ADR-0010) con migraciones embebidas + checksum fail-secure | IMPLEMENTADO (integración contra PG real) |
+| Auditoría append-only (`identity.audit_log`): login ok/failed, logout, tenant_created | IMPLEMENTADO (integración) |
+| Sesiones durables en BD (solo SHA-256 del token en store) | IMPLEMENTADO (integración) |
+| Store en memoria (interfaz `store.Storage`) para tests | IMPLEMENTADO |
+| TLS server-side (mTLS interno) | TODO — hitos Fase 1-5 |
 | WebAuthn/passkeys | PLANNED (UNVERIFIED en plataformas Flutter; doc 03 §8) |
-| Registro de auditoría de accesos | TODO (etapa siguiente) |
 
 ## Decisiones registradas
 

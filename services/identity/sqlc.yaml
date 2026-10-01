@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    # El esquema se define ÚNICAMENTE en las migraciones (fuente única).
+    schema: "internal/migrate/migrations"
+    queries: "internal/db/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
+        sql_package: "pgx/v5"

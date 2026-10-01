@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,19 +26,35 @@ type Identity struct {
 	commonv1.UnimplementedHealthServiceServer
 
 	hasher   *auth.PasswordHasher
-	sessions *auth.SessionStore
+	sessions auth.SessionBackend
 	db       store.Storage
+	auditor  Auditor
 	log      *slog.Logger
 }
 
-// NewIdentity construye el servicio. `db` es la interfaz del store (hoy
-// memoria; PostgreSQL al cerrar Etapa 1).
-func NewIdentity(db store.Storage, hasher *auth.PasswordHasher, sessionTTL time.Duration, log *slog.Logger) *Identity {
+// Auditor registra acciones de identidad (mandato §13: auditoría).
+type Auditor interface {
+	Record(ctx context.Context, event, userID, tenantID string, detail map[string]any)
+}
+
+// Options agrupa las dependencias del servicio (inversión de dependencias;
+// sustitución memoria↔PostgreSQL sin tocar el servidor, mandato §33).
+type Options struct {
+	DB       store.Storage
+	Sessions auth.SessionBackend
+	Auditor  Auditor
+	Hasher   *auth.PasswordHasher
+	Log      *slog.Logger
+}
+
+// NewIdentity construye el servicio.
+func NewIdentity(o Options) *Identity {
 	return &Identity{
-		hasher:   hasher,
-		sessions: auth.NewSessionStore(sessionTTL),
-		db:       db,
-		log:      log,
+		hasher:   o.Hasher,
+		sessions: o.Sessions,
+		db:       o.DB,
+		auditor:  o.Auditor,
+		log:      o.Log,
 	}
 }
 
@@ -79,6 +94,9 @@ func (s *Identity) CreateTenant(ctx context.Context, req *identityv1.CreateTenan
 		return nil, mapStoreErr(err)
 	}
 	s.log.Info("tenant creado", "tenant_id", tenant.ID, "owner_id", owner.ID)
+	if s.auditor != nil {
+		s.auditor.Record(ctx, "tenant_created", owner.ID, tenant.ID, map[string]any{"name": tenant.Name})
+	}
 	return &identityv1.CreateTenantResponse{
 		Tenant: toProtoTenant(tenant),
 		Owner:  toProtoUser(owner),
@@ -112,11 +130,13 @@ func (s *Identity) AuthenticatePassword(ctx context.Context, req *identityv1.Aut
 		if errors.Is(err, store.ErrUserNotFound) {
 			// Mismo error para usuario inexistente y contraseña mala:
 			// no filtrar existencia de cuentas (anti-enumeración, §13).
+			s.auditFailure(ctx, "login_failed", map[string]any{"email": req.GetEmail(), "reason": "unknown_user"})
 			return nil, status.Error(codes.Unauthenticated, auth.ErrInvalidPassword.Error())
 		}
 		return nil, mapStoreErr(err)
 	}
 	if !s.hasher.Verify(req.GetPassword(), user.PasswordHash) {
+		s.auditFailure(ctx, "login_failed", map[string]any{"email": req.GetEmail(), "reason": "bad_password"})
 		return nil, status.Error(codes.Unauthenticated, auth.ErrInvalidPassword.Error())
 	}
 	token, sess, err := s.sessions.Create(user.ID, user.TenantID)
@@ -124,6 +144,9 @@ func (s *Identity) AuthenticatePassword(ctx context.Context, req *identityv1.Aut
 		return nil, status.Error(codes.Internal, "error interno")
 	}
 	s.log.Info("autenticación OK", "user_id", user.ID, "session_id", sess.ID)
+	if s.auditor != nil {
+		s.auditor.Record(ctx, "login_ok", user.ID, user.TenantID, map[string]any{"session_id": sess.ID})
+	}
 	return &identityv1.AuthenticatePasswordResponse{
 		Session: toProtoSession(sess, token),
 		User:    toProtoUser(user),
@@ -183,12 +206,26 @@ func (s *Identity) Logout(ctx context.Context, req *identityv1.LogoutRequest) (*
 		return nil, status.Error(codes.InvalidArgument, "token vacío")
 	}
 	s.sessions.Revoke(req.GetSessionToken())
+	if s.auditor != nil {
+		// Logout: auditoría sin exponer token; solo el hecho.
+		if sess, err := s.sessions.Validate(req.GetSessionToken()); err == nil {
+			s.auditor.Record(ctx, "logout", sess.UserID, sess.TenantID, nil)
+		}
+	}
 	return &identityv1.LogoutResponse{}, nil
 }
 
 // Check implementa common.v1.HealthService (ADR-0005).
 func (s *Identity) Check(ctx context.Context, req *commonv1.CheckRequest) (*commonv1.CheckResponse, error) {
 	return &commonv1.CheckResponse{Status: commonv1.ServingStatus_SERVING_STATUS_SERVING}, nil
+}
+
+// auditFailure registra fallos de autenticación sin bloquear el flujo
+// (la auditoría jamás debe ocultar el resultado real al atacante).
+func (s *Identity) auditFailure(ctx context.Context, event string, detail map[string]any) {
+	if s.auditor != nil {
+		s.auditor.Record(ctx, event, "", "", detail)
+	}
 }
 
 // --- conversores ---

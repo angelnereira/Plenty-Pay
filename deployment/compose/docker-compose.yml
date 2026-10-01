@@ -24,8 +24,12 @@ services:
     image: plentypay/identity:dev
     environment:
       PORT: "50051"
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
     ports:
       - "127.0.0.1:50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
 # Etapa 2+: api-gateway, ledger, payments, notifications, stack observabilidad.

@@ -17,6 +17,15 @@ var (
 	ErrSessionExpired  = errors.New("sesión expirada")
 )
 
+// SessionBackend es el contrato de gestión de sesiones: memoria (tests/dev)
+// o PostgreSQL (producción, store.PostgresSessions). Sustituible sin tocar
+// al servidor (mandato §33).
+type SessionBackend interface {
+	Create(userID, tenantID string) (token string, sess *Session, err error)
+	Validate(token string) (*Session, error)
+	Revoke(token string) error
+}
+
 // Session es la sesión almacenada. El token en claro NO se guarda: se guarda
 // su SHA-256 (defense in depth ante fuga del store).
 type Session struct {
@@ -28,53 +37,67 @@ type Session struct {
 	Revoked   bool
 }
 
-// SessionStore administra sesiones en memoria (PARTIAL: persistencia
-// PostgreSQL en la culminación de Etapa 1; la interfaz es la definitiva).
+// NewToken genera un token opaco de 256 bits y su hash SHA-256 (lo único
+// que se persiste).
+func NewToken() (token, tokenHash string, err error) {
+	raw := make([]byte, 32)
+	if _, err = rand.Read(raw); err != nil {
+		return "", "", fmt.Errorf("generando token: %w", err)
+	}
+	token = hex.EncodeToString(raw)
+	tokenHash = TokenHash(token)
+	return token, tokenHash, nil
+}
+
+// TokenHash calcula el hash SHA-256 del token en claro (lo único persistido).
+func TokenHash(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+// SessionStore administra sesiones en memoria (PARTIAL: para tests/dev;
+// producción usa store.PostgresSessions con la misma interfaz).
 type SessionStore struct {
-	mu      sync.RWMutex
-	byToken map[string]*Session // tokenHash -> sesión
-	ttl     time.Duration
-	nowFn   func() time.Time // inyectable para tests
-	idSeq   int
+	mu    sync.RWMutex
+	sess  map[string]*Session // tokenHash -> sesión
+	ttl   time.Duration
+	nowFn func() time.Time // inyectable para tests
+	idSeq int
 }
 
 func NewSessionStore(ttl time.Duration) *SessionStore {
 	return &SessionStore{
-		byToken: make(map[string]*Session),
-		ttl:     ttl,
-		nowFn:   time.Now,
+		sess:  make(map[string]*Session),
+		ttl:   ttl,
+		nowFn: time.Now,
 	}
 }
 
-// Create genera un token opaco de 256 bits y lo registra.
-// Devuelve (tokenEnClaro, sesión). El token en claro solo se entrega aquí,
-// en el momento de autenticación.
+// Create genera un token opaco y lo registra. El token en claro solo se
+// entrega aquí, en el momento de autenticación.
 func (s *SessionStore) Create(userID, tenantID string) (string, *Session, error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return "", nil, fmt.Errorf("generando token: %w", err)
+	token, hash, err := NewToken()
+	if err != nil {
+		return "", nil, err
 	}
-	token := hex.EncodeToString(raw)
-	sum := sha256.Sum256([]byte(token))
 	sess := &Session{
 		ID:        fmt.Sprintf("ses_%d_%s", s.nextSeq(), token[:8]),
 		UserID:    userID,
 		TenantID:  tenantID,
-		TokenHash: hex.EncodeToString(sum[:]),
+		TokenHash: hash,
 		ExpiresAt: s.nowFn().Add(s.ttl),
 	}
 	s.mu.Lock()
-	s.byToken[sess.TokenHash] = sess
+	s.sess[hash] = sess
 	s.mu.Unlock()
 	return token, sess, nil
 }
 
 // Validate valida un token en claro: existente, no revocado, no expirado.
 func (s *SessionStore) Validate(token string) (*Session, error) {
-	sum := sha256.Sum256([]byte(token))
-	hash := hex.EncodeToString(sum[:])
+	hash := TokenHash(token)
 	s.mu.RLock()
-	sess, ok := s.byToken[hash]
+	sess, ok := s.sess[hash]
 	s.mu.RUnlock()
 	if !ok || sess.Revoked {
 		return nil, ErrSessionNotFound
@@ -87,14 +110,14 @@ func (s *SessionStore) Validate(token string) (*Session, error) {
 
 // Revoke revoca por token (Logout). Revocar un token inexistente no es error
 // (idempotencia de red: el cliente puede reintentar el logout).
-func (s *SessionStore) Revoke(token string) {
-	sum := sha256.Sum256([]byte(token))
-	hash := hex.EncodeToString(sum[:])
+func (s *SessionStore) Revoke(token string) error {
+	hash := TokenHash(token)
 	s.mu.Lock()
-	if sess, ok := s.byToken[hash]; ok {
+	if sess, ok := s.sess[hash]; ok {
 		sess.Revoked = true
 	}
 	s.mu.Unlock()
+	return nil
 }
 
 func (s *SessionStore) nextSeq() int {

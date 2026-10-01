@@ -35,7 +35,13 @@ func startServer(t *testing.T) *fixture {
 	t.Helper()
 	lis := bufconn.Listen(1024 * 1024)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	svc := server.NewIdentity(store.NewMemoryStore(), auth.NewTestingHasher(), time.Minute, log)
+	svc := server.NewIdentity(server.Options{
+		DB:       store.NewMemoryStore(),
+		Sessions: auth.NewSessionStore(time.Minute),
+		Auditor:  store.NewMemoryAuditor(),
+		Hasher:   auth.NewTestingHasher(),
+		Log:      log,
+	})
 	srv := grpc.NewServer(grpc.UnaryInterceptor(server.UnaryCorrelation(log)))
 	identityv1.RegisterIdentityServiceServer(srv, svc)
 	commonv1.RegisterHealthServiceServer(srv, svc)
