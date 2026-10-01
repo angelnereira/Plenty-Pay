@@ -1,0 +1,40 @@
+# Secretos / entornos — NUNCA en Git (§13)
+.env
+*.env.local
+!*.env.example
+secrets/
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Rust
+target/
+**/target/
+
+# Go
+*.test
+*.out
+
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Output: artefactos (el README sí se versiona)
+output/*
+!output/README.md
+!output/.gitkeep
+
+# Tooling local
+buf.gen.local.*

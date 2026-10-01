@@ -1,0 +1,36 @@
+# Entorno de desarrollo local (mandato §14: docker compose up --build = entorno funcional)
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?definir en .env (copiar de .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en .env}
+      POSTGRES_DB: ${POSTGRES_DB:?definir en .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  identity:
+    build:
+      context: ../..
+      dockerfile: services/identity/Dockerfile
+    image: plentypay/identity:dev
+    environment:
+      PORT: "50051"
+    ports:
+      - "127.0.0.1:50051:50051"
+    restart: unless-stopped
+
+# Etapa 2+: api-gateway, ledger, payments, notifications, stack observabilidad.
+# Compatibilidad K8s (mandato §15): cada servicio = Deployment; healthchecks =
+# readiness/liveness; volúmenes = PVC. Nada aquí acopla a un proveedor.
+
+volumes:
+  pgdata: {}
