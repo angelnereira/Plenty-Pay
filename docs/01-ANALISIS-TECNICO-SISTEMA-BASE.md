@@ -1,5 +1,7 @@
 # Análisis Técnico del Sistema Base — Estado de Origen
 
+> ⚠️ **ANOTACIÓN 2026-10-01 (ADR-0001)**: el sistema aquí descrito vive FUERA de este repo (no hay código migrado). Referencias a `MIGRATION_STATUS.md` → sustituidas por `docs/40-ESTADO-IMPLEMENTACION.md`. TypeScript está prohibido en el código nuevo de PlentyPay (mandato): lo marcado como existente en TS es contexto del sistema de origen, no código a migrar.
+
 > Nota: este documento describe el sistema técnico sobre el que se construye PlentyPay, tomado como una línea base genérica de requerimientos (no como identidad de marca — ver `00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md` para la descripción de producto, ya sin ninguna referencia al sistema de origen).
 
 > Basado en la revisión directa del código fuente del sistema original entregado como línea de partida (94 pantallas, 76 modelos de datos, ~36 widgets compartidos + primitivas Shadcn). Este documento es la línea base técnica real sobre la que se construyen los demás documentos de la serie PlentyPay.

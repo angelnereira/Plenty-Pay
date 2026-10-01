@@ -1,5 +1,7 @@
 # PlentyPay — Blueprint Funcional
 
+> ⚠️ **ANOTACIÓN 2026-10-01 (ADR-0003)**: targets vigentes de la app única: **Android, iOS, Windows, Linux**. macOS queda diferido (no eliminado) hasta contar con host/toolchain. Resto de este documento sigue vigente como fuente de verdad funcional.
+
 > Este documento describe **qué es PlentyPay y qué hace**, no cómo está
 > construido por dentro. No menciona lenguajes de programación, bases de
 > datos ni herramientas: cualquier equipo, con cualquier tecnología, debería

@@ -1,5 +1,7 @@
 # PlentyPay — Arquitectura de Contenedores, SOLID y Distribución Tecnológica
 
+> ⚠️ **CORRECCIÓN 2026-10-01 (ADR-0001)**: las marcas "✅ Construido (en TypeScript, en este repo)" NO aplican a este repositorio — verificado por auditoría filesystem: aquí no existe código de ningún tipo. La decisión vigente es construir directamente en Rust/Go según la sección 7 de este mismo documento (Rust como destino ya declarado); el monolito TS de transición no se implementa. Estado real y vivo: `docs/40-ESTADO-IMPLEMENTACION.md`.
+
 > Continúa de los documentos 02 y 03. Este documento responde una pregunta
 > específica: **de los ~10 a 20 contenedores que compondrán PlentyPay, cuál
 > es la responsabilidad de cada uno, en qué lenguaje/tecnología conviene
