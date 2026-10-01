@@ -1,0 +1,104 @@
+// PlentyPay — Payment Core (mandato §11).
+// Intent / Payment / Attempt separados; el orquestador NUNCA escribe en la BD
+// del ledger (solo contrato ledger.v1); rieles por adaptador (doc 03 §4).
+// Estados de incertidumbre explícitos: UNDETERMINED existe porque doc 00 §3.2
+// prohíbe asumir lo peor ni lo mejor sin confirmación.
+syntax = "proto3";
+
+package plentypay.payments.v1;
+
+import "google/protobuf/timestamp.proto";
+import "plentypay/common/v1/common.proto";
+
+option go_package = "plentypay.dev/contracts/gen/go/plentypay/payments/v1;paymentsv1";
+
+service PaymentOrchestratorService {
+  rpc CreateChargeIntent(CreateChargeIntentRequest) returns (CreateChargeIntentResponse);
+  rpc ConfirmCharge(ConfirmChargeRequest) returns (ConfirmChargeResponse);
+  rpc GetCharge(GetChargeRequest) returns (GetChargeResponse);
+  rpc ListCharges(ListChargesRequest) returns (ListChargesResponse);
+  rpc RefundCharge(RefundChargeRequest) returns (RefundChargeResponse); // implementación Etapa 3+
+}
+
+message Charge {
+  string charge_id = 1;
+  string tenant_id = 2;
+  plentypay.common.v1.Money amount = 3;
+  PaymentRail rail = 4;
+  ChargeStatus status = 5;
+  string idempotency_key = 6;
+  string merchant_reference = 7;
+  string failure_reason = 8;   // solo si FAILED
+  google.protobuf.Timestamp created_at = 9;
+}
+
+enum PaymentRail {
+  PAYMENT_RAIL_UNSPECIFIED = 0;
+  PAYMENT_RAIL_WALLET_INTERNAL = 1; // wallet PlentyPay → PlentyPay (Etapa 2)
+  PAYMENT_RAIL_YAPPY = 2;           // Etapa 4, gate BLOCKED-UNVERIFIED
+  PAYMENT_RAIL_TELERED_CLAVE = 3;   // Etapa 4, gate BLOCKED-UNVERIFIED
+  PAYMENT_RAIL_CARD_NETWORK = 4;    // Etapa 4 vía PSP tokenizado (doc 03 §3; nunca PAN)
+}
+
+enum ChargeStatus {
+  CHARGE_STATUS_UNSPECIFIED = 0;
+  CHARGE_STATUS_REQUIRES_ACTION = 1; // el usuario debe confirmar (app, banco, PSP)
+  CHARGE_STATUS_PROCESSING = 2;
+  CHARGE_STATUS_SUCCEEDED = 3;
+  CHARGE_STATUS_FAILED = 4;
+  CHARGE_STATUS_UNDETERMINED = 5;    // "no sabemos": se investiga, nunca se re-cobra a ciegas (doc 00 §3.2)
+  CHARGE_STATUS_REVERSED = 6;
+}
+
+message CreateChargeIntentRequest {
+  string tenant_id = 1;
+  plentypay.common.v1.Money amount = 2;
+  PaymentRail rail = 3;
+  string idempotency_key = 4; // mandato doc 02 §7: imprescindible en pagos
+  string merchant_reference = 5;
+}
+
+message CreateChargeIntentResponse {
+  Charge charge = 1;
+  bool replayed = 2;
+}
+
+message ConfirmChargeRequest {
+  string charge_id = 1;
+  string confirmation_token = 2; // token del dispositivo/PSP/banco. NUNCA un PAN (doc 03 §3)
+  string idempotency_key = 3;
+}
+
+message ConfirmChargeResponse {
+  Charge charge = 1;
+}
+
+message GetChargeRequest {
+  string charge_id = 1;
+}
+
+message GetChargeResponse {
+  Charge charge = 1;
+}
+
+message ListChargesRequest {
+  string tenant_id = 1;
+  string status_filter = 2; // opcional; nombre del enum ChargeStatus
+  uint32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListChargesResponse {
+  repeated Charge charges = 1;
+  string next_page_token = 2;
+}
+
+message RefundChargeRequest {
+  string charge_id = 1;
+  string idempotency_key = 2;
+  string reason = 3;
+}
+
+message RefundChargeResponse {
+  Charge charge = 1;
+}

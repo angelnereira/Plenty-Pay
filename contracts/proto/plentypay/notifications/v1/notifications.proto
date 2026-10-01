@@ -1,0 +1,54 @@
+// PlentyPay — Notificaciones (Etapa 2). Punto único de salida (doc 04 §3:
+// nunca cada servicio llamando a su proveedor por su cuenta). Adaptadores por
+// canal; provedores externos = UNVERIFIED hasta credenciales reales.
+syntax = "proto3";
+
+package plentypay.notifications.v1;
+
+option go_package = "plentypay.dev/contracts/gen/go/plentypay/notifications/v1;notificationsv1";
+
+service NotificationService {
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
+  rpc GetNotificationStatus(GetNotificationStatusRequest) returns (GetNotificationStatusResponse);
+}
+
+message SendNotificationRequest {
+  NotificationChannel channel = 1;
+  string recipient = 2;         // email / device token / teléfono — validación server-side
+  string template_key = 3;      // ej. "receipt", "payment_confirmation"
+  map<string, string> data = 4; // variables de plantilla (sin datos sensibles crudos)
+  string idempotency_key = 5;
+  string correlation_id = 6;    // ADR-0004
+}
+
+message SendNotificationResponse {
+  string notification_id = 1;
+  NotificationState state = 2;
+}
+
+enum NotificationChannel {
+  NOTIFICATION_CHANNEL_UNSPECIFIED = 0;
+  NOTIFICATION_CHANNEL_CONSOLE = 1; // dev: log estructurado; IMPLEMENTED (stub declarado)
+  NOTIFICATION_CHANNEL_EMAIL = 2;   // proveedor real: BLOCKED-UNVERIFIED (credenciales)
+  NOTIFICATION_CHANNEL_PUSH = 3;    // BLOCKED-UNVERIFIED
+  NOTIFICATION_CHANNEL_WHATSAPP = 4; // doc 03 §6: Etapa 4+, acuerdo comercial requerido
+}
+
+enum NotificationState {
+  NOTIFICATION_STATE_UNSPECIFIED = 0;
+  NOTIFICATION_STATE_QUEUED = 1;
+  NOTIFICATION_STATE_SENDING = 2;
+  NOTIFICATION_STATE_SENT = 3;
+  NOTIFICATION_STATE_FAILED = 4;
+  NOTIFICATION_STATE_SUPPRESSED = 5;
+}
+
+message GetNotificationStatusRequest {
+  string notification_id = 1;
+}
+
+message GetNotificationStatusResponse {
+  string notification_id = 1;
+  NotificationState state = 2;
+  string provider_reference = 3;
+}

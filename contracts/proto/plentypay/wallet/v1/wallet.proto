@@ -1,0 +1,48 @@
+// PlentyPay — Wallet (doc 03 §10). Contrato servido por el servicio `payments`
+// (ADR-0006): saldos derivados del ledger, nunca fuente de verdad propia.
+// Semántica: available / held / pending_settlement.
+syntax = "proto3";
+
+package plentypay.wallet.v1;
+
+import "plentypay/common/v1/common.proto";
+
+option go_package = "plentypay.dev/contracts/gen/go/plentypay/wallet/v1;walletv1";
+
+service WalletService {
+  rpc GetWallet(GetWalletRequest) returns (GetWalletResponse);
+  rpc InternalTransfer(InternalTransferRequest) returns (InternalTransferResponse);
+}
+
+message Wallet {
+  string account_id = 1;
+  string tenant_id = 2;
+  string owner_user_id = 3;
+  string currency_code = 4;
+  plentypay.common.v1.Money available = 5;           // utilizable ya
+  plentypay.common.v1.Money held = 6;                // retenido (holds abiertos)
+  plentypay.common.v1.Money pending_settlement = 7;  // por liquidar al comercio
+}
+
+message GetWalletRequest {
+  string tenant_id = 1;
+  string owner_user_id = 2;
+}
+
+message GetWalletResponse {
+  Wallet wallet = 1;
+}
+
+message InternalTransferRequest {
+  string from_user_id = 1;
+  string to_user_id = 2;
+  plentypay.common.v1.Money amount = 3;
+  string idempotency_key = 4;
+  string note = 5; // longitud limitada y validada server-side
+}
+
+message InternalTransferResponse {
+  string transfer_id = 1;
+  Wallet from_wallet = 2;
+  Wallet to_wallet = 3;
+}
