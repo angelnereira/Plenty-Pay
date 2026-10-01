@@ -45,16 +45,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		log.Error("conexión a PostgreSQL", "err", err)
-		os.Exit(1)
+	// Arranque resiliente: PG puede estar en ventana de recuperación
+	// (SQLSTATE 57P03) aunque el healthcheck ya pasó. Reintento con backoff
+	// hasta 60s; pasado eso, fail secure (no arrancar en estado dudoso).
+	var pool *pgxpool.Pool
+	var err error
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		pool, err = pgxpool.New(ctx, dsn)
+		if err == nil {
+			var pingErr error
+			if pingErr = pool.Ping(ctx); pingErr == nil {
+				break
+			}
+			log.Warn("ping a PostgreSQL", "err", pingErr)
+			pool.Close()
+		} else {
+			log.Warn("conexión a PostgreSQL", "err", err)
+		}
+		if time.Now().After(deadline) {
+			log.Error("PostgreSQL no disponible tras 60s: fail secure, no arranco")
+			os.Exit(1)
+		}
+		time.Sleep(2 * time.Second)
 	}
 	defer pool.Close()
-	if err := pool.Ping(ctx); err != nil {
-		log.Error("ping a PostgreSQL", "err", err)
-		os.Exit(1)
-	}
 
 	applied, err := migrate.Up(ctx, pool)
 	if err != nil {
