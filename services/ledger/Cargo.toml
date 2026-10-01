@@ -1,0 +1,14 @@
+[package]
+name = "plentypay-ledger"
+version = "0.1.0"
+edition = "2021"
+description = "Núcleo contable de doble partida de PlentyPay (mandato §12). Dominio puro, std-only; persistencia PostgreSQL y transporte gRPC llegan en Etapa 2."
+license = "Proprietary"
+
+[dependencies]
+# Intencionalmente vacío: el dominio financiero no arrastra dependencias que
+# no resuelvan un problema concreto (mandato §21).
+
+[profile.release]
+lto = true
+overflow-checks = true # paranoia financiera también en release
