@@ -54,7 +54,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [event-bus](event-bus/SPEC.md) | NATS JetStream | 4222 | 📋 | F07 |
 | [object-storage](object-storage/SPEC.md) | Garage | 3900 | 📋 | F07 |
 | [web](web/SPEC.md) | Go | 8081 | 📋 | F02 |
-| [flutter_app](flutter_app/README.md) (cliente) | Flutter | — | 📝 esqueleto (analyze y pruebas en verde; sin builds de plataforma) | F02 |
+| [flutter_app](flutter_app/README.md) (cliente) | Flutter | — | 📝 base multiplataforma con flavors e i18n (compila web y Android) | F02 |
 | [network-contracts](network-contracts/README.md) | Protobuf | — | ✅ 18 contratos compilan juntos | F03 |
 
 ## 3. Principios que no se negocian

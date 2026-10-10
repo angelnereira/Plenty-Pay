@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
 
 /// Inicio de sesión y registro de cliente (docs/ux/screen-catalog.md §2: /login, /register).
 class LoginScreen extends StatefulWidget {
@@ -20,15 +21,17 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _busy = false;
   String? _error;
 
-  // F02.3: estos textos pasan a ARB; los `reason` se traducen con error_<REASON>.
-  static const _messages = {
-    'INVALID_CREDENTIALS': 'Correo o contraseña incorrectos.',
-    'ACCOUNT_LOCKED': 'Cuenta bloqueada temporalmente. Intenta más tarde.',
-    'REGISTRATION_REJECTED': 'No pudimos crear la cuenta. Revisa los datos.',
-    'IDENTITY_UNAVAILABLE': 'Servicio no disponible. Intenta en unos minutos.',
-  };
+  /// Traduce el `reason` del gateway con ARB (`error_<REASON>`); desconocido → genérico con el reason visible.
+  static String _reasonMessage(AppLocalizations l10n, String reason) => switch (reason) {
+        'INVALID_CREDENTIALS' => l10n.error_INVALID_CREDENTIALS,
+        'ACCOUNT_LOCKED' => l10n.error_ACCOUNT_LOCKED,
+        'REGISTRATION_REJECTED' => l10n.error_REGISTRATION_REJECTED,
+        'IDENTITY_UNAVAILABLE' => l10n.error_IDENTITY_UNAVAILABLE,
+        _ => l10n.errorGeneric(reason),
+      };
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _busy = true;
       _error = null;
@@ -41,9 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       widget.onSignedIn();
     } on ApiException catch (e) {
-      setState(() => _error = _messages[e.reason] ?? 'Algo salió mal (${e.reason}).');
+      if (mounted) setState(() => _error = _reasonMessage(l10n, e.reason));
     } catch (_) {
-      setState(() => _error = 'Sin conexión con el servidor.');
+      if (mounted) setState(() => _error = l10n.errorNoConnection);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -60,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -69,19 +73,19 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('PlentyPay', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
+                Text(l10n.appTitle, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                Text(_registering ? 'Crea tu cuenta' : 'Inicia sesión', style: theme.textTheme.titleMedium),
+                Text(_registering ? l10n.registerTitle : l10n.loginTitle, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 24),
                 if (_registering) ...[
-                  TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nombre completo')),
+                  TextField(controller: _name, decoration: InputDecoration(labelText: l10n.fieldFullName)),
                   const SizedBox(height: 12),
                 ],
                 TextField(
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(labelText: 'Correo'),
+                  decoration: InputDecoration(labelText: l10n.fieldEmail),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -89,8 +93,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                   autofillHints: const [AutofillHints.password],
                   decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    helperText: _registering ? 'Mínimo 12 caracteres' : null,
+                    labelText: l10n.fieldPassword,
+                    helperText: _registering ? l10n.passwordHelper : null,
                   ),
                 ),
                 if (_error != null) ...[
@@ -106,11 +110,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _busy ? null : _submit,
                   child: _busy
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text(_registering ? 'Crear cuenta' : 'Entrar'),
+                      : Text(_registering ? l10n.actionCreateAccount : l10n.actionSignIn),
                 ),
                 TextButton(
                   onPressed: _busy ? null : () => setState(() => _registering = !_registering),
-                  child: Text(_registering ? 'Ya tengo cuenta' : 'Crear una cuenta'),
+                  child: Text(_registering ? l10n.actionHaveAccount : l10n.actionWantAccount),
                 ),
               ],
             ),

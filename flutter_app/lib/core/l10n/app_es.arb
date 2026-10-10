@@ -1,0 +1,52 @@
+{
+  "@@locale": "es",
+  "appTitle": "PlentyPay",
+  "loginTitle": "Inicia sesión",
+  "registerTitle": "Crea tu cuenta",
+  "fieldFullName": "Nombre completo",
+  "fieldEmail": "Correo",
+  "fieldPassword": "Contraseña",
+  "passwordHelper": "Mínimo 12 caracteres",
+  "actionSignIn": "Entrar",
+  "actionCreateAccount": "Crear cuenta",
+  "actionHaveAccount": "Ya tengo cuenta",
+  "actionWantAccount": "Crear una cuenta",
+  "actionRetry": "Reintentar",
+  "actionSignOut": "Cerrar sesión",
+  "error_INVALID_CREDENTIALS": "Correo o contraseña incorrectos.",
+  "error_ACCOUNT_LOCKED": "Cuenta bloqueada temporalmente. Intenta más tarde.",
+  "error_REGISTRATION_REJECTED": "No pudimos crear la cuenta. Revisa los datos.",
+  "error_IDENTITY_UNAVAILABLE": "Servicio no disponible. Intenta en unos minutos.",
+  "errorGeneric": "Algo salió mal ({reason}).",
+  "@errorGeneric": {
+    "description": "Error con un reason que la app todavía no traduce.",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+  "errorNoConnection": "Sin conexión con el servidor.",
+  "shellMenuLoadFailed": "No pudimos cargar tu menú.",
+  "navHome": "Inicio",
+  "homeModuleCount": "{count, plural, =0{Todavía no tienes módulos.} =1{Tienes acceso a 1 módulo.} other{Tienes acceso a {count} módulos.}}",
+  "@homeModuleCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "moduleScreensIn": "Pantallas en {phase}",
+  "@moduleScreensIn": {
+    "placeholders": { "phase": { "type": "String" } }
+  },
+  "moduleComingSoon": "Disponible próximamente ({phase})",
+  "@moduleComingSoon": {
+    "placeholders": { "phase": { "type": "String" } }
+  },
+  "moduleWallet": "Billetera",
+  "moduleMarketplace": "Comprar",
+  "modulePos": "Caja",
+  "moduleCatalog": "Productos",
+  "moduleInventory": "Inventario",
+  "moduleOrders": "Pedidos",
+  "moduleLogistics": "Entregas",
+  "moduleFinance": "Finanzas",
+  "modulePayroll": "Equipo",
+  "moduleAnalytics": "Análisis",
+  "moduleAdmin": "Mi negocio",
+  "modulePlatform": "Plataforma"
+}

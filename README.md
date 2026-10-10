@@ -2,7 +2,7 @@
 
 Una sola plataforma para que un negocio venda, cobre en cualquier forma de pago, controle inventario, entregue, pague a su equipo, facture ante la DGI y entienda sus números — y para que cualquier persona pague, reciba dinero y compre en un marketplace compartido. Descripción de producto sin tecnicismos: [`00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md`](00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md).
 
-> **Estado honesto (2026-10-10)**: el proyecto está en la **Fase 1–2 de 30**. Existe la documentación completa que gobierna el desarrollo, los 18 contratos gRPC, y código funcional de `identity` y `api-gateway` (login/registro/permisos, probado con pruebas unitarias y una prueba extremo a extremo). La app Flutter es un esqueleto (login + navegación dinámica) que pasa `flutter analyze` y `flutter test`, sin builds de plataforma todavía. **Nada mueve dinero real.** Detalle paso a paso: [`docs/roadmap/status.md`](docs/roadmap/status.md).
+> **Estado honesto (2026-10-10)**: el proyecto está en la **Fase 1–2 de 30**. Existe la documentación completa que gobierna el desarrollo, los 18 contratos gRPC, y código funcional de `identity` y `api-gateway` (login/registro/permisos, probado con pruebas unitarias y una prueba extremo a extremo). La app Flutter tiene la base multiplataforma (login + navegación dinámica, flavors, español/inglés) y compila para web y Android; los módulos de negocio aún no tienen pantallas. **Nada mueve dinero real.** Detalle paso a paso: [`docs/roadmap/status.md`](docs/roadmap/status.md).
 
 ## Stack (ADR 0001)
 | Capa | Tecnología |

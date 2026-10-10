@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
 import '../modules/module_registry.dart';
 
 /// Shell con navegación dinámica (flutter-standards.md §6–§7, design-system.md §6 AppShell).
@@ -31,6 +32,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return FutureBuilder<Permissions>(
       future: _perms,
       builder: (context, snap) {
@@ -43,21 +45,21 @@ class _AppShellState extends State<AppShell> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.cloud_off_outlined, size: 40),
                 const SizedBox(height: 12),
-                const Text('No pudimos cargar tu menú.'),
+                Text(l10n.shellMenuLoadFailed),
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () => setState(() => _perms = widget.api.permissions()),
-                  child: const Text('Reintentar'),
+                  child: Text(l10n.actionRetry),
                 ),
-                TextButton(onPressed: _signOut, child: const Text('Cerrar sesión')),
+                TextButton(onPressed: _signOut, child: Text(l10n.actionSignOut)),
               ]),
             ),
           );
         }
         final modules = visibleModules(snap.data!.modules);
         final destinations = <({String label, IconData icon})>[
-          (label: 'Inicio', icon: Icons.home_outlined),
-          for (final m in modules) (label: m.label, icon: m.icon),
+          (label: l10n.navHome, icon: Icons.home_outlined),
+          for (final m in modules) (label: moduleLabel(l10n, m), icon: m.icon),
         ];
         if (_index >= destinations.length) _index = 0;
         final body = _index == 0
@@ -90,8 +92,7 @@ class _AppShellState extends State<AppShell> {
               onDestinationSelected: (i) => setState(() => _index = i),
               labelType: width > 1024 ? NavigationRailLabelType.none : NavigationRailLabelType.all,
               destinations: [
-                for (final d in destinations)
-                  NavigationRailDestination(icon: Icon(d.icon), label: Text(d.label)),
+                for (final d in destinations) NavigationRailDestination(icon: Icon(d.icon), label: Text(d.label)),
               ],
             ),
             VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
@@ -110,15 +111,22 @@ class _HomePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ListView(padding: const EdgeInsets.all(24), children: [
-      Text('Inicio', style: Theme.of(context).textTheme.headlineSmall),
+      Text(l10n.navHome, style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
-      Text('Tienes acceso a ${modules.length} módulos.'),
+      Text(l10n.homeModuleCount(modules.length)),
       const SizedBox(height: 16),
       for (final m in modules)
-        Card(child: ListTile(leading: Icon(m.icon), title: Text(m.label), subtitle: Text('Pantallas en ${m.phase}'))),
+        Card(
+          child: ListTile(
+            leading: Icon(m.icon),
+            title: Text(moduleLabel(l10n, m)),
+            subtitle: Text(l10n.moduleScreensIn(m.phase)),
+          ),
+        ),
       const SizedBox(height: 24),
-      OutlinedButton.icon(onPressed: onSignOut, icon: const Icon(Icons.logout), label: const Text('Cerrar sesión')),
+      OutlinedButton.icon(onPressed: onSignOut, icon: const Icon(Icons.logout), label: Text(l10n.actionSignOut)),
     ]);
   }
 }
@@ -129,13 +137,14 @@ class _ModulePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(module.icon, size: 48),
         const SizedBox(height: 12),
-        Text(module.label, style: Theme.of(context).textTheme.titleLarge),
+        Text(moduleLabel(l10n, module), style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 4),
-        Text('Disponible próximamente (${module.phase})'),
+        Text(l10n.moduleComingSoon(module.phase)),
       ]),
     );
   }

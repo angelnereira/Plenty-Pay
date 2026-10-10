@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../config.dart';
 import '../session/session_store.dart';
 
 /// Error del gateway: {"error": "...", "reason": "..."} (api-gateway/SPEC.md §3.11).
@@ -33,23 +32,23 @@ class Permissions {
 
 /// Cliente mínimo (F02). F02.5 lo migra a dio con interceptores (request-id, Idempotency-Key, reintentos).
 class ApiClient {
-  ApiClient({http.Client? client, SessionStore? session})
+  ApiClient({required this.baseUrl, http.Client? client, SessionStore? session})
       : _http = client ?? http.Client(),
         _session = session ?? SessionStore();
 
+  /// URL base del gateway según el flavor (AppConfig.apiBaseUrl).
+  final String baseUrl;
   final http.Client _http;
   final SessionStore _session;
   Future<bool>? _refreshing; // un solo refresh concurrente
 
-  Uri _u(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
+  Uri _u(String path) => Uri.parse('$baseUrl$path');
 
   Future<void> login(String email, String password) async {
     final res = await _http.post(_u('/v1/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}));
+        headers: {'Content-Type': 'application/json'}, body: jsonEncode({'email': email, 'password': password}));
     final body = _decode(res);
-    await _session.save(
-        accessToken: body['access_token'] as String, refreshToken: body['refresh_token'] as String);
+    await _session.save(accessToken: body['access_token'] as String, refreshToken: body['refresh_token'] as String);
   }
 
   /// El registro público siempre crea CUSTOMER (el gateway lo fuerza: api-gateway R2).
@@ -58,8 +57,7 @@ class ApiClient {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'full_name': fullName, 'email': email, 'password': password}));
     final body = _decode(res);
-    await _session.save(
-        accessToken: body['access_token'] as String, refreshToken: body['refresh_token'] as String);
+    await _session.save(accessToken: body['access_token'] as String, refreshToken: body['refresh_token'] as String);
   }
 
   Future<Me> me() async {
@@ -110,8 +108,7 @@ class ApiClient {
       return false;
     }
     final body = jsonDecode(res.body) as Map<String, dynamic>;
-    await _session.save(
-        accessToken: body['access_token'] as String, refreshToken: body['refresh_token'] as String);
+    await _session.save(accessToken: body['access_token'] as String, refreshToken: body['refresh_token'] as String);
     return true;
   }
 

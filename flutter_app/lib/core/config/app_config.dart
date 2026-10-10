@@ -1,0 +1,45 @@
+/// Configuración por flavor (flutter-standards.md §15). Los flavors se eligen con dart-define:
+///   flutter run --dart-define=FLAVOR=dev --dart-define=API_BASE_URL=http://localhost:8080
+enum Flavor {
+  dev,
+  staging,
+  prod;
+
+  /// Solo dev puede hablar http en claro (con el gateway local).
+  bool get requiresHttps => this != Flavor.dev;
+
+  static Flavor parse(String value) => switch (value) {
+        'dev' => Flavor.dev,
+        'staging' => Flavor.staging,
+        'prod' => Flavor.prod,
+        _ => throw StateError('FLAVOR desconocido: "$value" (usa dev, staging o prod)'),
+      };
+}
+
+class AppConfig {
+  const AppConfig._({required this.flavor, required this.apiBaseUrl});
+
+  /// Valida la combinación flavor/URL. staging y prod nunca hablan http en claro:
+  /// la app falla al arrancar en vez de degradar la seguridad.
+  factory AppConfig.resolve({required String flavor, required String apiBaseUrl}) {
+    final parsed = Flavor.parse(flavor);
+    final uri = Uri.tryParse(apiBaseUrl);
+    if (uri == null || uri.host.isEmpty || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      throw StateError('API_BASE_URL inválida: "$apiBaseUrl"');
+    }
+    if (parsed.requiresHttps && uri.scheme != 'https') {
+      throw StateError('API_BASE_URL debe ser https en ${parsed.name}');
+    }
+    final normalized = apiBaseUrl.endsWith('/') ? apiBaseUrl.substring(0, apiBaseUrl.length - 1) : apiBaseUrl;
+    return AppConfig._(flavor: parsed, apiBaseUrl: normalized);
+  }
+
+  /// Lee los dart-define del build. Sin defines: dev contra el gateway local.
+  factory AppConfig.fromEnvironment() => AppConfig.resolve(
+        flavor: const String.fromEnvironment('FLAVOR', defaultValue: 'dev'),
+        apiBaseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8080'),
+      );
+
+  final Flavor flavor;
+  final String apiBaseUrl;
+}

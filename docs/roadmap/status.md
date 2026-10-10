@@ -2,7 +2,7 @@
 
 Fuente de verdad del avance **con evidencia**. Reglas (AGENTS.md §2.11 y §3): solo se marca ✅ lo ejecutado al nivel exigido, con el comando/fecha en *Evidencia*. 📝 = en curso o parcial (decir qué falta). 📋 = pendiente. ⛔ = bloqueado (citar la pregunta de `docs/open-questions.md`).
 
-**Fase en curso**: F01/F02 (cierre de gobierno y cliente base). **Siguiente paso recomendado para un agente**: F02.3 → F02.2 (F01.7 espera la licencia, Q-17).
+**Fase en curso**: F01/F02 (cierre de gobierno y cliente base). **Siguiente paso recomendado para un agente**: F02.4 (en paralelo F02.2; F01.7 espera la licencia, Q-17).
 
 ## Limitaciones del entorno donde se generó este repositorio
 Go se compiló contra clones de dependencias (el proxy de módulos no era alcanzable); Rust 1.97 disponible pero sin código Rust aún; Docker sin acceso a Docker Hub (imágenes no construidas); sin SDK de Flutter (código Dart no compilado); sin OpenTofu. Todo lo marcado ✅ se ejecutó realmente; lo demás no.
@@ -23,7 +23,7 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 | `./scripts/sync-protos.sh --check` (protoc 29.3, protoc-gen-go 1.35.2, protoc-gen-go-grpc 1.5.1) | OK tras regenerar: el código entregado difería en un comentario de `identity_grpc.pb.go` |
 | `gitleaks detect -c .gitleaks.toml` (historial completo) | sin hallazgos (se agregaron al allowlist dos contraseñas ficticias de `identity/internal/server/server_test.go`) |
 
-**No ejecutado aquí** (faltan las herramientas): `golangci-lint`, `tofu`. `buf` 1.73 está instalado pero aún sin configuración (F03.3). No se ha corrido `flutter create` ni ningún build de plataforma.
+**No ejecutado aquí** (faltan las herramientas): `golangci-lint`, `tofu`. `buf` 1.73 está instalado pero aún sin configuración (F03.3). Builds de plataforma: ver F02.3.
 
 ## Contratos pendientes de agregar (aditivos, F03.2)
 `payments.PostMemoEntry` (T8/T9 para pos), `analytics.AskQuestion`, `analytics.AlertTriggered` (+ subject `pp.analytics.alert.triggered.v1`), `identity.NotificationRequested` (+ subject `pp.identity.notification.requested.v1`).
@@ -47,7 +47,7 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 |---|---|---|
 | F02.1 `docker-compose.yml` con redes edge/services/data, healthchecks y `.env.example` por contenedor | ✅ | 2026-10-10: `docker compose up --build -d --wait` deja identity y api-gateway `healthy` (healthcheck `/app healthcheck` → `:9100/healthz/ready`, gateway con `depends_on: service_healthy`); solo 8080 publicado (9100 y 50060 no alcanzables desde el host); registro y login 200 por el gateway; E2E 14/14. `web` (8081) se agrega en F02.8 |
 | F02.2 Pipeline CI (scripts en `scripts/ci/`): repo-checks, build-test Go/Rust/Flutter afectado, imagen | 📋 |  |
-| F02.3 `flutter create` multiplataforma sobre el esqueleto existente; flavors dev/staging/prod; i18n es_PA/en | 📝 | Esqueleto Dart en flutter_app/lib; `flutter analyze` sin issues y `flutter test` 4/4 con Flutter 3.47.6 (2026-10-10). Falta: `flutter create` multiplataforma, flavors e i18n |
+| F02.3 `flutter create` multiplataforma sobre el esqueleto existente; flavors dev/staging/prod; i18n es_PA/en | ✅ | 2026-10-10, Flutter 3.47.6: `flutter create` para android/ios/linux/windows/macos/web; flavors por dart-define (`AppConfig`: staging y prod rechazan http, con prueba); i18n ARB `es_PA`/`en`. `flutter analyze` sin issues; `flutter test` 19/19. Además compilan `flutter build web` y `flutter build apk --debug`. No verificado: build Linux (falta `libsecret-1-dev` en la máquina), iOS/macOS/Windows (requieren su sistema). Pendiente para F23.2: entitlement NDEF de iOS |
 | F02.4 Tokens y componentes del design system (PPButton, PPTextField, MoneyText, AsyncView, StatusChip, AppShell) con golden tests claro/oscuro | 📝 | Tokens en app_theme.dart; faltan componentes y goldens |
 | F02.5 Sesión segura (secure storage), ApiClient (dio) con refresh único, request-id e Idempotency-Key | 📝 | ApiClient con http y refresh único; migrar a dio + idempotencia |
 | F02.6 Login, registro, recuperar contraseña (UI) y shell con navegación dinámica según `enabled_modules` | 📝 | Login + shell dinámico escritos; sin integration_test |
