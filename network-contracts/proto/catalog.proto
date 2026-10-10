@@ -1,0 +1,128 @@
+syntax = "proto3";
+package plentypay.catalog.v1;
+
+option go_package = "plentypay/catalog/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// catalog: catálogo por comercio + vitrina pública de marketplace. NO guarda existencias (inventory). Spec: catalog/SPEC.md
+service Catalog {
+  rpc CreateProduct(CreateProductRequest) returns (Product);
+  rpc UpdateProduct(UpdateProductRequest) returns (Product);
+  rpc ArchiveProduct(ArchiveProductRequest) returns (Product);
+  rpc GetProduct(GetProductRequest) returns (Product);
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  rpc LookupByBarcode(LookupByBarcodeRequest) returns (Product);
+  rpc BulkImportProducts(stream ImportProductRow) returns (BulkImportResult);
+
+  rpc UpsertCategory(UpsertCategoryRequest) returns (Category);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+
+  rpc CreateUploadUrl(CreateUploadUrlRequest) returns (UploadUrl);
+
+  // Marketplace (lectura pública entre comercios)
+  rpc SetListing(SetListingRequest) returns (Listing);
+  rpc SearchMarketplace(SearchMarketplaceRequest) returns (SearchMarketplaceResponse);
+  rpc GetMarketplaceProduct(GetMarketplaceProductRequest) returns (MarketplaceProduct);
+  rpc GetStorefront(GetStorefrontRequest) returns (Storefront);
+  rpc UpdateStorefront(UpdateStorefrontRequest) returns (Storefront);
+}
+
+enum ProductStatus {
+  PRODUCT_STATUS_UNSPECIFIED = 0;
+  PRODUCT_STATUS_ACTIVE = 1;
+  PRODUCT_STATUS_ARCHIVED = 2;
+}
+
+message Product {
+  string product_id = 1;
+  string tenant_id = 2;
+  string sku = 3;
+  string barcode = 4;
+  string name = 5;
+  string description = 6;
+  string category_id = 7;
+  string brand = 8;
+  string unit_type = 9;                     // "UNIT", "KG", "LITER", ...
+  plentypay.common.v1.Money price = 10;
+  int32 tax_rate_bps = 11;
+  string cpbs_code = 12;
+  repeated string image_object_keys = 13;
+  map<string, string> attributes = 14;      // atributos flexibles (nosql-db)
+  ProductStatus status = 15;
+  bool tracks_inventory = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  int32 version = 18;                       // bloqueo optimista
+}
+message CreateProductRequest { Product product = 1; string idempotency_key = 2; }
+message UpdateProductRequest { Product product = 1; repeated string update_mask = 2; }
+message ArchiveProductRequest { string product_id = 1; }
+message GetProductRequest { string product_id = 1; }
+message ListProductsRequest { string query = 1; string category_id = 2; ProductStatus status = 3; plentypay.common.v1.PageRequest page = 4; }
+message ListProductsResponse { repeated Product products = 1; plentypay.common.v1.PageInfo page = 2; }
+message LookupByBarcodeRequest { string barcode = 1; }
+
+message ImportProductRow { int32 row_number = 1; Product product = 2; }
+message ImportRowError { int32 row_number = 1; string message = 2; }
+message BulkImportResult { int32 created = 1; int32 updated = 2; repeated ImportRowError errors = 3; }
+
+message Category { string category_id = 1; string tenant_id = 2; string name = 3; string parent_id = 4; }
+message UpsertCategoryRequest { Category category = 1; }
+message ListCategoriesRequest {}
+message ListCategoriesResponse { repeated Category categories = 1; }
+
+message CreateUploadUrlRequest { string content_type = 1; int64 size_bytes = 2; } // máx. 5 MB, image/jpeg|png|webp
+message UploadUrl { string object_key = 1; string url = 2; google.protobuf.Timestamp expires_at = 3; }
+
+message Listing {
+  string product_id = 1;
+  bool listed = 2;
+  plentypay.common.v1.Money marketplace_price = 3;
+  bool delivery_available = 4;
+  bool pickup_available = 5;
+}
+message SetListingRequest { Listing listing = 1; }
+message MarketplaceProduct {
+  Product product = 1;
+  Storefront storefront = 2;
+  bool in_stock = 3;                        // booleano derivado de inventory; nunca la cantidad
+  Listing listing = 4;
+}
+message SearchMarketplaceRequest {
+  string query = 1;
+  string category_id = 2;
+  int64 min_price_minor = 3;
+  int64 max_price_minor = 4;
+  plentypay.common.v1.GeoPoint near = 5;
+  int32 radius_meters = 6;
+  string merchant_tenant_id = 7;
+  string sort = 8;                          // "RELEVANCE" | "PRICE_ASC" | "PRICE_DESC" | "DISTANCE" | "NEWEST"
+  plentypay.common.v1.PageRequest page = 9;
+}
+message SearchMarketplaceResponse { repeated MarketplaceProduct results = 1; plentypay.common.v1.PageInfo page = 2; }
+message GetMarketplaceProductRequest { string product_id = 1; }
+message Storefront {
+  string tenant_id = 1;
+  string display_name = 2;
+  string description = 3;
+  string logo_object_key = 4;
+  plentypay.common.v1.Address address = 5;
+  bool verified = 6;
+  bool published = 7;
+}
+message GetStorefrontRequest { string tenant_id = 1; }
+message UpdateStorefrontRequest { Storefront storefront = 1; }
+
+// ── Eventos. Subject: pp.catalog.<entidad>.<hecho>.v1 ──
+// Lleva lo necesario para que analytics-bi y orders construyan sus dimensiones sin llamar de vuelta.
+message ProductChanged {
+  string product_id = 1;
+  string tenant_id = 2;
+  ProductStatus status = 3;
+  string name = 4;
+  string category_id = 5;
+  int64 price_minor = 6;
+  string currency = 7;
+  bool listed_in_marketplace = 8;
+}

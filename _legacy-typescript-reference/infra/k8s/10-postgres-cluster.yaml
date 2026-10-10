@@ -1,0 +1,56 @@
+# Requiere el operador CloudNativePG (CNCF) instalado — lo instala infra/terraform/bootstrap.
+# Reemplaza a Neon: 1 primario + 2 réplicas, failover automático, backups WAL continuos a S3/MinIO.
+# Ver documento 02, sección 6.
+#
+# Secrets requeridos (plantilla en 90-secrets.template.yaml):
+#   plentypay-postgres-credentials   (tipo kubernetes.io/basic-auth: username, password)
+#   plentypay-backup-credentials     (ACCESS_KEY_ID, SECRET_ACCESS_KEY)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: plentypay-postgres
+  namespace: plentypay
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4 # AJUSTAR: PG18 (uuidv7 nativo) es opcional — ver MIGRATION_STATUS.md
+  postgresql:
+    parameters:
+      max_connections: "200"
+      shared_buffers: "512MB"
+  bootstrap:
+    initdb:
+      database: plentypay
+      owner: plentypay
+      secret:
+        name: plentypay-postgres-credentials
+  storage:
+    size: 100Gi
+    # storageClass: AJUSTAR (self-hosted: local-path/Longhorn; cloud: la del proveedor)
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: "s3://plentypay-postgres-backups/"
+      endpointURL: "http://minio.plentypay.svc.cluster.local:9000" # AJUSTAR si usas S3/OCI Object Storage
+      s3Credentials:
+        accessKeyId: { name: plentypay-backup-credentials, key: ACCESS_KEY_ID }
+        secretAccessKey: { name: plentypay-backup-credentials, key: SECRET_ACCESS_KEY }
+---
+# Pooler oficial de CloudNativePG (PgBouncer gestionado por el operador). Prisma abre muchas
+# conexiones cortas: sin pooler, cientos de miles de usuarios agotan max_connections.
+# La app se conecta a `plentypay-postgres-pooler-rw`; las migraciones, DIRECTO a `plentypay-postgres-rw`
+# (Prisma Migrate usa advisory locks, que NO funcionan con pooling en modo transacción).
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: plentypay-postgres-pooler-rw
+  namespace: plentypay
+spec:
+  cluster:
+    name: plentypay-postgres
+  instances: 2
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "2000"
+      default_pool_size: "50"

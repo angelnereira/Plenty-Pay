@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-orchestrator
+  namespace: plentypay
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: payments-orchestrator }
+  template:
+    metadata:
+      labels: { app: payments-orchestrator }
+    spec:
+      containers:
+        - name: payments-orchestrator
+          image: ghcr.io/OWNER/plentypay-payments-orchestrator:latest # AJUSTAR
+          ports: [{ containerPort: 50051 }]
+          env:
+            - name: PORT
+              value: "50051"
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: plentypay-secrets, key: POOLED_DATABASE_URL } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: payments-orchestrator, namespace: plentypay }
+spec:
+  selector: { app: payments-orchestrator }
+  ports: [{ port: 50051, targetPort: 50051 }]

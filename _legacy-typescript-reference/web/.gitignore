@@ -1,0 +1,102 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+playwright-report/
+test-results/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# IDE y editores
+.agent
+.claude
+.gemini
+.cursor
+.vscode
+.idea/
+gemini/
+
+# Husky hooks (si no quieres versionarlos)
+.husky/
+
+# Tests
+_tests_/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files - NUNCA SUBIR CREDENCIALES
+.env*
+# Incluir .env.example también por seguridad (contiene datos sensibles)
+# Usar .env.template en su lugar
+
+# archivos con credenciales sensibles
+vercel-env-*.txt
+vercel-neon-env.txt
+*-credentials.txt
+*.secret
+CREDENCIALES-VERCEL.md
+
+# archivos temporales de documentación con credenciales
+NEON-SETUP.md
+VERCEL-SETUP-COMPLETO.md
+VERCEL-DEPLOYMENT.md
+VERIFICACION-DEPLOYMENT.md
+# VERCEL-NEON-INTEGRATION.md puede tener credenciales en ejemplos
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+/app/generated/prisma
+
+# PWA
+**/public/sw.js
+**/public/workbox-*.js
+**/public/worker-*.js
+**/public/sw.js.map
+**/public/workbox-*.js.map
+**/public/worker-*.js.map
+**/public/swe-worker-*.js
+**/public/swe-worker-*.js.map
+**/public/fallback-*.js
+**/public/fallback-*.js.map
+
+# backups
+backup/
+.backup/.env.local
+
+# Trash directory for cleanup
+trash/
+.env*.local
+
+# Sentry Config File
+.env.sentry-build-plugin
+repair_log.txt
+scripts/repair-invoice-items.ts

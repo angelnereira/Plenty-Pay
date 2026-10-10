@@ -1,0 +1,57 @@
+syntax = "proto3";
+package plentypay.infra.v1;
+
+option go_package = "plentypay/infra/pb";
+
+import "google/protobuf/timestamp.proto";
+
+// infra-management: control de runtime (NO aprovisionamiento — eso es OpenTofu en infra/).
+// Feature flags, configuración dinámica, modo mantenimiento, inventario de servicios. Spec: infra-management/SPEC.md
+service InfraManagement {
+  rpc EvaluateFlags(EvaluateFlagsRequest) returns (EvaluateFlagsResponse);   // cacheable 30 s
+  rpc UpsertFlag(UpsertFlagRequest) returns (Flag);
+  rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse);
+
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  rpc SetConfig(SetConfigRequest) returns (ConfigEntry);
+
+  rpc SetMaintenanceMode(SetMaintenanceModeRequest) returns (MaintenanceState);
+  rpc GetMaintenanceState(GetMaintenanceStateRequest) returns (MaintenanceState);
+
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
+  rpc GetClientConfig(GetClientConfigRequest) returns (ClientConfig);       // versión mínima de app, mensajes globales (vía gateway, público)
+}
+
+message FlagContext { string tenant_id = 1; string user_id = 2; string role = 3; string app_version = 4; string platform = 5; }
+message Flag {
+  string key = 1;
+  string description = 2;
+  bool enabled = 3;
+  int32 rollout_percent = 4;              // 0..100, determinista por (key, user_id)
+  repeated string allow_tenants = 5;
+  repeated string allow_roles = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  string updated_by = 8;
+  bool safe_default = 9;                  // valor si infra-management no responde
+}
+message EvaluateFlagsRequest { repeated string keys = 1; FlagContext context = 2; }
+message EvaluateFlagsResponse { map<string, bool> values = 1; }
+message UpsertFlagRequest { Flag flag = 1; }
+message ListFlagsRequest {}
+message ListFlagsResponse { repeated Flag flags = 1; }
+
+message ConfigEntry { string key = 1; string value = 2; string scope = 3; google.protobuf.Timestamp updated_at = 4; } // "global" | "tenant:<id>"
+message GetConfigRequest { repeated string keys = 1; string scope = 2; }
+message GetConfigResponse { repeated ConfigEntry entries = 1; }
+message SetConfigRequest { ConfigEntry entry = 1; }
+
+message SetMaintenanceModeRequest { bool enabled = 1; string scope = 2; string message = 3; google.protobuf.Timestamp until = 4; }
+message GetMaintenanceStateRequest {}
+message MaintenanceState { bool enabled = 1; string scope = 2; string message = 3; google.protobuf.Timestamp until = 4; }
+
+message ServiceInfo { string name = 1; string version = 2; string git_sha = 3; string status = 4; int32 replicas = 5; google.protobuf.Timestamp started_at = 6; }
+message ListServicesRequest {}
+message ListServicesResponse { repeated ServiceInfo services = 1; }
+
+message GetClientConfigRequest { string platform = 1; string app_version = 2; }
+message ClientConfig { string minimum_app_version = 1; bool update_required = 2; string banner_message = 3; MaintenanceState maintenance = 4; }

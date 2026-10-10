@@ -1,0 +1,35 @@
+# Secretos y entorno local — NUNCA se commitean (security-standards.md §5)
+.env
+*.env
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.tfvars
+!*.tfvars.example
+
+# Builds
+**/target/
+**/bin/
+**/dist/
+**/build/
+**/.dart_tool/
+**/.flutter-plugins*
+**/node_modules/
+web/static/app/
+output/*
+!output/README.md
+!output/.gitignore
+
+# OpenTofu
+**/.terraform/
+*.tfstate
+*.tfstate.*
+
+# Editores / SO
+.idea/
+.vscode/
+*.swp
+.DS_Store

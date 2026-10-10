@@ -1,0 +1,105 @@
+// Schema Prisma PROPIO de payments-orchestrator (Payment Core).
+// Mismo criterio que antes: mismas tablas físicas que web/prisma/schema.prisma,
+// declaración local mínima durante la fase de transición (ver documento 02).
+// v2: reemplaza el PaymentTransaction único por PaymentIntent → Payment →
+// PaymentAttempt, tras la revisión arquitectónica (ver README.md de este servicio).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentRail {
+  WALLET_INTERNAL
+  YAPPY
+  TELERED_CLAVE
+  CARD_VISA
+  CARD_MASTERCARD
+  APPLE_PAY
+  GOOGLE_PAY
+  QR_INTEROPERABLE
+}
+
+enum PaymentIntentStatus {
+  CREATED
+  REQUIRES_ACTION
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+  EXPIRED
+  UNKNOWN
+}
+
+enum PaymentAttemptStatus {
+  CREATED
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  UNKNOWN
+}
+
+model PaymentIntent {
+  id                String              @id @default(cuid())
+  clientId          String
+  customerEntityId  String?
+  amountCents       BigInt
+  currency          String              @default("USD")
+  status            PaymentIntentStatus @default(CREATED)
+  paymentMethodType PaymentRail
+  idempotencyKey    String
+  requestHash       String?
+  reference         String?
+  metadata          Json?
+  riskScore         Int?
+  expiresAt         DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  payments Payment[]
+
+  @@unique([clientId, idempotencyKey])
+  @@map("payment_intents")
+}
+
+model Payment {
+  id                  String              @id @default(cuid())
+  paymentIntentId     String
+  clientId            String
+  merchantEntityId    String?
+  capturedAmountCents BigInt              @default(0)
+  refundedAmountCents BigInt              @default(0)
+  status              PaymentIntentStatus @default(CREATED)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  intent   PaymentIntent    @relation(fields: [paymentIntentId], references: [id])
+  attempts PaymentAttempt[]
+
+  @@index([clientId, status, createdAt])
+  @@map("payments")
+}
+
+model PaymentAttempt {
+  id            String               @id @default(cuid())
+  paymentId     String
+  rail          PaymentRail
+  externalRef   String?
+  attemptNumber Int
+  status        PaymentAttemptStatus @default(CREATED)
+  failureCode   String?
+  rawResponse   Json?
+  createdAt     DateTime             @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId, attemptNumber])
+  @@index([externalRef])
+  @@map("payment_attempts")
+}

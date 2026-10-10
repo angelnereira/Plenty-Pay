@@ -1,0 +1,264 @@
+syntax = "proto3";
+package plentypay.payments.v1;
+
+option go_package = "plentypay/payments/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// payments-core: orquesta cobros (PaymentIntent → Payment → PaymentAttempt) contra rieles externos y wallet.
+// NUNCA escribe en el ledger directamente: lo invoca por gRPC con idempotencia (ADR 0012). Spec: payments-core/SPEC.md
+service Payments {
+  rpc CreatePaymentIntent(CreatePaymentIntentRequest) returns (PaymentIntent);
+  rpc ConfirmPaymentIntent(ConfirmPaymentIntentRequest) returns (PaymentIntent);
+  rpc CancelPaymentIntent(CancelPaymentIntentRequest) returns (PaymentIntent);
+  rpc GetPaymentIntent(GetPaymentIntentRequest) returns (PaymentIntent);
+  rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
+  rpc GetPayment(GetPaymentRequest) returns (Payment);
+
+  rpc RefundPayment(RefundPaymentRequest) returns (Refund);
+  rpc GetRefund(GetRefundRequest) returns (Refund);
+
+  // Terminales: lo único que viaja en un QR / tag NFC es el public_code (opaco)
+  rpc CreateTerminal(CreateTerminalRequest) returns (Terminal);
+  rpc ListTerminals(ListTerminalsRequest) returns (ListTerminalsResponse);
+  rpc SetTerminalActive(SetTerminalActiveRequest) returns (Terminal);
+  rpc ResolveTerminal(ResolveTerminalRequest) returns (PublicTerminalInfo); // la usa quien paga: nombre VERIFICADO del comercio
+
+  // Fees
+  rpc QuoteFees(QuoteFeesRequest) returns (FeeBreakdown);
+  rpc UpsertFeePolicy(UpsertFeePolicyRequest) returns (FeePolicy);
+  rpc ListFeePolicies(ListFeePoliciesRequest) returns (ListFeePoliciesResponse);
+
+  // Rieles: webhooks entrantes (firma verificada; fail-closed) y resolución manual de UNKNOWN
+  rpc HandleRailWebhook(HandleRailWebhookRequest) returns (HandleRailWebhookResponse);
+  rpc ResolveUnknownPayment(ResolveUnknownPaymentRequest) returns (Payment);
+}
+
+enum PaymentStatus {
+  PAYMENT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_STATUS_CREATED = 1;
+  PAYMENT_STATUS_REQUIRES_ACTION = 2; // el pagador debe aprobar (QR/app del banco/3DS)
+  PAYMENT_STATUS_PROCESSING = 3;
+  PAYMENT_STATUS_AUTHORIZED = 4;
+  PAYMENT_STATUS_CAPTURED = 5;
+  PAYMENT_STATUS_FAILED = 6;
+  PAYMENT_STATUS_CANCELLED = 7;
+  PAYMENT_STATUS_EXPIRED = 8;
+  PAYMENT_STATUS_UNKNOWN = 9;         // no confirmado (timeout): NUNCA se trata como FAILED ni CAPTURED
+}
+
+enum AttemptStatus {
+  ATTEMPT_STATUS_UNSPECIFIED = 0;
+  ATTEMPT_STATUS_CREATED = 1;
+  ATTEMPT_STATUS_PROCESSING = 2;
+  ATTEMPT_STATUS_AUTHORIZED = 3;
+  ATTEMPT_STATUS_CAPTURED = 4;
+  ATTEMPT_STATUS_FAILED = 5;
+  ATTEMPT_STATUS_UNKNOWN = 6;
+}
+
+enum LedgerPostingStatus {
+  LEDGER_POSTING_STATUS_UNSPECIFIED = 0;
+  LEDGER_POSTING_STATUS_PENDING = 1;
+  LEDGER_POSTING_STATUS_POSTED = 2;
+  LEDGER_POSTING_STATUS_FAILED = 3; // requiere intervención; alerta crítica
+}
+
+// Reparto multi-comercio (marketplace): Σ splits == monto del intent.
+message Split {
+  string merchant_party_id = 1;
+  plentypay.common.v1.Money amount = 2;
+  plentypay.common.v1.Reference reference = 3;
+}
+
+message CreatePaymentIntentRequest {
+  string idempotency_key = 1;         // obligatorio. Mismo key + distinto contenido => ALREADY_EXISTS
+  plentypay.common.v1.Money amount = 2;
+  plentypay.common.v1.PaymentRail rail = 3;
+  string payer_party_id = 4;          // quién paga; la identidad verificada del contexto manda
+  string terminal_code = 5;           // si el cobro nace de un QR/tag de terminal
+  repeated Split splits = 6;          // vacío = todo el monto es del comercio del contexto
+  plentypay.common.v1.Reference reference = 7;
+  map<string, string> metadata = 8;   // máx. 20 claves, 500 chars; sin datos sensibles
+  int32 expires_in_seconds = 9;       // 0 = por defecto (900)
+  string step_up_token = 10;          // obligatorio si el monto supera el umbral de confirmación fuerte
+}
+
+message ConfirmPaymentIntentRequest {
+  string payment_intent_id = 1;
+  string idempotency_key = 2;
+  map<string, string> confirmation_data = 3;
+}
+message CancelPaymentIntentRequest { string payment_intent_id = 1; string reason = 2; }
+message GetPaymentIntentRequest { string payment_intent_id = 1; }
+message GetPaymentRequest { string payment_id = 1; }
+
+message NextAction {
+  string type = 1;          // "QR", "REDIRECT", "APP_APPROVAL", "NONE"
+  string url = 2;
+  string qr_payload = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message PaymentIntent {
+  string payment_intent_id = 1;
+  string tenant_id = 2;
+  plentypay.common.v1.Money amount = 3;
+  plentypay.common.v1.PaymentRail rail = 4;
+  PaymentStatus status = 5;
+  string payer_party_id = 6;
+  repeated Split splits = 7;
+  plentypay.common.v1.Reference reference = 8;
+  NextAction next_action = 9;
+  bool sandbox = 10;        // true = riel en modo SIMULADO: no se movió dinero real
+  string payment_id = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp expires_at = 13;
+}
+
+message PaymentAttempt {
+  string attempt_id = 1;
+  int32 attempt_number = 2;
+  plentypay.common.v1.PaymentRail rail = 3;
+  AttemptStatus status = 4;
+  string external_ref = 5;
+  string failure_code = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message Payment {
+  string payment_id = 1;
+  string payment_intent_id = 2;
+  string tenant_id = 3;
+  PaymentStatus status = 4;
+  plentypay.common.v1.Money amount = 5;
+  plentypay.common.v1.Money captured = 6;
+  plentypay.common.v1.Money refunded = 7;
+  FeeBreakdown fees = 8;               // fijado al capturar
+  LedgerPostingStatus ledger_status = 9;
+  repeated PaymentAttempt attempts = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp captured_at = 12;
+}
+
+message ListPaymentsRequest {
+  PaymentStatus status = 1;
+  plentypay.common.v1.PaymentRail rail = 2;
+  plentypay.common.v1.TimeRange range = 3;
+  plentypay.common.v1.Reference reference = 4;
+  plentypay.common.v1.PageRequest page = 5;
+}
+message ListPaymentsResponse {
+  repeated Payment payments = 1;
+  plentypay.common.v1.PageInfo page = 2;
+}
+
+enum RefundStatus {
+  REFUND_STATUS_UNSPECIFIED = 0;
+  REFUND_STATUS_PENDING = 1;
+  REFUND_STATUS_SUCCEEDED = 2;
+  REFUND_STATUS_FAILED = 3;
+}
+message RefundPaymentRequest {
+  string payment_id = 1;
+  plentypay.common.v1.Money amount = 2; // 0 = reembolso del saldo restante completo
+  string reason = 3;
+  string idempotency_key = 4;
+  string step_up_token = 5;
+}
+message Refund {
+  string refund_id = 1;
+  string payment_id = 2;
+  plentypay.common.v1.Money amount = 3;
+  RefundStatus status = 4;
+  string reason = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message GetRefundRequest { string refund_id = 1; }
+
+message Terminal {
+  string terminal_id = 1;
+  string tenant_id = 2;
+  string public_code = 3; // ≥ 16 caracteres base64url, no adivinable
+  string label = 4;
+  bool active = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message CreateTerminalRequest { string label = 1; }
+message ListTerminalsRequest { plentypay.common.v1.PageRequest page = 1; }
+message ListTerminalsResponse { repeated Terminal terminals = 1; plentypay.common.v1.PageInfo page = 2; }
+message SetTerminalActiveRequest { string terminal_id = 1; bool active = 2; }
+message ResolveTerminalRequest { string public_code = 1; }
+message PublicTerminalInfo {
+  string public_code = 1;
+  string label = 2;
+  string merchant_name = 3;
+  bool active = 4;
+}
+
+message FeeLine {
+  string kind = 1;                       // "PLATFORM", "RAIL", "TAX"
+  plentypay.common.v1.Money amount = 2;
+}
+// Invariante: gross == merchant_net + Σ lines. Residuos de redondeo caen en merchant_net.
+message FeeBreakdown {
+  plentypay.common.v1.Money gross = 1;
+  plentypay.common.v1.Money merchant_net = 2;
+  repeated FeeLine lines = 3;
+}
+message QuoteFeesRequest {
+  plentypay.common.v1.Money amount = 1;
+  plentypay.common.v1.PaymentRail rail = 2;
+}
+
+enum FeeBearer {
+  FEE_BEARER_UNSPECIFIED = 0;
+  FEE_BEARER_MERCHANT = 1;
+  FEE_BEARER_CUSTOMER = 2;
+  FEE_BEARER_PLATFORM = 3;
+}
+message FeePolicy {
+  string fee_policy_id = 1;
+  string tenant_id = 2;                     // vacío = política global
+  plentypay.common.v1.PaymentRail rail = 3; // UNSPECIFIED = todos los rieles
+  int64 fixed_fee_minor = 4;
+  int32 percentage_bps = 5;                 // 100 = 1.00%
+  FeeBearer bearer = 6;
+  int32 tax_rate_bps = 7;                   // ITBMS = 700
+  bool active = 8;
+  google.protobuf.Timestamp effective_from = 9;
+  int64 rail_fixed_fee_minor = 10;          // comisión del riel (política de plataforma por riel)
+  int32 rail_percentage_bps = 11;
+  bool rail_fee_refundable = 12;            // ¿el riel devuelve su comisión al reembolsar? (open-questions Q-06)
+}
+message UpsertFeePolicyRequest { FeePolicy policy = 1; }
+message ListFeePoliciesRequest { string tenant_id = 1; }
+message ListFeePoliciesResponse { repeated FeePolicy policies = 1; }
+
+message HandleRailWebhookRequest {
+  plentypay.common.v1.PaymentRail rail = 1;
+  bytes raw_body = 2;                       // la firma se verifica sobre los bytes originales
+  map<string, string> headers = 3;
+}
+message HandleRailWebhookResponse { bool accepted = 1; string message = 2; }
+
+message ResolveUnknownPaymentRequest {
+  string payment_id = 1;
+  PaymentStatus resolution = 2; // solo CAPTURED o FAILED
+  string evidence = 3;          // referencia al extracto/ticket (obligatorio)
+}
+
+// ── Eventos. Subject: pp.payments.<entidad>.<hecho>.v1 ──
+message PaymentCaptured {
+  string payment_id = 1;
+  string tenant_id = 2;
+  plentypay.common.v1.PaymentRail rail = 3;
+  plentypay.common.v1.Money gross = 4;
+  plentypay.common.v1.Reference reference = 5;
+  repeated Split splits = 6;
+  string payment_intent_id = 7;
+}
+message PaymentFailed { string payment_id = 1; string tenant_id = 2; string failure_code = 3; plentypay.common.v1.Reference reference = 4; string payment_intent_id = 5; }
+message PaymentUnknown { string payment_id = 1; string tenant_id = 2; plentypay.common.v1.PaymentRail rail = 3; plentypay.common.v1.Reference reference = 4; }
+message RefundSucceeded { string refund_id = 1; string payment_id = 2; string tenant_id = 3; plentypay.common.v1.Money amount = 4; plentypay.common.v1.Reference reference = 5; }

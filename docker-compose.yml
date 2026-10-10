@@ -1,0 +1,49 @@
+# PlentyPay — sistema local (ADR 0006). Reglas: docs/standards/delivery-pipeline.md §5.
+# Hoy: identity + api-gateway (implementados). Cada fase agrega su bloque copiando la plantilla del final.
+# Solo se publican api-gateway (8080) y web (8081). Contexto de build SIEMPRE ./<contenedor> (check-isolation.sh).
+
+name: plentypay
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  identity:
+    <<: *hardening
+    build:
+      context: ./identity
+    env_file: ./identity/.env
+    networks: [services]
+    # F02.1: healthcheck con el subcomando `/app healthcheck` contra :9100/healthz/ready (imágenes distroless sin shell)
+
+  api-gateway:
+    <<: *hardening
+    build:
+      context: ./api-gateway
+    env_file: ./api-gateway/.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      identity:
+        condition: service_started   # → service_healthy en F02.1
+    networks: [edge, services]
+
+  # --- Plantilla para nuevos contenedores (descomentar al llegar a su fase) ---
+  # <contenedor>:
+  #   <<: *hardening
+  #   build:
+  #     context: ./<contenedor>
+  #   env_file: ./<contenedor>/.env
+  #   networks: [services, data]          # data solo si usa postgres/nosql/bus/objetos
+  #   depends_on:
+  #     postgres-db: { condition: service_healthy }
+
+networks:
+  edge: {}
+  services:
+    internal: true
+  data:
+    internal: true

@@ -1,0 +1,216 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - Development/preview
+      - Hotfix
+  pull_request:
+    branches:
+      - main
+      - Development/preview
+      - Hotfix
+
+# Cancela corridas antiguas de la misma rama/PR cuando llega un push nuevo.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  # next build agota el heap por defecto de Node (~2 GB) en los runners;
+  # el runner tiene 16 GB, así que ampliamos el límite para build y E2E.
+  NODE_OPTIONS: "--max-old-space-size=6144"
+  # Valores de PRUEBA (no secretos). El guard scripts/verify-env.js falla si
+  # un entorno no productivo apunta a la base de datos real de producción,
+  # así que aquí siempre usamos Postgres local (host localhost).
+  NEXTAUTH_SECRET: "ci-test-secret-0123456789abcdef0123456789abcdef"
+  NEXTAUTH_URL: "http://localhost:3000"
+  ENCRYPTION_KEY: "ci-test-encryption-key-0123456789abcdef0123"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Lint + tests unitarios y de componentes (sin servicios externos; la DB
+  #    y Redis están mockeados en estos tests).
+  # ---------------------------------------------------------------------------
+  lint-and-unit:
+    name: Lint + Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit & component tests
+        run: npm test -- --ci --runInBand
+
+  # ---------------------------------------------------------------------------
+  # 2. Tests de integración contra servicios REALES:
+  #    - PostgreSQL 16 (igual motor que Neon)
+  #    - Redis 7 expuesto vía SRH como REST compatible con Upstash
+  # ---------------------------------------------------------------------------
+  integration-db:
+    name: Integration (Postgres + Redis)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: plentypay_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Proxy HTTP REST compatible con la API de Upstash, apuntando al Redis
+      # de arriba. Permite ejercitar @upstash/redis y @upstash/ratelimit reales.
+      srh:
+        image: hiett/serverless-redis-http:latest
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: ci_test_token
+          SRH_CONNECTION_STRING: redis://redis:6379
+        ports:
+          - 8079:80
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/plentypay_test
+      UPSTASH_REDIS_REST_URL: http://localhost:8079
+      UPSTASH_REDIS_REST_TOKEN: ci_test_token
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply Prisma schema to test database
+        run: npm run test:db:setup
+
+      # No hay gate externo para SRH: los tests de Postgres corren siempre y
+      # los de Redis comprueban conectividad por sí mismos (con reintentos),
+      # omitiéndose con un aviso si SRH no está disponible.
+      - name: Integration tests (DB + Redis)
+        run: npm run test:db -- --ci
+
+  # ---------------------------------------------------------------------------
+  # 3. End-to-End con Playwright contra la app real (build + start) y una base
+  #    de datos PostgreSQL de prueba.
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: plentypay_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/plentypay_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npm run test:e2e:install
+
+      - name: Apply Prisma schema to test database
+        run: npm run test:db:setup
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # 4. Build de producción: corre el mismo verify-env + next build que Vercel,
+  #    garantizando que la rama compila antes de poder mergear.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Production Build Check
+    runs-on: ubuntu-latest
+
+    env:
+      # Host localhost => verify-env confirma que NO es la DB de producción.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/plentypay_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (verify-env + prisma generate + next build)
+        run: npm run build

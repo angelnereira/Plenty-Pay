@@ -1,0 +1,81 @@
+syntax = "proto3";
+package plentypay.logistics.v1;
+
+option go_package = "plentypay/logistics/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// logistics: entregas, asignación y seguimiento por checkpoints. Consume geolocation. Spec: logistics/SPEC.md
+service Logistics {
+  rpc UpsertCarrier(UpsertCarrierRequest) returns (Carrier);
+  rpc ListCarriers(ListCarriersRequest) returns (ListCarriersResponse);
+  rpc UpsertDriver(UpsertDriverRequest) returns (Driver);
+  rpc ListDrivers(ListDriversRequest) returns (ListDriversResponse);
+
+  rpc CreateDelivery(CreateDeliveryRequest) returns (Delivery);
+  rpc AssignDelivery(AssignDeliveryRequest) returns (Delivery);
+  rpc RecordCheckpoint(RecordCheckpointRequest) returns (Delivery);
+  rpc CancelDelivery(CancelDeliveryRequest) returns (Delivery);
+  rpc GetDelivery(GetDeliveryRequest) returns (Delivery);
+  rpc ListDeliveries(ListDeliveriesRequest) returns (ListDeliveriesResponse);
+  rpc ListMyDeliveries(ListMyDeliveriesRequest) returns (ListDeliveriesResponse); // app del repartidor
+
+  rpc GetPublicTracking(GetPublicTrackingRequest) returns (PublicTracking);        // sin sesión: token opaco
+  rpc StreamDelivery(StreamDeliveryRequest) returns (stream DeliveryUpdate);
+}
+
+message Carrier { string carrier_id = 1; string name = 2; bool external = 3; string contact_phone = 4; bool active = 5; }
+message UpsertCarrierRequest { Carrier carrier = 1; }
+message ListCarriersRequest {}
+message ListCarriersResponse { repeated Carrier carriers = 1; }
+message Driver { string driver_id = 1; string user_id = 2; string carrier_id = 3; string name = 4; string phone = 5; string vehicle = 6; bool active = 7; bool available = 8; }
+message UpsertDriverRequest { Driver driver = 1; }
+message ListDriversRequest { bool only_available = 1; }
+message ListDriversResponse { repeated Driver drivers = 1; }
+
+enum DeliveryStatus {
+  DELIVERY_STATUS_UNSPECIFIED = 0;
+  DELIVERY_STATUS_PENDING = 1;
+  DELIVERY_STATUS_ASSIGNED = 2;
+  DELIVERY_STATUS_PICKED_UP = 3;
+  DELIVERY_STATUS_IN_TRANSIT = 4;
+  DELIVERY_STATUS_ARRIVED = 5;
+  DELIVERY_STATUS_DELIVERED = 6;
+  DELIVERY_STATUS_FAILED = 7;
+  DELIVERY_STATUS_CANCELLED = 8;
+}
+message Checkpoint { DeliveryStatus status = 1; google.protobuf.Timestamp at = 2; plentypay.common.v1.GeoPoint point = 3; string scanned_code = 4; string note = 5; string actor_user_id = 6; }
+message Delivery {
+  string delivery_id = 1;
+  string tenant_id = 2;
+  DeliveryStatus status = 3;
+  plentypay.common.v1.Reference source = 4;
+  plentypay.common.v1.Address pickup = 5;
+  plentypay.common.v1.Address dropoff = 6;
+  string recipient_name = 7;
+  string recipient_phone = 8;
+  string driver_id = 9;
+  string carrier_id = 10;
+  string public_tracking_token = 11;
+  repeated Checkpoint checkpoints = 12;
+  google.protobuf.Timestamp eta = 13;
+  int32 failed_attempts = 14;
+  string proof_of_delivery_object_key = 15;
+  string package_code = 16;                     // código impreso/QR del paquete que se escanea en cada checkpoint
+}
+message CreateDeliveryRequest { string idempotency_key = 1; plentypay.common.v1.Reference source = 2; plentypay.common.v1.Address pickup = 3; plentypay.common.v1.Address dropoff = 4; string recipient_name = 5; string recipient_phone = 6; }
+message AssignDeliveryRequest { string delivery_id = 1; string driver_id = 2; string carrier_id = 3; }
+message RecordCheckpointRequest { string delivery_id = 1; DeliveryStatus status = 2; plentypay.common.v1.GeoPoint point = 3; string scanned_code = 4; string note = 5; string proof_object_key = 6; string idempotency_key = 7; }
+message CancelDeliveryRequest { string delivery_id = 1; string reason = 2; }
+message GetDeliveryRequest { string delivery_id = 1; }
+message ListDeliveriesRequest { DeliveryStatus status = 1; string driver_id = 2; plentypay.common.v1.TimeRange range = 3; plentypay.common.v1.PageRequest page = 4; }
+message ListMyDeliveriesRequest { DeliveryStatus status = 1; }
+message ListDeliveriesResponse { repeated Delivery deliveries = 1; plentypay.common.v1.PageInfo page = 2; }
+message GetPublicTrackingRequest { string token = 1; }
+message PublicTracking { DeliveryStatus status = 1; repeated Checkpoint checkpoints = 2; google.protobuf.Timestamp eta = 3; plentypay.common.v1.GeoPoint driver_location = 4; string merchant_name = 5; } // sin datos personales del destinatario
+message StreamDeliveryRequest { string delivery_id = 1; string public_tracking_token = 2; }
+message DeliveryUpdate { Delivery delivery = 1; plentypay.common.v1.GeoPoint driver_location = 2; }
+
+// ── Eventos. Subject: pp.logistics.<entidad>.<hecho>.v1 ──
+message DeliveryStatusChanged { string delivery_id = 1; string tenant_id = 2; DeliveryStatus status = 3; plentypay.common.v1.Reference source = 4; }

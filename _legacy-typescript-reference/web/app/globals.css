@@ -1,0 +1,400 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* Font Families */
+  --font-sans: var(--font-ibm-plex-sans), sans-serif;
+
+  /* Shadcn Colors Mapped to PlentyPay Identity */
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  /* Sidebar Colors - Mapped to specialized variables */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* PlentyPay Brand Colors (Availability for custom utility classes) */
+  --color-plentypay-brand: #0F172A;
+  --color-plentypay-primary: #2563EB;
+  --color-plentypay-accent: #38BDF8;
+
+  /* Semantic Status Colors (Corporate) */
+  --color-success: #059669;
+  /* Emerald 600 */
+  --color-warning: #D97706;
+  /* Amber 600 */
+  --color-error: #DC2626;
+  /* Red 600 */
+  --color-info: #0284C7;
+  /* Sky 600 */
+
+  /* Chart Colors (Retained or adapted) */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Radius */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  /* Animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-floating: floating 6s ease-in-out infinite;
+
+  @keyframes accordion-down {
+    from {
+      height: 0
+    }
+
+    to {
+      height: var(--radix-accordion-content-height)
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height)
+    }
+
+    to {
+      height: 0
+    }
+  }
+
+  @keyframes floating {
+
+    0%,
+    100% {
+      transform: translateY(0)
+    }
+
+    50% {
+      transform: translateY(-15px)
+    }
+  }
+}
+
+/*
+  PlentyPay Enterprise Theme
+  Base: Slate + Indigo — sober ERP palette, unified across landing/auth
+*/
+:root {
+  /* Backgrounds */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+
+  /* Cards: White for elevation */
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+
+  /* Popovers */
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+
+  /* Primary: Indigo 600 — enterprise sober */
+  --primary: #4F46E5;
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary: Slate 100 */
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+
+  /* Muted */
+  --muted: #F1F5F9;
+  --muted-foreground: #475569;
+
+  /* Accent: Indigo tint */
+  --accent: #EEF2FF;
+  --accent-foreground: #0F172A;
+
+  /* Destructive: Red 600 */
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+
+  /* Border: Slate 200 */
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #4F46E5;
+
+  /* Radius */
+  --radius: 0.5rem;
+
+  /* Chart Colors */
+  --chart-1: #4F46E5;
+  --chart-2: #059669;
+  --chart-3: #D97706;
+  --chart-4: #0284C7;
+  --chart-5: #DB2777;
+
+  /* Sidebar - Dark Navy always */
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: #1E293B;
+  --sidebar-ring: #4F46E5;
+}
+
+.dark {
+  /* Backgrounds: Slate 950 */
+  --background: #020617;
+  --foreground: #F8FAFC;
+
+  /* Cards: Glassmorphic dark — semi-transparent */
+  --card: rgba(15, 23, 42, 0.6);
+  --card-foreground: #F8FAFC;
+
+  /* Popovers */
+  --popover: #0F172A;
+  --popover-foreground: #F8FAFC;
+
+  /* Primary: Indigo 500 (dark-mode variant) */
+  --primary: #6366F1;
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary: Slate 800 */
+  --secondary: #1E293B;
+  --secondary-foreground: #F8FAFC;
+
+  /* Muted */
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+
+  /* Accent */
+  --accent: rgba(99, 102, 241, 0.1);
+  --accent-foreground: #F8FAFC;
+
+  /* Destructive */
+  --destructive: #7F1D1D;
+  --destructive-foreground: #FFFFFF;
+
+  /* Border: Semi-transparent white — glassmorphic */
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #6366F1;
+
+  /* Charts */
+  --chart-1: #818CF8;
+  --chart-2: #10B981;
+  --chart-3: #F59E0B;
+  --chart-4: #38BDF8;
+  --chart-5: #F472B6;
+
+  /* Sidebar */
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #6366F1;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #6366F1;
+}
+
+/* Base styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50 transition-colors duration-200;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* Better legibility for tabular numbers if font supports it */
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-700 rounded-full cursor-pointer;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-slate-600;
+  }
+}
+
+/* Utilities */
+@layer utilities {
+  .glass {
+    @apply bg-white/80 dark:bg-white/[0.06] backdrop-blur-2xl border border-white/20 dark:border-white/[0.1] shadow-sm;
+  }
+
+  .premium-card {
+    @apply bg-card rounded-xl border border-border overflow-hidden transition-all duration-300
+      dark:bg-white/[0.06] dark:backdrop-blur-2xl dark:border-white/[0.1]
+      dark:shadow-[0_0_40px_-10px_rgba(99,102,241,0.08)]
+      hover:shadow-md dark:hover:shadow-[0_0_60px_-10px_rgba(99,102,241,0.15)]
+      dark:hover:border-white/[0.15];
+  }
+
+  .text-premium {
+    @apply font-bold tracking-tight;
+  }
+
+  /* Sober enterprise gradient text accent */
+  .text-gradient {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-indigo-500 to-slate-700 dark:from-indigo-300 dark:via-indigo-200 dark:to-slate-200;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  /* Mobile scrollbar hiding for carousels */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* iOS Safe Area Support */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pb-safe-2 {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
+
+  /* Elevation levels */
+  .elevation-1 {
+    @apply shadow-sm;
+  }
+
+  .elevation-2 {
+    @apply shadow-md;
+  }
+
+  .elevation-3 {
+    @apply shadow-lg;
+  }
+
+  .elevation-4 {
+    @apply shadow-xl;
+  }
+
+  /* Card hover effect utility */
+  .card-hover {
+    @apply hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer;
+  }
+
+  /* Dot grid texture */
+  .dot-grid {
+    background-image: radial-gradient(circle, rgba(99,102,241,0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
+
+/* Mobile content padding to prevent bottom nav overlap */
+@media (max-width: 768px) {
+
+  main,
+  .main-content {
+    padding-bottom: 80px;
+  }
+}
+
+/* Transición global */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+  /* Slightly faster for corporate feel */
+  transition-timing-function: ease-out;
+}
+
+/* Desactivar transición durante animaciones activas */
+.animate-in,
+.animate-out {
+  transition: none;
+}
+
+/* PLENTYPAY UX Plan: CSS Clases Globales */
+.amount,
+.stock-n {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+
+.row-acts {
+  opacity: 0;
+  transition: opacity 0.1s ease-in-out;
+}
+
+tr:hover .row-acts,
+.group:hover .row-acts {
+  opacity: 1;
+}
+
+tr.has-error .act-retry {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .row-acts {
+    opacity: 1;
+  }
+}

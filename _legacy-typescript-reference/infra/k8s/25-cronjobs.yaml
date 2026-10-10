@@ -1,0 +1,224 @@
+# Reemplaza los `crons` de vercel.json por CronJobs nativos de Kubernetes.
+# Cada uno llama al mismo endpoint /api/cron/* de siempre, autenticado igual
+# (Bearer CRON_SECRET) — no se reescribió ninguna lógica de negocio, solo el disparador.
+#
+# NOTA: /api/cron/keep-warm se omite a propósito: existía solo para evitar el
+# "cold start" de las funciones serverless de Vercel. Los pods de `web` corren
+# permanentemente en Kubernetes (20-web-app.yaml, minReplicas: 3) — ese problema no existe aquí.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-cleanup-reservations
+  namespace: plentypay
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 60
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cron
+              image: curlimages/curl:8.11.0
+              env:
+                - name: CRON_SECRET
+                  valueFrom: { secretKeyRef: { name: plentypay-secrets, key: CRON_SECRET } }
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -X POST \
+                    -H "Authorization: Bearer $(CRON_SECRET)" \
+                    http://web.plentypay.svc.cluster.local/api/cron/cleanup-reservations
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-dgi-polling
+  namespace: plentypay
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 60
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cron
+              image: curlimages/curl:8.11.0
+              env:
+                - name: CRON_SECRET
+                  valueFrom: { secretKeyRef: { name: plentypay-secrets, key: CRON_SECRET } }
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -X GET \
+                    -H "Authorization: Bearer $(CRON_SECRET)" \
+                    http://web.plentypay.svc.cluster.local/api/cron/dgi-polling
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-email-retry
+  namespace: plentypay
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 60
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cron
+              image: curlimages/curl:8.11.0
+              env:
+                - name: CRON_SECRET
+                  valueFrom: { secretKeyRef: { name: plentypay-secrets, key: CRON_SECRET } }
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -X GET \
+                    -H "Authorization: Bearer $(CRON_SECRET)" \
+                    http://web.plentypay.svc.cluster.local/api/cron/email-retry
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-bi-refresh
+  namespace: plentypay
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cron
+              image: curlimages/curl:8.11.0
+              env:
+                - name: CRON_SECRET
+                  valueFrom: { secretKeyRef: { name: plentypay-secrets, key: CRON_SECRET } }
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -X GET \
+                    -H "Authorization: Bearer $(CRON_SECRET)" \
+                    http://web.plentypay.svc.cluster.local/api/cron/bi-refresh
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-bi-alerts
+  namespace: plentypay
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 60
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cron
+              image: curlimages/curl:8.11.0
+              env:
+                - name: CRON_SECRET
+                  valueFrom: { secretKeyRef: { name: plentypay-secrets, key: CRON_SECRET } }
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -X GET \
+                    -H "Authorization: Bearer $(CRON_SECRET)" \
+                    http://web.plentypay.svc.cluster.local/api/cron/bi-alerts
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-dataport-dispatch
+  namespace: plentypay
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 60
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cron
+              image: curlimages/curl:8.11.0
+              env:
+                - name: CRON_SECRET
+                  valueFrom: { secretKeyRef: { name: plentypay-secrets, key: CRON_SECRET } }
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -X GET \
+                    -H "Authorization: Bearer $(CRON_SECRET)" \
+                    http://web.plentypay.svc.cluster.local/api/cron/dataport-dispatch
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-bi-pro-refresh
+  namespace: plentypay
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cron
+              image: curlimages/curl:8.11.0
+              env:
+                - name: CRON_SECRET
+                  valueFrom: { secretKeyRef: { name: plentypay-secrets, key: CRON_SECRET } }
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -X GET \
+                    -H "Authorization: Bearer $(CRON_SECRET)" \
+                    http://web.plentypay.svc.cluster.local/api/cron/bi-pro-refresh

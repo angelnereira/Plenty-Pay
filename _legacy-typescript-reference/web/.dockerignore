@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+*.log
+coverage
+__tests__
+docs
+postman
+packages
+Dockerfile
+docker-compose.yml

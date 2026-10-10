@@ -1,0 +1,76 @@
+# Cache + rate limiting (reemplaza a Upstash). Valkey = fork BSD de Redis (Linux Foundation).
+# Una réplica única con persistencia: suficiente para cache/rate-limit/locks de cron. Para alta
+# disponibilidad real usa el chart de Valkey con Sentinel (ver documento 02 §6).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey
+  namespace: plentypay
+spec:
+  serviceName: valkey
+  replicas: 1
+  selector:
+    matchLabels: { app: valkey }
+  template:
+    metadata:
+      labels: { app: valkey }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 999, fsGroup: 999 }
+      containers:
+        - name: valkey
+          image: valkey/valkey:8-alpine
+          args: ["valkey-server", "--save", "60", "1", "--appendonly", "yes", "--requirepass", "$(VALKEY_PASSWORD)"]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom: { secretKeyRef: { name: plentypay-secrets, key: VALKEY_PASSWORD } }
+          ports: [{ containerPort: 6379 }]
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 1Gi } }
+          volumeMounts: [{ name: data, mountPath: /data }]
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 5Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: valkey, namespace: plentypay }
+spec:
+  selector: { app: valkey }
+  ports: [{ port: 6379, targetPort: 6379 }]
+---
+# SRH: expone la API REST de Upstash delante de Valkey. La app usa @upstash/redis (HTTP) en
+# lib/redis.ts y en el middleware; sin este puente NO funciona contra un Redis/Valkey TCP.
+#   UPSTASH_REDIS_REST_URL=http://srh.plentypay.svc.cluster.local   UPSTASH_REDIS_REST_TOKEN=<SRH_TOKEN>
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: srh, namespace: plentypay }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: srh }
+  template:
+    metadata:
+      labels: { app: srh }
+    spec:
+      containers:
+        - name: srh
+          image: hiett/serverless-redis-http:latest # AJUSTAR: fija versión/digest antes de producción
+          env:
+            - name: SRH_MODE
+              value: env
+            - name: SRH_TOKEN
+              valueFrom: { secretKeyRef: { name: plentypay-secrets, key: SRH_TOKEN } }
+            - name: SRH_CONNECTION_STRING
+              value: "redis://:$(VALKEY_PASSWORD)@valkey.plentypay.svc.cluster.local:6379"
+            - name: VALKEY_PASSWORD
+              valueFrom: { secretKeyRef: { name: plentypay-secrets, key: VALKEY_PASSWORD } }
+          ports: [{ containerPort: 80 }]
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { memory: 256Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: srh, namespace: plentypay }
+spec:
+  selector: { app: srh }
+  ports: [{ port: 80, targetPort: 80 }]

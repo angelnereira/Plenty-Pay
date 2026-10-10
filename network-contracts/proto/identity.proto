@@ -1,0 +1,252 @@
+syntax = "proto3";
+
+package plentypay.identity.v1;
+
+option go_package = "plentypay/identity/internal/pb";
+
+import "google/protobuf/timestamp.proto";
+
+// identity: único contenedor que emite sesiones y decide roles/permisos.
+// Spec completa: identity/SPEC.md. Cambios aquí son SOLO aditivos (ADR 0004):
+// los números de campo ya publicados nunca se reutilizan ni se cambian.
+service Identity {
+  // ── Implementado (L1 + L4) ──
+  rpc Register(RegisterRequest) returns (AuthResult);
+  rpc Login(LoginRequest) returns (AuthResult);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResult);
+  rpc GetUserPermissions(GetUserPermissionsRequest) returns (UserPermissions);
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthResult);
+
+  // ── Objetivo (identity/SPEC.md §12) ──
+  rpc Logout(LogoutRequest) returns (LogoutResult);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResult);
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResult);
+  rpc ChangePassword(ChangePasswordRequest) returns (SimpleResult);
+  rpc RequestPasswordReset(RequestPasswordResetRequest) returns (SimpleResult);   // siempre responde igual: no revela si el correo existe
+  rpc ConfirmPasswordReset(ConfirmPasswordResetRequest) returns (SimpleResult);
+
+  // Alta de comercio (autoservicio) y revisión por la plataforma (KYB)
+  rpc CreateBusiness(CreateBusinessRequest) returns (CreateBusinessResult);
+  rpc ReviewBusiness(ReviewBusinessRequest) returns (Tenant);
+  rpc GetTenant(GetTenantRequest) returns (Tenant);
+  rpc ListTenants(ListTenantsRequest) returns (ListTenantsResult); // solo PLATFORM_ADMIN
+
+  // Equipo del comercio
+  rpc InviteStaff(InviteStaffRequest) returns (Invitation);
+  rpc AcceptInvitation(AcceptInvitationRequest) returns (AuthResult);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResult);
+  rpc DeactivateUser(DeactivateUserRequest) returns (SimpleResult);
+
+  // Solo servicios de confianza (notifications): contacto e idioma por id. Nunca expuesto por el gateway.
+  rpc GetUserContacts(GetUserContactsRequest) returns (GetUserContactsResult);
+
+  // Roles personalizados por comercio y asignación
+  rpc UpsertRole(UpsertRoleRequest) returns (Role);
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResult);
+  rpc AssignRole(AssignRoleRequest) returns (SimpleResult);
+
+  // Passkeys / WebAuthn
+  rpc BeginPasskeyRegistration(BeginPasskeyRegistrationRequest) returns (PasskeyChallenge);
+  rpc FinishPasskeyRegistration(FinishPasskeyRegistrationRequest) returns (SimpleResult);
+  rpc BeginPasskeyLogin(BeginPasskeyLoginRequest) returns (PasskeyChallenge);
+  rpc FinishPasskeyLogin(FinishPasskeyLoginRequest) returns (AuthResult);
+
+  // Confirmación fuerte para operaciones sensibles (pagos de monto alto): token de un solo uso,
+  // de vida corta, atado a (user, operation, amount). El servicio que ejecuta la operación lo CONSUME (ADR 0011).
+  rpc IssueStepUpChallenge(StepUpRequest) returns (PasskeyChallenge);
+  rpc VerifyStepUp(VerifyStepUpRequest) returns (StepUpToken);
+  rpc ConsumeStepUp(ConsumeStepUpRequest) returns (ConsumeStepUpResult);
+}
+
+enum UserRole {
+  USER_ROLE_UNSPECIFIED = 0;
+  PLATFORM_ADMIN = 1;   // equipo interno de PlentyPay
+  BUSINESS_OWNER = 2;   // dueño de un comercio
+  BUSINESS_STAFF = 3;   // empleado de un comercio (el detalle lo da su Role personalizado)
+  CUSTOMER = 4;         // usuario final sin negocio
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+  UserRole role = 4;
+  string tenant_id = 5; // vacío si es CUSTOMER sin negocio
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthResult {
+  bool success = 1;
+  string error_message = 2;
+  string access_token = 3;
+  string refresh_token = 4;
+  string user_id = 5;
+  string tenant_id = 6;
+  UserRole role = 7;
+  google.protobuf.Timestamp access_expires_at = 8;
+  string session_id = 9;
+}
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResult {
+  bool valid = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  UserRole role = 4;
+  repeated string permissions = 5; // p. ej. "pos:sell" — catálogo en docs/standards/security-standards.md §4
+  string session_id = 6;
+}
+
+message GetUserPermissionsRequest {
+  string user_id = 1;
+}
+
+// Módulos habilitados para este usuario — flutter_app arma su menú con esto (ADR 0009).
+message UserPermissions {
+  UserRole role = 1;
+  repeated string enabled_modules = 2; // "wallet", "catalog", "pos", ...
+  repeated string permissions = 3;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message LogoutRequest { string session_id = 1; }
+message LogoutResult { bool success = 1; }
+
+message Session {
+  string session_id = 1;
+  string device_label = 2;
+  string ip_address = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp last_seen_at = 5;
+  bool current = 6;
+}
+message ListSessionsRequest { string user_id = 1; }
+message ListSessionsResult { repeated Session sessions = 1; }
+message RevokeSessionRequest { string session_id = 1; }
+message RevokeSessionResult { bool success = 1; }
+
+message SimpleResult {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message ChangePasswordRequest { string user_id = 1; string current_password = 2; string new_password = 3; }
+message RequestPasswordResetRequest { string email = 1; }
+message ConfirmPasswordResetRequest { string reset_token = 1; string new_password = 2; }
+
+enum TenantStatus {
+  TENANT_STATUS_UNSPECIFIED = 0;
+  TENANT_STATUS_PENDING_REVIEW = 1; // alta hecha, documentos KYB en revisión; NO puede cobrar todavía
+  TENANT_STATUS_ACTIVE = 2;
+  TENANT_STATUS_SUSPENDED = 3;
+  TENANT_STATUS_REJECTED = 4;
+}
+
+message Tenant {
+  string tenant_id = 1;
+  string legal_name = 2;
+  string trade_name = 3;
+  string tax_id = 4;            // RUC
+  TenantStatus status = 5;
+  string country = 6;
+  google.protobuf.Timestamp created_at = 7;
+  string review_notes = 8;
+}
+
+message CreateBusinessRequest {
+  string owner_email = 1;
+  string owner_password = 2;
+  string owner_full_name = 3;
+  string legal_name = 4;
+  string trade_name = 5;
+  string tax_id = 6;
+  string country = 7;
+  repeated string kyb_document_object_keys = 8; // objetos ya subidos a object-storage
+}
+message CreateBusinessResult {
+  bool success = 1;
+  string error_message = 2;
+  Tenant tenant = 3;
+  AuthResult session = 4;
+}
+message ReviewBusinessRequest { string tenant_id = 1; bool approve = 2; string notes = 3; }
+message GetTenantRequest { string tenant_id = 1; }
+message ListTenantsRequest { TenantStatus status = 1; string page_token = 2; int32 page_size = 3; }
+message ListTenantsResult { repeated Tenant tenants = 1; string next_page_token = 2; }
+
+message InviteStaffRequest { string email = 1; string role_id = 2; string full_name = 3; }
+message Invitation {
+  string invitation_id = 1;
+  string email = 2;
+  string role_id = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+message AcceptInvitationRequest { string invitation_token = 1; string password = 2; }
+
+message UserSummary {
+  string user_id = 1;
+  string email = 2;
+  string full_name = 3;
+  UserRole role = 4;
+  string role_id = 5;
+  bool active = 6;
+}
+message ListUsersRequest { string tenant_id = 1; string page_token = 2; int32 page_size = 3; }
+message ListUsersResult { repeated UserSummary users = 1; string next_page_token = 2; }
+message DeactivateUserRequest { string user_id = 1; }
+
+message UserContact {
+  string user_id = 1;
+  string email = 2;
+  string phone_e164 = 3;
+  string full_name = 4;
+  string locale = 5;   // "es-PA" | "en"
+}
+message GetUserContactsRequest { repeated string user_ids = 1; } // máx. 100
+message GetUserContactsResult { repeated UserContact contacts = 1; }
+
+message Role {
+  string role_id = 1;
+  string tenant_id = 2;          // vacío = rol de sistema (preset)
+  string name = 3;
+  repeated string permissions = 4;
+  bool system = 5;               // los presets de sistema no se editan
+}
+message UpsertRoleRequest { Role role = 1; }
+message ListRolesRequest { string tenant_id = 1; }
+message ListRolesResult { repeated Role roles = 1; }
+message AssignRoleRequest { string user_id = 1; string role_id = 2; }
+
+message PasskeyChallenge {
+  string challenge_id = 1;
+  bytes public_key_options_json = 2; // opciones WebAuthn serializadas
+}
+message BeginPasskeyRegistrationRequest { string user_id = 1; string device_label = 2; }
+message FinishPasskeyRegistrationRequest { string challenge_id = 1; bytes credential_json = 2; }
+message BeginPasskeyLoginRequest { string email = 1; }
+message FinishPasskeyLoginRequest { string challenge_id = 1; bytes assertion_json = 2; }
+
+message StepUpRequest { string user_id = 1; string operation = 2; int64 amount_minor = 3; string currency = 4; }
+message VerifyStepUpRequest { string challenge_id = 1; bytes assertion_json = 2; }
+message StepUpToken {
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+message ConsumeStepUpRequest { string token = 1; string user_id = 2; string operation = 3; int64 amount_minor = 4; string currency = 5; }
+message ConsumeStepUpResult { bool valid = 1; string reason = 2; } // reason: "EXPIRED" | "ALREADY_USED" | "MISMATCH" | "NOT_FOUND"
+
+// ── Eventos. Subject: pp.identity.<evento>.v1 ──
+message TenantStatusChanged { string tenant_id = 1; TenantStatus status = 2; TenantStatus previous_status = 3; }
+// Revocación de sesiones (logout global, reuso de refresh detectado, cambio de contraseña, bloqueo de plataforma).
+// reason: "LOGOUT_ALL" | "REFRESH_REUSE" | "PASSWORD_CHANGED" | "ADMIN_ACTION" | "TENANT_SUSPENDED"
+message SessionRevoked { string user_id = 1; repeated string session_ids = 2; string reason = 3; }

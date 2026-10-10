@@ -1,0 +1,34 @@
+# api-gateway
+
+Única puerta HTTPS/JSON + WebSocket de la app Flutter y de los webhooks. Especificación completa: [`SPEC.md`](SPEC.md).
+
+| | |
+|---|---|
+| Tecnología | Go |
+| Puerto | 8080 (público) (admin `:9100` en servicios propios) |
+| Fase del roadmap | F09 |
+
+## Estado
+| Aspecto | Estado | Evidencia |
+|---|---|---|
+| Código | 📝 parcial: `/healthz`, `/v1/auth/{login,register,refresh}`, `/v1/me`, `/v1/me/permissions`, middleware de autenticación y errores `{error,reason}` | |
+| Pruebas | L1 10 pruebas de handlers; L4 E2E con identity (14 comprobaciones) — ejecutadas 2026-10-10 | |
+| Imagen Docker | Dockerfile listo; imagen no construida en el entorno de generación | |
+
+## Arranque local
+```bash
+cp .env.example .env       # completar valores (nunca commitear .env)
+docker compose up --build api-gateway
+```
+
+## Desarrollo
+```bash
+cd api-gateway
+go test -race ./...         # L1
+go vet ./...                # L0
+../scripts/e2e-identity-gateway.sh   # L4 (desde la raíz: ./scripts/e2e-identity-gateway.sh)
+```
+Estándar: `docs/standards/go-standards.md`. La estructura actual es anterior al estándar (falta `internal/config`, `domain`, `service`, `observability`); alinear en F08.2/F09.2.
+
+## Limitaciones conocidas
+Sin metadatos `x-pp-*` hacia servicios (F09.2), sin traductor genérico ni tabla declarativa de rutas (F09.3), sin WebSocket (F09.5), sin rate limits (F09.6), sin OpenAPI (F09.7).

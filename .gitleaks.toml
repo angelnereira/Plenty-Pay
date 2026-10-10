@@ -1,0 +1,8 @@
+# gitleaks — CI bloquea el merge ante cualquier hallazgo (security-standards.md §5.4)
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores de ejemplo evidentes en .env.example y documentación"
+paths = ['''(^|/)\.env\.example$''', '''^_legacy-typescript-reference/''']
+regexes = ['''CAMBIAR''', '''changeme''', '''example\.com''']

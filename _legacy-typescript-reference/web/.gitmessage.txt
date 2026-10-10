@@ -1,0 +1,15 @@
+# <tipo>(<scope>): <asunto en imperativo, sin punto final>
+#
+# Cuerpo: explica QUÉ cambia y POR QUÉ (no el cómo). Envuelve a ~72 columnas.
+#
+# Tipos: feat, fix, docs, test, refactor, perf, build, ci, chore, revert, style
+# Scope: área principal tocada (p.ej. facturas, inventario, ci, db)
+#
+# Checklist antes de commitear:
+#   [ ] Tests relevantes pasan (npm test / test:db / test:e2e)
+#   [ ] Sin secretos ni credenciales en el cambio
+#   [ ] Rama correcta (Development/preview o Hotfix)
+#   [ ] Docs actualizadas si cambió comportamiento
+#
+# Sugerencia: ejecuta `npm run hooks:install` una vez para que el mensaje se
+# pre-rellene automáticamente según los archivos en stage.

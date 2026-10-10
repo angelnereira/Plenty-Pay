@@ -1,0 +1,63 @@
+name: pr-autofill
+
+# Pre-rellena el descriptor del Pull Request a partir del diff y valida que
+# esté completo. El check "descriptor pre-rellenado" queda en rojo hasta que
+# el Resumen y el Checklist final estén confirmados por una persona.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-autofill-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  descriptor:
+    name: descriptor pre-rellenado
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (head del PR, historia completa)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Traer rama base
+        run: git fetch --no-tags --depth=100 origin "${{ github.event.pull_request.base.ref }}"
+
+      # No auto-rellenamos en el evento 'edited' para no pisar lo que una
+      # persona acaba de escribir o marcar.
+      - name: Pre-rellenar descriptor
+        if: ${{ github.event.action != 'edited' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: origin/${{ github.event.pull_request.base.ref }}
+        run: |
+          gh pr view "$PR" --json body -q '.body // ""' > /tmp/pr-body.md || echo "" > /tmp/pr-body.md
+          node scripts/change-descriptor.mjs render \
+            --base "$BASE" --head HEAD --current-body /tmp/pr-body.md > /tmp/pr-body.new.md
+          if ! cmp -s /tmp/pr-body.md /tmp/pr-body.new.md; then
+            gh pr edit "$PR" --body-file /tmp/pr-body.new.md
+            echo "Descriptor pre-rellenado/actualizado."
+          else
+            echo "El descriptor ya estaba al día."
+          fi
+
+      - name: Validar descriptor
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr view "$PR" --json body -q '.body // ""' > /tmp/pr-body.check.md || echo "" > /tmp/pr-body.check.md
+          node scripts/change-descriptor.mjs validate --body /tmp/pr-body.check.md

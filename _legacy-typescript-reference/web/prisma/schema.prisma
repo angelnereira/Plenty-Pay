@@ -1,0 +1,3613 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MULTI-TENANCY & CLIENTS
+// ============================================
+
+model Client {
+  id      String  @id @default(cuid())
+  slug    String  @unique
+  name    String
+  ruc     String? @unique
+  dv      String? // Dígito verificador
+  email   String?
+  phone   String?
+  address String?
+  website String?
+  logo    String?
+
+  // HKA Configuration
+  hkaEnabled       Boolean @default(true)
+  hkaTokenUser     String? // Token específico si lo tienen
+  hkaTokenPassword String?
+  hkaEnvironment   String? @default("demo") // demo | prod
+
+  // Campos para XML/HKA
+  rucType        String  @default("2") // 1=Natural, 2=Jurídica, 3=Extranjero
+  tradeName      String? // Nombre comercial
+  commercialName String? // Alias de tradeName
+  branchCode     String  @default("0000")
+  locationCode   String  @default("1-1-1")
+  province       String  @default("PANAMA")
+  district       String  @default("PANAMA")
+  corregimiento  String  @default("SAN FELIPE")
+
+  // Configuración de facturación automática
+  autoSendToHKA        Boolean @default(true)
+  requireApproval      Boolean @default(false)
+  emailOnCertification Boolean @default(true)
+  emailOnError         Boolean @default(true)
+  lowFoliosThreshold   Int     @default(10)
+
+  // Limits
+  maxUsers       Int  @default(3) // Max total users for this client
+  maxPosStations Int  @default(1) // Max concurrent POS stations/cashiers (each needs a user license)
+  maxFolios      Int? // Límite máximo de folios (legacy, no enforced)
+  maxBranches    Int  @default(1) // Sucursales totales permitidas (incluida + extras)
+  extraBranches  Int  @default(0) // Sucursales adicionales contratadas sobre lo que incluye el plan
+
+  // Invoice Numbering Sequence
+  lastInvoiceNumber Int @default(999999) // Próximo será 1000000 = "0001000000"
+
+  // Status
+  isActive Boolean @default(true)
+
+  // Module Feature Flags (all optional — accounts can have 0 modules active)
+  facturacionEnabled    Boolean          @default(false)
+  inventoryEnabled      Boolean          @default(false)
+  posEnabled            Boolean          @default(false)
+  paydayEnabled         Boolean          @default(false)
+  logisticsEnabled      Boolean          @default(false)
+  // Módulo de Créditos: gestión de créditos otorgados por el tenant a sus clientes.
+  // v2.1 (tiered pricing): el módulo solo está disponible si SUPER_ADMIN
+  // asigna un tier explícito. `creditosEnabled` controla visibilidad/gate;
+  // `motorCreditTier` controla el límite de clientes con crédito otorgado.
+  // Default false: tenants existentes y nuevos NO tienen el módulo hasta
+  // que SUPER_ADMIN lo active y elija un tier.
+  creditosEnabled       Boolean          @default(false)
+  motorCreditTier       MotorCreditTier?
+  apiAccessEnabled      Boolean          @default(false) // Endpoints REST + webhooks (incluido en ENTERPRISE)
+  whatsappEnabled       Boolean          @default(false) // Addon WhatsApp Business — $19/mes
+  premiumSupportEnabled Boolean          @default(false) // Addon Soporte Premium — $49/mes
+  biEnabled             Boolean          @default(false) // Addon BI Esencial — $25/mes (dashboards de monitoreo)
+  biProEnabled          Boolean          @default(false) // Addon BI Pro — $59/mes (builder + predicción + campañas; incluye Esencial)
+  billingPeriod         BillingPeriod    @default(MONTHLY) // MONTHLY o YEARLY (~17% desc en plan)
+  logisticsSecret       String?          @default(cuid()) // Secret for HMAC QR tokens
+
+  // Soft-cap mensual de facturas: timestamps del último aviso enviado por
+  // umbral. Se comparan contra el primer día del mes en curso para no
+  // spammear al cliente. Reseteo natural al cambiar de mes.
+  lastInvoiceCapWarning80At  DateTime?
+  lastInvoiceCapWarning100At DateTime?
+
+  // Inventory Configuration
+  inventoryValuationMethod String  @default("WEIGHTED_AVG") // FIFO, WEIGHTED_AVG
+  defaultLeadTimeDays      Int     @default(7)
+  lowStockAlertEnabled     Boolean @default(true)
+  autoReorderEnabled       Boolean @default(false)
+
+  // Approval Status for new registrations
+  approvalStatus String    @default("PENDING") // PENDING, APPROVED, PARTIAL, REJECTED
+  demoStartDate  DateTime? // When demo period started
+  demoEndDate    DateTime? // When demo period ends (14 days)
+  pendingModules String[]  @default([]) // Modules requested during registration
+
+  // Plan/Subscription
+  planType String @default("START") // v2: START, BUSINESS, ENTERPRISE
+
+  suspendedAt   DateTime?
+  suspendReason String?
+  deletedAt     DateTime? // Soft delete timestamp for delta sync
+
+  // Metadata
+  metadata Json? // JSON nativo para PostgreSQL
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users           User[]
+  folios          FolioAssignment[]
+  invoices        Invoice[]
+  apiKeys         ApiKey[]
+  systemConfigs   SystemConfig[]
+  customers       Customer[]
+  apiLogs         ApiLog[]
+  errorLogs       ErrorLog[]
+  products        Product[]
+  paydayEmployees PaydayEmployee[]
+  paydayConfig    PaydayConfig?
+  payrollRuns     PaydayPayrollRun[]
+  upgradeRequests UpgradeRequest[]
+  workShifts      WorkShift[]
+  workGroups      WorkGroup[]
+
+  // Purchasing Relations
+  suppliers            Supplier[]
+  purchaseOrders       PurchaseOrder[]
+  purchaseRequisitions PurchaseRequisition[]
+  goodsReceipts        GoodsReceipt[]
+
+  // Logistics Relations
+  deliveryOrders DeliveryOrder[]
+  carriers       Carrier[]
+  drivers        Driver[]
+
+  // Team Roles & Members
+  teamRoles   TeamRole[]
+  teamMembers TeamMember[]
+
+  // Motor de Entidades & Ledger Financiero
+  motorAssignments      ClientModuleAssignment[]
+  motorUserAccess       MotorUserAccess[]
+  motorEntities         MotorEntity[]
+  motorFieldDefinitions MotorEntityFieldDefinition[]
+  motorRelations        MotorEntityRelation[]
+  motorLedgerEntries    MotorLedgerEntry[]
+
+  // PlentyPay Payment Core + Ledger (ver services/wallet-ledger y services/payments-orchestrator)
+  wallets            Wallet[]
+  paymentIntents     PaymentIntent[]
+  payments           Payment[]
+  feePolicies        FeePolicy[]
+  paymentTerminals   PaymentTerminal[]
+  ledgerAccounts     LedgerAccount[]
+  ledgerTransactions LedgerTransaction[]
+  settlementBatches  SettlementBatch[]
+
+  // BI (Business Intelligence)
+  biAlerts     BIAlert[]
+  biDashboards BIDashboard[]
+  biSegments   BISavedSegment[]
+  biCampaigns  BICampaign[]
+  biForecasts  BIForecast[]
+
+  @@index([slug])
+  @@index([ruc])
+  @@index([isActive])
+  @@map("clients")
+}
+
+// ============================================
+// AUTHENTICATION & USERS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  password      String // bcrypt hashed
+  name          String
+  phone         String?
+  image         String?
+  ruc           String?
+  dv            String?
+
+  // Multi-tenant
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Role
+  role UserRole @default(CLIENT)
+
+  // Preferences
+  emailNotifications Boolean            @default(true)
+  language           String             @default("es")
+  timezone           String             @default("America/Panama")
+  checkoutPreference CheckoutPreference @default(ALWAYS_DGI)
+  checkoutThreshold  Decimal            @default(20.00) @db.Decimal(10, 2)
+
+  // Status
+  isActive    Boolean    @default(true)
+  status      UserStatus @default(ACTIVE)
+  lastLoginAt DateTime?
+  lastLoginIp String?
+
+  // Password reset tracking
+  passwordChangedAt DateTime?
+
+  // Metadata
+  metadata Json? // JSON nativo para PostgreSQL
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  invoices            Invoice[]
+  sessions            Session[]
+  accounts            Account[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  apiLogs             ApiLog[]
+  errorLogs           ErrorLog[]
+  monitors            Monitor[]
+  collections         Collection[]
+  environments        Environment[]
+  hkaCredentials      HKACredential[]
+  pushSubscriptions   PushSubscription[]
+  supportTickets      SupportTicket[]
+  supportMessages     SupportMessage[]
+  posSessions         PosSession[]
+  upgradeRequests     UpgradeRequest[]
+  teamMemberships     TeamMember[]
+  securityTokens      SecurityToken[]
+  passwordResetTokens PasswordResetToken[]
+  motorUserAccess     MotorUserAccess?
+
+  @@index([clientId])
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN // Personal interno de la plataforma (devs/ops)
+  CLIENT // Usuarios normales del sistema
+}
+
+enum CheckoutPreference {
+  ALWAYS_DGI
+  INTERNAL_ONLY
+  ASK_ALWAYS
+  AUTO_THRESHOLD
+}
+
+// ============================================
+// POS SESSIONS - Concurrent Station Management
+// ============================================
+
+model PosSession {
+  id           String    @id @default(cuid())
+  clientId     String
+  userId       String
+  stationName  String // e.g., "Caja 1", "Caja Principal"
+  status       String    @default("ACTIVE") // ACTIVE, CLOSED, TIMEOUT
+  startedAt    DateTime  @default(now())
+  lastActivity DateTime  @default(now())
+  endedAt      DateTime?
+
+  // Optional metadata
+  ipAddress  String?
+  deviceInfo String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, status])
+  @@index([userId])
+  @@index([lastActivity])
+  @@map("pos_sessions")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model HKACredential {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  environment   HKAEnvironment @default(DEMO)
+  tokenUser     String
+  tokenPassword String         @db.Text
+  isActive      Boolean        @default(true)
+  lastUsedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([userId, environment])
+  @@index([userId, environment])
+  @@map("hka_credentials")
+}
+
+// ============================================
+// FOLIO MANAGEMENT
+// ============================================
+
+model FolioPool {
+  id          String @id @default(cuid())
+  // Identificación
+  batchNumber String @unique
+  provider    String @default("HKA")
+
+  // Cantidades
+  totalFolios     Int
+  availableFolios Int
+  assignedFolios  Int @default(0)
+  consumedFolios  Int @default(0)
+
+  // Información de compra
+  purchaseDate     DateTime @default(now())
+  purchaseAmount   Decimal  @db.Decimal(12, 2)
+  hkaInvoiceNumber String?
+
+  // Rango de folios
+  folioStart String?
+  folioEnd   String?
+
+  // Status
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+
+  // Metadata
+  metadata Json? // JSON nativo para PostgreSQL
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assignments FolioAssignment[]
+
+  @@index([isActive])
+  @@index([batchNumber])
+  @@index([expiresAt])
+  @@map("folio_pools")
+}
+
+model FolioAssignment {
+  id String @id @default(cuid())
+
+  // Pool & Client
+  folioPoolId String
+  folioPool   FolioPool @relation(fields: [folioPoolId], references: [id], onDelete: Restrict)
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Cantidades
+  assignedAmount Int
+  consumedAmount Int @default(0)
+
+  // Alertas
+  alertThreshold Int       @default(10) // Porcentaje
+  alertSent      Boolean   @default(false)
+  lastAlertAt    DateTime?
+
+  // Timestamps
+  assignedAt DateTime  @default(now())
+  expiresAt  DateTime?
+
+  // Notas
+  notes      String? @db.Text
+  assignedBy String? // User ID que asignó
+
+  @@unique([folioPoolId, clientId])
+  @@index([clientId])
+  @@index([folioPoolId])
+  @@map("folio_assignments")
+}
+
+model FolioConsumption {
+  id String @id @default(cuid())
+
+  // Referencias
+  assignmentId String
+  invoiceId    String  @unique
+  invoice      Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  consumedAt  DateTime @default(now())
+  folioNumber String?
+
+  @@index([assignmentId])
+  @@index([invoiceId])
+  @@index([consumedAt])
+  @@map("folio_consumptions")
+}
+
+// ============================================
+// INVOICES & BILLING
+// ============================================
+
+model Invoice {
+  id String @id @default(cuid())
+
+  // Multi-tenant
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Creator
+  createdBy String
+  user      User   @relation(fields: [createdBy], references: [id])
+
+  // Idempotency
+  clientReferenceId String @unique
+
+  // RELACIÓN CUSTOMER
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  // Datos del Emisor (snapshot)
+  issuerRuc     String
+  issuerDv      String
+  issuerName    String
+  issuerAddress String
+  issuerEmail   String
+  issuerPhone   String?
+
+  // Datos del Receptor
+  receiverType    ReceiverType @default(CONTRIBUTOR)
+  receiverRuc     String?
+  receiverDv      String?
+  receiverName    String
+  receiverEmail   String?
+  receiverPhone   String?
+  receiverAddress String?
+
+  // Documento
+  documentType          DocumentType @default(FACTURA)
+  invoiceNumber         String? // Asignado por HKA
+  cufe                  String?      @unique
+  cufeLocal             String? // CUFE pre-generado localmente antes del envío a HKA
+  cafe                  String? // Código de Autorización FE
+  numeroDocumentoFiscal String? // Ej: 001-0000-01-12345678
+  qrCode                String?      @db.Text // QR en Base64 (imagen)
+  qrUrl                 String?      @db.Text // URL del QR para consulta en DGI
+
+  // Campos adicionales para XML/HKA
+  pointOfSale   String    @default("001")
+  securityCode  String? // Código de seguridad (random 8-9 dígitos)
+  deliveryDate  DateTime?
+  paymentMethod String    @default("CASH") // CASH, CHECK, TRANSFER, CREDIT_CARD, DEBIT_CARD
+  paymentTerm   String    @default("CASH") // CASH (Contado), CREDIT (Crédito)
+  xmlContent    String?   @db.Text // XML generado
+
+  // Montos
+  subtotal              Decimal @db.Decimal(12, 2)
+  discount              Decimal @default(0) @db.Decimal(12, 2)
+  subtotalAfterDiscount Decimal @db.Decimal(12, 2)
+  itbms                 Decimal @db.Decimal(12, 2) // Impuesto
+  total                 Decimal @db.Decimal(12, 2)
+  currency              String  @default("PAB")
+
+  // Fechas
+  issueDate DateTime  @default(now())
+  dueDate   DateTime?
+
+  // Notas
+  notes         String? @db.Text
+  internalNotes String? @db.Text
+
+  // --- Notas de Crédito/Débito: Referencia a documento original ---
+  noteSubtype         NoteSubtype? // REFERENCED (04/05) o GENERIC (06/07)
+  referencedInvoiceId String? // FK a la factura original (para tipo 04/05)
+  referencedInvoice   Invoice?     @relation("CreditDebitNotes", fields: [referencedInvoiceId], references: [id])
+  creditDebitNotes    Invoice[]    @relation("CreditDebitNotes")
+
+  // Datos del emisor original referenciado (gDFRef / B60)
+  refEmitterType  String? // B6011 - Tipo contribuyente emisor original (1=Natural, 2=Jurídica)
+  refEmitterRuc   String? // B6012 - RUC emisor original
+  refEmitterDv    String? // B6013 - DV emisor original
+  refEmitterName  String? // B602 - Razón social emisor original
+  refDocumentDate DateTime? // B603 - Fecha exacta del doc original
+  refDocumentType String? // B604 - Tipo doc original (01, 02, 03...)
+  refCufe         String? // B606 - CUFE del doc original (66 chars)
+
+  // Exportación (gFExp) — Solo para tipoDocumento 03 (Factura de Exportación)
+  exportIncoterm      String? // INCOTERMS (Tabla 32 DGI) ej: "FOB", "CIF"
+  exportCurrency      String? // Moneda ISO 4217 ej: "USD", "EUR"
+  exportCurrencyDesc  String? // Descripción si moneda="ZZZ"
+  exportExchangeRate  Decimal? @db.Decimal(11, 4) // Tasa de cambio si moneda ≠ USD
+  exportForeignAmount Decimal? @db.Decimal(20, 4) // Monto total en moneda extranjera
+  exportPort          String? // Puerto de embarque
+
+  // Alerta de antigüedad DGI
+  dgiNotificationCode String? // Código "N" de notificación DGI (>180 días)
+
+  // Estado
+  status          InvoiceStatus @default(DRAFT)
+  hkaStatus       String?
+  hkaMessage      String?       @db.Text
+  rejectionReason String?       @db.Text
+  hkaCode         String? // Código de respuesta HKA
+
+  // HKA Integration - Campos adicionales
+  hkaProtocol        String?   @unique // Número de protocolo HKA (para v1)
+  protocoloSeguridad String? // Protocolo de seguridad HKA v2
+  hkaProtocolDate    DateTime?
+  pdfBase64          String?   @db.Text // PDF firmado en base64
+  hkaResponseCode    String? // Código numérico de respuesta HKA
+  hkaResponseMessage String?   @db.Text // Mensaje de respuesta detallado
+  hkaResponseData    Json? // Datos adicionales en JSON
+  hkaLastAttempt     DateTime?
+  hkaAttempts        Int       @default(0)
+  emittedAt          DateTime? // Fecha de emisión exitosa
+
+  // Control de descarga de archivos
+  pdfDescargado Boolean @default(false) // Indica si el PDF fue descargado
+  xmlDescargado Boolean @default(false) // Indica si el XML fue descargado
+
+  // Storage
+  xmlUrl String?
+  pdfUrl String?
+  rawXml String? @db.Text
+
+  // Phase tracking for 8-phase processing workflow
+  currentPhase     Int?      @default(0) // 0=Init, 1-8=Processing phases
+  phaseHistory     Json? // Array of {phase, status, timestamp, attempt}
+  phaseErrors      Json? // Errors by phase {phase: error}
+  lastPhaseAttempt DateTime? // Last phase execution timestamp
+
+  // B2C/Mostrador — Fecha límite para autorización DGI posterior
+  // tipoEmision=03: fin del día hábil siguiente a fechaEmision
+  // tipoEmision=04: fechaEmision + 72 horas exactas
+  fechaLimitePosterior DateTime?
+
+  // Contingencia (campos DGI B04/B05) — obligatorio cuando tipoEmisionOverride es '02' o '04'.
+  // Persiste el modo de emisión determinado offline para que el worker lo use aunque la
+  // contingencia ya esté desactivada cuando llega la sincronización.
+  tipoEmisionOverride     String? // '01'|'02'|'03'|'04' — anula resolución dinámica del config
+  fechaInicioContingencia DateTime? // B04: momento exacto en que inició la caída
+  motivoContingencia      String?   @db.Text // B05: texto libre 15-250 chars
+
+  // Anulación
+  isCancelled        Boolean   @default(false)
+  cancelledAt        DateTime?
+  cancellationReason String?   @db.Text
+  cancellationCufe   String?
+
+  // Retry logic
+  retryCount  Int       @default(0)
+  maxRetries  Int       @default(3)
+  nextRetryAt DateTime?
+  deletedAt   DateTime? // Soft delete timestamp for delta sync
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  queuedAt    DateTime?
+  sentAt      DateTime?
+  certifiedAt DateTime?
+
+  // Relations
+  items            InvoiceItem[]
+  logs             InvoiceLog[]
+  folioConsumption FolioConsumption?
+  emailDeliveries  EmailDelivery[]
+
+  @@index([clientId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([cufe])
+  @@index([cafe])
+  @@index([issuerRuc])
+  @@index([receiverRuc])
+  @@index([createdAt])
+  @@index([issueDate])
+  @@index([documentType])
+  @@index([currentPhase])
+  @@index([lastPhaseAttempt])
+  @@index([referencedInvoiceId])
+  // Índices compuestos para queries optimizadas
+  @@index([clientId, status])
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([clientId, status, createdAt(sort: Desc)])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT // Borrador
+  INTERNAL // Venta interna - registrada sin emisión fiscal
+  QUEUED // En cola
+  PROCESSING // Procesando en HKA
+  PENDING_DGI // Aceptado por HKA (202), pendiente de validación DGI
+  EMITTED // Emitido exitosamente por HKA
+  CERTIFIED // Certificado por DGI (legacy)
+  REJECTED // Rechazado
+  CANCELLED // Anulado
+  ERROR // Error
+}
+
+enum DocumentType {
+  FACTURA // 01 - Factura de operación interna
+  FACTURA_IMPORTACION // 02 - Factura de importación
+  FACTURA_EXPORTACION // 03 - Factura de exportación
+  NOTA_CREDITO // 04 (referenciada) o 06 (genérica) según noteSubtype
+  NOTA_DEBITO // 05 (referenciada) o 07 (genérica) según noteSubtype
+  FACTURA_ZONA_FRANCA // 08 - Factura de Zona Franca
+  REEMBOLSO // 09 - Reembolso
+  FACTURA_EXTRANJERA // 10 - Factura por operaciones de terceros/extranjera
+}
+
+enum NoteSubtype {
+  REFERENCED // Tipo 04/05 — referencia a FE específica (requiere gDFRef)
+  GENERIC // Tipo 06/07 — genérica sin referencia (gDFRef prohibido)
+}
+
+enum ReceiverType {
+  CONTRIBUTOR // 01 - Contribuyente con RUC
+  FINAL_CONSUMER // 02 - Consumidor final
+  GOVERNMENT // 03 - Gobierno
+  FOREIGN // 04 - Extranjero
+}
+
+enum HKAEnvironment {
+  DEMO
+  PROD
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+}
+
+// ============================================
+// CUSTOMERS (CLIENTES)
+// ============================================
+
+model Customer {
+  id String @id @default(cuid())
+
+  // Multi-tenant
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Datos básicos
+  ruc     String
+  dv      String
+  name    String
+  email   String?
+  phone   String?
+  address String
+
+  // Ubicación
+  locationCode  String?
+  province      String?
+  district      String?
+  corregimiento String?
+  countryCode   String  @default("PA")
+
+  // Tipo de cliente
+  clientType String @default("01") // 01=Contribuyente, 02=Consumidor Final, 03=Gobierno, 04=Extranjero
+  rucType    String @default("2") // 1=Natural, 2=Jurídica, 3=Extranjero
+
+  // Campos especiales para Gobierno (tipoClienteFE=03)
+  codigoCPBS String? // Código CPBS para clientes gubernamentales
+
+  // Status
+  isActive  Boolean   @default(true)
+  deletedAt DateTime? // Soft delete timestamp for delta sync
+
+  // Relación con Invoice
+  invoices Invoice[]
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, ruc, dv])
+  @@index([clientId])
+  @@index([clientId, isActive])
+  @@index([ruc])
+  @@map("customers")
+}
+
+model InvoiceItem {
+  id String @id @default(cuid())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // Referencia opcional al producto del inventario
+  // Permite descontar stock automáticamente al emitir facturas desde el módulo de facturación
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  // Order
+  lineNumber Int
+
+  // Product/Service
+  code        String
+  description String @db.Text
+
+  // Quantities
+  quantity  Decimal @db.Decimal(12, 4)
+  unitPrice Decimal @db.Decimal(12, 2)
+  unit      String  @default("UND")
+
+  // Discount
+  discount        Decimal  @default(0) @db.Decimal(12, 2)
+  discountRate    Decimal  @default(0) @db.Decimal(5, 2)
+  discountedPrice Decimal? @db.Decimal(12, 2) // Precio unitario con descuento
+
+  // Tax (ITBMS)
+  taxRate   Decimal @default(7) @db.Decimal(5, 2)
+  taxCode   String  @default("01") // Código ITBMS
+  taxAmount Decimal @db.Decimal(12, 2)
+
+  // OTI (Otros Tributos e Impuestos) - Nuevo soporte HKA
+  otiCode   String? // Código OTI según catálogo HKA (Ej: "A1" ISC)
+  otiAmount Decimal? @db.Decimal(12, 2) // Monto OTI calculado
+
+  // Totals
+  subtotal Decimal @db.Decimal(12, 2)
+  total    Decimal @db.Decimal(12, 2)
+
+  // Additional info
+  cpbsCode String? // Código CPBS (Clasificación)
+  cpbsUnit String?
+
+  @@index([invoiceId])
+  @@index([invoiceId, lineNumber])
+  @@map("invoice_items")
+}
+
+model InvoiceLog {
+  id String @id @default(cuid())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // Log
+  action   LogAction
+  message  String    @db.Text
+  metadata Json?
+
+  // User (opcional)
+  userId    String?
+  userEmail String?
+  userIp    String?
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("invoice_logs")
+}
+
+enum LogAction {
+  CREATED
+  UPDATED
+  QUEUED
+  SENT
+  PROCESSING
+  CERTIFIED
+  REJECTED
+  ERROR
+  CANCELLED
+  DOWNLOADED_XML
+  DOWNLOADED_PDF
+  EMAIL_SENT
+  RETRIED
+  MANUAL_INTERVENTION
+}
+
+// ============================================
+// EMAIL DELIVERY
+// ============================================
+
+model EmailDelivery {
+  id String @id @default(cuid())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  recipientEmail String
+  hkaTrackingId  String?
+
+  status EmailStatus
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+
+  includePDF    Boolean @default(true)
+  includeXML    Boolean @default(true)
+  customMessage String? @db.Text
+
+  retryCount Int     @default(0)
+  lastError  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([status])
+  @@index([hkaTrackingId])
+  @@map("email_deliveries")
+}
+
+// ============================================
+// API KEYS & INTEGRATIONS
+// ============================================
+
+model ApiKey {
+  id String @id @default(cuid())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Key
+  name   String
+  key    String @unique
+  prefix String // Primeros 8 caracteres
+
+  // Permissions
+  permissions String // JSON como string para SQLite
+
+  // Rate limiting
+  rateLimit       Int @default(100) // por minuto
+  rateLimitWindow Int @default(60) // segundos
+
+  // Status
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([key])
+  @@index([prefix])
+  @@map("api_keys")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Content
+  type    NotificationType
+  title   String
+  message String           @db.Text
+  link    String?
+
+  // Metadata
+  metadata Json? // JSON nativo para PostgreSQL
+
+  // Status
+  read   Boolean   @default(false)
+  readAt DateTime?
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INVOICE_CERTIFIED
+  INVOICE_REJECTED
+  INVOICE_ERROR
+  FOLIOS_LOW
+  FOLIOS_DEPLETED
+  FOLIOS_ASSIGNED
+  SYSTEM_ALERT
+  PAYMENT_REQUIRED
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  // User
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String?
+
+  // Action
+  action   String
+  entity   String // Invoice, User, Client, etc.
+  entityId String
+
+  // Details
+  changes String? // JSON como string para SQLite
+
+  // Context
+  ip        String?
+  userAgent String?
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// SYSTEM CONFIGURATION
+// ============================================
+
+model SystemConfig {
+  id String @id @default(cuid())
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  key         String
+  value       String   @db.Text // JSON como string
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  @@unique([clientId, key])
+  @@index([key])
+  @@index([clientId])
+  @@map("system_configs")
+}
+
+// ============================================
+// API CALL LOGS
+// ============================================
+
+model ApiLog {
+  id String @id @default(cuid())
+
+  // Request Details
+  method   String // GET, POST, PUT, DELETE, etc.
+  path     String
+  endpoint String // Full endpoint
+  userId   String?
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  // Request Data
+  requestHeaders Json? // Headers como JSON
+  requestBody    String? @db.Text // Body como string (puede ser grande)
+  requestQuery   Json? // Query params
+
+  // Response Data
+  statusCode      Int
+  responseBody    String? @db.Text // Response como string
+  responseHeaders Json? // Response headers
+  success         Boolean
+  errorMessage    String? @db.Text
+
+  // Technical Details
+  ip           String?
+  userAgent    String?
+  duration     Int? // Duración en ms
+  responseSize Int? // Tamaño de respuesta en bytes
+
+  // Context
+  apiName   String? // HKA, Internal, External
+  apiMethod String? // Método específico del API (ConsultarFolios, etc.)
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([endpoint])
+  @@index([statusCode])
+  @@index([success])
+  @@index([apiName])
+  @@index([createdAt])
+  @@map("api_logs")
+}
+
+// ============================================
+// ERROR LOGGING SYSTEM
+// ============================================
+
+model ErrorLog {
+  id String @id @default(cuid())
+
+  // Request Context
+  requestId String? // Correlation ID para seguir errores
+  method    String? // HTTP method
+  path      String? // Request path
+  endpoint  String? // Full endpoint
+
+  // User Context
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String?
+
+  // Organization Context
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  // Error Details
+  errorType    String // Error class name
+  errorMessage String  @db.Text
+  errorCode    String? // HTTP status code, prisma code, etc
+  errorStack   String? @db.Text
+
+  // Request/Response Data (sanitized)
+  requestBody    String? @db.Text
+  requestQuery   Json?
+  requestHeaders Json?
+  responseBody   String? @db.Text
+
+  // Technical Context
+  ip        String?
+  userAgent String?
+  duration  Int? // Time until error in ms
+
+  // Environment
+  environment String? // production, staging, development
+  hostname    String? // Server hostname
+  version     String? // App version/git commit
+
+  // Sentry Integration
+  sentryEventId String? @unique // Link to Sentry event
+  sentryUrl     String? // Direct link to Sentry issue
+
+  // Resolution
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
+  resolvedBy   String?
+  resolvedNote String?   @db.Text
+
+  // Metadata
+  metadata Json? // Additional context as JSON
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([endpoint])
+  @@index([errorType])
+  @@index([errorCode])
+  @@index([resolved])
+  @@index([createdAt])
+  @@index([requestId])
+  @@index([sentryEventId])
+  @@map("error_logs")
+}
+
+// ============================================
+// MONITORING SYSTEM
+// ============================================
+
+model Monitor {
+  id String @id @default(cuid())
+
+  // Basic info
+  name        String
+  description String? @db.Text
+
+  // Collection reference
+  collectionId String?
+  collection   Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  // Schedule
+  schedule Json // Cron expression and settings
+  enabled  Boolean @default(true)
+
+  // Multi-region
+  regions Json? // Array of regions
+
+  // Notification settings
+  notifications Json? // Notification config
+
+  // Metadata
+  createdBy String
+  user      User   @relation(fields: [createdBy], references: [id])
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  runs MonitorRun[]
+
+  @@index([createdBy])
+  @@index([enabled])
+  @@map("monitors")
+}
+
+model MonitorRun {
+  id String @id @default(cuid())
+
+  // Run info
+  monitorId String
+  monitor   Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  status String // RUNNING | SUCCESS | FAILED | TIMEOUT
+  region String?
+
+  // Timing
+  startedAt  DateTime
+  finishedAt DateTime?
+  duration   Int? // milliseconds
+
+  triggeredBy String? // user_id or 'schedule'
+
+  // Results
+  totalRequests Int @default(0)
+  passedTests   Int @default(0)
+  failedTests   Int @default(0)
+
+  error String? @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  // Relations
+  requests MonitorRunRequest[]
+
+  @@index([monitorId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("monitor_runs")
+}
+
+model MonitorRunRequest {
+  id String @id @default(cuid())
+
+  runId String
+  run   MonitorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  requestName String
+  method      String
+  url         String
+
+  statusCode   Int?
+  responseTime Int? // milliseconds
+  responseSize Int? // bytes
+
+  passedTests Int @default(0)
+  failedTests Int @default(0)
+
+  error     String? @db.Text
+  errorCode String?
+
+  // Request/Response (sensitive data)
+  requestBody     String? @db.Text
+  responseBody    String? @db.Text
+  requestHeaders  Json?
+  responseHeaders Json?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  // Relations
+  tests MonitorRunTest[]
+
+  @@index([runId])
+  @@map("monitor_run_requests")
+}
+
+model MonitorRunTest {
+  id String @id @default(cuid())
+
+  requestId String
+  request   MonitorRunRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  testName String
+  passed   Boolean
+  message  String? @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+  @@index([passed])
+  @@map("monitor_run_tests")
+}
+
+model Collection {
+  id String @id @default(cuid())
+
+  name       String
+  definition Json? // Collection definition (JSON format)
+
+  // Metadata
+  createdBy String
+  user      User   @relation(fields: [createdBy], references: [id])
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  monitors Monitor[]
+
+  @@index([createdBy])
+  @@map("collections")
+}
+
+model Environment {
+  id String @id @default(cuid())
+
+  name String
+
+  // Variables (encrypted at rest)
+  variables Json? // { [key: string]: string }
+
+  // Scope
+  scope String @default("collection") // global | collection | monitor
+
+  // Metadata
+  createdBy String
+  user      User   @relation(fields: [createdBy], references: [id])
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdBy])
+  @@index([scope])
+  @@map("environments")
+}
+
+// ============================================
+// HKA CATALOGS - Tablas de referencia
+// ============================================
+
+// Ubicaciones de Panamá (Provincia-Distrito-Corregimiento)
+model HKALocation {
+  id            String @id @default(cuid())
+  code          String @unique // Formato: "8-8-1"
+  provincia     String
+  distrito      String
+  corregimiento String
+  fullName      String // "PANAMA-PANAMA-SAN FELIPE"
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([provincia])
+  @@index([provincia, distrito])
+  @@map("hka_locations")
+}
+
+// Países según ISO 3166
+model HKACountry {
+  id     String @id @default(cuid())
+  code   String @unique // ISO 3166-1 alpha-2: "PA", "US", etc.
+  name   String // Nombre en inglés
+  nameEs String // Nombre en español
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@map("hka_countries")
+}
+
+// Categorías CPBS (Codificación Panameña de Bienes y Servicios)
+model HKACPBSCategory {
+  id          String @id @default(cuid())
+  segment     String // Código de 2 dígitos: "10", "11", etc.
+  family      String // Código de 4 dígitos: "1010", "1011", etc.
+  segmentName String // Nombre del segmento
+  familyName  String // Nombre de la familia
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([segment, family])
+  @@index([segment])
+  @@index([family])
+  @@map("hka_cpbs_categories")
+}
+
+// ============================================
+// INVENTORY & PRODUCTS
+// ============================================
+
+model Product {
+  id String @id @default(cuid())
+
+  // Multi-tenant
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Basic Info
+  sku         String?
+  barcode     String?
+  name        String
+  brand       String?
+  description String? @db.Text
+  category    String?
+  image       String?
+
+  // Specs
+  weight     String?
+  size       String?
+  dimensions String? // tamaño/talla
+  color      String?
+  material   String?
+  unitType   String  @default("UND") // UND, CAJA, LOTE, etc.
+
+  // Inventory logic
+  currentStock Decimal @default(0) @db.Decimal(12, 4)
+  minStock     Decimal @default(0) @db.Decimal(12, 4)
+
+  // Pricing & Taxes
+  purchasePrice Decimal @default(0) @db.Decimal(12, 2)
+  salePrice     Decimal @default(0) @db.Decimal(12, 2)
+  taxRate       Decimal @default(7) @db.Decimal(5, 2)
+  taxCode       String  @default("01") // Código ITBMS
+
+  // HKA / DGI
+  cpbsCode String? // Código CPBS (Clasificación DGI)
+  cpbsUnit String? // Unidad de medida CPBS (ej: und, Mes, Hora)
+
+  // Metadata
+  originCountry String?
+  isActive      Boolean   @default(true)
+  metadata      Json?
+  deletedAt     DateTime?
+
+  // ABC Classification
+  abcClass        String    @default("C") // A, B, C
+  abcClassifiedAt DateTime?
+
+  // Reorder Point & Safety Stock
+  reorderPoint Decimal @default(0) @db.Decimal(12, 4)
+  safetyStock  Decimal @default(0) @db.Decimal(12, 4)
+  maxStock     Decimal @default(0) @db.Decimal(12, 4)
+  eoqQuantity  Decimal @default(0) @db.Decimal(12, 4) // Economic Order Quantity
+
+  // Demand Statistics (for forecasting)
+  avgDailyDemand    Decimal   @default(0) @db.Decimal(12, 4)
+  demandVariability Decimal   @default(0) @db.Decimal(5, 2) // Coefficient of variation
+  lastDemandUpdate  DateTime?
+
+  // ACID Compliance - Optimistic Concurrency Control
+  version Int @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  transactions     InventoryTransaction[]
+  lots             InventoryLot[]
+  supplierProducts SupplierProduct[]
+  stockMovements   StockMovement[]
+  cartReservations CartReservation[]
+  invoiceItems     InvoiceItem[] // Ítems de facturas que referencian este producto
+
+  @@unique([clientId, sku])
+  @@unique([clientId, barcode])
+  @@index([clientId])
+  @@index([sku])
+  @@index([barcode])
+  @@index([name])
+  @@index([version])
+  @@map("products")
+}
+
+model InventoryLot {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Lot Details
+  batchNumber     String?
+  quantity        Decimal @db.Decimal(12, 4)
+  initialQuantity Decimal @db.Decimal(12, 4)
+
+  // Pricing at entry
+  purchasePrice Decimal @default(0) @db.Decimal(12, 2)
+  salePrice     Decimal @default(0) @db.Decimal(12, 2)
+
+  // Dates
+  expiryDate DateTime?
+  entryDate  DateTime  @default(now())
+
+  // Origin
+  supplierId    String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id])
+  originCountry String?
+
+  // Goods Receipt reference
+  goodsReceiptItemId String?
+
+  // Valuation (for FIFO tracking)
+  unitCost  Decimal @default(0) @db.Decimal(12, 2) // Cost per unit at time of receipt
+  totalCost Decimal @default(0) @db.Decimal(12, 2) // Total cost of lot
+
+  // Status
+  isActive Boolean @default(true)
+  notes    String? @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([batchNumber])
+  @@index([expiryDate])
+  @@index([supplierId])
+  @@map("inventory_lots")
+}
+
+model InventoryTransaction {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type     InventoryTransactionType
+  quantity Decimal                  @db.Decimal(12, 4)
+
+  // References
+  invoiceId String?
+  lotId     String?
+
+  // Details
+  reason    String?
+  reference String? // e.g., Invoice #, Batch #
+
+  // Auth
+  userId String?
+
+  // Metadata
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([type])
+  @@index([invoiceId])
+  @@index([createdAt])
+  @@map("inventory_transactions")
+}
+
+enum InventoryTransactionType {
+  ENTRY // Entrada (Compra, Devolución)
+  EXIT // Salida (Venta, Pérdida)
+  ADJUST // Ajuste manual
+}
+
+// ============================================
+// SUPPLIERS & PROCUREMENT
+// ============================================
+
+model Supplier {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Basic Info
+  code      String // Internal supplier code
+  name      String
+  tradeName String? // Commercial name
+  ruc       String?
+  dv        String?
+
+  // Contact
+  email        String?
+  phone        String?
+  address      String? @db.Text
+  city         String?
+  country      String  @default("PA")
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  website      String?
+
+  // Payment Terms
+  paymentTerms String? // NET30, NET60, CASH, etc.
+  creditLimit  Decimal? @db.Decimal(12, 2)
+  currency     String   @default("USD")
+  bankAccount  String?
+  bankName     String?
+
+  // Lead Times
+  defaultLeadTimeDays Int @default(7)
+
+  // Classification & Status
+  category String? // Raw Materials, Services, Equipment, etc.
+  tier     String  @default("STANDARD") // STRATEGIC, PREFERRED, STANDARD, PROBATION
+  isActive Boolean @default(true)
+
+  // Certifications (ISO compliance)
+  certifications String[] @default([])
+
+  // Audit
+  notes     String?   @db.Text
+  metadata  Json?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  purchaseOrders   PurchaseOrder[]
+  evaluations      SupplierEvaluation[]
+  supplierProducts SupplierProduct[]
+  inventoryLots    InventoryLot[]
+
+  @@unique([clientId, code])
+  @@unique([clientId, ruc, dv])
+  @@index([clientId])
+  @@index([name])
+  @@index([tier])
+  @@map("suppliers")
+}
+
+model SupplierProduct {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Pricing
+  unitPrice    Decimal  @db.Decimal(12, 2)
+  currency     String   @default("USD")
+  minOrderQty  Decimal? @db.Decimal(12, 4)
+  leadTimeDays Int?
+
+  // Supplier's product code
+  supplierSku String?
+
+  isPrimary Boolean @default(false) // Primary supplier for this product
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([supplierId, productId])
+  @@index([productId])
+  @@map("supplier_products")
+}
+
+model SupplierEvaluation {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  // Evaluation Period
+  periodStart DateTime
+  periodEnd   DateTime
+
+  // KPIs (0-100 scale)
+  onTimeDeliveryRate   Decimal @db.Decimal(5, 2) // % of orders on time
+  qualityRate          Decimal @db.Decimal(5, 2) // % without defects
+  responseTimeScore    Decimal @db.Decimal(5, 2) // 0-100 based on responsiveness
+  priceCompetitiveness Decimal @db.Decimal(5, 2) // Market comparison
+
+  overallScore Decimal @db.Decimal(5, 2) // Calculated weighted average
+
+  // Metrics
+  totalOrders    Int @default(0)
+  onTimeOrders   Int @default(0)
+  lateOrders     Int @default(0)
+  defectiveItems Int @default(0)
+  totalItems     Int @default(0)
+
+  notes       String?  @db.Text
+  evaluatedBy String?
+  createdAt   DateTime @default(now())
+
+  @@index([supplierId])
+  @@index([periodEnd])
+  @@map("supplier_evaluations")
+}
+
+// ============================================
+// PURCHASE REQUISITIONS
+// ============================================
+
+model PurchaseRequisition {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Document
+  requisitionNumber String
+  requestedBy       String // User ID
+  requestedAt       DateTime  @default(now())
+  requiredDate      DateTime?
+
+  // Justification
+  reason     String  @db.Text
+  department String?
+  costCenter String?
+  budgetCode String?
+
+  // Status Workflow
+  status          String    @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED, CONVERTED
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?   @db.Text
+
+  // Totals
+  estimatedTotal Decimal @db.Decimal(12, 2)
+  currency       String  @default("USD")
+
+  notes     String?  @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  items          PurchaseRequisitionItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([clientId, requisitionNumber])
+  @@index([clientId])
+  @@index([status])
+  @@index([requestedBy])
+  @@map("purchase_requisitions")
+}
+
+model PurchaseRequisitionItem {
+  id            String              @id @default(cuid())
+  requisitionId String
+  requisition   PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  productId          String?
+  description        String
+  quantity           Decimal @db.Decimal(12, 4)
+  unit               String  @default("UND")
+  estimatedUnitPrice Decimal @db.Decimal(12, 2)
+  estimatedTotal     Decimal @db.Decimal(12, 2)
+
+  suggestedSupplierId String?
+  notes               String? @db.Text
+
+  @@index([requisitionId])
+  @@map("purchase_requisition_items")
+}
+
+// ============================================
+// PURCHASE ORDERS
+// ============================================
+
+model PurchaseOrder {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Document
+  poNumber   String
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+
+  // Source
+  requisitionId String?
+  requisition   PurchaseRequisition? @relation(fields: [requisitionId], references: [id])
+
+  // Status Lifecycle
+  // DRAFT -> SENT -> CONFIRMED -> PARTIAL_RECEIVED -> RECEIVED -> CLOSED -> CANCELLED
+  status String @default("DRAFT")
+
+  // Dates
+  orderDate          DateTime  @default(now())
+  expectedDate       DateTime?
+  confirmedDate      DateTime?
+  deliveryDate       DateTime?
+  closedDate         DateTime?
+  cancelledDate      DateTime?
+  cancellationReason String?   @db.Text
+
+  // Shipping
+  shippingAddress String?  @db.Text
+  shippingMethod  String?
+  shippingCost    Decimal? @db.Decimal(12, 2)
+
+  // Payment
+  paymentTerms  String?
+  paymentMethod String?
+  currency      String  @default("USD")
+
+  // Totals
+  subtotal  Decimal @db.Decimal(12, 2)
+  taxAmount Decimal @default(0) @db.Decimal(12, 2)
+  discount  Decimal @default(0) @db.Decimal(12, 2)
+  total     Decimal @db.Decimal(12, 2)
+
+  // Audit
+  createdBy     String
+  approvedBy    String?
+  approvedAt    DateTime?
+  notes         String?   @db.Text
+  internalNotes String?   @db.Text
+  metadata      Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  items         PurchaseOrderItem[]
+  goodsReceipts GoodsReceipt[]
+
+  @@unique([clientId, poNumber])
+  @@index([clientId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([orderDate])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  lineNumber  Int
+  productId   String?
+  description String
+  unit        String  @default("UND")
+
+  // Quantities
+  quantityOrdered  Decimal @db.Decimal(12, 4)
+  quantityReceived Decimal @default(0) @db.Decimal(12, 4)
+  quantityPending  Decimal @db.Decimal(12, 4) // Calculated: ordered - received
+
+  // Pricing
+  unitPrice Decimal @db.Decimal(12, 2)
+  discount  Decimal @default(0) @db.Decimal(12, 2)
+  taxRate   Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount Decimal @default(0) @db.Decimal(12, 2)
+  subtotal  Decimal @db.Decimal(12, 2)
+  total     Decimal @db.Decimal(12, 2)
+
+  notes String? @db.Text
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_items")
+}
+
+// ============================================
+// GOODS RECEIPT (Receiving)
+// ============================================
+
+model GoodsReceipt {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  receiptNumber   String
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  // Receipt Details
+  receivedDate DateTime @default(now())
+  receivedBy   String
+
+  // Documents
+  deliveryNote  String? // Supplier's delivery note number
+  invoiceNumber String? // Supplier's invoice if available
+
+  // Quality Check
+  inspectionStatus String    @default("PENDING") // PENDING, PASSED, FAILED, PARTIAL
+  inspectedBy      String?
+  inspectedAt      DateTime?
+  inspectionNotes  String?   @db.Text
+
+  // Storage
+  warehouseLocation String?
+
+  notes     String?  @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  items GoodsReceiptItem[]
+
+  @@unique([clientId, receiptNumber])
+  @@index([clientId])
+  @@index([purchaseOrderId])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptItem {
+  id             String       @id @default(cuid())
+  goodsReceiptId String
+  goodsReceipt   GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+
+  poItemId  String? // Link to PurchaseOrderItem
+  productId String?
+
+  // Quantities
+  quantityReceived Decimal @db.Decimal(12, 4)
+  quantityAccepted Decimal @db.Decimal(12, 4)
+  quantityRejected Decimal @default(0) @db.Decimal(12, 4)
+
+  // Lot/Batch Info
+  batchNumber  String?
+  serialNumber String?
+  expiryDate   DateTime?
+
+  // Quality
+  qualityStatus   String  @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  rejectionReason String? @db.Text
+
+  // Cost
+  unitCost Decimal @db.Decimal(12, 2)
+
+  notes String? @db.Text
+
+  @@index([goodsReceiptId])
+  @@map("goods_receipt_items")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  PARTIAL_RECEIVED
+  RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum RequisitionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CONVERTED
+}
+
+enum SupplierTier {
+  STRATEGIC
+  PREFERRED
+  STANDARD
+  PROBATION
+}
+
+// ============================================
+// ADMIN BROADCASTS (System Notifications)
+// ============================================
+
+model AdminBroadcast {
+  id String @id @default(cuid())
+
+  // Content
+  title   String
+  message String  @db.Text
+  type    String  @default("INFO") // INFO, WARNING, MAINTENANCE, FEATURE
+  link    String?
+
+  // Targeting
+  targetAll   Boolean  @default(true)
+  targetPlans String[] // Array of plan types to target (empty = all)
+
+  // Scheduling
+  publishAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  // Status
+  isActive Boolean @default(true)
+
+  // Metadata
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, publishAt])
+  @@index([createdAt])
+  @@map("admin_broadcasts")
+}
+
+// ============================================
+// CRM & EMAIL MARKETING
+// ============================================
+
+model EmailCampaign {
+  id            String   @id @default(cuid())
+  subject       String
+  content       String   @db.Text
+  targetPlans   String[] // Array of plan types to target
+  targetUserIds String[] // specific user IDs to target
+  targetEmails  String[] // arbitrary email addresses (not in DB)
+  fromEmail     String? // custom sender address override
+
+  status      String    @default("DRAFT") // DRAFT, SENT, FAILED
+  sentAt      DateTime?
+  totalSent   Int       @default(0)
+  totalFailed Int       @default(0)
+
+  // Metadata
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_campaigns")
+}
+
+// ============================================
+// SUPPORT & TICKETING SYSTEM
+// ============================================
+
+model SupportTicket {
+  id String @id @default(cuid())
+
+  // Reporter
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Ticket Info
+  subject     String
+  description String?         @db.Text
+  status      SupportStatus   @default(OPEN)
+  priority    SupportPriority @default(MEDIUM)
+  category    String          @default("GENERAL") // TECHNICAL, BILLING, FEATURE_REQUEST, BUG
+  metadata    Json? // For storing extra data like upgrade request details
+
+  // Technical Context (Automatic data)
+  browserInfo String?
+  urlPath     String?
+  errorLogId  String? // Link to ErrorLog if generated from automatic crash
+
+  // Timestamps
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  // Relations
+  messages SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id       String        @id @default(cuid())
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  content String  @db.Text
+  isAdmin Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("support_messages")
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ============================================
+// PAYDAY MODULE (NOMINA & TIME)
+// ============================================
+
+model PaydayConfig {
+  id       String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Company Settings
+  commercialZone   String @default("NORMAL") // ZONA_FRANCA, CASINO, HOTEL, NORMAL
+  operationalHours Json? // { start: "08:00", end: "17:00", days: [1,2,3,4,5] }
+
+  // Payroll Settings
+  payFrequency PayFrequency @default(BIWEEKLY)
+  nextPayDate  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payday_configs")
+}
+
+model PaydayEmployee {
+  id           String  @id @default(cuid())
+  employeeCode String? @unique // NEW: Human-readable ID like "EMP-00001"
+  clientId     String // Multi-tenancy
+  client       Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Personal Info
+  firstName String
+  lastName  String
+  cedula    String // Identificador legal
+  email     String?
+  phone     String?
+
+  // Contract Info
+  contractType PaydayContractType @default(INDEFINIDO)
+  paymentMode  PaydayPaymentMode  @default(TIEMPO)
+  baseSalary   Decimal            @default(0) @db.Decimal(10, 2) // Monthly or Hourly based on paymentMode
+  hourlyRate   Decimal?           @db.Decimal(10, 2)
+
+  // Biometrics & Access (Hashed/Tokenized - Ley 81)
+  faceIdHash     String? // Hash de vector facial (Legacy/Fallback)
+  faceDescriptor Json? // Vector facial para matching (Array de floats)
+  fingerprintId  String? // WebAuthn/Hash
+  nfcTagId       String? // UID
+  qrSecret       String? @unique // Already exists - QR for biometric access
+  pinCode        String? // Encrypted PIN for simple access
+
+  // Status
+  isActive     Boolean   @default(true)
+  joinedAt     DateTime  @default(now())
+  terminatedAt DateTime?
+
+  // Group & Schedule
+  workGroupId String?
+  workGroup   WorkGroup? @relation(fields: [workGroupId], references: [id])
+
+  // Relations
+  shifts              AttendanceRecord[]
+  tasks               TaskRecord[]
+  payrollItems        PayrollItem[]
+  scheduleAssignments ScheduleAssignment[]
+  authenticators      Authenticator[] // WebAuthn passkeys
+
+  @@unique([clientId, cedula])
+  @@index([clientId])
+  @@index([nfcTagId])
+  @@map("payday_employees")
+}
+
+// WebAuthn Authenticator for biometric access (fingerprint/FaceID)
+model Authenticator {
+  id                   String  @id @default(cuid())
+  credentialID         Bytes   @unique
+  credentialPublicKey  Bytes
+  counter              BigInt
+  credentialDeviceType String // "singleDevice" | "multiDevice"
+  credentialBackedUp   Boolean
+  transports           String? // JSON array of transports
+
+  // Link to employee
+  employeeId String
+  employee   PaydayEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Multi-tenant isolation
+  clientId String
+
+  createdAt DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([clientId])
+  @@map("authenticators")
+}
+
+model AttendanceRecord {
+  id         String         @id @default(cuid())
+  employeeId String
+  employee   PaydayEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  shiftDate DateTime @default(now()) // The logical date of the shift
+
+  // Time Logs
+  checkIn    DateTime
+  checkOut   DateTime?
+  breakStart DateTime?
+  breakEnd   DateTime?
+
+  // Validation Metadata
+  entryMethod PaydayEntryMethod // FACE, FINGER, NFC, QR, MANUAL
+  exitMethod  PaydayEntryMethod?
+  geoLocation Json? // { lat, lng }
+  userAgent   String?
+  isVerified  Boolean            @default(true)
+
+  // Schedule Snapshot & Compliance
+  workShiftId           String?
+  workShift             WorkShift? @relation(fields: [workShiftId], references: [id])
+  scheduledCheckIn      DateTime? // Expected time logic
+  scheduledCheckOut     DateTime?
+  lateMinutes           Int        @default(0)
+  earlyDepartureMinutes Int        @default(0)
+
+  // Legal Calculations (Populated by trigger/job)
+  rawDurationMinutes Float @default(0)
+  regularHours       Float @default(0)
+  overtime25         Float @default(0) // Diurna Extra
+  overtime50         Float @default(0) // Nocturna/Sunday
+  overtime75         Float @default(0) // Mixed->Nocturna excess
+
+  status ShiftStatus @default(OPEN) // OPEN, COMPLETED, REVIEW_NEEDED, APPROVED
+
+  // Corrections
+  adminNotes  String?
+  correctedBy String? // User ID of admin who fixed it
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([shiftDate])
+  @@index([status])
+  @@map("attendance_records")
+}
+
+model WorkShift {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name               String // "Matutino", "Nocturno A"
+  startTime          String // "08:00"
+  endTime            String // "17:00"
+  breakDuration      Int    @default(60) // Minutes
+  gracePeriodMinutes Int    @default(0) // Minutes before marked as late
+
+  color String @default("#3b82f6") // UI display color
+
+  isActive Boolean @default(true)
+
+  // Relations
+  assignments ScheduleAssignment[]
+  attendance  AttendanceRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, name])
+  @@map("payday_work_shifts")
+}
+
+model WorkGroup {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name        String // "Cajeros", "Bodega"
+  description String?
+
+  // Relations
+  members     PaydayEmployee[]
+  assignments ScheduleAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, name])
+  @@map("payday_work_groups")
+}
+
+model ScheduleAssignment {
+  id String @id @default(cuid())
+
+  // Target (Polymorphic-ish logic)
+  workGroupId String?
+  workGroup   WorkGroup? @relation(fields: [workGroupId], references: [id], onDelete: Cascade)
+
+  employeeId String?
+  employee   PaydayEmployee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Assigned Shift
+  workShiftId String
+  workShift   WorkShift @relation(fields: [workShiftId], references: [id], onDelete: Cascade)
+
+  // Validity
+  startDate  DateTime
+  endDate    DateTime? // Null = Indefinite
+  daysOfWeek Int[] // [1, 2, 3, 4, 5] -> Mon-Fri
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workGroupId])
+  @@index([employeeId])
+  @@index([startDate, endDate])
+  @@map("payday_schedule_assignments")
+}
+
+model TaskRecord {
+  id         String         @id @default(cuid())
+  employeeId String
+  employee   PaydayEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  description String
+  value       Decimal    @db.Decimal(10, 2)
+  status      TaskStatus @default(PENDING) // PENDING, APPROVED, REJECTED
+
+  completedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  approvedBy  String?
+
+  @@index([employeeId])
+  @@map("task_records")
+}
+
+model PaydayPayrollRun {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  // Totals
+  totalGross    Decimal @db.Decimal(12, 2)
+  totalNet      Decimal @db.Decimal(12, 2)
+  employeeCount Int
+
+  status PayrollStatus @default(DRAFT) // DRAFT, LOCKED, PAID
+
+  generatedAt DateTime  @default(now())
+  paidAt      DateTime?
+
+  items PayrollItem[]
+
+  @@index([clientId])
+  @@map("payday_payroll_runs")
+}
+
+model PayrollItem {
+  id           String           @id @default(cuid())
+  payrollRunId String
+  payrollRun   PaydayPayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+
+  employeeId String
+  employee   PaydayEmployee @relation(fields: [employeeId], references: [id])
+
+  // Payload snapshot
+  regularPay  Decimal @default(0) @db.Decimal(10, 2)
+  overtimePay Decimal @default(0) @db.Decimal(10, 2)
+  bonuses     Decimal @default(0) @db.Decimal(10, 2)
+  deductions  Decimal @default(0) @db.Decimal(10, 2)
+  netPay      Decimal @default(0) @db.Decimal(10, 2)
+
+  @@index([payrollRunId])
+  @@index([employeeId])
+  @@map("payroll_items")
+}
+
+// Enums
+
+enum PaydayContractType {
+  DEFINIDO
+  INDEFINIDO
+  OBRA_DETERMINADA
+}
+
+enum PaydayPaymentMode {
+  TIEMPO // Hourly/Salary
+  TAREA // Destajo
+}
+
+enum PaydayEntryMethod {
+  FACE_RECOGNITION
+  FINGERPRINT
+  NFC
+  QR_DYNAMIC
+  PIN_CODE
+  MANUAL_ADMIN
+}
+
+enum ShiftStatus {
+  OPEN
+  COMPLETED
+  REVIEW_NEEDED
+  APPROVED
+}
+
+enum TaskStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PayFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum PayrollStatus {
+  DRAFT
+  LOCKED
+  PAID
+}
+
+// ============================================
+// UPGRADE REQUESTS (Simple system for module/plan requests)
+// ============================================
+
+model UpgradeRequest {
+  id String @id @default(cuid())
+
+  // Who is requesting
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Current state
+  currentPlan String
+
+  // What they want
+  requestedPlan          String?
+  requestedModules       String[] // ["inventory", "pos", "payday"]
+  requestedCreditTier    MotorCreditTier? // si requestedModules incluye "creditos"
+  requestedApiAccess     Boolean? // null = no cambia; true/false = solicita activar/desactivar
+  requestedExtraBranches Int              @default(0)
+  extraUsers             Int              @default(0)
+  extraPosStations       Int              @default(0)
+  message                String?
+
+  // Status
+  status    String  @default("PENDING") // PENDING, APPROVED, REJECTED
+  adminNote String?
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+  processedBy String?
+
+  @@index([clientId])
+  @@index([status])
+  @@map("upgrade_requests")
+}
+
+model KioskSession {
+  id         String  @id @default(cuid())
+  clientId   String?
+  status     String  @default("PENDING") // PENDING, SCANNED, COMPLETED, EXPIRED
+  employeeId String?
+  action     String? // CHECK_IN, CHECK_OUT, BREAK_START, BREAK_END
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([status])
+  @@map("kiosk_sessions")
+}
+
+// ============================================
+// ACID COMPLIANCE - CART RESERVATIONS
+// ============================================
+
+model CartReservation {
+  id String @id @default(cuid())
+
+  // Session tracking
+  sessionId String // POS session or user session ID
+
+  // Product reference
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Reserved quantity
+  quantity Decimal @db.Decimal(12, 4)
+
+  // TTL - Auto-expires after 15 minutes
+  expiresAt DateTime
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@map("cart_reservations")
+}
+
+// ============================================
+// ACID COMPLIANCE - STOCK MOVEMENTS AUDIT
+// ============================================
+
+model StockMovement {
+  id String @id @default(cuid())
+
+  // Product reference
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Movement details
+  type           String // "SALE", "PURCHASE", "ADJUSTMENT", "RETURN", "SYNC", "RESERVATION"
+  quantity       Decimal @db.Decimal(12, 4)
+  previousStock  Decimal @db.Decimal(12, 4)
+  newStock       Decimal @db.Decimal(12, 4)
+  productVersion Int // Snapshot of product version at transaction time
+
+  // Context reference
+  referenceId   String? // Invoice ID, PO ID, POS Transaction ID, etc.
+  referenceType String? // "Invoice", "PurchaseOrder", "POSSale", "Adjustment"
+  notes         String? @db.Text
+
+  // User tracking
+  createdById String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+  @@index([referenceId, referenceType])
+  @@index([type])
+  @@map("stock_movements")
+}
+
+// ============================================
+// ACID COMPLIANCE - POS OFFLINE TRANSACTIONS
+// ============================================
+
+model POSOfflineTransaction {
+  id String @id @default(cuid())
+
+  // Terminal/Client tracking
+  terminalId String
+  clientId   String
+
+  // Offline identity
+  localId        String   @unique // UUID generated offline for idempotency
+  createdAtLocal DateTime // Timestamp when created offline
+
+  // Sync tracking
+  syncedAt DateTime? // When synced to server (null = pending)
+
+  // Transaction data snapshot
+  items Json // Snapshot of items sold [{productId, quantity, price}]
+  total Decimal @db.Decimal(12, 2)
+
+  // Conflict resolution
+  hasConflict        Boolean   @default(false)
+  conflictReason     String?   @db.Text
+  conflictResolvedAt DateTime?
+  resolvedBy         String?
+  resolutionAction   String? // "APPLIED", "REJECTED", "PARTIAL"
+
+  // User tracking
+  createdById String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([terminalId])
+  @@index([clientId])
+  @@index([localId])
+  @@index([hasConflict])
+  @@index([syncedAt])
+  @@map("pos_offline_transactions")
+}
+
+// ============================================
+// LOGISTICS - ÓRDENES DE ENTREGA
+// ============================================
+
+enum DeliveryOrderStatus {
+  DRAFT
+  PENDING
+  IN_PICKING
+  READY_TO_SHIP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum OriginModeType {
+  DIRECT
+  FROM_INVOICE
+  FROM_POS
+}
+
+model Carrier {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name     String
+  ruc      String?
+  phone    String?
+  email    String?
+  isActive Boolean @default(true)
+
+  deliveryOrders DeliveryOrder[]
+  drivers        Driver[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@map("carriers")
+}
+
+model Driver {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  carrierId String?
+  carrier   Carrier? @relation(fields: [carrierId], references: [id])
+
+  firstName String
+  lastName  String
+  phone     String?
+  licenseNo String?
+  isActive  Boolean @default(true)
+
+  deliveryOrders DeliveryOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([carrierId])
+  @@map("drivers")
+}
+
+model DeliveryOrder {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  code             String // OE-YYYY-NNNNNN per client
+  status           DeliveryOrderStatus @default(DRAFT)
+  // Headers
+  priority         String              @default("Normal")
+  purchaseOrderRef String?
+
+  // Origin
+  originMode      OriginModeType @default(DIRECT)
+  linkedInvoiceId String? // FK to Invoice when FROM_INVOICE
+  linkedPosId     String? // FK to POS transaction when FROM_POS
+
+  // Recipient
+  customerName     String
+  customerPhone    String?
+  customerEmail    String?
+  customerRuc      String?
+  deliveryLocation String?
+
+  // Transporter (Manual)
+  carrierName     String?
+  driverName      String?
+  driverIdDoc     String?
+  driverLicense   String?
+  vehiclePlate    String?
+  insurancePolicy String?
+
+  // Conditions
+  shippingMode   String  @default("Terrestre")
+  incoterm       String?
+  controlledTemp Boolean @default(false)
+  hazardousMat   Boolean @default(false)
+
+  // Fees
+  shippingCost    Decimal? @db.Decimal(12, 2)
+  insuranceCost   Decimal? @db.Decimal(12, 2)
+  deliveryAddress Json? // { text: string, lat?: number, lng?: number }
+
+  // Assignment
+  carrierId String?
+  carrier   Carrier? @relation(fields: [carrierId], references: [id])
+  driverId  String?
+  driver    Driver?  @relation(fields: [driverId], references: [id])
+
+  // Scheduling
+  scheduledDate DateTime?
+  estimatedDate DateTime?
+  deliveredAt   DateTime?
+
+  // Fiscal
+  emitInvoice Boolean @default(false)
+
+  // Pricing
+  subtotal    Decimal? @db.Decimal(12, 2)
+  taxAmount   Decimal? @db.Decimal(12, 2)
+  totalAmount Decimal? @db.Decimal(12, 2)
+
+  // Inventory
+  inventoryDeducted Boolean @default(false)
+
+  // PDF / QR
+  pdfUrl  String?
+  qrToken String? @unique // HMAC token for public tracking
+
+  // Notes
+  notes         String? @db.Text
+  internalNotes String? @db.Text
+
+  // Tracking
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items         DeliveryOrderItem[]
+  statusHistory DeliveryOrderStatusHistory[]
+  events        DeliveryEvent[]
+  scanLogs      QRScanLog[]
+
+  @@unique([clientId, code])
+  @@index([clientId])
+  @@index([status])
+  @@index([linkedInvoiceId])
+  @@index([qrToken])
+  @@map("delivery_orders")
+}
+
+model DeliveryOrderItem {
+  id              String        @id @default(cuid())
+  deliveryOrderId String
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+
+  productId   String?
+  description String
+  quantity    Decimal  @db.Decimal(12, 4)
+  unitPrice   Decimal? @db.Decimal(12, 2)
+  weightKg    Decimal? @db.Decimal(12, 2)
+  dimensions  String?
+  packaging   String?
+  taxRate     Decimal? @db.Decimal(5, 4) // e.g. 0.0700 for 7% ITBMS
+  taxAmount   Decimal? @db.Decimal(12, 2)
+  lineTotal   Decimal? @db.Decimal(12, 2)
+
+  // Extended product capture fields
+  category     String? // GENERAL | ROPA | CALZADO | MUEBLES | ELECTRODOMESTICOS | ELECTRONICA | ALIMENTOS | INSUMOS | SERVICIOS | SOFTWARE
+  sku          String? // Internal SKU
+  barcode      String? // EAN-13 / UPC-A
+  umc          String? // DGI UMC catalog: UND, KGM, HUR, LTR...
+  cpbsCode     String? // CPBS DGI product/service code (e-invoicing)
+  categoryMeta Json? // Dynamic fields per category (talla, color, marca, etc.)
+  volWeight    Decimal? @db.Decimal(12, 2) // Calculated: (L×A×H)/5000 for logistics cost
+  itemHash     String? // SHA-256(sku+price+taxRate+description) — integrity fingerprint
+
+  @@index([deliveryOrderId])
+  @@map("delivery_order_items")
+}
+
+model DeliveryOrderStatusHistory {
+  id              String        @id @default(cuid())
+  deliveryOrderId String
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+
+  fromStatus  DeliveryOrderStatus?
+  toStatus    DeliveryOrderStatus
+  notes       String?              @db.Text
+  changedById String?
+
+  createdAt DateTime @default(now())
+
+  @@index([deliveryOrderId])
+  @@map("delivery_order_status_history")
+}
+
+model DeliveryEvent {
+  id              String        @id @default(cuid())
+  deliveryOrderId String
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+
+  eventType  String // e.g. STATUS_CHANGE, PDF_GENERATED, QR_SCANNED
+  fromStatus String?
+  toStatus   String?
+
+  actorType String // USER, DRIVER, SYSTEM
+  actorId   String?
+  actorName String? // Desnormalizado
+
+  metadata  Json? // JSONB for autosufficiency
+  timestamp DateTime @default(now())
+
+  @@index([deliveryOrderId])
+  @@index([eventType])
+  @@map("delivery_events")
+}
+
+model QRScanLog {
+  id              String        @id @default(cuid())
+  deliveryOrderId String
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+
+  qrToken   String
+  ip        String?
+  userAgent String?
+  metadata  Json?
+  scannedAt DateTime @default(now())
+
+  @@index([deliveryOrderId])
+  @@index([qrToken])
+  @@map("qr_scan_logs")
+}
+
+// ============================================
+// TEAM ROLES & GRANULAR PERMISSIONS
+// ============================================
+
+model TeamRole {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name        String // e.g. "Chofer", "Operador", "Almacenista", etc.
+  slug        String // e.g. "chofer", "operador"
+  description String?
+  isSystem    Boolean @default(false) // System-defined roles can't be deleted
+  isActive    Boolean @default(true)
+
+  // Permissions stored as JSON array for flexibility
+  // Format: [{ module: "invoicing", actions: ["read", "create"] }, ...]
+  permissions Json @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users TeamMember[]
+
+  @@unique([clientId, slug])
+  @@index([clientId])
+  @@map("team_roles")
+}
+
+model TeamMember {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  teamRoleId String
+  teamRole   TeamRole @relation(fields: [teamRoleId], references: [id], onDelete: Cascade)
+
+  // Per-user permission overrides (JSON)
+  // Allows admin to customize permissions beyond the role
+  permissionOverrides Json? // { grants: [...], revokes: [...] }
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, userId])
+  @@index([clientId])
+  @@index([userId])
+  @@index([teamRoleId])
+  @@map("team_members")
+}
+
+// ============================================
+// SECURITY TOKENS - Password Reset, Account Setup, Email Verification
+// ============================================
+
+model SecurityToken {
+  id        String            @id @default(cuid())
+  tokenHash String // SHA-256 hash of the token (never store raw)
+  type      SecurityTokenType
+  userId    String?
+  email     String // Email associated (for pre-user tokens like setup)
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime          @default(now())
+
+  // Optional: track which IP/device consumed it
+  consumedIp        String?
+  consumedUserAgent String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([email])
+  @@index([type, email])
+  @@index([expiresAt])
+  @@map("security_tokens")
+}
+
+enum SecurityTokenType {
+  PASSWORD_RESET
+  ACCOUNT_SETUP
+  EMAIL_VERIFICATION
+}
+
+// ============================================
+// USER STATUS - Onboarding State Machine
+// ============================================
+
+enum UserStatus {
+  UNVERIFIED        // Just registered, email not verified
+  SETUP_PENDING     // Clicked email link, needs to set password
+  PENDING_ONBOARDING // Password set, needs to select modules
+  PENDING_APPROVAL  // Onboarding complete, waiting for admin
+  ACTIVE            // Approved and active
+  SUSPENDED         // Temporarily suspended
+  DEACTIVATED       // Permanently deactivated
+}
+
+// PASSWORD RESET TOKENS
+// ============================================
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique @default(cuid())
+  type      String    @default("PASSWORD_RESET") // PASSWORD_RESET | ACCOUNT_VERIFICATION
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
+}
+
+// ============================================
+// MOTOR DE ENTIDADES & LEDGER FINANCIERO
+// ============================================
+// Subsistema tenant-scoped:
+//   (a) Schema Builder de entidades con campos dinámicos
+//   (b) Ledger financiero append-only con cargos, abonos, ajustes, lealtad
+// Acceso restringido a tenants con ClientModuleAssignment(moduleKey="motor", status=ACTIVE).
+// Convenciones del repo: clientId primero en índices compuestos, snake_case @@map,
+// soft-delete via deletedAt (excepto en el ledger, que es inmutable por diseño).
+
+enum MotorEntityKind {
+  PERSON
+  COMPANY
+}
+
+enum MotorMovementType {
+  CHARGE // Cargo: deuda generada
+  PAYMENT // Abono: pago recibido
+  ADJUSTMENT_CREDIT // Ajuste positivo (crédito de cortesía / corrección)
+  ADJUSTMENT_DEBIT // Ajuste negativo (corrección / reverso)
+  LOYALTY_GRANT // Otorgar puntos / créditos de lealtad
+  LOYALTY_REDEEM // Redimir puntos / créditos contra obligación
+}
+
+enum MotorLedgerSign {
+  POSITIVE
+  NEGATIVE
+}
+
+enum MotorAssignmentStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum MotorFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+}
+
+enum MotorFieldKindScope {
+  PERSON
+  COMPANY
+  BOTH
+}
+
+// Tiers de pricing del Módulo de Créditos. Cada tier limita cuántos
+// clientes del tenant pueden tener crédito otorgado simultáneamente
+// (entidades activas con creditLimitCents != null). Bloqueo duro al
+// exceder el límite; SUPER_ADMIN puede subir/bajar de tier.
+enum MotorCreditTier {
+  TIER_1 // hasta 50 clientes  — $49.99 / mes
+  TIER_2 // hasta 100 clientes — $74.99 / mes
+  TIER_3 // hasta 250 clientes — $99.99 / mes
+}
+
+// Periodicidad de cobro del plan. Los addons recurring se siguen cobrando
+// mensual aunque el plan sea YEARLY — el período aplica al "compromiso"
+// del plan, no a los addons.
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+// ============================================
+// BI — Business Intelligence (Fase 1: Esencial)
+// ============================================
+//
+// Solo BIAlert se materializa en Fase 1. Los modelos BIDashboard / BIWidget
+// / BISavedSegment / BICampaign / BIForecast llegan en Fases 2-3 (ver
+// docs/superpowers/specs/2026-05-10-bi-module-design.md).
+
+enum BIAlertKind {
+  THRESHOLD // "Avísame cuando métrica X cruce valor Y"
+  ANOMALY // (Pro) detección 3σ vs media móvil
+}
+
+model BIAlert {
+  id          String      @id @default(cuid())
+  clientId    String
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String
+  kind        BIAlertKind @default(THRESHOLD)
+  /// Configuración de la alerta. Ej THRESHOLD:
+  /// { metric: "sales_total", op: "<", value: 50000, period: "day" }
+  config      Json
+  isActive    Boolean     @default(true)
+  lastFiredAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([clientId, isActive])
+  @@map("bi_alerts")
+}
+
+// ============================================
+// BI Pro — Dashboards personalizados (Fase 2)
+// ============================================
+
+model BIDashboard {
+  id        String  @id @default(cuid())
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  /// Layout grid: { cols: 12, rows: [{widgetId, x, y, w, h}, ...] }
+  /// Lo persiste el editor — la página lo respeta tal cual.
+  layout    Json
+  isDefault Boolean @default(false)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  widgets BIWidget[]
+
+  @@index([clientId])
+  @@map("bi_dashboards")
+}
+
+model BIWidget {
+  id          String   @id @default(cuid())
+  dashboardId String
+  dashboard   BIDashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  /// "kpi" | "line" | "bar" | "pie" | "table"
+  type        String
+  title       String
+  /// BIQuery serializado (measures, dimensions, filters, dateRange)
+  query       Json
+  /// Opciones visuales (colores, formatters, etc.) — opcional
+  options     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dashboardId])
+  @@map("bi_widgets")
+}
+
+// ============================================
+// BI Pro — Segmentos, Campañas, Forecasts (Fase 3)
+// ============================================
+
+model BISavedSegment {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String
+  /// "customer" por ahora; "product" llega en Fase 4
+  entity      String   @default("customer")
+  /// Reglas Json: ver SegmentRule en alert.service
+  rules       Json
+  cachedCount Int      @default(0)
+  refreshedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaigns BICampaign[]
+
+  @@index([clientId])
+  @@map("bi_segments")
+}
+
+model BICampaign {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  segmentId   String
+  segment     BISavedSegment @relation(fields: [segmentId], references: [id])
+  /// "whatsapp" | "email"
+  channel     String
+  message     String
+  /// "DRAFT" | "SCHEDULED" | "SENT" | "FAILED"
+  status      String   @default("DRAFT")
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  recipients  Int      @default(0)
+  conversions Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId, status])
+  @@map("bi_campaigns")
+}
+
+model BIForecast {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// "sales_total" | "demand_<sku>" | "customer_churn"
+  metric      String
+  /// "day" | "week" | "month"
+  granularity String   @default("day")
+  /// [{date, predicted, lower, upper}]
+  data        Json
+  computedAt  DateTime @default(now())
+
+  @@index([clientId, metric, granularity])
+  @@map("bi_forecasts")
+}
+
+// DEPRECATED en v1.1: el Motor ahora es infraestructura universal — opera
+// para todos los tenants automáticamente (deduplicación de entidades en
+// facturación/POS, ledger en background). El acceso al panel de
+// configuración avanzada se controla a nivel de USUARIO con MotorUserAccess.
+// Esta tabla se conserva por compatibilidad de datos pero ya no gateaa
+// nada en código nuevo.
+model ClientModuleAssignment {
+  id         String                @id @default(cuid())
+  clientId   String
+  moduleKey  String // "motor" en v1
+  status     MotorAssignmentStatus @default(ACTIVE)
+  assignedAt DateTime              @default(now())
+  revokedAt  DateTime?
+  assignedBy String // userId del SUPER_ADMIN que asignó
+  notes      String?
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, moduleKey])
+  @@index([clientId, status])
+  @@index([moduleKey, status])
+  @@map("client_module_assignments")
+}
+
+// Acceso al panel de configuración del Motor a nivel de USUARIO.
+// El Super Admin selecciona usuarios concretos (de cualquier tenant) que
+// pueden ver y operar la UI completa: Schema Builder, gestión de
+// entidades, ajustes manuales, créditos, lealtad, comprobantes.
+// Los usuarios sin MotorUserAccess solo ven el flujo implícito
+// (autocompletado en facturación, clientes recientes, deduplicación).
+model MotorUserAccess {
+  id        String                @id @default(cuid())
+  // userId es global; se vincula también a clientId para query rápido
+  userId    String                @unique
+  clientId  String
+  status    MotorAssignmentStatus @default(ACTIVE)
+  grantedAt DateTime              @default(now())
+  revokedAt DateTime?
+  grantedBy String // userId del SUPER_ADMIN que concedió
+  notes     String?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, status])
+  @@index([status])
+  @@map("motor_user_access")
+}
+
+// Entidad financiera del tenant (persona o empresa).
+// Core fields no eliminables; campos dinámicos en customFields validados contra
+// MotorEntityFieldDefinition.
+model MotorEntity {
+  id       String          @id @default(cuid())
+  // Multi-tenant: SIEMPRE primero en queries
+  clientId String
+  kind     MotorEntityKind
+
+  // Core fields (no eliminables, requeridos por el brief)
+  displayName    String // nombre completo o razón social
+  documentType   String? // CEDULA | RUC | PASSPORT | OTHER
+  documentNumber String? // cédula o RUC
+  primaryEmail   String?
+  primaryPhone   String?
+  isActive       Boolean @default(true)
+
+  // Configuración financiera
+  creditLimitCents   BigInt? // null = sin límite
+  paymentDueAt       DateTime? // fecha tope para próxima obligación
+  loyaltyPointsCents BigInt    @default(0) // saldo derivado, denormalizado para UI rápida
+
+  // Campos dinámicos validados contra MotorEntityFieldDefinition
+  customFields Json?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  client        Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ledgerEntries MotorLedgerEntry[]
+  outgoingRels  MotorEntityRelation[] @relation("MotorRelFrom")
+  incomingRels  MotorEntityRelation[] @relation("MotorRelTo")
+
+  // PlentyPay Wallet & Pagos (nuevo)
+  wallet              Wallet?           // 1 wallet por entidad (comprador o comercio)
+  merchantSettlements SettlementBatch[] // si esta entidad es un comercio del marketplace
+
+  @@index([clientId, kind, deletedAt])
+  @@index([clientId, displayName])
+  @@index([clientId, documentNumber])
+  @@index([clientId, isActive])
+  @@map("motor_entities")
+}
+
+// Metadata de campos dinámicos del Schema Builder.
+// El slug es inmutable una vez referenciado por entidades (validación a nivel app).
+model MotorEntityFieldDefinition {
+  id        String              @id @default(cuid())
+  clientId  String
+  slug      String // snake_case, validado contra RESERVED_SLUGS
+  label     String
+  type      MotorFieldType
+  required  Boolean             @default(false)
+  options   Json? // SELECT: [{value,label}]
+  kindScope MotorFieldKindScope @default(BOTH)
+  isActive  Boolean             @default(true)
+  sortOrder Int                 @default(0)
+  notes     String? // documentación visible al admin
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, slug])
+  @@index([clientId, isActive, kindScope])
+  @@map("motor_entity_field_definitions")
+}
+
+// Relaciones genéricas entre entidades del mismo tenant.
+// relationType es free-text (e.g. "referred_by", "guarantor_of", "legal_rep_of").
+model MotorEntityRelation {
+  id           String   @id @default(cuid())
+  clientId     String
+  fromEntityId String
+  toEntityId   String
+  relationType String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  createdById  String
+
+  fromEntity MotorEntity @relation("MotorRelFrom", fields: [fromEntityId], references: [id], onDelete: Cascade)
+  toEntity   MotorEntity @relation("MotorRelTo", fields: [toEntityId], references: [id], onDelete: Cascade)
+  client     Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, fromEntityId, toEntityId, relationType])
+  @@index([clientId, fromEntityId])
+  @@index([clientId, toEntityId])
+  @@map("motor_entity_relations")
+}
+
+// Ledger inmutable. Append-only enforced por trigger Postgres BEFORE UPDATE/DELETE
+// (ver migration.sql). Reversiones se modelan como entries compensatorios independientes
+// con compensatesEntryId apuntando al original.
+model MotorLedgerEntry {
+  id                  String            @id @default(cuid())
+  clientId            String
+  entityId            String
+  movementType        MotorMovementType
+  sign                MotorLedgerSign
+  amountCents         BigInt // SIEMPRE positivo; sign determina dirección
+  runningBalanceCents BigInt // post-movimiento, denormalizado para O(1) lookup
+  currency            String            @default("USD") // economía panameña dolarizada; PAB queda disponible si algún día se necesita
+  reference           String? // # factura, # recibo externo, etc.
+  description         String?
+  metadata            Json?
+  compensatesEntryId  String? // self-FK: este entry reversa otro
+  createdById         String
+  createdAt           DateTime          @default(now())
+
+  entity      MotorEntity        @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  client      Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  compensates MotorLedgerEntry?  @relation("MotorLedgerCompensation", fields: [compensatesEntryId], references: [id])
+  reversedBy  MotorLedgerEntry[] @relation("MotorLedgerCompensation")
+
+  @@index([clientId, entityId, createdAt])
+  @@index([clientId, movementType, createdAt])
+  @@index([clientId, compensatesEntryId])
+  @@map("motor_ledger_entries")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
+// PLENTYPAY: PAYMENT CORE + LEDGER (v2 — revisado tras feedback arquitectónico)
+// ─────────────────────────────────────────────────────────────────────────
+// El primer borrador de este bloque (v1) usaba una única tabla PaymentTransaction
+// y escribía directo a MotorLedgerEntry. Tras una revisión arquitectónica externa
+// (ver services/wallet-ledger/README.md, sección "Historial de diseño"), se
+// separó en dos bounded contexts independientes, tal como PlentyPay los necesita:
+//
+//   PAYMENT CORE (orquestación — "qué pasó con el intento de cobro")
+//     PaymentIntent → Payment → PaymentAttempt
+//
+//   LEDGER (verdad financiera — "qué significa contablemente que haya pasado")
+//     LedgerAccount → LedgerTransaction → LedgerEntry (DEBIT/CREDIT)
+//
+// Principio clave: Payment State ≠ Financial State. Un Payment puede estar
+// CAPTURED mientras su LedgerTransaction sigue sin liquidarse al comercio.
+// El Motor original (MotorLedgerEntry, créditos/lealtad) NO se toca — sigue
+// sirviendo su propósito original. Este ledger nuevo es la verdad financiera
+// específicamente para dinero que se mueve de verdad (pagos, fees, settlement).
+
+enum PaymentIntentStatus {
+  CREATED
+  REQUIRES_ACTION // el riel necesita un paso del usuario (QR de Yappy, 3-D Secure)
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+  EXPIRED
+  UNKNOWN // resultado no confirmado tras timeout — NUNCA asumir FAILED ni CAPTURED
+}
+
+enum PaymentAttemptStatus {
+  CREATED
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  UNKNOWN
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerTransactionStatus {
+  DRAFT
+  VALIDATING
+  POSTED // inmutable a partir de aquí — ver trigger en la migración manual
+  REJECTED
+}
+
+enum PaymentRail {
+  WALLET_INTERNAL
+  YAPPY
+  TELERED_CLAVE
+  CARD_VISA
+  CARD_MASTERCARD
+  APPLE_PAY
+  GOOGLE_PAY
+  QR_INTEROPERABLE
+}
+
+/// Intención de cobro. Vive independiente de cuántas veces se reintente.
+model PaymentIntent {
+  id                 String              @id @default(cuid()) // ver MIGRATION_STATUS.md — nota sobre UUIDv7
+  clientId           String
+  customerEntityId   String? // MotorEntity que paga, si se conoce
+  amountCents        BigInt
+  currency           String              @default("USD")
+  status             PaymentIntentStatus @default(CREATED)
+  paymentMethodType  PaymentRail
+  idempotencyKey     String
+  requestHash        String? // hash del payload de creación — detecta reintentos con distinto contenido bajo la misma key (ver documento 03 + feedback punto 9)
+  reference          String? // referencia de negocio (orden, terminal, factura) — para conciliar y dar soporte
+  metadata           Json? // ej. { payerUserId, terminalId } — el pagador se guarda aquí hasta que exista el mapeo User↔MotorEntity
+  riskScore          Int?
+  expiresAt          DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@unique([clientId, idempotencyKey])
+  @@map("payment_intents")
+}
+
+/// Transacción financiera creada a partir de una PaymentIntent. Separada de
+/// PaymentAttempt porque un Payment puede requerir varios intentos (timeout,
+/// reintento manual) antes de resolverse.
+model Payment {
+  id                  String              @id @default(cuid())
+  paymentIntentId     String
+  clientId            String
+  merchantEntityId    String? // comercio del marketplace que recibe el pago, si aplica
+  capturedAmountCents BigInt              @default(0)
+  refundedAmountCents BigInt              @default(0)
+  status              PaymentIntentStatus @default(CREATED)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  intent             PaymentIntent      @relation(fields: [paymentIntentId], references: [id])
+  client             Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  attempts           PaymentAttempt[]
+  ledgerTransactions LedgerTransaction[]
+  settlementItem     SettlementItem?
+
+  @@index([clientId, status, createdAt])
+  @@map("payments")
+}
+
+/// Un intento concreto contra un riel externo. attemptNumber empieza en 1.
+/// UNKNOWN existe porque un timeout de Yappy/TELERED/PSP NO es lo mismo que FAILED
+/// — el dinero puede haberse movido del lado del riel sin que la respuesta llegara
+/// (ver documento 03 + feedback punto 8). La reconciliación (a construir) resuelve
+/// UNKNOWN comparando contra el webhook o una consulta de estado posterior.
+model PaymentAttempt {
+  id            String               @id @default(cuid())
+  paymentId     String
+  rail          PaymentRail
+  externalRef   String?
+  attemptNumber Int
+  status        PaymentAttemptStatus @default(CREATED)
+  failureCode   String?
+  rawResponse   Json?
+  createdAt     DateTime             @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId, attemptNumber])
+  @@index([externalRef])
+  @@map("payment_attempts")
+}
+
+/// Terminal de cobro de un comercio (tenant). Su publicCode es lo ÚNICO que viaja en el QR
+/// y en el tag NFC: un código opaco y no adivinable. El monto NUNCA va en el tag/QR, y el
+/// servidor resuelve a qué comercio pertenece — un tag regrabado o un sticker encima solo
+/// puede apuntar a otra terminal REAL, y la app muestra el nombre verificado antes de pagar.
+model PaymentTerminal {
+  id          String   @id @default(cuid())
+  clientId    String
+  publicCode  String   @unique
+  label       String
+  isActive    Boolean  @default(true)
+  createdById String
+  createdAt   DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, isActive])
+  @@map("payment_terminals")
+}
+
+/// Política de fees paramétrica — nunca se hardcodea "el comercio recibe 97.86%".
+/// Ver documento 03 + feedback punto 6 (Fee Engine).
+model FeePolicy {
+  id                       String       @id @default(cuid())
+  clientId                 String
+  name                     String
+  rail                     PaymentRail?
+  fixedFeeCents            BigInt       @default(0)
+  percentageFeeBasisPoints Int          @default(0) // 100 = 1.00%
+  bornBy                   String // "MERCHANT" | "CUSTOMER" | "PLATFORM"
+  active                   Boolean      @default(true)
+  createdAt                DateTime     @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, active])
+  @@map("fee_policies")
+}
+
+// ── LEDGER: verdad financiera, doble entrada, inmutable una vez POSTED ──────
+
+/// Cuenta contable. NO es "el saldo de un usuario" — es una cuenta en el sentido
+/// contable clásico (pasivo, activo, ingreso). El saldo de una cuenta se calcula
+/// SIEMPRE como SUM(CREDIT) - SUM(DEBIT) sobre sus LedgerEntry, nunca se guarda
+/// como columna mutable aquí (eso es lo que hace el modelo Wallet, como caché
+/// de lectura rápida — ver más abajo).
+model LedgerAccount {
+  id          String   @id @default(cuid())
+  clientId    String
+  // "PLATFORM" para cuentas internas de PlentyPay (fees, impuestos por pagar).
+  // NO se usa null: Postgres no garantiza unicidad entre múltiples NULL en un
+  // índice único, lo que rompería la deduplicación de estas cuentas — ver
+  // MIGRATION_STATUS.md.
+  entityId    String
+  accountType String // "MERCHANT_PAYABLE" | "PLATFORM_FEES" | "TAX_PAYABLE" | "CUSTOMER_RECEIVABLE" | "WALLET_INTERNAL" | ...
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+
+  client  Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  entries LedgerEntry[]
+
+  @@unique([clientId, entityId, accountType, currency])
+  @@map("ledger_accounts")
+}
+
+/// Agrupa N LedgerEntry que deben balancear entre sí (SUM(DEBIT) = SUM(CREDIT)).
+/// DRAFT → VALIDATING → POSTED (inmutable) | REJECTED. Un error después de POSTED
+/// se corrige con una transacción de REVERSO (reversalOfId), nunca con UPDATE/DELETE
+/// — ver el trigger de base de datos en prisma/migrations/*_ledger_invariants/.
+model LedgerTransaction {
+  id              String                  @id @default(cuid())
+  clientId        String
+  paymentId       String?
+  transactionType String // "PAYMENT" | "REFUND" | "FEE" | "SETTLEMENT" | "ADJUSTMENT"
+  referenceType   String?
+  referenceId     String?
+  currency        String                  @default("USD")
+  description     String?
+  status          LedgerTransactionStatus @default(DRAFT)
+  reversalOfId    String?
+  createdAt       DateTime                @default(now())
+  postedAt        DateTime?
+
+  client     Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payment    Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  entries    LedgerEntry[]
+  reversalOf LedgerTransaction?  @relation("LedgerReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversals  LedgerTransaction[] @relation("LedgerReversal")
+
+  @@index([clientId, status, createdAt])
+  @@map("ledger_transactions")
+}
+
+/// Una línea de doble entrada. amountCents SIEMPRE positivo — el signo/dirección
+/// lo da entryType exclusivamente (feedback punto 2: nunca dos fuentes de verdad
+/// para el signo). La suma de DEBIT y la suma de CREDIT de una misma
+/// LedgerTransaction deben coincidir siempre que status = POSTED.
+model LedgerEntry {
+  id                  String          @id @default(cuid())
+  ledgerTransactionId String
+  accountId           String
+  entryType           LedgerEntryType
+  amountCents         BigInt
+  createdAt           DateTime        @default(now())
+
+  transaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+  account     LedgerAccount     @relation(fields: [accountId], references: [id])
+
+  @@index([ledgerTransactionId])
+  @@index([accountId, createdAt])
+  @@map("ledger_entries")
+}
+
+// ── WALLET: caché de saldo de lectura rápida para la cuenta WALLET_INTERNAL ──
+// (sin cambios de fondo respecto al primer borrador — sigue siendo válido como
+// capa de lectura optimista; su saldo debe reconciliar contra LedgerAccount +
+// LedgerEntry de tipo WALLET_INTERNAL para la misma entidad).
+
+enum WalletHoldStatus {
+  ACTIVE
+  CAPTURED
+  RELEASED
+  EXPIRED
+}
+
+model Wallet {
+  id                     String   @id @default(cuid())
+  clientId               String
+  entityId               String   @unique
+  currency               String   @default("USD")
+  availableBalanceCents  BigInt   @default(0)
+  heldBalanceCents       BigInt   @default(0)
+  pendingSettlementCents BigInt   @default(0)
+  version                Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  client Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  entity MotorEntity  @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  holds  WalletHold[]
+
+  @@index([clientId])
+  @@map("wallets")
+}
+
+model WalletHold {
+  id             String           @id @default(cuid())
+  walletId       String
+  amountCents    BigInt
+  status         WalletHoldStatus @default(ACTIVE)
+  reason         String?
+  idempotencyKey String?          @unique
+  expiresAt      DateTime?
+  createdAt      DateTime         @default(now())
+  resolvedAt     DateTime?
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, status])
+  @@map("wallet_holds")
+}
+
+// ── SETTLEMENT: liquidación a comercios del marketplace ─────────────────────
+
+enum SettlementBatchStatus {
+  OPEN
+  PROCESSING
+  PAID
+  FAILED
+}
+
+model SettlementBatch {
+  id                String                @id @default(cuid())
+  clientId          String
+  merchantEntityId  String
+  status            SettlementBatchStatus @default(OPEN)
+  grossAmountCents  BigInt                @default(0)
+  commissionCents   BigInt                @default(0)
+  netAmountCents    BigInt                @default(0)
+  payoutRail        PaymentRail?
+  payoutExternalRef String?
+  periodStart       DateTime
+  periodEnd         DateTime
+  paidAt            DateTime?
+  createdAt         DateTime              @default(now())
+
+  client         Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  merchantEntity MotorEntity      @relation(fields: [merchantEntityId], references: [id], onDelete: Restrict)
+  items          SettlementItem[]
+
+  @@index([clientId, merchantEntityId, status])
+  @@map("settlement_batches")
+}
+
+model SettlementItem {
+  id                String @id @default(cuid())
+  settlementBatchId String
+  paymentId         String
+
+  batch   SettlementBatch @relation(fields: [settlementBatchId], references: [id], onDelete: Cascade)
+  payment Payment         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@unique([paymentId])
+  @@map("settlement_items")
+}

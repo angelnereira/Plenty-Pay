@@ -1,0 +1,107 @@
+syntax = "proto3";
+package plentypay.notifications.v1;
+
+option go_package = "plentypay/notifications/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// notifications: ÚNICO punto de salida de comunicaciones (correo, push, WhatsApp, SMS, in-app).
+// Ningún otro contenedor llama a Resend/FCM/WhatsApp. Spec: notifications/SPEC.md
+service Notifications {
+  rpc Send(SendRequest) returns (Notification);
+  rpc SendBatch(SendBatchRequest) returns (SendBatchResponse);
+  rpc GetNotification(GetNotificationRequest) returns (Notification);
+
+  rpc ListInbox(ListInboxRequest) returns (ListInboxResponse);
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
+  rpc StreamInbox(StreamInboxRequest) returns (stream Notification);
+
+  rpc RegisterDevice(RegisterDeviceRequest) returns (Device);
+  rpc UnregisterDevice(UnregisterDeviceRequest) returns (UnregisterDeviceResponse);
+
+  rpc GetPreferences(GetPreferencesRequest) returns (Preferences);
+  rpc SetPreferences(SetPreferencesRequest) returns (Preferences);
+
+  rpc UpsertTemplate(UpsertTemplateRequest) returns (Template);
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+
+  rpc HandleInboundWebhook(HandleInboundWebhookRequest) returns (HandleInboundWebhookResponse);
+}
+
+enum Channel {
+  CHANNEL_UNSPECIFIED = 0;
+  CHANNEL_EMAIL = 1;
+  CHANNEL_PUSH = 2;
+  CHANNEL_WHATSAPP = 3;
+  CHANNEL_SMS = 4;
+  CHANNEL_IN_APP = 5;
+}
+enum Priority { PRIORITY_UNSPECIFIED = 0; PRIORITY_LOW = 1; PRIORITY_NORMAL = 2; PRIORITY_HIGH = 3; PRIORITY_CRITICAL = 4; } // CRITICAL ignora preferencias y horas de silencio
+enum DeliveryState { DELIVERY_STATE_UNSPECIFIED = 0; DELIVERY_STATE_QUEUED = 1; DELIVERY_STATE_SENT = 2; DELIVERY_STATE_DELIVERED = 3; DELIVERY_STATE_FAILED = 4; DELIVERY_STATE_SUPPRESSED = 5; }
+
+message Recipient {
+  string user_id = 1;
+  string email = 2;
+  string phone_e164 = 3;
+}
+
+message SendRequest {
+  string idempotency_key = 1;
+  string template_id = 2;
+  Recipient recipient = 3;
+  repeated Channel channels = 4;
+  map<string, string> params = 5;      // NUNCA datos sensibles
+  Priority priority = 6;
+  string locale = 7;
+  plentypay.common.v1.Reference reference = 8;
+}
+message ChannelDelivery { Channel channel = 1; DeliveryState state = 2; string provider_message_id = 3; string failure_reason = 4; }
+message Notification {
+  string notification_id = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+  string template_id = 4;
+  string title = 5;
+  string body = 6;
+  repeated ChannelDelivery deliveries = 7;
+  bool read = 8;
+  plentypay.common.v1.Reference reference = 9;
+  google.protobuf.Timestamp created_at = 10;
+  string deep_link = 11;               // ruta de la app a abrir al tocar la notificación
+}
+message SendBatchRequest { repeated SendRequest requests = 1; }
+message SendBatchResponse { repeated Notification notifications = 1; }
+message GetNotificationRequest { string notification_id = 1; }
+message ListInboxRequest { bool unread_only = 1; plentypay.common.v1.PageRequest page = 2; }
+message ListInboxResponse { repeated Notification notifications = 1; int32 unread_count = 2; plentypay.common.v1.PageInfo page = 3; }
+message MarkReadRequest { repeated string notification_ids = 1; bool all = 2; }
+message MarkReadResponse { int32 updated = 1; }
+message StreamInboxRequest {}
+
+message Device { string device_id = 1; string platform = 2; string label = 3; google.protobuf.Timestamp registered_at = 4; }
+message RegisterDeviceRequest { string platform = 1; string push_token = 2; string web_push_subscription_json = 3; string label = 4; }
+message UnregisterDeviceRequest { string device_id = 1; }
+message UnregisterDeviceResponse {}
+
+message ChannelPreference { string category = 1; repeated Channel enabled_channels = 2; } // "payments" | "security" | "marketing" | "operations"
+message Preferences { string user_id = 1; string locale = 2; repeated ChannelPreference categories = 3; string quiet_hours_start_local = 4; string quiet_hours_end_local = 5; }
+message GetPreferencesRequest {}
+message SetPreferencesRequest { Preferences preferences = 1; }
+
+message Template {
+  string template_id = 1;
+  string tenant_id = 2;
+  string category = 3;
+  map<string, string> subject_by_locale = 4;
+  map<string, string> body_by_locale = 5;
+  repeated string required_params = 6;
+  bool active = 7;
+  repeated Channel default_channels = 8;
+}
+message UpsertTemplateRequest { Template template = 1; }
+message ListTemplatesRequest {}
+message ListTemplatesResponse { repeated Template templates = 1; }
+
+message HandleInboundWebhookRequest { string provider = 1; bytes raw_body = 2; map<string, string> headers = 3; }
+message HandleInboundWebhookResponse { bool accepted = 1; }

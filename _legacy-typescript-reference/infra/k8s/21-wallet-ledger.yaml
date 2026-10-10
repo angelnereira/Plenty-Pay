@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-ledger
+  namespace: plentypay
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: wallet-ledger }
+  template:
+    metadata:
+      labels: { app: wallet-ledger }
+    spec:
+      containers:
+        - name: wallet-ledger
+          image: ghcr.io/OWNER/plentypay-wallet-ledger:latest # AJUSTAR
+          ports: [{ containerPort: 50052 }]
+          env:
+            - name: PORT
+              value: "50052"
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: plentypay-secrets, key: POOLED_DATABASE_URL } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: wallet-ledger, namespace: plentypay }
+spec:
+  selector: { app: wallet-ledger }
+  ports: [{ port: 50052, targetPort: 50052 }]

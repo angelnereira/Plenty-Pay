@@ -1,0 +1,25 @@
+{
+  "name": "@plentypay/wallet-ledger",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wallet y libro contable de PlentyPay: retenciones (holds), abonos/cargos directos e idempotencia sobre el Motor heredado del sistema base (MotorLedgerEntry). Ver documento 03, seccion 10.",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.2",
+    "@grpc/proto-loader": "^0.7.13",
+    "@prisma/client": "^6.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prisma": "^6.19.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.2"
+  }
+}

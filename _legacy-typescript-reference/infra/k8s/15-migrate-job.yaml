@@ -1,0 +1,24 @@
+# Aplica las migraciones de Prisma ANTES de desplegar una versión nueva de la app
+# (Argo CD: anótalo como PreSync hook; con kubectl: `kubectl apply -f` y espera a que complete).
+# Usa la conexión DIRECTA a Postgres (no el pooler): Prisma Migrate requiere advisory locks.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: plentypay-migrate
+  namespace: plentypay
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: ghcr.io/OWNER/plentypay-migrate:latest # AJUSTAR: build con `--target migrate`, mismo tag que `web`
+          command: ["npx", "prisma", "migrate", "deploy"]
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: plentypay-secrets, key: DIRECT_DATABASE_URL } }

@@ -1,0 +1,25 @@
+{
+  "name": "@plentypay/payments-orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Orquestador de pagos multi-riel de PlentyPay (Wallet interno, Yappy, TELERED/Tarjeta Clave, tarjetas vía PSP, Apple/Google Pay). Ver documento 03 de la serie PlentyPay.",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.2",
+    "@grpc/proto-loader": "^0.7.13",
+    "@prisma/client": "^6.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prisma": "^6.19.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-reservations",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/keep-warm",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/dgi-polling",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/email-retry",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/bi-refresh",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/bi-alerts",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/bi-pro-refresh",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/dataport-dispatch",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

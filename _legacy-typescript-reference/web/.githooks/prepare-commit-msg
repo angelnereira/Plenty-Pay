@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# Hook prepare-commit-msg: pre-rellena el mensaje de commit con un andamiaje
+# (tipo + scope adivinados, lista de "qué cambió" y un checklist) basado en lo
+# que está en stage. Se activa solo en commits por editor; respeta `-m`,
+# merges, squashes y amends.
+#
+# Instalar:  npm run hooks:install   (configura core.hooksPath=.githooks)
+
+COMMIT_MSG_FILE="$1"
+COMMIT_SOURCE="$2"
+
+# No tocar cuando el mensaje ya viene dado (-m / -F), ni en merge/squash/amend.
+case "$COMMIT_SOURCE" in
+  message|merge|squash|commit) exit 0 ;;
+esac
+
+# Si el usuario ya escribió contenido (líneas que no son comentarios), respetarlo.
+if grep -qvE '^\s*#' "$COMMIT_MSG_FILE" 2>/dev/null; then
+  if [ -n "$(grep -vE '^\s*#' "$COMMIT_MSG_FILE" | tr -d '[:space:]')" ]; then
+    exit 0
+  fi
+fi
+
+# Generar el andamiaje y anteponerlo al contenido existente (que serán los
+# comentarios por defecto de git con la lista de archivos).
+SCAFFOLD="$(node "$(git rev-parse --show-toplevel)/scripts/change-descriptor.mjs" commit-scaffold --staged 2>/dev/null)"
+
+if [ -n "$SCAFFOLD" ]; then
+  printf '%s\n%s\n' "$SCAFFOLD" "$(cat "$COMMIT_MSG_FILE")" > "$COMMIT_MSG_FILE"
+fi
+
+exit 0

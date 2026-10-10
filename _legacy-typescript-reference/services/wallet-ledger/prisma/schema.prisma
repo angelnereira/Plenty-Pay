@@ -1,0 +1,119 @@
+// Schema Prisma PROPIO de wallet-ledger (bounded context "Ledger": verdad
+// financiera). v2: agrega LedgerAccount/LedgerTransaction/LedgerEntry de doble
+// entrada tras la revisión arquitectónica — ver README.md de este servicio.
+// Wallet/WalletHold se mantienen igual que en el primer borrador (caché de
+// saldo de lectura rápida). MotorLedgerEntry YA NO vive aquí: pertenece
+// exclusivamente al monolito (créditos/lealtad heredados del sistema base).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WalletHoldStatus {
+  ACTIVE
+  CAPTURED
+  RELEASED
+  EXPIRED
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerTransactionStatus {
+  DRAFT
+  VALIDATING
+  POSTED
+  REJECTED
+}
+
+model Wallet {
+  id                     String   @id @default(cuid())
+  clientId               String
+  entityId               String   @unique
+  currency               String   @default("USD")
+  availableBalanceCents  BigInt   @default(0)
+  heldBalanceCents       BigInt   @default(0)
+  pendingSettlementCents BigInt   @default(0)
+  version                Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  holds WalletHold[]
+
+  @@index([clientId])
+  @@map("wallets")
+}
+
+model WalletHold {
+  id             String           @id @default(cuid())
+  walletId       String
+  amountCents    BigInt
+  status         WalletHoldStatus @default(ACTIVE)
+  reason         String?
+  idempotencyKey String?          @unique
+  expiresAt      DateTime?
+  createdAt      DateTime         @default(now())
+  resolvedAt     DateTime?
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, status])
+  @@map("wallet_holds")
+}
+
+model LedgerAccount {
+  id          String   @id @default(cuid())
+  clientId    String
+  entityId    String // "PLATFORM" para cuentas internas — nunca null (ver nota en web/prisma/schema.prisma)
+  accountType String
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+
+  entries LedgerEntry[]
+
+  @@unique([clientId, entityId, accountType, currency])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id              String                  @id @default(cuid())
+  clientId        String
+  paymentId       String?
+  transactionType String
+  referenceType   String?
+  referenceId     String?
+  currency        String                  @default("USD")
+  description     String?
+  status          LedgerTransactionStatus @default(DRAFT)
+  reversalOfId    String?
+  createdAt       DateTime                @default(now())
+  postedAt        DateTime?
+
+  entries LedgerEntry[]
+
+  @@index([clientId, status, createdAt])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id                  String          @id @default(cuid())
+  ledgerTransactionId String
+  accountId           String
+  entryType           LedgerEntryType
+  amountCents         BigInt
+  createdAt           DateTime        @default(now())
+
+  transaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+  account     LedgerAccount     @relation(fields: [accountId], references: [id])
+
+  @@index([ledgerTransactionId])
+  @@index([accountId, createdAt])
+  @@map("ledger_entries")
+}

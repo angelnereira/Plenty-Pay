@@ -1,0 +1,10 @@
+# Namespace único para todos los componentes de PlentyPay en este clúster.
+# En el clúster cloud-dr (documento 02, sección 4) se aplica el mismo namespace
+# para que las herramientas de GitOps (Argo CD) puedan sincronizar ambos clústers
+# con los mismos manifiestos sin cambios.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: plentypay
+  labels:
+    app.kubernetes.io/part-of: plentypay

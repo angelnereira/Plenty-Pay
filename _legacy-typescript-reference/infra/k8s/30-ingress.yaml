@@ -1,0 +1,26 @@
+# Requiere ingress-nginx (o Traefik) y cert-manager instalados — infra/terraform/bootstrap.
+# gRPC (payments-orchestrator/wallet-ledger) NO se expone públicamente aquí: solo lo consumen
+# `web` y `mcp-server` dentro del clúster. Si más adelante Flutter necesita hablarles directo
+# (en vez de vía las rutas /api/mobile/v1/* del monolito), se agrega un segundo Ingress con
+# `nginx.ingress.kubernetes.io/backend-protocol: "GRPC"` — ver documento 02, sección 7.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: plentypay-web
+  namespace: plentypay
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  tls:
+    - hosts: ["app.plentypay.com"] # AJUSTAR: tu dominio real
+      secretName: plentypay-web-tls
+  rules:
+    - host: app.plentypay.com # AJUSTAR
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: web, port: { number: 80 } }

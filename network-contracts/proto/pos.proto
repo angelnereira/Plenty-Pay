@@ -1,0 +1,152 @@
+syntax = "proto3";
+package plentypay.pos.v1;
+
+option go_package = "plentypay/pos/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+import "fiscal_invoicing.proto";
+
+// pos: sesiones de caja y checkout de mostrador. ORQUESTA (payments-core, inventory, fiscal-invoicing, catalog)
+// sin ser dueño de esas responsabilidades. Spec: pos/SPEC.md
+service Pos {
+  rpc OpenCashSession(OpenCashSessionRequest) returns (CashSession);
+  rpc CloseCashSession(CloseCashSessionRequest) returns (CashSession);
+  rpc GetCashSession(GetCashSessionRequest) returns (CashSession);
+  rpc RecordCashMovement(RecordCashMovementRequest) returns (CashSession); // entradas/salidas de efectivo (retiro a caja fuerte, fondo)
+
+  rpc CreateSale(CreateSaleRequest) returns (Sale);
+  rpc UpdateSale(UpdateSaleRequest) returns (Sale);
+  rpc ParkSale(ParkSaleRequest) returns (Sale);
+  rpc ResumeSale(ResumeSaleRequest) returns (Sale);
+  rpc Checkout(CheckoutRequest) returns (Sale);                   // multi-tender; idempotente
+  rpc VoidSale(VoidSaleRequest) returns (Sale);                   // solo antes del pago
+  rpc RefundSale(RefundSaleRequest) returns (Sale);
+  rpc GetSale(GetSaleRequest) returns (Sale);
+  rpc ListSales(ListSalesRequest) returns (ListSalesResponse);
+  rpc GetReceipt(GetReceiptRequest) returns (Receipt);
+
+  // Offline-first: ventas con ids generados en el dispositivo, subidas en lote
+  rpc SyncOfflineSales(SyncOfflineSalesRequest) returns (SyncOfflineSalesResponse);
+
+  // Pantalla del cliente: stream del carrito en vivo
+  rpc StreamCustomerDisplay(StreamCustomerDisplayRequest) returns (stream CustomerDisplayUpdate);
+
+  rpc GetPosSettings(GetPosSettingsRequest) returns (PosSettings);
+  rpc UpdatePosSettings(UpdatePosSettingsRequest) returns (PosSettings);
+}
+
+enum SaleStatus {
+  SALE_STATUS_UNSPECIFIED = 0;
+  SALE_STATUS_OPEN = 1;
+  SALE_STATUS_PARKED = 2;
+  SALE_STATUS_AWAITING_PAYMENT = 3;
+  SALE_STATUS_PAID = 4;
+  SALE_STATUS_VOIDED = 5;
+  SALE_STATUS_PARTIALLY_REFUNDED = 6;
+  SALE_STATUS_REFUNDED = 7;
+}
+
+message CashSession {
+  string session_id = 1;
+  string terminal_label = 2;
+  string cashier_user_id = 3;
+  string status = 4;                         // "OPEN" | "CLOSED"
+  plentypay.common.v1.Money opening_float = 5;
+  plentypay.common.v1.Money expected_cash = 6;
+  plentypay.common.v1.Money counted_cash = 7;
+  plentypay.common.v1.Money difference = 8;  // counted - expected (con signo)
+  google.protobuf.Timestamp opened_at = 9;
+  google.protobuf.Timestamp closed_at = 10;
+  string close_notes = 11;
+  string approved_by_user_id = 12;           // si la diferencia supera el umbral
+}
+message OpenCashSessionRequest { string terminal_label = 1; plentypay.common.v1.Money opening_float = 2; string idempotency_key = 3; }
+message CloseCashSessionRequest { string session_id = 1; plentypay.common.v1.Money counted_cash = 2; string notes = 3; }
+message GetCashSessionRequest { string session_id = 1; }
+message RecordCashMovementRequest { string session_id = 1; plentypay.common.v1.Money amount = 2; string direction = 3; string reason = 4; string idempotency_key = 5; } // direction: "IN" | "OUT"
+
+message SaleLine {
+  string line_id = 1;
+  string product_id = 2;
+  string description = 3;
+  int64 quantity_milli = 4;
+  plentypay.common.v1.Money unit_price = 5;
+  plentypay.common.v1.Money discount = 6;
+  int32 tax_rate_bps = 7;
+  plentypay.common.v1.Money line_total = 8;  // calculado por el servidor
+}
+message Tender {
+  plentypay.common.v1.PaymentRail rail = 1;
+  plentypay.common.v1.Money amount = 2;
+  string payment_intent_id = 3;              // lo llena el servidor para tenders electrónicos
+  string status = 4;                         // "PENDING" | "CAPTURED" | "FAILED" | "UNKNOWN"
+  plentypay.common.v1.Money cash_tendered = 5; // solo CASH
+  NextActionInfo next_action = 6;            // QR/URL que el cliente debe aprobar
+}
+message NextActionInfo { string type = 1; string url = 2; string qr_payload = 3; }
+message Sale {
+  string sale_id = 1;
+  string session_id = 2;
+  SaleStatus status = 3;
+  repeated SaleLine lines = 4;
+  repeated Tender tenders = 5;
+  plentypay.common.v1.Money subtotal = 6;
+  plentypay.common.v1.Money tax = 7;
+  plentypay.common.v1.Money total = 8;
+  plentypay.common.v1.Money change_due = 9;
+  plentypay.fiscal.v1.Taxpayer customer = 10;
+  plentypay.fiscal.v1.DocumentType document_type = 11;
+  string invoice_id = 12;
+  string receipt_number = 13;
+  string client_sale_id = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp paid_at = 16;
+  plentypay.common.v1.Money refunded = 17;
+  string reservation_id = 18;
+  int32 version = 19;
+}
+message CreateSaleRequest { string session_id = 1; string client_sale_id = 2; }
+message UpdateSaleRequest { string sale_id = 1; repeated SaleLine lines = 2; plentypay.fiscal.v1.Taxpayer customer = 3; int32 expected_version = 4; }
+message ParkSaleRequest { string sale_id = 1; string label = 2; }
+message ResumeSaleRequest { string sale_id = 1; }
+message CheckoutRequest {
+  string sale_id = 1;
+  string idempotency_key = 2;
+  repeated Tender tenders = 3;
+  bool customer_requests_fiscal = 4;
+  string step_up_token = 5;
+}
+message VoidSaleRequest { string sale_id = 1; string reason = 2; }
+message RefundSaleRequest { string sale_id = 1; repeated SaleLine lines = 2; string reason = 3; string idempotency_key = 4; string step_up_token = 5; bool restock = 6; }
+message GetSaleRequest { string sale_id = 1; }
+message ListSalesRequest { string session_id = 1; SaleStatus status = 2; plentypay.common.v1.TimeRange range = 3; plentypay.common.v1.PageRequest page = 4; }
+message ListSalesResponse { repeated Sale sales = 1; plentypay.common.v1.PageInfo page = 2; }
+message GetReceiptRequest { string sale_id = 1; string format = 2; } // "HTML" | "ESC_POS" | "PDF"
+message Receipt { string content_type = 1; bytes content = 2; }
+
+message OfflineSale { Sale sale = 1; string idempotency_key = 2; google.protobuf.Timestamp captured_offline_at = 3; }
+message SyncOfflineSalesRequest { repeated OfflineSale sales = 1; }
+message SyncResult { string client_sale_id = 1; bool accepted = 2; string sale_id = 3; string error_code = 4; string error_message = 5; }
+message SyncOfflineSalesResponse { repeated SyncResult results = 1; }
+
+message StreamCustomerDisplayRequest { string session_id = 1; }
+message CustomerDisplayUpdate { Sale sale = 1; string message = 2; }
+
+message PosSettings {
+  plentypay.fiscal.v1.CheckoutPreference checkout_preference = 1;
+  int64 auto_threshold_minor = 2;
+  bool allow_negative_stock = 3;
+  bool cash_enabled = 4;
+  repeated plentypay.common.v1.PaymentRail enabled_rails = 5;
+  string receipt_footer = 6;
+  string printer_profile = 7;               // "ESC_POS_80MM" | "ESC_POS_58MM" | "NONE"
+  int64 cash_difference_threshold_minor = 8; // diferencia de cierre que exige aprobación
+  bool allow_offline_card_pending = 9;      // registrar ventas electrónicas offline como "pendientes de cobro"
+}
+message GetPosSettingsRequest {}
+message UpdatePosSettingsRequest { PosSettings settings = 1; }
+
+// ── Eventos. Subject: pp.pos.<entidad>.<hecho>.v1 ──
+message SalePaid { string sale_id = 1; string tenant_id = 2; plentypay.common.v1.Money total = 3; repeated SaleLine lines = 4; string cashier_user_id = 5; string reservation_id = 6; }
+message SaleRefunded { string sale_id = 1; string tenant_id = 2; plentypay.common.v1.Money amount = 3; repeated SaleLine lines = 4; bool restock = 5; }

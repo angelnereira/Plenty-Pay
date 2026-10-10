@@ -1,0 +1,25 @@
+# Manifiesto de consumo de contratos — quién necesita qué .proto (ADR 0004).
+# Formato:  contenedor | lenguaje | carpeta-de-salida-dentro-del-contenedor | protos separados por coma
+# Un contenedor se agrega cuando EMPIEZA a implementar o llamar ese servicio — nunca "por si acaso".
+# scripts/sync-protos.sh omite filas cuyo contenedor aún no tiene go.mod / Cargo.toml.
+# Matriz OBJETIVO completa (quién llama a quién): docs/architecture/service-dependencies.md §3.
+#
+# --- implementados hoy ---
+identity|go|internal/pb|identity.proto,common.proto
+api-gateway|go|internal/pb|identity.proto,common.proto
+# --- objetivo (se activan al llegar a su fase) ---
+ledger|rust|proto|ledger.proto,common.proto,events.proto
+payments-core|rust|proto|payments.proto,ledger.proto,identity.proto,common.proto,events.proto
+settlement|rust|proto|settlement.proto,ledger.proto,payments.proto,identity.proto,common.proto,events.proto
+security|go|internal/pb|security.proto,common.proto
+infra-management|go|internal/pb|infra_management.proto,common.proto
+geolocation|go|internal/pb|geolocation.proto,common.proto,events.proto
+fiscal-invoicing|go|internal/pb|fiscal_invoicing.proto,security.proto,common.proto,events.proto
+catalog|go|internal/pb|catalog.proto,inventory.proto,common.proto,events.proto
+inventory|go|internal/pb|inventory.proto,catalog.proto,common.proto,events.proto
+orders|go|internal/pb|orders.proto,catalog.proto,inventory.proto,payments.proto,logistics.proto,fiscal_invoicing.proto,identity.proto,common.proto,events.proto
+pos|go|internal/pb|pos.proto,catalog.proto,inventory.proto,payments.proto,fiscal_invoicing.proto,common.proto,events.proto
+logistics|go|internal/pb|logistics.proto,geolocation.proto,identity.proto,common.proto,events.proto
+payroll|go|internal/pb|payroll.proto,payments.proto,security.proto,geolocation.proto,common.proto,events.proto
+notifications|go|internal/pb|notifications.proto,identity.proto,common.proto,events.proto
+analytics-bi|go|internal/pb|analytics.proto,common.proto,events.proto,payments.proto,ledger.proto,pos.proto,orders.proto,inventory.proto,catalog.proto,logistics.proto,settlement.proto,fiscal_invoicing.proto,payroll.proto,identity.proto

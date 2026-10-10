@@ -1,0 +1,113 @@
+syntax = "proto3";
+package plentypay.orders.v1;
+
+option go_package = "plentypay/orders/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// orders: pedidos de MARKETPLACE (carrito multi-comercio). Dueño del carrito del comprador y del pedido.
+// Orquesta inventory (reservas), payments-core (UN cobro con splits), logistics (entregas) y
+// fiscal-invoicing (una factura por comercio). Las ventas de mostrador son de `pos`. Spec: orders/SPEC.md (ADR 0017)
+service Orders {
+  rpc GetCart(GetCartRequest) returns (Cart);
+  rpc SetCartItem(SetCartItemRequest) returns (Cart);      // cantidad 0 = quitar
+  rpc ClearCart(ClearCartRequest) returns (Cart);
+
+  rpc QuoteCheckout(QuoteCheckoutRequest) returns (CheckoutQuote);
+  rpc Checkout(CheckoutRequest) returns (Order);                      // reserva stock + cobro con splits; idempotente
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  rpc ListMyOrders(ListMyOrdersRequest) returns (ListOrdersResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (Order);
+
+  rpc ListMerchantOrders(ListMerchantOrdersRequest) returns (ListSubOrdersResponse);
+  rpc AcceptSubOrder(SubOrderActionRequest) returns (SubOrder);
+  rpc RejectSubOrder(RejectSubOrderRequest) returns (SubOrder);       // reembolsa solo la parte de ese comercio
+  rpc MarkSubOrderReady(SubOrderActionRequest) returns (SubOrder);
+  rpc MarkSubOrderCompleted(SubOrderActionRequest) returns (SubOrder);
+}
+
+enum FulfillmentMethod { FULFILLMENT_METHOD_UNSPECIFIED = 0; FULFILLMENT_METHOD_DELIVERY = 1; FULFILLMENT_METHOD_PICKUP = 2; }
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING_PAYMENT = 1;
+  ORDER_STATUS_PAID = 2;
+  ORDER_STATUS_PARTIALLY_FULFILLED = 3;
+  ORDER_STATUS_COMPLETED = 4;
+  ORDER_STATUS_CANCELLED = 5;
+  ORDER_STATUS_REFUNDED = 6;
+}
+enum SubOrderStatus {
+  SUB_ORDER_STATUS_UNSPECIFIED = 0;
+  SUB_ORDER_STATUS_PENDING_PAYMENT = 1;
+  SUB_ORDER_STATUS_AWAITING_ACCEPTANCE = 2;
+  SUB_ORDER_STATUS_ACCEPTED = 3;
+  SUB_ORDER_STATUS_READY = 4;
+  SUB_ORDER_STATUS_IN_DELIVERY = 5;
+  SUB_ORDER_STATUS_COMPLETED = 6;
+  SUB_ORDER_STATUS_REJECTED = 7;
+  SUB_ORDER_STATUS_CANCELLED = 8;
+}
+
+message CartItem { string product_id = 1; string merchant_tenant_id = 2; int64 quantity_milli = 3; plentypay.common.v1.Money unit_price_snapshot = 4; string name_snapshot = 5; }
+message Cart { string cart_id = 1; repeated CartItem items = 2; google.protobuf.Timestamp updated_at = 3; }
+message GetCartRequest {}
+message SetCartItemRequest { string product_id = 1; int64 quantity_milli = 2; }
+message ClearCartRequest {}
+
+message MerchantQuote { string merchant_tenant_id = 1; string merchant_name = 2; plentypay.common.v1.Money items_total = 3; plentypay.common.v1.Money delivery_fee = 4; plentypay.common.v1.Money tax = 5; bool all_in_stock = 6; repeated string unavailable_product_ids = 7; }
+message CheckoutQuote { repeated MerchantQuote merchants = 1; plentypay.common.v1.Money grand_total = 2; plentypay.common.v1.Money customer_fees = 3; string quote_id = 4; google.protobuf.Timestamp expires_at = 5; }
+message QuoteCheckoutRequest { FulfillmentMethod fulfillment = 1; plentypay.common.v1.Address dropoff = 2; }
+
+message CheckoutRequest {
+  string idempotency_key = 1;
+  string quote_id = 2;
+  FulfillmentMethod fulfillment = 3;
+  plentypay.common.v1.Address dropoff = 4;
+  string recipient_name = 5;
+  string recipient_phone = 6;
+  plentypay.common.v1.PaymentRail rail = 7;
+  string step_up_token = 8;
+}
+message SubOrderLine { string product_id = 1; string name = 2; int64 quantity_milli = 3; plentypay.common.v1.Money unit_price = 4; plentypay.common.v1.Money line_total = 5; }
+message SubOrder {
+  string sub_order_id = 1;
+  string order_id = 2;
+  string merchant_tenant_id = 3;
+  SubOrderStatus status = 4;
+  repeated SubOrderLine lines = 5;
+  plentypay.common.v1.Money total = 6;
+  FulfillmentMethod fulfillment = 7;
+  string delivery_id = 8;
+  string invoice_id = 9;
+  string reservation_id = 10;
+  string rejection_reason = 11;
+  google.protobuf.Timestamp acceptance_deadline = 12;
+}
+message Order {
+  string order_id = 1;
+  string buyer_user_id = 2;
+  OrderStatus status = 3;
+  repeated SubOrder sub_orders = 4;
+  plentypay.common.v1.Money grand_total = 5;
+  string payment_intent_id = 6;
+  plentypay.common.v1.PaymentRail rail = 7;
+  FulfillmentMethod fulfillment = 8;
+  plentypay.common.v1.Address dropoff = 9;
+  google.protobuf.Timestamp created_at = 10;
+  NextActionInfo next_action = 11;     // QR/URL para aprobar el pago, copiado del PaymentIntent
+}
+message NextActionInfo { string type = 1; string url = 2; string qr_payload = 3; }
+message GetOrderRequest { string order_id = 1; }
+message ListMyOrdersRequest { OrderStatus status = 1; plentypay.common.v1.PageRequest page = 2; }
+message ListOrdersResponse { repeated Order orders = 1; plentypay.common.v1.PageInfo page = 2; }
+message CancelOrderRequest { string order_id = 1; string reason = 2; }
+message ListMerchantOrdersRequest { SubOrderStatus status = 1; plentypay.common.v1.TimeRange range = 2; plentypay.common.v1.PageRequest page = 3; }
+message ListSubOrdersResponse { repeated SubOrder sub_orders = 1; plentypay.common.v1.PageInfo page = 2; }
+message SubOrderActionRequest { string sub_order_id = 1; }
+message RejectSubOrderRequest { string sub_order_id = 1; string reason = 2; }
+
+// ── Eventos. Subject: pp.orders.<entidad>.<hecho>.v1 ──
+message OrderPaid { string order_id = 1; string buyer_user_id = 2; plentypay.common.v1.Money grand_total = 3; repeated string merchant_tenant_ids = 4; }
+message SubOrderStatusChanged { string sub_order_id = 1; string order_id = 2; string merchant_tenant_id = 3; SubOrderStatus status = 4; string buyer_user_id = 5; }

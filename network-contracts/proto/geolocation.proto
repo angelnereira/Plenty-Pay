@@ -1,0 +1,63 @@
+syntax = "proto3";
+package plentypay.geo.v1;
+
+option go_package = "plentypay/geo/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// geolocation: única fuente de verdad de "dónde está algo/alguien". Spec: geolocation/SPEC.md
+service Geolocation {
+  rpc IngestLocations(stream LocationPing) returns (IngestSummary);
+  rpc GetLastLocation(GetLastLocationRequest) returns (SubjectLocation);
+  rpc GetTrack(GetTrackRequest) returns (GetTrackResponse);
+  rpc WatchSubject(WatchSubjectRequest) returns (stream SubjectLocation);
+  rpc FindNearby(FindNearbyRequest) returns (FindNearbyResponse);
+  rpc IsInside(IsInsideRequest) returns (IsInsideResponse);   // ¿el punto está dentro de la geocerca? (marcaje)
+
+  rpc UpsertGeofence(UpsertGeofenceRequest) returns (Geofence);
+  rpc ListGeofences(ListGeofencesRequest) returns (ListGeofencesResponse);
+  rpc DeleteGeofence(DeleteGeofenceRequest) returns (DeleteGeofenceResponse);
+}
+
+message SubjectRef { string type = 1; string id = 2; } // "driver", "delivery", "tenant_location", "device"
+message LocationPing {
+  SubjectRef subject = 1;
+  plentypay.common.v1.GeoPoint point = 2;
+  float accuracy_meters = 3;
+  float speed_mps = 4;
+  float heading_degrees = 5;
+  google.protobuf.Timestamp recorded_at = 6;
+}
+message IngestSummary { int64 accepted = 1; int64 rejected = 2; }
+message SubjectLocation { SubjectRef subject = 1; plentypay.common.v1.GeoPoint point = 2; float accuracy_meters = 3; google.protobuf.Timestamp recorded_at = 4; }
+message GetLastLocationRequest { SubjectRef subject = 1; }
+message GetTrackRequest { SubjectRef subject = 1; plentypay.common.v1.TimeRange range = 2; int32 max_points = 3; }
+message GetTrackResponse { repeated SubjectLocation points = 1; }
+message WatchSubjectRequest { SubjectRef subject = 1; }
+message FindNearbyRequest { plentypay.common.v1.GeoPoint center = 1; int32 radius_meters = 2; string subject_type = 3; int32 limit = 4; }
+message NearbyResult { SubjectLocation location = 1; double distance_meters = 2; }
+message FindNearbyResponse { repeated NearbyResult results = 1; }
+message IsInsideRequest { string geofence_id = 1; plentypay.common.v1.GeoPoint point = 2; float accuracy_meters = 3; }
+message IsInsideResponse { bool inside = 1; double distance_to_edge_meters = 2; }
+
+message Geofence {
+  string geofence_id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  oneof shape {
+    Circle circle = 4;
+    Polygon polygon = 5;
+  }
+  repeated string watched_subject_types = 6;
+}
+message Circle { plentypay.common.v1.GeoPoint center = 1; int32 radius_meters = 2; }
+message Polygon { repeated plentypay.common.v1.GeoPoint vertices = 1; }
+message UpsertGeofenceRequest { Geofence geofence = 1; }
+message ListGeofencesRequest {}
+message ListGeofencesResponse { repeated Geofence geofences = 1; }
+message DeleteGeofenceRequest { string geofence_id = 1; }
+message DeleteGeofenceResponse {}
+
+// ── Eventos. Subject: pp.geo.<entidad>.<hecho>.v1 ──
+message GeofenceCrossed { string geofence_id = 1; string tenant_id = 2; SubjectRef subject = 3; bool entered = 4; plentypay.common.v1.GeoPoint point = 5; }

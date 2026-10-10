@@ -1,0 +1,146 @@
+syntax = "proto3";
+package plentypay.fiscal.v1;
+
+option go_package = "plentypay/fiscal/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// fiscal-invoicing: facturación electrónica ante la DGI vía un PAC. Spec: fiscal-invoicing/SPEC.md
+// Comportamiento ya validado como referencia: _legacy-typescript-reference/web/features/ (HKA, XMLDSig, folios).
+service FiscalInvoicing {
+  rpc EvaluateDocumentPolicy(EvaluateDocumentPolicyRequest) returns (DocumentPolicyDecision); // ¿factura formal o recibo simple?
+  rpc IssueInvoice(IssueInvoiceRequest) returns (Invoice);            // idempotente; asíncrono hacia el PAC
+  rpc IssueCreditNote(IssueNoteRequest) returns (Invoice);
+  rpc IssueDebitNote(IssueNoteRequest) returns (Invoice);
+  rpc GetInvoice(GetInvoiceRequest) returns (Invoice);
+  rpc ListInvoices(ListInvoicesRequest) returns (ListInvoicesResponse);
+  rpc RefreshInvoiceStatus(GetInvoiceRequest) returns (Invoice);
+  rpc GetInvoiceDocument(GetInvoiceDocumentRequest) returns (InvoiceDocument);
+
+  rpc ConfigureFiscalProfile(ConfigureFiscalProfileRequest) returns (FiscalProfile);
+  rpc GetFiscalProfile(GetFiscalProfileRequest) returns (FiscalProfile);
+  rpc GetFolioStatus(GetFolioStatusRequest) returns (FolioStatus);
+
+  rpc UpsertTaxpayer(UpsertTaxpayerRequest) returns (Taxpayer);
+  rpc SearchTaxpayers(SearchTaxpayersRequest) returns (SearchTaxpayersResponse);
+}
+
+enum DocumentType {
+  DOCUMENT_TYPE_UNSPECIFIED = 0;
+  DOCUMENT_TYPE_FISCAL_INVOICE = 1;
+  DOCUMENT_TYPE_CREDIT_NOTE = 2;
+  DOCUMENT_TYPE_DEBIT_NOTE = 3;
+  DOCUMENT_TYPE_INTERNAL_RECEIPT = 4; // recibo no fiscal
+}
+enum CheckoutPreference {
+  CHECKOUT_PREFERENCE_UNSPECIFIED = 0;
+  CHECKOUT_PREFERENCE_ALWAYS_FISCAL = 1;
+  CHECKOUT_PREFERENCE_INTERNAL_ONLY = 2;
+  CHECKOUT_PREFERENCE_ASK_ALWAYS = 3;
+  CHECKOUT_PREFERENCE_AUTO_THRESHOLD = 4; // fiscal solo si el total supera el umbral
+}
+enum InvoiceStatus {
+  INVOICE_STATUS_UNSPECIFIED = 0;
+  INVOICE_STATUS_DRAFT = 1;
+  INVOICE_STATUS_QUEUED = 2;
+  INVOICE_STATUS_SENT = 3;
+  INVOICE_STATUS_ACCEPTED = 4;     // con CUFE
+  INVOICE_STATUS_REJECTED = 5;
+  INVOICE_STATUS_VOIDED = 6;       // anulada vía nota de crédito
+}
+
+message EvaluateDocumentPolicyRequest {
+  plentypay.common.v1.Money total = 1;
+  bool customer_requests_fiscal = 2;
+  bool customer_has_tax_id = 3;
+}
+message DocumentPolicyDecision {
+  DocumentType document_type = 1;
+  CheckoutPreference applied_preference = 2;
+  bool needs_customer_confirmation = 3;
+}
+
+message Taxpayer {
+  string taxpayer_id = 1;
+  string tax_id = 2;          // RUC o cédula
+  string tax_id_type = 3;     // "RUC_JURIDICO", "RUC_NATURAL", "CEDULA", "PASAPORTE", "EXTRANJERO"
+  string check_digit = 4;     // DV
+  string legal_name = 5;
+  string email = 6;
+  plentypay.common.v1.Address address = 7;
+}
+message UpsertTaxpayerRequest { Taxpayer taxpayer = 1; }
+message SearchTaxpayersRequest { string query = 1; plentypay.common.v1.PageRequest page = 2; }
+message SearchTaxpayersResponse { repeated Taxpayer taxpayers = 1; plentypay.common.v1.PageInfo page = 2; }
+
+message InvoiceLine {
+  string description = 1;
+  string cpbs_code = 2;
+  string unit_measure_code = 3;
+  int64 quantity_milli = 4;
+  plentypay.common.v1.Money unit_price = 5;
+  plentypay.common.v1.Money discount = 6;
+  int32 tax_rate_bps = 7;                   // ITBMS: 0, 700, 1000 o 1500
+}
+message IssueInvoiceRequest {
+  string idempotency_key = 1;
+  Taxpayer customer = 2;                    // vacío = consumidor final
+  repeated InvoiceLine lines = 3;
+  plentypay.common.v1.Reference source = 4;
+  string currency = 5;
+  map<string, string> metadata = 6;
+}
+message IssueNoteRequest {
+  string idempotency_key = 1;
+  string related_invoice_id = 2;
+  repeated InvoiceLine lines = 3;
+  string reason = 4;
+}
+message Invoice {
+  string invoice_id = 1;
+  string tenant_id = 2;
+  DocumentType document_type = 3;
+  InvoiceStatus status = 4;
+  string folio_number = 5;
+  string cufe = 6;
+  string qr_url = 7;
+  plentypay.common.v1.Money subtotal = 8;
+  plentypay.common.v1.Money tax = 9;
+  plentypay.common.v1.Money total = 10;
+  Taxpayer customer = 11;
+  repeated InvoiceLine lines = 12;
+  string related_invoice_id = 13;
+  string rejection_reason = 14;
+  google.protobuf.Timestamp issued_at = 15;
+}
+message GetInvoiceRequest { string invoice_id = 1; }
+message ListInvoicesRequest {
+  InvoiceStatus status = 1;
+  DocumentType document_type = 2;
+  plentypay.common.v1.TimeRange range = 3;
+  plentypay.common.v1.PageRequest page = 4;
+}
+message ListInvoicesResponse { repeated Invoice invoices = 1; plentypay.common.v1.PageInfo page = 2; }
+message GetInvoiceDocumentRequest { string invoice_id = 1; string format = 2; } // "PDF" | "XML"
+message InvoiceDocument { string object_key = 1; string content_type = 2; string download_url = 3; google.protobuf.Timestamp url_expires_at = 4; }
+
+message FiscalProfile {
+  string tenant_id = 1;
+  string environment = 2;                   // "DEMO" | "PROD"
+  string credentials_secret_ref = 3;        // referencia a `security`; los tokens del PAC NUNCA se guardan aquí
+  string certificate_secret_ref = 4;
+  CheckoutPreference checkout_preference = 5;
+  int64 auto_threshold_minor = 6;
+  string branch_code = 7;
+  string point_of_sale_code = 8;
+}
+message ConfigureFiscalProfileRequest { FiscalProfile profile = 1; bytes pac_credentials = 2; bytes certificate_p12 = 3; string certificate_password = 4; string step_up_token = 5; } // los secretos se reenvían a `security` y no se persisten aquí
+message GetFiscalProfileRequest {}
+message GetFolioStatusRequest {}
+message FolioStatus { int64 remaining = 1; int64 low_watermark = 2; string current_range = 3; }
+
+// ── Eventos. Subject: pp.fiscal.<entidad>.<hecho>.v1 ──
+message InvoiceAccepted { string invoice_id = 1; string tenant_id = 2; string cufe = 3; plentypay.common.v1.Reference source = 4; }
+message InvoiceRejected { string invoice_id = 1; string tenant_id = 2; string reason = 3; plentypay.common.v1.Reference source = 4; }
+message FolioLow { string tenant_id = 1; int64 remaining = 2; }

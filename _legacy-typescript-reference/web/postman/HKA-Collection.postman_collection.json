@@ -1,0 +1,209 @@
+{
+    "info": {
+        "name": "HKA Web Service - PlentyPay",
+        "description": "Colección completa para testing de todos los métodos HKA",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "https://demoemision.thefactoryhka.com.pa/ws/obj/v1.0/Service.svc",
+            "type": "string"
+        },
+        {
+            "key": "tokenEmpresa",
+            "value": "TU_TOKEN_EMPRESA",
+            "type": "string"
+        },
+        {
+            "key": "tokenPassword",
+            "value": "TU_TOKEN_PASSWORD",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "1. Consultar Folios Restantes",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "text/xml; charset=utf-8"
+                    },
+                    {
+                        "key": "SOAPAction",
+                        "value": "http://tempuri.org/IService/FoliosRestantes"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:tem=\"http://tempuri.org/\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <tem:FoliosRestantes>\n      <tem:tokenEmpresa>{{tokenEmpresa}}</tem:tokenEmpresa>\n      <tem:tokenPassword>{{tokenPassword}}</tem:tokenPassword>\n    </tem:FoliosRestantes>\n  </soapenv:Body>\n</soapenv:Envelope>"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "// Parse XML response",
+                            "var jsonData = xml2Json(responseBody);",
+                            "var result = jsonData['s:Envelope']['s:Body'].FoliosRestantesResponse.FoliosRestantesResult;",
+                            "",
+                            "// Visualizer HTML",
+                            "var template = `",
+                            "<style>",
+                            "  body { font-family: Arial; padding: 20px; background: #f5f5f5; }",
+                            "  .container { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }",
+                            "  h2 { color: #333; border-bottom: 3px solid #FF6C37; padding-bottom: 10px; }",
+                            "  table { width: 100%; border-collapse: collapse; margin-top: 10px; }",
+                            "  th { background: #FF6C37; color: white; padding: 12px; text-align: left; }",
+                            "  td { padding: 12px; border-bottom: 1px solid #ddd; }",
+                            "  tr:nth-child(even) { background: #f9f9f9; }",
+                            "  .field-name { font-weight: bold; color: #555; width: 40%; }",
+                            "</style>",
+                            "<div class=\"container\">",
+                            "  <h2>📊 Folios Restantes - HKA</h2>",
+                            "  <table>",
+                            "    <thead><tr><th>Campo</th><th>Valor</th></tr></thead>",
+                            "    <tbody>",
+                            "      <tr><td class=\"field-name\">Código</td><td>{{codigo}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Mensaje</td><td>{{mensaje}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Licencia</td><td>{{licencia}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Fecha Licencia</td><td>{{fechaLicencia}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Ciclo</td><td>{{ciclo}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Fecha Ciclo</td><td>{{fechaCiclo}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Folios Totales Ciclo</td><td>{{foliosTotalesCiclo}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Folios Utilizados</td><td>{{foliosUtilizadosCiclo}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Folios Disponibles</td><td>{{foliosDisponibleCiclo}}</td></tr>",
+                            "      <tr><td class=\"field-name\">Folios Totales</td><td>{{foliosTotales}}</td></tr>",
+                            "    </tbody>",
+                            "  </table>",
+                            "</div>",
+                            "`;",
+                            "",
+                            "pm.visualizer.set(template, {",
+                            "  codigo: result['a:codigo'] || 'N/A',",
+                            "  mensaje: result['a:mensaje'] || 'N/A',",
+                            "  licencia: result['a:licencia'] || 'N/A',",
+                            "  fechaLicencia: result['a:fechaLicencia'] || 'N/A',",
+                            "  ciclo: result['a:ciclo'] || 'N/A',",
+                            "  fechaCiclo: result['a:fechaCiclo'] || 'N/A',",
+                            "  foliosTotalesCiclo: result['a:foliosTotalesCiclo'] || 'N/A',",
+                            "  foliosUtilizadosCiclo: result['a:foliosUtilizadosCiclo'] || 'N/A',",
+                            "  foliosDisponibleCiclo: result['a:foliosDisponibleCiclo'] || 'N/A',",
+                            "  foliosTotales: result['a:foliosTotales'] || 'N/A'",
+                            "});",
+                            "",
+                            "// Tests",
+                            "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                            "pm.test('Response is successful', () => {",
+                            "  pm.expect(result['a:codigo']).to.eql('200');",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "2. Consultar RUC DV",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "text/xml; charset=utf-8"
+                    },
+                    {
+                        "key": "SOAPAction",
+                        "value": "http://tempuri.org/IService/ConsultarRucDV"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:tem=\"http://tempuri.org/\" xmlns:ser=\"http://schemas.datacontract.org/2004/07/Services\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <tem:ConsultarRucDV>\n      <tem:consultarRucDVRequest>\n        <ser:tokenEmpresa>{{tokenEmpresa}}</ser:tokenEmpresa>\n        <ser:tokenPassword>{{tokenPassword}}</ser:tokenPassword>\n        <ser:tipoRuc>2</ser:tipoRuc>\n        <ser:ruc>155596713-2-2015</ser:ruc>\n      </tem:consultarRucDVRequest>\n    </tem:ConsultarRucDV>\n  </soapenv:Body>\n</soapenv:Envelope>"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "var jsonData = xml2Json(responseBody);",
+                            "var result = jsonData['s:Envelope']['s:Body'].ConsultarRucDVResponse.ConsultarRucDVResult;",
+                            "var infoRuc = result['a:infoRuc'];",
+                            "",
+                            "var template = `",
+                            "<style>",
+                            "  body { font-family: Arial; padding: 20px; background: #f5f5f5; }",
+                            "  .container { background: white; border-radius: 8px; padding: 20px; max-width: 800px; margin: 0 auto; }",
+                            "  h2 { color: #333; border-bottom: 3px solid #4CAF50; padding-bottom: 10px; }",
+                            "  .info-box { background: #e8f5e9; border-left: 4px solid #4CAF50; padding: 15px; margin: 10px 0; }",
+                            "  .label { font-weight: bold; color: #555; }",
+                            "</style>",
+                            "<div class=\"container\">",
+                            "  <h2>🔍 Consulta RUC - DGI</h2>",
+                            "  <div class=\"info-box\">",
+                            "    <p><span class=\"label\">RUC:</span> {{ruc}}</p>",
+                            "    <p><span class=\"label\">Dígito Verificador:</span> {{dv}}</p>",
+                            "    <p><span class=\"label\">Razón Social:</span> {{razonSocial}}</p>",
+                            "    <p><span class=\"label\">Tipo:</span> {{tipoRuc}}</p>",
+                            "    <p><span class=\"label\">Afiliado FE:</span> {{afiliadoFE}}</p>",
+                            "  </div>",
+                            "</div>",
+                            "`;",
+                            "",
+                            "pm.visualizer.set(template, {",
+                            "  ruc: infoRuc['a:ruc'] || 'N/A',",
+                            "  dv: infoRuc['a:dv'] || 'N/A',",
+                            "  razonSocial: infoRuc['a:razonSocial'] || 'N/A',",
+                            "  tipoRuc: infoRuc['a:tipoRuc'] === '2' ? 'Jurídico' : 'Natural',",
+                            "  afiliadoFE: infoRuc['a:afiliadoFE'] || 'N/A'",
+                            "});",
+                            "",
+                            "pm.test('Status code is 200', () => pm.response.to.have.status(200));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "3. Estado Documento",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "text/xml; charset=utf-8"
+                    },
+                    {
+                        "key": "SOAPAction",
+                        "value": "http://tempuri.org/IService/EstadoDocumento"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:tem=\"http://tempuri.org/\" xmlns:ser=\"http://schemas.datacontract.org/2004/07/Services\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <tem:EstadoDocumento>\n      <tem:tokenEmpresa>{{tokenEmpresa}}</tem:tokenEmpresa>\n      <tem:tokenPassword>{{tokenPassword}}</tem:tokenPassword>\n      <tem:datosDocumento>\n        <ser:codigoSucursalEmisor>0000</ser:codigoSucursalEmisor>\n        <ser:numeroDocumentoFiscal>0000000001</ser:numeroDocumentoFiscal>\n        <ser:puntoFacturacionFiscal>001</ser:puntoFacturacionFiscal>\n        <ser:tipoDocumento>01</ser:tipoDocumento>\n        <ser:tipoEmision>01</ser:tipoEmision>\n      </tem:datosDocumento>\n    </tem:EstadoDocumento>\n  </soapenv:Body>\n</soapenv:Envelope>"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ]
+                }
+            }
+        }
+    ]
+}

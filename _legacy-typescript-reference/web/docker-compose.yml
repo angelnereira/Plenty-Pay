@@ -1,0 +1,94 @@
+# docker-compose para desarrollo LOCAL de PlentyPay.
+# Reemplaza la dependencia de Neon (Postgres serverless) y Upstash (Redis serverless)
+# por sus equivalentes open source auto-hospedados. Ver documento 02 (arquitectura híbrida)
+# para el equivalente en Kubernetes (CloudNativePG, Valkey en Sentinel, MinIO en modo distribuido).
+#
+# Uso:
+#   docker compose up -d postgres valkey minio
+#   npx prisma migrate deploy
+#   npm run dev   (o: docker compose up app  para correr todo containerizado)
+
+services:
+  postgres:
+    image: postgres:16-alpine # CloudNativePG en K8s usa 16.4; PG18 (uuidv7 nativo) es opcional — ver MIGRATION_STATUS.md
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: plentypay
+      POSTGRES_PASSWORD: plentypay_dev_password_change_me
+      POSTGRES_DB: plentypay
+    ports:
+      - "5432:5432"
+    volumes:
+      - plentypay_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plentypay"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Valkey = fork 100% open source (BSD, Linux Foundation) de Redis desde que
+  # Redis Ltd. cambió de licencia en 2024. Compatible con el protocolo/CLI de Redis
+  # y con BullMQ e ioredis sin cambios de código.
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - plentypay_valkey_data:/data
+    command: valkey-server --save 60 1 --loglevel warning
+
+  # MinIO = almacenamiento de objetos S3-compatible auto-hospedado, para recibos/PDFs/imágenes
+  # (reemplaza Vercel Blob / S3 / Cloudinary en el entorno self-hosted). Ver nota en README
+  # sobre la evolución de licenciamiento de MinIO si esto es una preocupación para ti.
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: plentypay_admin
+      MINIO_ROOT_PASSWORD: plentypay_dev_password_change_me
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Consola web
+    volumes:
+      - plentypay_minio_data:/data
+
+  # Puente REST↔Redis: la app usa el cliente HTTP de Upstash (@upstash/redis, lib/redis.ts), que
+  # NO habla el protocolo TCP de Redis/Valkey. SRH (serverless-redis-http, MIT) expone la misma API
+  # REST de Upstash delante de cualquier Redis/Valkey → la app funciona SIN cambios de código.
+  # Apunta la app a:  UPSTASH_REDIS_REST_URL=http://localhost:8079  UPSTASH_REDIS_REST_TOKEN=<SRH_TOKEN>
+  srh:
+    image: hiett/serverless-redis-http:latest # AJUSTAR: fija una versión/digest concreto antes de producción
+    restart: unless-stopped
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: plentypay_dev_srh_token_change_me
+      SRH_CONNECTION_STRING: redis://valkey:6379
+    ports:
+      - "8079:80"
+    depends_on:
+      - valkey
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      # Dentro de compose los servicios se ven por nombre, no por localhost
+      UPSTASH_REDIS_REST_URL: http://srh:80
+
+volumes:
+  plentypay_postgres_data:
+  plentypay_valkey_data:
+  plentypay_minio_data:

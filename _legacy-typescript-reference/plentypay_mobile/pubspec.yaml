@@ -1,0 +1,53 @@
+name: plentypay_mobile
+description: >
+  App multiplataforma de PlentyPay (iOS, Android, Windows, macOS) — wallet,
+  pagos y catálogo. Sustituye al scaffold vacío del proyecto Flutter original (sin nombre de marca).
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Red: dio permite interceptors (para inyectar el token de auth y, más
+  # adelante, certificate pinning) de forma mucho más limpia que http puro.
+  dio: ^5.7.0
+
+  # Seguridad "nivel bancario" — ver documento 03 y MIGRATION_STATUS.md:
+  flutter_secure_storage: ^9.2.2 # Keychain (iOS/macOS) / Keystore (Android) / Credential Manager (Windows)
+  local_auth: ^2.3.0 # Face ID / Touch ID / biometría de Android para confirmar pagos
+
+  # QR: PlentyPay SÍ puede emitir/leer QR de pago directamente (a diferencia
+  # de NFC contactless real, que depende de un PSP certificado — ver
+  # features/nfc_pay/presentation/nfc_pay_screen.dart).
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.2
+
+  # NFC — SOLO lectura/escritura de tags NDEF (iniciar un pago tocando un tag
+  # del comercio). NO acepta tarjetas Visa/Mastercard por contactless: eso es
+  # Tap to Pay/SoftPOS vía un PSP certificado (ver nfc_pay_screen.dart).
+  # API verificada contra nfc_manager 4.x (NdefAndroid/NdefIos + ndef_record).
+  nfc_manager: ^4.2.0
+  ndef_record: ^1.0.1
+
+  uuid: ^4.5.1 # idempotency keys de cada intento de pago
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+# NOTA sobre NFC: aquí NFC se usa como CANAL DE INICIO de un pago (el cliente
+# toca un tag NDEF del comercio, la app abre el flujo de pago y este se liquida
+# por los rieles normales: wallet, Yappy, tarjeta vía PSP). Aceptar el "tap" de
+# una tarjeta/wallet de terceros (EMV contactless) es otra cosa y requiere el
+# SDK de un PSP certificado — ver MIGRATION_STATUS.md.

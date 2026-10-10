@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package plentypay.payments.v1;
+
+// payments-orchestrator: punto único de entrada para cualquier cobro, sin importar el riel
+// (wallet interno, Yappy, TELERED/Tarjeta Clave, tarjeta Visa/Mastercard vía PSP, Apple/Google Pay).
+// El resto de la plataforma (POS, marketplace, facturación) SIEMPRE llama aquí — nunca
+// integra un riel de pago directamente. Ver documento 03 de la serie PlentyPay.
+service PaymentOrchestrator {
+  // Crea una intención de cobro. No mueve dinero todavía si el riel requiere confirmación
+  // (ej. redirect/QR de Yappy); para wallet interno puede resolver de inmediato.
+  rpc CreateChargeIntent(CreateChargeIntentRequest) returns (ChargeIntent);
+
+  // Confirma una intención ya creada (ej. tras que el usuario aprobó en la app de Yappy,
+  // o tras recibir el resultado de la pasarela de tarjeta).
+  rpc ConfirmChargeIntent(ConfirmChargeIntentRequest) returns (ChargeResult);
+
+  // Consulta de estado, idempotente y segura de reintentar.
+  rpc GetChargeStatus(GetChargeStatusRequest) returns (ChargeResult);
+
+  // Punto de entrada único para webhooks de rieles externos (Yappy, TELERED, PSP de tarjeta).
+  // La verificación de firma/HMAC de cada riel vive en su adaptador (ver src/adapters/).
+  rpc HandleRailWebhook(RailWebhookRequest) returns (RailWebhookAck);
+
+  // Reembolso total o parcial de una transacción ya CAPTURED.
+  rpc RefundTransaction(RefundRequest) returns (ChargeResult);
+}
+
+enum PaymentRail {
+  PAYMENT_RAIL_UNSPECIFIED = 0;
+  WALLET_INTERNAL = 1;
+  YAPPY = 2;
+  TELERED_CLAVE = 3;
+  CARD_VISA = 4;
+  CARD_MASTERCARD = 5;
+  APPLE_PAY = 6;
+  GOOGLE_PAY = 7;
+  QR_INTEROPERABLE = 8;
+}
+
+// Mismo vocabulario que PaymentIntentStatus en el schema. IMPORTANTE: si un valor que el
+// servidor envía no existe aquí, protobuf lo serializa como 0 (UNSPECIFIED) SIN error — un
+// UNKNOWN perdido en el cable se vería como "sin estado". Mantener sincronizado con Prisma.
+enum ChargeStatus {
+  CHARGE_STATUS_UNSPECIFIED = 0;
+  CREATED = 1;
+  REQUIRES_ACTION = 2;
+  PROCESSING = 3;
+  AUTHORIZED = 4;
+  CAPTURED = 5;
+  FAILED = 6;
+  CANCELLED = 7;
+  EXPIRED = 8;
+  UNKNOWN = 9;
+}
+
+message CreateChargeIntentRequest {
+  string tenant_id = 1;
+  int64 amount_cents = 2;
+  string currency = 3;              // "USD" (default operativo en Panamá)
+  PaymentRail rail = 4;
+  string idempotency_key = 5;       // OBLIGATORIO — ver documento 03, sección 10
+  string reference = 6;              // ej. número de orden/factura interna
+  map<string, string> metadata = 7;
+}
+
+message ChargeIntent {
+  string transaction_id = 1;
+  ChargeStatus status = 2;
+  // Presente cuando el riel requiere un paso adicional del usuario (ej. escanear QR de Yappy,
+  // redirigir a 3-D Secure). El cliente (web/Flutter) debe manejar este caso explícitamente.
+  string next_action_url = 3;
+  string next_action_qr_payload = 4;
+  // true = el riel respondió en MODO SIMULADO (sin credenciales reales): NO se movió dinero real.
+  bool sandbox = 5;
+}
+
+message ConfirmChargeIntentRequest {
+  string tenant_id = 1;
+  string transaction_id = 2;
+  map<string, string> confirmation_data = 3; // ej. token de PSP, código de autorización
+}
+
+message GetChargeStatusRequest {
+  string tenant_id = 1;
+  string transaction_id = 2;
+}
+
+message ChargeResult {
+  string transaction_id = 1;
+  ChargeStatus status = 2;
+  int64 amount_cents = 3;
+  string currency = 4;
+  string external_ref = 5;      // ID de la transacción en el riel externo
+  string failure_reason = 6;
+  bool sandbox = 7;
+  string next_action_url = 8;
+  string next_action_qr_payload = 9;
+}
+
+message RailWebhookRequest {
+  PaymentRail rail = 1;
+  string raw_body = 2;          // payload crudo, sin parsear — cada adaptador lo interpreta
+  map<string, string> headers = 3; // incluye firma/HMAC para verificación
+}
+
+message RailWebhookAck {
+  bool accepted = 1;
+  string message = 2;
+}
+
+message RefundRequest {
+  string tenant_id = 1;
+  string transaction_id = 2;
+  int64 amount_cents = 3;    // 0 = reembolso total
+  string reason = 4;
+  string idempotency_key = 5;
+}

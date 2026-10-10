@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package plentypay.wallet.v1;
+
+// wallet-ledger: evoluciona el Motor de el sistema base (MotorLedgerEntry) hacia un
+// wallet real con estados de retención (hold) e idempotencia. Es el ÚNICO
+// servicio con permiso de escribir en las tablas `wallets`, `wallet_holds` y
+// `motor_ledger_entries` — ni el monolito Next.js ni payments-orchestrator
+// escriben ahí directamente. Ver documento 03, sección 10.
+service WalletLedger {
+  rpc GetBalance(GetBalanceRequest) returns (Balance);
+
+  // Retiene fondos sin moverlos todavía (ej. checkout de marketplace: se retiene
+  // el pago del comprador hasta que el comercio confirme el envío).
+  rpc CreateHold(CreateHoldRequest) returns (Hold);
+
+  // Convierte un hold ACTIVE en un movimiento contable real (MotorLedgerEntry).
+  rpc CaptureHold(CaptureHoldRequest) returns (LedgerEntryResult);
+
+  // Libera un hold sin generar movimiento contable (ej. el comercio canceló el pedido).
+  rpc ReleaseHold(ReleaseHoldRequest) returns (Hold);
+
+  // Abono directo sin hold previo (ej. top-up de saldo, reembolso, otorgar crédito de lealtad).
+  rpc CreditWallet(CreditWalletRequest) returns (LedgerEntryResult);
+
+  // Cargo directo sin hold previo (ej. redimir puntos de lealtad).
+  rpc DebitWallet(DebitWalletRequest) returns (LedgerEntryResult);
+}
+
+message GetBalanceRequest {
+  string tenant_id = 1;
+  string entity_id = 2; // MotorEntity — comprador o comercio
+}
+
+message Balance {
+  string wallet_id = 1;
+  string currency = 2;
+  int64 available_cents = 3;
+  int64 held_cents = 4;
+  int64 pending_settlement_cents = 5;
+}
+
+message CreateHoldRequest {
+  string tenant_id = 1;
+  string entity_id = 2;
+  int64 amount_cents = 3;
+  string reason = 4;
+  string idempotency_key = 5;
+  int32 expires_in_seconds = 6; // obligatorio en la práctica — ver comentario en wallet.service.ts
+}
+
+message Hold {
+  string hold_id = 1;
+  string status = 2; // ACTIVE | CAPTURED | RELEASED | EXPIRED
+  int64 amount_cents = 3;
+}
+
+message CaptureHoldRequest {
+  string tenant_id = 1;
+  string hold_id = 2;
+  string movement_reference = 3;
+  string idempotency_key = 4;
+  string merchant_entity_id = 5; // comercio que recibe el pago (marketplace)
+}
+
+message ReleaseHoldRequest {
+  string tenant_id = 1;
+  string hold_id = 2;
+}
+
+message CreditWalletRequest {
+  string tenant_id = 1;
+  string entity_id = 2;
+  int64 amount_cents = 3;
+  string movement_type = 4; // PAYMENT | ADJUSTMENT_CREDIT | LOYALTY_GRANT
+  string reference = 5;
+  string idempotency_key = 6;
+}
+
+message DebitWalletRequest {
+  string tenant_id = 1;
+  string entity_id = 2;
+  int64 amount_cents = 3;
+  string movement_type = 4; // CHARGE | ADJUSTMENT_DEBIT | LOYALTY_REDEEM
+  string reference = 5;
+  string idempotency_key = 6;
+}
+
+message LedgerEntryResult {
+  string ledger_entry_id = 1;
+  int64 amount_cents = 2;
+  int64 running_balance_cents = 3;
+}

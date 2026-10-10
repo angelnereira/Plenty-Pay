@@ -1,0 +1,8 @@
+{
+  "name": "plentypay-ledger-tests",
+  "private": true,
+  "type": "module",
+  "description": "Prueba las invariantes SQL del ledger contra un PostgreSQL real (PGlite/WASM) — sin Docker ni Prisma.",
+  "scripts": { "test": "node test-ledger-invariants.mjs" },
+  "devDependencies": { "@electric-sql/pglite": "^0.3.0" }
+}

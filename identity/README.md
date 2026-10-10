@@ -1,0 +1,34 @@
+# identity
+
+Usuarios, negocios (tenants), sesiones, roles, permisos y confirmación fuerte. Especificación completa: [`SPEC.md`](SPEC.md).
+
+| | |
+|---|---|
+| Tecnología | Go |
+| Puerto | 50060 (admin `:9100` en servicios propios) |
+| Fase del roadmap | F08 |
+
+## Estado
+| Aspecto | Estado | Evidencia |
+|---|---|---|
+| Código | 📝 parcial: Register, Login, ValidateToken, GetUserPermissions (catálogo de permisos + presets + módulos derivados), RefreshToken con almacén **en memoria** | |
+| Pruebas | L1 `go test -race ./...` (server + permisos) y L4 `scripts/e2e-identity-gateway.sh` (14 comprobaciones) — ejecutadas 2026-10-10 | |
+| Imagen Docker | Dockerfile listo (golang:1.24-alpine → distroless nonroot); imagen no construida en el entorno de generación (sin acceso a Docker Hub) | |
+
+## Arranque local
+```bash
+cp .env.example .env       # completar valores (nunca commitear .env)
+docker compose up --build identity
+```
+
+## Desarrollo
+```bash
+cd identity
+go test -race ./...         # L1
+go vet ./...                # L0
+../scripts/e2e-identity-gateway.sh   # L4 (desde la raíz: ./scripts/e2e-identity-gateway.sh)
+```
+Estándar: `docs/standards/go-standards.md`. La estructura actual es anterior al estándar (falta `internal/config`, `domain`, `service`, `observability`); alinear en F08.2/F09.2.
+
+## Limitaciones conocidas
+Sin PostgreSQL (F08.2), sin rotación/reuso de refresh (F08.3), sin bloqueo progresivo (F08.4), sin tenants/roles personalizados/invitaciones (F08.5–F08.7), sin step-up ni mTLS (F05).

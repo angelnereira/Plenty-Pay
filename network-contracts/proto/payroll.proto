@@ -1,0 +1,134 @@
+syntax = "proto3";
+package plentypay.payroll.v1;
+
+option go_package = "plentypay/payroll/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// payroll: equipo, turnos, asistencia y nómina. Spec: payroll/SPEC.md
+service Payroll {
+  rpc UpsertEmployee(UpsertEmployeeRequest) returns (Employee);
+  rpc GetEmployee(GetEmployeeRequest) returns (Employee);
+  rpc ListEmployees(ListEmployeesRequest) returns (ListEmployeesResponse);
+
+  rpc UpsertShift(UpsertShiftRequest) returns (Shift);
+  rpc AssignSchedule(AssignScheduleRequest) returns (ScheduleAssignment);
+  rpc ListSchedule(ListScheduleRequest) returns (ListScheduleResponse);
+
+  rpc ClockEvent(ClockEventRequest) returns (AttendanceRecord);
+  rpc ListAttendance(ListAttendanceRequest) returns (ListAttendanceResponse);
+  rpc EnrollBiometric(EnrollBiometricRequest) returns (EnrollBiometricResponse);
+
+  rpc CreateKioskSession(CreateKioskSessionRequest) returns (KioskSession);
+  rpc CreatePayrollRun(CreatePayrollRunRequest) returns (PayrollRun);
+  rpc GetPayrollRun(GetPayrollRunRequest) returns (PayrollRun);
+  rpc ListPayrollRuns(ListPayrollRunsRequest) returns (ListPayrollRunsResponse);
+  rpc ApprovePayrollRun(ApprovePayrollRunRequest) returns (PayrollRun);     // quien aprueba ≠ quien creó
+  rpc PayPayrollRun(PayPayrollRunRequest) returns (PayrollRun);             // vía payments-core (rail WALLET)
+  rpc GetPayslip(GetPayslipRequest) returns (Payslip);
+}
+
+enum ClockMethod {
+  CLOCK_METHOD_UNSPECIFIED = 0;
+  CLOCK_METHOD_PIN = 1;
+  CLOCK_METHOD_FACE = 2;
+  CLOCK_METHOD_QR_DYNAMIC = 3;
+  CLOCK_METHOD_NFC = 4;
+  CLOCK_METHOD_FINGERPRINT = 5;
+  CLOCK_METHOD_MANAGER_OVERRIDE = 6; // exige motivo y auditoría reforzada
+}
+enum ClockDirection { CLOCK_DIRECTION_UNSPECIFIED = 0; CLOCK_DIRECTION_IN = 1; CLOCK_DIRECTION_OUT = 2; }
+
+message Employee {
+  string employee_id = 1;
+  string user_id = 2;
+  string full_name = 3;
+  string national_id_ref = 4;       // cifrado en `security`; nunca la cédula en claro
+  string position = 5;
+  plentypay.common.v1.Money base_salary = 6;
+  string pay_frequency = 7;         // "WEEKLY" | "BIWEEKLY" | "MONTHLY"
+  string payout_party_id = 8;       // wallet destino de la nómina
+  bool active = 9;
+  plentypay.common.v1.Money hourly_rate = 10; // si el pago es por hora
+  string geofence_id = 11;          // geocerca de marcaje (opcional)
+}
+message UpsertEmployeeRequest { Employee employee = 1; string national_id_plain = 2; } // la cédula en claro solo viaja para cifrarse; nunca se persiste ni se devuelve
+message GetEmployeeRequest { string employee_id = 1; }
+message ListEmployeesRequest { bool only_active = 1; plentypay.common.v1.PageRequest page = 2; }
+message ListEmployeesResponse { repeated Employee employees = 1; plentypay.common.v1.PageInfo page = 2; }
+
+message Shift { string shift_id = 1; string name = 2; string start_local = 3; string end_local = 4; int32 grace_minutes = 5; } // "HH:MM" America/Panama
+message UpsertShiftRequest { Shift shift = 1; }
+message ScheduleAssignment { string assignment_id = 1; string employee_id = 2; string shift_id = 3; string date = 4; }
+message AssignScheduleRequest { string employee_id = 1; string shift_id = 2; repeated string dates = 3; }
+message ListScheduleRequest { string employee_id = 1; string from_date = 2; string to_date = 3; }
+message ListScheduleResponse { repeated ScheduleAssignment assignments = 1; }
+
+message ClockEventRequest {
+  string employee_id = 1;
+  ClockDirection direction = 2;
+  ClockMethod method = 3;
+  string identifier = 4;            // PIN / código QR / id de tag NFC
+  bytes face_embedding = 5;         // calculado en el dispositivo; nunca la foto
+  float liveness_score = 6;
+  string kiosk_session_id = 7;
+  string override_reason = 8;
+  plentypay.common.v1.GeoPoint point = 9;
+  string idempotency_key = 10;
+  google.protobuf.Timestamp recorded_at = 11; // marcajes offline: hora del dispositivo
+}
+message AttendanceRecord {
+  string record_id = 1;
+  string employee_id = 2;
+  ClockDirection direction = 3;
+  ClockMethod method = 4;
+  google.protobuf.Timestamp at = 5;
+  bool late = 6;
+  int32 minutes_late = 7;
+  string flags = 8;                 // "OUT_OF_GEOFENCE", "LOW_LIVENESS", "MANUAL", "OFFLINE"
+}
+message ListAttendanceRequest { string employee_id = 1; plentypay.common.v1.TimeRange range = 2; plentypay.common.v1.PageRequest page = 3; }
+message ListAttendanceResponse { repeated AttendanceRecord records = 1; plentypay.common.v1.PageInfo page = 2; }
+message EnrollBiometricRequest { string employee_id = 1; ClockMethod method = 2; bytes template = 3; bool consent_given = 4; }
+message EnrollBiometricResponse { bool enrolled = 1; }
+message CreateKioskSessionRequest { string label = 1; }
+message KioskSession { string kiosk_session_id = 1; string label = 2; string pairing_code = 3; google.protobuf.Timestamp expires_at = 4; }
+
+enum PayrollRunStatus {
+  PAYROLL_RUN_STATUS_UNSPECIFIED = 0;
+  PAYROLL_RUN_STATUS_DRAFT = 1;
+  PAYROLL_RUN_STATUS_APPROVED = 2;
+  PAYROLL_RUN_STATUS_PAYING = 3;
+  PAYROLL_RUN_STATUS_PAID = 4;
+  PAYROLL_RUN_STATUS_PARTIALLY_FAILED = 5;
+}
+message PayrollItem {
+  string employee_id = 1;
+  plentypay.common.v1.Money gross = 2;
+  plentypay.common.v1.Money deductions = 3;
+  plentypay.common.v1.Money net = 4;
+  string payment_intent_id = 5;
+  string payment_status = 6;
+  string breakdown_json = 7;
+}
+message PayrollRun {
+  string payroll_run_id = 1;
+  plentypay.common.v1.TimeRange period = 2;
+  PayrollRunStatus status = 3;
+  repeated PayrollItem items = 4;
+  plentypay.common.v1.Money total_net = 5;
+  string created_by = 6;
+  string approved_by = 7;
+}
+message CreatePayrollRunRequest { plentypay.common.v1.TimeRange period = 1; string idempotency_key = 2; }
+message GetPayrollRunRequest { string payroll_run_id = 1; }
+message ListPayrollRunsRequest { PayrollRunStatus status = 1; plentypay.common.v1.PageRequest page = 2; }
+message ListPayrollRunsResponse { repeated PayrollRun runs = 1; plentypay.common.v1.PageInfo page = 2; }
+message ApprovePayrollRunRequest { string payroll_run_id = 1; string step_up_token = 2; }
+message PayPayrollRunRequest { string payroll_run_id = 1; string idempotency_key = 2; string step_up_token = 3; }
+message GetPayslipRequest { string payroll_run_id = 1; string employee_id = 2; }
+message Payslip { PayrollItem item = 1; plentypay.common.v1.TimeRange period = 2; string employer_name = 3; }
+
+// ── Eventos. Subject: pp.payroll.<entidad>.<hecho>.v1 ──
+message PayrollRunPaid { string payroll_run_id = 1; string tenant_id = 2; plentypay.common.v1.Money total_net = 3; }

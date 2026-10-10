@@ -1,0 +1,80 @@
+syntax = "proto3";
+package plentypay.analytics.v1;
+
+option go_package = "plentypay/analytics/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// analytics-bi: SOLO LECTURA sobre datos de otros dominios vía eventos y vistas propias; nunca consulta
+// tablas de otro contenedor. Spec: analytics-bi/SPEC.md
+service Analytics {
+  rpc ListMetrics(ListMetricsRequest) returns (ListMetricsResponse);
+  rpc QueryMetric(QueryMetricRequest) returns (QueryMetricResponse);
+  rpc GetForecast(GetForecastRequest) returns (GetForecastResponse);
+  rpc ListSegments(ListSegmentsRequest) returns (ListSegmentsResponse);
+  rpc GetProductAbc(GetProductAbcRequest) returns (GetProductAbcResponse);
+
+  rpc UpsertDashboard(UpsertDashboardRequest) returns (Dashboard);
+  rpc ListDashboards(ListDashboardsRequest) returns (ListDashboardsResponse);
+  rpc GetDashboard(GetDashboardRequest) returns (Dashboard);
+
+  rpc UpsertAlertRule(UpsertAlertRuleRequest) returns (AlertRule);
+  rpc ListAlertRules(ListAlertRulesRequest) returns (ListAlertRulesResponse);
+  rpc ListAlertEvents(ListAlertEventsRequest) returns (ListAlertEventsResponse);
+
+  rpc CreateExport(CreateExportRequest) returns (Export);
+  rpc GetExport(GetExportRequest) returns (Export);
+}
+
+enum Granularity { GRANULARITY_UNSPECIFIED = 0; GRANULARITY_HOUR = 1; GRANULARITY_DAY = 2; GRANULARITY_WEEK = 3; GRANULARITY_MONTH = 4; }
+
+message MetricDef {
+  string metric_id = 1;            // "sales.net_revenue", "payments.success_rate", "inventory.stockout_count" (catálogo en analytics-bi/SPEC.md)
+  string name = 2;
+  string unit = 3;                 // "MONEY", "COUNT", "RATIO", "DAYS"
+  repeated string dimensions = 4;
+}
+message ListMetricsRequest {}
+message ListMetricsResponse { repeated MetricDef metrics = 1; }
+
+message Filter { string dimension = 1; repeated string values = 2; }
+message QueryMetricRequest {
+  string metric_id = 1;
+  plentypay.common.v1.TimeRange range = 2;
+  Granularity granularity = 3;
+  repeated string group_by = 4;
+  repeated Filter filters = 5;
+  int32 limit = 6;
+}
+message DataPoint { google.protobuf.Timestamp bucket = 1; map<string, string> dimensions = 2; double value = 3; int64 value_minor = 4; } // value_minor exacto para MONEY
+message QueryMetricResponse { MetricDef metric = 1; repeated DataPoint points = 2; google.protobuf.Timestamp data_as_of = 3; }
+
+message GetForecastRequest { string metric_id = 1; int32 horizon_days = 2; repeated Filter filters = 3; }
+message ForecastPoint { google.protobuf.Timestamp bucket = 1; double expected = 2; double lower = 3; double upper = 4; }
+message GetForecastResponse { repeated ForecastPoint points = 1; string model = 2; double mape = 3; }
+message Segment { string segment_id = 1; string name = 2; int64 customer_count = 3; string definition = 4; }
+message ListSegmentsRequest {}
+message ListSegmentsResponse { repeated Segment segments = 1; }
+message AbcItem { string product_id = 1; string abc_class = 2; int64 revenue_minor = 3; double share = 4; }
+message GetProductAbcRequest { plentypay.common.v1.TimeRange range = 1; }
+message GetProductAbcResponse { repeated AbcItem items = 1; }
+
+message Widget { string widget_id = 1; string type = 2; string metric_id = 3; string config_json = 4; int32 x = 5; int32 y = 6; int32 w = 7; int32 h = 8; }
+message Dashboard { string dashboard_id = 1; string name = 2; repeated Widget widgets = 3; bool shared = 4; }
+message UpsertDashboardRequest { Dashboard dashboard = 1; }
+message ListDashboardsRequest {}
+message ListDashboardsResponse { repeated Dashboard dashboards = 1; }
+message GetDashboardRequest { string dashboard_id = 1; }
+
+message AlertRule { string rule_id = 1; string name = 2; string metric_id = 3; string condition = 4; double threshold = 5; string comparison = 6; Granularity evaluate_every = 7; bool active = 8; }
+message AlertEvent { string event_id = 1; string rule_id = 2; double observed_value = 3; google.protobuf.Timestamp fired_at = 4; }
+message UpsertAlertRuleRequest { AlertRule rule = 1; }
+message ListAlertRulesRequest {}
+message ListAlertRulesResponse { repeated AlertRule rules = 1; }
+message ListAlertEventsRequest { plentypay.common.v1.TimeRange range = 1; plentypay.common.v1.PageRequest page = 2; }
+message ListAlertEventsResponse { repeated AlertEvent events = 1; plentypay.common.v1.PageInfo page = 2; }
+
+message CreateExportRequest { QueryMetricRequest query = 1; string format = 2; } // "CSV" | "XLSX"
+message Export { string export_id = 1; string status = 2; string object_key = 3; string download_url = 4; google.protobuf.Timestamp url_expires_at = 5; }
+message GetExportRequest { string export_id = 1; }

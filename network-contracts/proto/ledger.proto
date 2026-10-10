@@ -1,0 +1,215 @@
+syntax = "proto3";
+package plentypay.ledger.v1;
+
+option go_package = "plentypay/ledger/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// ledger: ÚNICA fuente de verdad financiera. Doble entrada, inmutable una vez asentado.
+// Es GENÉRICO: no conoce pagos, ventas ni comercios — recibe asientos balanceados de quien los produce.
+// Spec: ledger/SPEC.md · Plan de cuentas y plantillas: docs/domain/domain-model.md §5
+service Ledger {
+  rpc PostTransaction(PostTransactionRequest) returns (Transaction);       // atómico, idempotente
+  rpc ReverseTransaction(ReverseTransactionRequest) returns (Transaction); // nunca se edita: se reversa
+  rpc GetTransaction(GetTransactionRequest) returns (Transaction);
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
+
+  rpc GetBalance(GetBalanceRequest) returns (Balance);
+  rpc ListBalances(ListBalancesRequest) returns (ListBalancesResponse);
+  rpc GetStatement(GetStatementRequest) returns (GetStatementResponse);
+
+  // Retenciones (pago desde wallet, pre-autorizaciones)
+  rpc CreateHold(CreateHoldRequest) returns (Hold);
+  rpc CaptureHold(CaptureHoldRequest) returns (CaptureHoldResponse);
+  rpc ReleaseHold(ReleaseHoldRequest) returns (Hold);
+  rpc GetHold(GetHoldRequest) returns (Hold);
+}
+
+enum AccountType {
+  ACCOUNT_TYPE_UNSPECIFIED = 0;
+  ACCOUNT_TYPE_WALLET = 1;                // PASIVO: fondos disponibles de un party (cliente o comercio)
+  ACCOUNT_TYPE_MERCHANT_PAYABLE = 2;      // PASIVO: lo que PlentyPay debe a un comercio por ventas capturadas
+  ACCOUNT_TYPE_PLATFORM_FEES = 3;         // INGRESO: comisiones de PlentyPay (party = PLATFORM)
+  ACCOUNT_TYPE_TAX_PAYABLE = 4;           // PASIVO: impuestos por pagar (ITBMS)
+  ACCOUNT_TYPE_RAIL_RECEIVABLE = 5;       // ACTIVO: lo que un riel externo debe liquidar a PlentyPay
+  ACCOUNT_TYPE_RAIL_FEES_PAYABLE = 6;     // PASIVO: comisión que el riel descuenta al liquidar
+  ACCOUNT_TYPE_BANK_CASH = 7;             // ACTIVO: dinero real en bancos de PlentyPay
+  ACCOUNT_TYPE_LOYALTY_POINTS = 8;        // PASIVO: puntos de lealtad emitidos
+  ACCOUNT_TYPE_CUSTOMER_CREDIT = 9;       // ACTIVO: crédito otorgado a un cliente por un comercio
+  ACCOUNT_TYPE_FUNDING_SOURCE = 10;       // ACTIVO transitorio: origen externo de una recarga
+  ACCOUNT_TYPE_SUSPENSE = 11;             // transitorio para diferencias de conciliación (debe terminar en 0)
+}
+
+enum EntrySide {
+  ENTRY_SIDE_UNSPECIFIED = 0;
+  ENTRY_SIDE_DEBIT = 1;
+  ENTRY_SIDE_CREDIT = 2;
+}
+
+enum TransactionStatus {
+  TRANSACTION_STATUS_UNSPECIFIED = 0;
+  TRANSACTION_STATUS_POSTED = 1;   // único estado visible por API: DRAFT/VALIDATING son internos
+  TRANSACTION_STATUS_REVERSED = 2; // existe una transacción de reverso que la anula
+}
+
+// Cuenta por (party, tipo, moneda). Se crea perezosamente al primer asiento.
+message AccountRef {
+  string party_id = 1; // user_id (persona), tenant_id (comercio) o PLATFORM (domain-model §2)
+  AccountType type = 2;
+  string currency = 3;
+  // Sub-libro (vacío = libro de dinero). Para crédito de la casa y lealtad: tenant_id que otorga
+  // el crédito/los puntos, de modo que el saldo de un cliente con el comercio A no se mezcla con el
+  // del comercio B (domain-model.md §5.3, plantillas T8/T9).
+  string scope_id = 4;
+}
+
+message EntryInput {
+  AccountRef account = 1;
+  EntrySide side = 2;
+  int64 amount_minor = 3; // siempre > 0; el sentido lo da `side`, nunca el signo
+}
+
+message PostTransactionRequest {
+  string idempotency_key = 1;  // obligatorio; mismo key + mismo contenido = devuelve el original
+  string tenant_id = 2;        // dueño contable (comercio) o vacío si es de plataforma
+  string transaction_type = 3; // "PAYMENT_CAPTURE", "REFUND", "WALLET_TOPUP", "PAYOUT", ... (domain-model §5)
+  plentypay.common.v1.Reference reference = 4;
+  string currency = 5;         // todas las entradas deben ser de esta moneda
+  string description = 6;
+  repeated EntryInput entries = 7; // >= 2; Σ débitos == Σ créditos
+  google.protobuf.Timestamp effective_at = 8; // por defecto: ahora
+}
+
+message Entry {
+  string entry_id = 1;
+  string account_id = 2;
+  AccountRef account = 3;
+  EntrySide side = 4;
+  int64 amount_minor = 5;
+}
+
+message Transaction {
+  string transaction_id = 1;
+  string tenant_id = 2;
+  string transaction_type = 3;
+  plentypay.common.v1.Reference reference = 4;
+  string currency = 5;
+  string description = 6;
+  TransactionStatus status = 7;
+  repeated Entry entries = 8;
+  string reversal_of = 9;
+  google.protobuf.Timestamp effective_at = 10;
+  google.protobuf.Timestamp posted_at = 11;
+}
+
+message ReverseTransactionRequest {
+  string transaction_id = 1;
+  string idempotency_key = 2;
+  string reason = 3;
+}
+message GetTransactionRequest { string transaction_id = 1; }
+
+message ListTransactionsRequest {
+  string tenant_id = 1;
+  string party_id = 2;
+  plentypay.common.v1.Reference reference = 3;
+  plentypay.common.v1.TimeRange range = 4;
+  plentypay.common.v1.PageRequest page = 5;
+}
+message ListTransactionsResponse {
+  repeated Transaction transactions = 1;
+  plentypay.common.v1.PageInfo page = 2;
+}
+
+// Saldo: se CALCULA desde las entradas (nunca se guarda como verdad mutable).
+// posted = efecto de transacciones asentadas; held = retenciones activas; available = posted - held (WALLET).
+message Balance {
+  AccountRef account = 1;
+  int64 posted_minor = 2;
+  int64 held_minor = 3;
+  int64 available_minor = 4;
+  google.protobuf.Timestamp as_of = 5;
+}
+message GetBalanceRequest { AccountRef account = 1; }
+message ListBalancesRequest { string party_id = 1; }
+message ListBalancesResponse { repeated Balance balances = 1; }
+
+message StatementLine {
+  Entry entry = 1;
+  string transaction_id = 2;
+  string transaction_type = 3;
+  string description = 4;
+  int64 running_balance_minor = 5;
+  google.protobuf.Timestamp effective_at = 6;
+}
+message GetStatementRequest {
+  AccountRef account = 1;
+  plentypay.common.v1.TimeRange range = 2;
+  plentypay.common.v1.PageRequest page = 3;
+}
+message GetStatementResponse {
+  int64 opening_balance_minor = 1;
+  repeated StatementLine lines = 2;
+  int64 closing_balance_minor = 3;
+  plentypay.common.v1.PageInfo page = 4;
+}
+
+enum HoldStatus {
+  HOLD_STATUS_UNSPECIFIED = 0;
+  HOLD_STATUS_ACTIVE = 1;
+  HOLD_STATUS_CAPTURED = 2;
+  HOLD_STATUS_RELEASED = 3;
+  HOLD_STATUS_EXPIRED = 4;
+}
+message Hold {
+  string hold_id = 1;
+  AccountRef account = 2;
+  int64 amount_minor = 3;
+  HoldStatus status = 4;
+  plentypay.common.v1.Reference reference = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+message CreateHoldRequest {
+  string idempotency_key = 1;
+  AccountRef account = 2;          // debe ser WALLET
+  int64 amount_minor = 3;          // se rechaza si available < amount
+  plentypay.common.v1.Reference reference = 4;
+  int32 ttl_seconds = 5;           // obligatorio y > 0: ninguna retención es indefinida
+}
+message CreditLeg {
+  AccountRef account = 1;
+  int64 amount_minor = 2;
+}
+// Captura: debita el wallet por el monto retenido y acredita `legs` (deben sumar exactamente el monto retenido).
+message CaptureHoldRequest {
+  string hold_id = 1;
+  string idempotency_key = 2;
+  string tenant_id = 3;
+  string transaction_type = 4;
+  plentypay.common.v1.Reference reference = 5;
+  repeated CreditLeg legs = 6;
+}
+message CaptureHoldResponse {
+  Hold hold = 1;
+  Transaction transaction = 2;
+}
+message ReleaseHoldRequest { string hold_id = 1; }
+message GetHoldRequest { string hold_id = 1; }
+
+// ── Eventos (outbox → bus). Subject: pp.ledger.<entidad>.<hecho>.v1 ──
+message TransactionPosted {
+  string transaction_id = 1;
+  string tenant_id = 2;
+  string transaction_type = 3;
+  plentypay.common.v1.Reference reference = 4;
+  string currency = 5;
+  repeated Entry entries = 6;
+}
+message HoldStatusChanged {
+  string hold_id = 1;
+  HoldStatus status = 2;
+  AccountRef account = 3;
+  int64 amount_minor = 4;
+}
