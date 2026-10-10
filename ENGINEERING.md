@@ -17,7 +17,7 @@ Complementa a [`AGENTS.md`](AGENTS.md) (el *qué* y el *cuándo*) con el *cómo*
 ## 2. Convenciones
 - Documentación y textos de UI en **español** (`es_PA`), identificadores/commits/métricas/`reason` en **inglés**.
 - Commits: Conventional Commits con scope = contenedor y referencia al paso: `feat(pos): multi-tender checkout (F17.5, R4)`.
-- Ramas cortas sobre `main` (trunk-based). PR con la plantilla de `.github/pull_request_template.md`.
+- Se trabaja **directamente sobre `main`**, sin ramas adicionales ni PR; cada commit corresponde a un paso del roadmap y lleva en el mensaje la verificación ejecutada. La plantilla `.github/pull_request_template.md` queda como checklist de Definición de Hecho.
 - Pruebas nombradas con el id de regla (`TestR4_...`, `r4_...`, `test('R4 ...')`).
 - Dinero: enteros en centavos, `half_up` entero, vectores del dominio como pruebas literales.
 

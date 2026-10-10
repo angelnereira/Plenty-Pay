@@ -1,12 +1,15 @@
 # syntax=docker/dockerfile:1
-# Brecha registrada (api-gateway/README.md): sin go.sum commiteado aún → `go mod tidy` en el build.
+# Plantilla de docs/standards/go-standards.md §6.
 FROM golang:1.24-alpine AS build
+ARG VERSION=dev
 WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
-RUN go mod tidy && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api-gateway .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/app .
 
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /out/api-gateway /api-gateway
+COPY --from=build /out/app /app
 USER nonroot:nonroot
-EXPOSE 8080
-ENTRYPOINT ["/api-gateway"]
+EXPOSE 8080 9100
+ENTRYPOINT ["/app"]

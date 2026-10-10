@@ -142,7 +142,7 @@ Es llamado por: api-gateway, payments-core, settlement, orders, logistics, payro
 | Variable | Oblig. | Default | Descripción |
 |---|---|---|---|
 | `PORT` | no | `50060` | escucha gRPC (implementado) |
-| `ADMIN_PORT` | no | `9100` | salud/métricas (F04.6) |
+| `ADMIN_PORT` | no | `9100` | salud `/healthz/live` y `/healthz/ready` (implementado, F02.1); métricas en F04.6 |
 | `ACCESS_TOKEN_SECRET` | sí | — | ≥ 32 caracteres (implementado; F05 lo lee de OpenBao) |
 | `REFRESH_TOKEN_SECRET` | sí | — | ≥ 32 caracteres y distinto del anterior (implementado) |
 | `DATABASE_URL` | sí (F08.2+) | — | rol `identity_svc` |

@@ -13,7 +13,8 @@
 |---|---|---|
 | Código | 📝 parcial: `/healthz`, `/v1/auth/{login,register,refresh}`, `/v1/me`, `/v1/me/permissions`, middleware de autenticación y errores `{error,reason}` | |
 | Pruebas | L1 10 pruebas de handlers; L4 E2E con identity (14 comprobaciones) — ejecutadas 2026-10-10 | |
-| Imagen Docker | Dockerfile listo; imagen no construida en el entorno de generación | |
+| Imagen Docker | Plantilla de `go-standards.md` §6 (`go mod download`, distroless nonroot); construida y `healthy` en Compose — 2026-10-10 | |
+| Salud | Puerto admin `:9100` con `/healthz/live` y `/healthz/ready`, subcomando `/app healthcheck`, apagado ordenado con SIGTERM (F02.1). `ready` no depende de identity (matriz de degradación); `/metrics` en F04.6 | L1 `internal/observability` |
 
 ## Arranque local
 ```bash

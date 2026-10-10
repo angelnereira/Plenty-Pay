@@ -2,7 +2,7 @@
 
 Fuente de verdad del avance **con evidencia**. Reglas (AGENTS.md §2.11 y §3): solo se marca ✅ lo ejecutado al nivel exigido, con el comando/fecha en *Evidencia*. 📝 = en curso o parcial (decir qué falta). 📋 = pendiente. ⛔ = bloqueado (citar la pregunta de `docs/open-questions.md`).
 
-**Fase en curso**: F01/F02 (cierre de gobierno y cliente base). **Siguiente paso recomendado para un agente**: F01.7 → F02.1 → F02.3.
+**Fase en curso**: F01/F02 (cierre de gobierno y cliente base). **Siguiente paso recomendado para un agente**: F02.3 → F02.2 (F01.7 espera la licencia, Q-17).
 
 ## Limitaciones del entorno donde se generó este repositorio
 Go se compiló contra clones de dependencias (el proxy de módulos no era alcanzable); Rust 1.97 disponible pero sin código Rust aún; Docker sin acceso a Docker Hub (imágenes no construidas); sin SDK de Flutter (código Dart no compilado); sin OpenTofu. Todo lo marcado ✅ se ejecutó realmente; lo demás no.
@@ -20,7 +20,10 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 | `flutter_app`: `flutter pub get` (se commitea `pubspec.lock`), `flutter analyze`, `flutter test` | sin issues; 4/4 |
 | `docker compose build` + `up`: registro, login y `/v1/me/permissions` por `localhost:8080` | OK (CUSTOMER → wallet, marketplace) |
 
-**No ejecutado aquí** (faltan las herramientas): `./scripts/sync-protos.sh --check` (sin `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`), `buf`, `gitleaks`, `golangci-lint`, `tofu`. No se ha corrido `flutter create` ni ningún build de plataforma.
+| `./scripts/sync-protos.sh --check` (protoc 29.3, protoc-gen-go 1.35.2, protoc-gen-go-grpc 1.5.1) | OK tras regenerar: el código entregado difería en un comentario de `identity_grpc.pb.go` |
+| `gitleaks detect -c .gitleaks.toml` (historial completo) | sin hallazgos (se agregaron al allowlist dos contraseñas ficticias de `identity/internal/server/server_test.go`) |
+
+**No ejecutado aquí** (faltan las herramientas): `golangci-lint`, `tofu`. `buf` 1.73 está instalado pero aún sin configuración (F03.3). No se ha corrido `flutter create` ni ningún build de plataforma.
 
 ## Contratos pendientes de agregar (aditivos, F03.2)
 `payments.PostMemoEntry` (T8/T9 para pos), `analytics.AskQuestion`, `analytics.AlertTriggered` (+ subject `pp.analytics.alert.triggered.v1`), `identity.NotificationRequested` (+ subject `pp.identity.notification.requested.v1`).
@@ -35,14 +38,14 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 | F01.4 Modelo de dominio con vectores verificados | ✅ | Vectores recalculados con aritmética entera (Python) 2026-10-10 |
 | F01.5 SPEC.md + README.md en los 23 contenedores | ✅ | check-docs.sh |
 | F01.6 Scripts de verificación: aislamiento, documentación, contratos | ✅ | check-isolation.sh, check-docs.sh, sync-protos.sh --check en verde 2026-10-10 |
-| F01.7 Higiene: `.gitignore`, `.editorconfig`, licencia, plantilla de PR, CODEOWNERS por carpeta, configuración gitleaks | 📝 | Hechos: .gitignore, .editorconfig, plantilla de PR, CODEOWNERS, .gitleaks.toml. Falta: LICENSE (Q-17) y activar gitleaks en CI (F02.2) |
+| F01.7 Higiene: `.gitignore`, `.editorconfig`, licencia, plantilla de PR, CODEOWNERS por carpeta, configuración gitleaks | 📝 | Hechos: .gitignore, .editorconfig, plantilla de PR, CODEOWNERS, .gitleaks.toml; gitleaks sin hallazgos sobre el historial (2026-10-10). Falta: LICENSE (Q-17) y activar gitleaks en CI (F02.2) |
 | F01.8 Catálogo de pantallas y sistema de diseño | ✅ | docs/ux/screen-catalog.md, docs/design-system.md |
 
 ## F02 — Entorno local, CI y cliente Flutter base (UI primero)
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F02.1 `docker-compose.yml` con redes edge/services/data, healthchecks y `.env.example` por contenedor | 📝 | Compose con identity + api-gateway; imágenes construidas y `docker compose up` verificado con registro/login el 2026-10-10. Falta: healthchecks :9100 (`depends_on: service_healthy`), red `data` en uso y Dockerfiles con `go mod download` (plantilla `go-standards.md` §6) ahora que existe `go.sum` |
+| F02.1 `docker-compose.yml` con redes edge/services/data, healthchecks y `.env.example` por contenedor | ✅ | 2026-10-10: `docker compose up --build -d --wait` deja identity y api-gateway `healthy` (healthcheck `/app healthcheck` → `:9100/healthz/ready`, gateway con `depends_on: service_healthy`); solo 8080 publicado (9100 y 50060 no alcanzables desde el host); registro y login 200 por el gateway; E2E 14/14. `web` (8081) se agrega en F02.8 |
 | F02.2 Pipeline CI (scripts en `scripts/ci/`): repo-checks, build-test Go/Rust/Flutter afectado, imagen | 📋 |  |
 | F02.3 `flutter create` multiplataforma sobre el esqueleto existente; flavors dev/staging/prod; i18n es_PA/en | 📝 | Esqueleto Dart en flutter_app/lib; `flutter analyze` sin issues y `flutter test` 4/4 con Flutter 3.47.6 (2026-10-10). Falta: `flutter create` multiplataforma, flavors e i18n |
 | F02.4 Tokens y componentes del design system (PPButton, PPTextField, MoneyText, AsyncView, StatusChip, AppShell) con golden tests claro/oscuro | 📝 | Tokens en app_theme.dart; faltan componentes y goldens |

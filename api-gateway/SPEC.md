@@ -219,6 +219,7 @@ Exceso → 429 `RATE_LIMITED` + `Retry-After`. Contadores en NATS KV (ventana de
 | Variable | Oblig. | Default |
 |---|---|---|
 | `PORT` | no | `8080` (implementado) |
+| `ADMIN_PORT` | no | `9100` — salud `/healthz/live` y `/healthz/ready` (implementado, F02.1); métricas en F04.6 |
 | `IDENTITY_SERVICE_URL` | sí | `identity:50060` (implementado) |
 | `<SERVICIO>_ADDR` por servicio expuesto | sí al activar su fase | `<servicio>:<puerto>` |
 | `ALLOWED_ORIGINS` | sí en prod | — |

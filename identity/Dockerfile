@@ -1,13 +1,15 @@
 # syntax=docker/dockerfile:1
-# Brecha registrada (identity/README.md): aún no hay go.sum commiteado → se resuelve con `go mod tidy`.
-# Al commitear go.sum, migrar a la plantilla de docs/standards/go-standards.md §6 (go mod download + distroless).
+# Plantilla de docs/standards/go-standards.md §6.
 FROM golang:1.24-alpine AS build
+ARG VERSION=dev
 WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
-RUN go mod tidy && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/identity .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/app .
 
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /out/identity /identity
+COPY --from=build /out/app /app
 USER nonroot:nonroot
-EXPOSE 50060
-ENTRYPOINT ["/identity"]
+EXPOSE 50060 9100
+ENTRYPOINT ["/app"]

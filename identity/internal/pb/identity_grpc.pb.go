@@ -566,7 +566,7 @@ type UnsafeIdentityServer interface {
 }
 
 func RegisterIdentityServer(s grpc.ServiceRegistrar, srv IdentityServer) {
-	// If the following call panics, it indicates UnimplementedIdentityServer was
+	// If the following call pancis, it indicates UnimplementedIdentityServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.

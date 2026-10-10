@@ -12,8 +12,8 @@ if [ -z "$GATEWAY_BIN" ];  then (cd "$ROOT/api-gateway" && go build -o "$TMP/gat
 
 export ACCESS_TOKEN_SECRET="e2e-access-secret-at-least-32-characters-long"
 export REFRESH_TOKEN_SECRET="e2e-refresh-secret-at-least-32-characters-long"
-PORT=50960 "$IDENTITY_BIN" >"$TMP/identity.log" 2>&1 & IDP=$!
-PORT=8980 IDENTITY_SERVICE_URL=localhost:50960 "$GATEWAY_BIN" >"$TMP/gateway.log" 2>&1 & GWP=$!
+PORT=50960 ADMIN_PORT=59160 "$IDENTITY_BIN" >"$TMP/identity.log" 2>&1 & IDP=$!
+PORT=8980 ADMIN_PORT=59180 IDENTITY_SERVICE_URL=localhost:50960 "$GATEWAY_BIN" >"$TMP/gateway.log" 2>&1 & GWP=$!
 cleanup() { kill $IDP $GWP 2>/dev/null; wait $IDP $GWP 2>/dev/null; }
 trap cleanup EXIT
 for _ in $(seq 1 50); do curl -sf localhost:8980/healthz >/dev/null && break; sleep 0.2; done

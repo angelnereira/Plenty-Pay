@@ -1,9 +1,9 @@
 # Entrega continua, entornos e infraestructura
 
 ## 1. Flujo de trabajo en git
-- **Trunk-based**: rama `main` siempre desplegable; ramas cortas (`feat/<contenedor>-<tema>`) ≤ 3 días.
+- **Trunk-based sin ramas**: se trabaja directamente sobre `main`, que debe quedar siempre desplegable; no se crean ramas adicionales.
 - **Conventional Commits** con el contenedor como scope: `feat(ledger): ...`, `fix(api-gateway): ...`, `docs(adr): ...`, `chore(ci): ...`. Referencia al paso del roadmap y regla: `(F10.3, R1)`.
-- PR obligatorio con: descripción, paso del roadmap, salida de verificación (L0–L4), checklist DoD. Un revisor humano o agente revisor distinto del autor.
+- Sin PR: cada commit a `main` corresponde a un paso del roadmap y lleva en el mensaje la verificación ejecutada (L0–L4); el checklist DoD de `.github/pull_request_template.md` se cumple antes de cada push.
 - Cambios de contrato (`.proto`) o de ADR requieren revisión de los dueños de los contenedores consumidores (`consumers.txt`).
 
 ## 2. CI (pipeline por PR; solo se ejecuta lo afectado)
