@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "app.plentypay.plentypay"
+    namespace = "app.plentypay.pay"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "app.plentypay.plentypay"
+        applicationId = "app.plentypay.pay"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24 // Android 7.0 (flutter-standards.md §1)

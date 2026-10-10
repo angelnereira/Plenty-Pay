@@ -7,8 +7,8 @@ Una sola app para Android, iOS, Linux, Windows, macOS y Web (ADR 0009). Habla **
 |---|---|---|
 | Código | 📝 base multiplataforma: proyectos nativos de las 6 plataformas, flavors dev/staging/prod, i18n `es_PA`/`en`, tema claro/oscuro con tokens, sesión segura, ApiClient con refresh único, login/registro, shell con navegación dinámica por `enabled_modules`, registro de 12 módulos | F02.3 |
 | Pruebas | L1: `flutter analyze` sin issues y `flutter test` 19/19 (flavors, i18n, registro de módulos) con Flutter 3.47.6 | 2026-10-10 |
-| Compila | Web (`flutter build web`) y Android (`flutter build apk --debug`) | 2026-10-10 |
-| No verificado | Linux: falta `libsecret-1-dev` en la máquina de desarrollo (ver Requisitos). iOS/macOS requieren un Mac; Windows requiere Windows | — |
+| Compila | Web (`flutter build web`), Android (`flutter build apk --debug`) y Linux (`flutter build linux --release`, la app arranca) | 2026-10-10 |
+| No verificado | iOS/macOS requieren un Mac; Windows requiere Windows | — |
 | Builds en `output/` | 📋 | F02.7 |
 
 Versión de Flutter fijada: **3.47.6** (estable), Dart ≥ 3.6.
@@ -22,10 +22,10 @@ flutter run -d chrome --dart-define=FLAVOR=dev --dart-define=API_BASE_URL=http:/
 ```
 Con el sistema local arriba (`docker compose up --build` en la raíz) se puede registrar un usuario y ver los módulos `Billetera` y `Comprar`. En el emulador de Android el gateway local es `http://10.0.2.2:8080`.
 
-Las carpetas nativas se generaron con `flutter create --platforms=android,ios,linux,windows,macos,web --project-name plentypay --org app.plentypay .` y están versionadas.
+Las carpetas nativas se generaron con `flutter create --platforms=android,ios,linux,windows,macos,web --project-name plentypay --org app.plentypay .` y están versionadas; después se fijó el identificador de la app en `app.plentypay.pay` (Android `applicationId`/`namespace`, bundle id de iOS/macOS, `APPLICATION_ID` de Linux).
 
 ## Requisitos por plataforma
-- **Linux**: además de la cadena de Flutter (clang, cmake, ninja, GTK 3), `sudo apt install libsecret-1-dev libjsoncpp-dev` (los exige `flutter_secure_storage`).
+- **Linux**: además de la cadena de Flutter (clang, cmake, ninja, GTK 3), `sudo apt install libsecret-1-dev libjsoncpp-dev` (los exige `flutter_secure_storage`). Con clang ≥ 20 el `json.hpp` que trae `flutter_secure_storage_linux` 1.2.x dispara `-Wdeprecated-literal-operator`; `linux/CMakeLists.txt` lo deja como aviso hasta actualizar el plugin.
 - **Android**: SDK con plataforma 34+; `minSdk` 24.
 - **iOS** 15.0 / **macOS** 12: Xcode en un Mac.
 
@@ -48,7 +48,7 @@ ARB con `app_es.arb` como plantilla, `app_es_PA.arb` (variante de Panamá, hered
 - iOS (`Info.plist`): `NSCameraUsageDescription`, `NFCReaderUsageDescription`, `NSFaceIDUsageDescription`, `NSLocationWhenInUseUsageDescription`.
 - macOS: entitlement `com.apple.security.network.client`.
 - **Pendiente**: entitlement NDEF de iOS (`com.apple.developer.nfc.readersession.formats`); requiere Xcode y el perfil de aprovisionamiento, se agrega con el lector NFC en F23.2.
-- **Por decidir antes de publicar (F25.5)**: el identificador de la app quedó como `app.plentypay.plentypay` (el que genera el comando documentado). No se puede cambiar una vez publicada en las tiendas.
+- **Identificador de la app**: `app.plentypay.pay` en todas las plataformas. No se puede cambiar una vez publicada en las tiendas (F25.5).
 
 ## Estructura
 `lib/core/` (config, api, l10n, session, theme) · `lib/features/<módulo>/` (data, domain, application, presentation — §3 del estándar). Hoy solo `auth`, `shell`, `modules`.

@@ -1,4 +1,4 @@
-package app.plentypay.plentypay
+package app.plentypay.pay
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "app.plentypay" "\0"
+            VALUE "CompanyName", "PlentyPay" "\0"
             VALUE "FileDescription", "plentypay" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "plentypay" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 app.plentypay. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 PlentyPay. All rights reserved." "\0"
             VALUE "OriginalFilename", "plentypay.exe" "\0"
             VALUE "ProductName", "plentypay" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
