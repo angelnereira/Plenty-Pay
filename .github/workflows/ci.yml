@@ -68,3 +68,36 @@ jobs:
 
       - name: Run Flutter tests (including goldens)
         run: cd flutter_app && flutter test
+
+  release-builds:
+    name: Release Builds (F02.7)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: cd flutter_app && flutter pub get
+
+      # Linux, Web y Android (split-per-abi) se construyen en ubuntu.
+      # Windows (necesita Windows), iOS y macOS (runner macOS) van en jobs dedicados.
+      - name: Build Linux, Web and Android release artifacts
+        run: ./scripts/build-release.sh linux web android
+
+      - name: Upload artifacts with checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: plentypay-release-${{ github.sha }}
+          path: output/
+          if-no-files-found: error

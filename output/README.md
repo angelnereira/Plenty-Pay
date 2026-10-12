@@ -12,3 +12,10 @@ Destino de los builds de release de `flutter_app` (y en el futuro, de herramient
 | Web | `flutter build web --release ...` | `web/plentypay-web-<ver>.tar.gz` (el contenedor `web` lo sirve desde `web/static/app/`) |
 
 Reglas: prod siempre con `https`; firmas y llaves nunca en el repo; cada artefacto con checksum; APK ≤ 40 MB por ABI.
+
+## Cómo se generan
+```bash
+./scripts/build-release.sh                 # todo lo que el sistema operativo permita
+./scripts/build-release.sh linux web android   # plataformas concretas
+```
+El script usa `FLAVOR=prod` (AppConfig rechaza `http`), nombra cada artefacto con la versión de `flutter_app/pubspec.yaml`, escribe `SHA256SUMS` por plataforma y falla si un APK supera 40 MB. Sin `KEYSTORE_PATH`/`KEYSTORE_PROPERTIES` los APK/AAB quedan **sin firmar** y el script lo advierte: las llaves nunca entran al repo. Nada de este directorio se versiona salvo este README (`.gitignore`).
