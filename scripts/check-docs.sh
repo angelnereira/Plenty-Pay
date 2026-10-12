@@ -60,7 +60,6 @@ theme="flutter_app/lib/core/theme/app_theme.dart"
 if [ -f "$theme" ]; then
   for hex in $(awk '/^## 2\./{f=1;next} /^## 3\./{f=0} f' docs/design-system.md | grep -oE '#[0-9A-Fa-f]{6}' | sort -u); do
     v=$(echo "${hex#\#}" | tr 'a-f' 'A-F')
-    case "$v" in 4CC38A|1E7F4F|F2B84B|8A5A00) continue;; esac   # success/warning: se agregan en F02.4
     grep -q "0xFF$v" "$theme" || fail "design-system" "$hex del documento no está en $theme"
   done
 else

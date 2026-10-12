@@ -13,6 +13,8 @@ class Tokens {
   static const darkText = Color(0xFFECEDEF);
   static const darkTextMuted = Color(0xFF9AA0A6);
   static const darkError = Color(0xFFFF6B6B);
+  static const darkSuccess = Color(0xFF4CC38A);
+  static const darkWarning = Color(0xFFF2B84B);
 
   static const lightBackground = Color(0xFFF4F5F6);
   static const lightSurface = Color(0xFFFFFFFF);
@@ -21,6 +23,8 @@ class Tokens {
   static const lightText = Color(0xFF16181B);
   static const lightTextMuted = Color(0xFF5F6670);
   static const lightError = Color(0xFFB3261E);
+  static const lightSuccess = Color(0xFF1E7F4F);
+  static const lightWarning = Color(0xFF8A5A00);
 
   static const radius = 16.0;
   static const radiusLarge = 24.0;
@@ -78,6 +82,7 @@ class AppTheme {
     );
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'Inter',
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
       dividerColor: outline,
