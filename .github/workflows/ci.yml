@@ -48,6 +48,28 @@ jobs:
       - name: Run E2E Identity <-> Gateway
         run: ./scripts/e2e-identity-gateway.sh
 
+  contracts:
+    name: Contracts (buf lint + buf breaking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up buf
+        uses: bufbuild/buf-action@v1
+        with:
+          version: 1.73.0
+
+      # Lint de los 18 contratos con las convenciones de docs/standards/grpc-conventions.md.
+      - name: buf lint
+        run: buf lint network-contracts
+
+      # Un PR que renombre, cambie de tipo o renumere un campo sin reservarlo falla aquí
+      # (ADR 0004, grpc-conventions.md §1.1). La retirada ordenada usa `reserved`.
+      - name: buf breaking contra main
+        run: buf breaking network-contracts --against '.git#branch=main,subdir=network-contracts/proto'
+
   flutter-tests:
     name: Flutter Client Tests
     runs-on: ubuntu-latest

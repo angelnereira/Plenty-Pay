@@ -59,7 +59,16 @@ está documentado y se agrega al `.proto` en F03.2).
 - Convenciones completas: `docs/standards/grpc-conventions.md`.
 - **Solo cambios aditivos** una vez publicado (nunca reutilizar ni renumerar campos; `reserved` al retirar). Un cambio incompatible exige `v2`.
 - `consumers.txt` declara quién consume qué; `../scripts/sync-protos.sh` genera (Go) o copia (Rust) dentro de cada contenedor y `--check` falla en CI si algo quedó desactualizado.
-- Verificación mínima obligatoria tras cualquier cambio: `protoc -I proto --descriptor_set_out=/dev/null proto/*.proto` (todos compilan juntos) — en CI además `buf lint` y `buf breaking`.
+- Verificación obligatoria tras cualquier cambio:
+  ```bash
+  cd network-contracts
+  protoc -I proto --descriptor_set_out=/dev/null proto/*.proto   # todos compilan juntos
+  buf lint                                                        # convenciones del repo
+  buf breaking --against '../.git#branch=main,subdir=network-contracts/proto'
+  ```
+  `buf breaking` falla si un cambio renombra, cambia de tipo o renumera un campo ya publicado;
+  la retirada ordenada se hace con `reserved <n>; reserved "<nombre>";` (ADR 0004). CI corre
+  ambas comprobaciones en el job `contracts` (F03.3).
 
 ## Estado
 18 archivos, 233 RPC (231 + `Payments.PostMemoEntry` y `Analytics.AskQuestion`) más el evento
