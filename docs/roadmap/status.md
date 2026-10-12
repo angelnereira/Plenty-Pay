@@ -2,7 +2,7 @@
 
 Fuente de verdad del avance **con evidencia**. Reglas (AGENTS.md §2.11 y §3): solo se marca ✅ lo ejecutado al nivel exigido, con el comando/fecha en *Evidencia*. 📝 = en curso o parcial (decir qué falta). 📋 = pendiente. ⛔ = bloqueado (citar la pregunta de `docs/open-questions.md`).
 
-**Fase en curso**: F02 (cliente base, CI y sesión segura). **Siguiente paso recomendado para un agente**: F02.2 (scripts de CI en `scripts/ci/`) o F02.5 (ApiClient con sesión segura e idempotencia).
+**Fase en curso**: F02 (cliente base y sesión segura). **Siguiente paso recomendado para un agente**: F02.5 (ApiClient con sesión segura, Dio e Idempotency-Key).
 
 ## Limitaciones del entorno donde se generó este repositorio
 Go se compiló contra clones de dependencias (el proxy de módulos no era alcanzable); Rust 1.97 disponible pero sin código Rust aún; Docker sin acceso a Docker Hub (imágenes no construidas); sin SDK de Flutter (código Dart no compilado); sin OpenTofu. Todo lo marcado ✅ se ejecutó realmente; lo demás no.
@@ -48,7 +48,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
 | F02.1 `docker-compose.yml` con redes edge/services/data, healthchecks y `.env.example` por contenedor | ✅ | 2026-10-10: `docker compose up --build -d --wait` deja identity y api-gateway `healthy` (healthcheck `/app healthcheck` → `:9100/healthz/ready`, gateway con `depends_on: service_healthy`); solo 8080 publicado (9100 y 50060 no alcanzables desde el host); registro y login 200 por el gateway; E2E 14/14. `web` (8081) se agrega en F02.8 |
-| F02.2 Pipeline CI (scripts en `scripts/ci/`): repo-checks, build-test Go/Rust/Flutter afectado, imagen | 📋 |  |
+| F02.2 Pipeline CI (scripts en `scripts/ci/`): repo-checks, build-test Go/Rust/Flutter afectado, imagen | ✅ | 2026-10-12: scripts `repo-checks.sh`, `build-test.sh` (modos all y affected) y `build-images.sh` en `scripts/ci/`; workflow GitHub Actions en `.github/workflows/ci.yml`; aislamiento verificado (ADR 0002 garantizado en repo-checks, código de salida 1 ante violación); repo-checks y build-test ejecutados con éxito en local |
 | F02.3 `flutter create` multiplataforma sobre el esqueleto existente; flavors dev/staging/prod; i18n es_PA/en | ✅ | 2026-10-10, Flutter 3.47.6: `flutter create` para android/ios/linux/windows/macos/web; flavors por dart-define (`AppConfig`: staging y prod rechazan http, con prueba); i18n ARB `es_PA`/`en`. `flutter analyze` sin issues; `flutter test` 19/19. Además compilan `flutter build web`, `flutter build apk --debug` y `flutter build linux --release` (la app arranca). Identificador de la app: `app.plentypay.pay`. No verificado: iOS/macOS/Windows (requieren su sistema). Pendiente para F23.2: entitlement NDEF de iOS |
 | F02.4 Tokens y componentes del design system (PPButton, PPTextField, MoneyText, AsyncView, StatusChip, AppShell) con golden tests claro/oscuro | ✅ | 2026-10-12: PPButton, PPTextField, MoneyText, StatusChip, AsyncView y AppShellScaffold en `core/widgets/`; 22 goldens claro/oscuro cubriendo componentes y shell responsive en móvil (<600 dp), tablet (600–1024 dp) y escritorio (>1024 dp); tipografía Inter (OFL) empaquetada en `assets/fonts/inter/`; `check-docs.sh` valida el 100% de los tokens hex; `flutter analyze` sin issues; `flutter test` 55/55 |
 | F02.5 Sesión segura (secure storage), ApiClient (dio) con refresh único, request-id e Idempotency-Key | 📝 | ApiClient con http y refresh único; migrar a dio + idempotencia |

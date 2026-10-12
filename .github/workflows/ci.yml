@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  repo-checks:
+    name: Repo Checks (ADR 0002, ADR 0010, ADR 0004)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: false
+
+      - name: Run repo checks
+        run: ./scripts/ci/repo-checks.sh
+
+  backend-tests:
+    name: Backend Tests (Go & Ledger)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Go & Ledger tests
+        run: |
+          (cd identity && go vet ./... && go test -race ./...)
+          (cd api-gateway && go vet ./... && go test -race ./...)
+          (cd scripts/ledger-tests && npm install && npm test)
+
+      - name: Run E2E Identity <-> Gateway
+        run: ./scripts/e2e-identity-gateway.sh
+
+  flutter-tests:
+    name: Flutter Client Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: cd flutter_app && flutter pub get
+
+      - name: Analyze Flutter app
+        run: cd flutter_app && flutter analyze
+
+      - name: Run Flutter tests (including goldens)
+        run: cd flutter_app && flutter test
