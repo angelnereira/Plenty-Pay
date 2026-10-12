@@ -16,14 +16,19 @@ type fakeIdentity struct {
 	loginResult    *client.AuthResult
 	registerResult *client.AuthResult
 	err            error
-	registeredWith struct{ email, password, fullName string }
+	registeredWith struct {
+		email, password, fullName string
+		consents                  []client.Consent
+		channel, device           string
+	}
 }
 
 func (f *fakeIdentity) Login(ctx context.Context, email, password string) (*client.AuthResult, error) {
 	return f.loginResult, f.err
 }
-func (f *fakeIdentity) RegisterCustomer(ctx context.Context, email, password, fullName string) (*client.AuthResult, error) {
+func (f *fakeIdentity) RegisterCustomer(ctx context.Context, email, password, fullName string, consents []client.Consent, channel, device string) (*client.AuthResult, error) {
 	f.registeredWith.email, f.registeredWith.password, f.registeredWith.fullName = email, password, fullName
+	f.registeredWith.consents, f.registeredWith.channel, f.registeredWith.device = consents, channel, device
 	return f.registerResult, f.err
 }
 func (f *fakeIdentity) RefreshToken(ctx context.Context, rt string) (*client.AuthResult, error) {
@@ -52,6 +57,15 @@ func TestLoginFailureIs401WithReason(t *testing.T) {
 	rec := post(h.Login, `{"email":"a@b.co","password":"x"}`)
 	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), `"reason":"INVALID_CREDENTIALS"`) {
 		t.Fatalf("esperaba 401 + reason, obtuve %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// R4: identity emite siempre INVALID_CREDENTIALS, exista o no el correo (anti-enumeración).
+func TestR4_LoginReasonComesFromIdentityWhenPresent(t *testing.T) {
+	h := NewAuthHandlers(&fakeIdentity{loginResult: &client.AuthResult{Success: false, Reason: "INVALID_CREDENTIALS", ErrorMessage: "correo o contraseña incorrectos"}})
+	rec := post(h.Login, `{"email":"nadie@b.co","password":"x"}`)
+	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), `"reason":"INVALID_CREDENTIALS"`) {
+		t.Fatalf("esperaba 401 + INVALID_CREDENTIALS, obtuve %d %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -84,6 +98,71 @@ func TestRegisterValidBody(t *testing.T) {
 	h := NewAuthHandlers(f)
 	if rec := post(h.Register, `{"email":"a@b.co","password":"contraseña-larga-123","full_name":"Ana"}`); rec.Code != http.StatusOK || f.registeredWith.fullName != "Ana" {
 		t.Fatalf("registro válido falló: %d", rec.Code)
+	}
+}
+
+// N-DAT-02: las aceptaciones de S-GEN-03 viajan al registro; canal y dispositivo los pone el gateway.
+func TestN_DAT_02_RegisterForwardsConsentsAndSetsChannelAndDevice(t *testing.T) {
+	f := &fakeIdentity{registerResult: &client.AuthResult{Success: true, AccessToken: "a"}}
+	h := NewAuthHandlers(f)
+	body := `{"email":"ana@b.co","password":"contraseña-larga-123","full_name":"Ana","consents":[` +
+		`{"purpose":"AGE_CONFIRMATION","text_version":"v1","granted":true},` +
+		`{"purpose":"TERMS","text_version":"v1","granted":true},` +
+		`{"purpose":"PRIVACY_DATA_PROCESSING","text_version":"v1","granted":true},` +
+		`{"purpose":"MARKETING","text_version":"v1","granted":false}]}`
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+	req.Header.Set("User-Agent", "Dart/3.9 (dart:io)")
+	h.Register(httptest.NewRecorder(), req)
+
+	if got := f.registeredWith.consents; len(got) != 4 || got[3].Purpose != "MARKETING" || got[3].Granted || got[0].TextVersion != "v1" {
+		t.Fatalf("consentimientos mal reenviados: %+v", got)
+	}
+	if f.registeredWith.channel != registerChannel {
+		t.Fatalf("el canal lo fija el gateway y debe ser %q, fue %q", registerChannel, f.registeredWith.channel)
+	}
+	if f.registeredWith.device != "Dart/3.9 (dart:io)" {
+		t.Fatalf("el dispositivo debe salir del User-Agent, fue %q", f.registeredWith.device)
+	}
+}
+
+// El cuerpo del cliente nunca fija canal ni dispositivo (son metadatos del gateway).
+func TestRegisterRejectsChannelAndDeviceInBody(t *testing.T) {
+	f := &fakeIdentity{registerResult: &client.AuthResult{Success: true}}
+	for _, body := range []string{
+		`{"email":"a@b.co","password":"x","channel":"kiosco","device":"PC"}`,
+		`{"email":"a@b.co","password":"x","consents":[{"purpose":"TERMS","text_version":"v1","granted":true,"granted_at":"2026-10-12"}]}`,
+	} {
+		if rec := post(NewAuthHandlers(f).Register, body); rec.Code != http.StatusBadRequest {
+			t.Fatalf("Register aceptó un campo que no le corresponde (%s): %d", body, rec.Code)
+		}
+	}
+	if f.registeredWith.email != "" {
+		t.Fatal("identity.Register fue invocado con un cuerpo inválido")
+	}
+}
+
+func TestRegisterRejectsTooManyConsents(t *testing.T) {
+	f := &fakeIdentity{registerResult: &client.AuthResult{Success: true}}
+	many := `{"email":"a@b.co","password":"x","consents":[` + strings.Repeat(`{"purpose":"TERMS","text_version":"v1","granted":true},`, 50) + `{"purpose":"TERMS","text_version":"v1","granted":true}]}`
+	if rec := post(NewAuthHandlers(f).Register, many); rec.Code != http.StatusBadRequest {
+		t.Fatalf("un registro con 51 consentimientos debe rechazarse, obtuve %d", rec.Code)
+	}
+}
+
+// El reason estable de identity llega al cliente para que la app lo traduzca (N-DAT-02, N-DAT-14).
+func TestRegisterPropagatesConsentReasons(t *testing.T) {
+	for reason, status := range map[string]int{
+		"CONSENT_REQUIRED": http.StatusBadRequest,
+		"AGE_REQUIREMENT":  http.StatusBadRequest,
+		"EMAIL_TAKEN":      http.StatusBadRequest,
+		"INVALID_EMAIL":    http.StatusBadRequest,
+		"WEAK_PASSWORD":    http.StatusBadRequest,
+	} {
+		h := NewAuthHandlers(&fakeIdentity{registerResult: &client.AuthResult{Success: false, Reason: reason, ErrorMessage: "mensaje"}})
+		rec := post(h.Register, `{"email":"a@b.co","password":"contraseña-larga-123","consents":[]}`)
+		if rec.Code != status || !strings.Contains(rec.Body.String(), `"reason":"`+reason+`"`) {
+			t.Fatalf("reason %s: esperaba %d + reason, obtuve %d %s", reason, status, rec.Code, rec.Body.String())
+		}
 	}
 }
 

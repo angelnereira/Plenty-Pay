@@ -14,7 +14,7 @@
 | Fase | F09 (núcleo), crece con cada fase que expone rutas |
 | Capa de arranque | L5 |
 
-**Estado actual**: implementado `GET /healthz`, `POST /v1/auth/{login,register,refresh}`, `GET /v1/me`, `GET /v1/me/permissions` (devuelve `role`, `enabled_modules`, `permissions`), middleware `RequireAuth`, errores `{"error","reason","request_id"}`, `X-Request-Id` respetado o generado (UUIDv7) y devuelto, propagación de `traceparent` y `x-pp-request-id` a identity, log de acceso JSON por petición, recuperación de pánicos, cuerpo ≤ 1 MiB con campos desconocidos rechazados. 10 pruebas unitarias + E2E con identity (14 comprobaciones).
+**Estado actual**: implementado `GET /healthz`, `POST /v1/auth/{login,register,refresh}` (register reenvía los consentimientos y propaga el `reason` de identity), `GET /v1/me`, `GET /v1/me/permissions` (devuelve `role`, `enabled_modules`, `permissions`), middleware `RequireAuth`, errores `{"error","reason","request_id"}`, `X-Request-Id` respetado o generado (UUIDv7) y devuelto, propagación de `traceparent` y `x-pp-request-id` a identity, log de acceso JSON por petición, recuperación de pánicos, cuerpo ≤ 1 MiB con campos desconocidos rechazados. 10 pruebas unitarias + E2E con identity (14 comprobaciones).
 
 ## 3. Cadena de middleware (orden obligatorio)
 1. Recuperación de pánico → 500 `INTERNAL` con `request_id`.
@@ -35,7 +35,7 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 ### 4.1 Autenticación y cuenta (F09, F08)
 | Método y ruta | RPC | Permiso |
 |---|---|---|
-| POST `/v1/auth/register` | identity.Register (rol forzado CUSTOMER) | público |
+| POST `/v1/auth/register` | identity.Register (rol forzado CUSTOMER; consents del cuerpo) | público |
 | POST `/v1/auth/login` | identity.Login | público |
 | POST `/v1/auth/refresh` | identity.RefreshToken | público |
 | POST `/v1/auth/logout` | identity.Logout | autenticado |
@@ -205,6 +205,7 @@ Exceso → 429 `RATE_LIMITED` + `Retry-After`. Contadores en NATS KV (ventana de
 ## 7. Reglas
 - **R1** Sin token o token inválido → 401 `TOKEN_INVALID`; identity caída → 503 `IDENTITY_UNAVAILABLE` (nunca 401: no cerrar sesión por una caída).
 - **R2** Registro público ignora cualquier rol enviado y fuerza `CUSTOMER`.
+- **R2b** `POST /v1/auth/register` acepta `consents: [{purpose, text_version, granted}]` (máx. 10) y los reenvía tal cual a identity; `channel` (`app`) y `device` (User-Agent recortado a 200 caracteres) los fija el gateway y se rechazan si vienen en el cuerpo (N-DAT-02). El `reason` que devuelve identity se propaga sin modificar para que la app lo traduzca.
 - **R3** JSON estricto: campos desconocidos → 400 `INVALID_JSON`; cuerpo > límite → 413 `BODY_TOO_LARGE`.
 - **R4** Permiso de la ruta ausente → 403 `PERMISSION_DENIED` sin llamar al servicio.
 - **R5** El tenant/usuario de los metadatos sale **solo** del token validado; cabeceras `x-pp-*` entrantes del cliente se descartan.

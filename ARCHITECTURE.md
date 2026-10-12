@@ -31,8 +31,8 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 
 | Contenedor | Tecnología | Puerto | Estado | Fase |
 |---|---|---|---|---|
-| [identity](identity/SPEC.md) | Go | 50060 | 📝 núcleo de autenticación y permisos (memoria) | F08 |
-| [api-gateway](api-gateway/SPEC.md) | Go | 8080 | 📝 rutas de autenticación | F09 |
+| [identity](identity/SPEC.md) | Go | 50060 | 📝 núcleo de autenticación, permisos y consentimientos (memoria) | F08 |
+| [api-gateway](api-gateway/SPEC.md) | Go | 8080 | 📝 rutas de autenticación (con consentimientos y `reason` estable) | F09 |
 | [ledger](ledger/SPEC.md) | Rust | 50061 | 📋 (invariantes SQL de referencia verificadas: 27/27) | F10 |
 | [payments-core](payments-core/SPEC.md) | Rust | 50062 | 📋 | F11 |
 | [settlement](settlement/SPEC.md) | Rust | 50063 | 📋 | F12 |
@@ -54,7 +54,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [event-bus](event-bus/SPEC.md) | NATS JetStream | 4222 | 📋 | F07 |
 | [object-storage](object-storage/SPEC.md) | Garage | 3900 | 📋 | F07 |
 | [web](web/SPEC.md) | Go | 8081 | 📋 | F02 |
-| [flutter_app](flutter_app/README.md) (cliente) | Flutter | — | 📝 base multiplataforma con flavors e i18n (compila web y Android) | F02 |
+| [flutter_app](flutter_app/README.md) (cliente) | Flutter | — | 📝 base multiplataforma con flavors e i18n, login y registro (compila web y Android) | F02 |
 | [network-contracts](network-contracts/README.md) | Protobuf | — | ✅ 18 contratos compilan juntos | F03 |
 
 ## 3. Principios que no se negocian

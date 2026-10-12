@@ -57,8 +57,14 @@ cp identity/.env.example identity/.env          # poner dos secretos distintos d
 cp api-gateway/.env.example api-gateway/.env
 docker compose up --build                        # identity + api-gateway en http://localhost:8080
 
-curl -s -X POST localhost:8080/v1/auth/register -H 'Content-Type: application/json' \
-  -d '{"full_name":"Ana","email":"ana@example.com","password":"una-clave-muy-larga"}'
+# N-DAT-02: el registro exige las aceptaciones de S-GEN-03 (una por finalidad, con la versión del texto)
+curl -s -X POST localhost:8080/v1/auth/register -H 'Content-Type: application/json' -d '{
+  "full_name":"Ana","email":"ana@example.com","password":"una-clave-muy-larga",
+  "consents":[
+    {"purpose":"AGE_CONFIRMATION","text_version":"2026-10-12","granted":true},
+    {"purpose":"TERMS","text_version":"2026-10-12","granted":true},
+    {"purpose":"PRIVACY_DATA_PROCESSING","text_version":"2026-10-12","granted":true},
+    {"purpose":"MARKETING","text_version":"2026-10-12","granted":false}]}'
 ```
 Verificaciones (CI las corre en cada PR):
 ```bash

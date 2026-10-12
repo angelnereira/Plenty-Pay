@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:plentypay/core/api/api_client.dart';
+import 'package:plentypay/core/api/consents.dart';
 import 'package:plentypay/core/session/session_store.dart';
 
 void main() {
@@ -64,7 +65,11 @@ void main() {
       });
 
       final api = ApiClient(baseUrl: 'http://localhost:8080', client: client, session: session);
-      await api.registerCustomer('Carlos Pérez', 'carlos@test.co', 'clave-segura-123');
+      await api.registerCustomer('Carlos Pérez', 'carlos@test.co', 'clave-segura-123', const [
+        ConsentGrant(purpose: ConsentPurpose.ageConfirmation, textVersion: 'v1', granted: true),
+        ConsentGrant(purpose: ConsentPurpose.terms, textVersion: 'v1', granted: true),
+        ConsentGrant(purpose: ConsentPurpose.privacyDataProcessing, textVersion: 'v1', granted: true),
+      ]);
 
       expect(await session.accessToken(), 'access-customer-1');
       expect(await session.refreshToken(), 'refresh-customer-2');
@@ -239,7 +244,7 @@ void main() {
       });
 
       final api = ApiClient(baseUrl: 'http://localhost:8080', client: client, session: session);
-      await api.registerCustomer('Test', 'test@example.com', 'pass-1234');
+      await api.registerCustomer('Test', 'test@example.com', 'pass-1234', const []);
 
       expect(capturedHeaders.containsKey('x-request-id'), isTrue);
       expect(capturedHeaders['x-request-id'], isNotEmpty);

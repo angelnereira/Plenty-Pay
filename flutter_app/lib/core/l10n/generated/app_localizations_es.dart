@@ -133,6 +133,46 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get modulePlatform => 'Plataforma';
+
+  @override
+  String get passwordHelperRegister => 'Usa al menos 12 caracteres.';
+
+  @override
+  String get passwordHelperRegisterOk => 'Longitud válida.';
+
+  @override
+  String get consentAge => 'Tengo 18 años o más.';
+
+  @override
+  String get consentTerms => 'Acepto los Términos y condiciones.';
+
+  @override
+  String get consentPrivacy =>
+      'He leído la Política de privacidad y autorizo el tratamiento de mis datos para crear y operar mi cuenta.';
+
+  @override
+  String get consentMarketing => 'Quiero recibir novedades y ofertas.';
+
+  @override
+  String get registerDataNotice =>
+      'Tratamos tus datos según nuestra Política de privacidad.';
+
+  @override
+  String get error_EMAIL_TAKEN => 'Ya existe una cuenta con este correo.';
+
+  @override
+  String get error_WEAK_PASSWORD => 'Elige una contraseña menos común.';
+
+  @override
+  String get error_INVALID_EMAIL => 'Escribe un correo válido.';
+
+  @override
+  String get error_CONSENT_REQUIRED =>
+      'Debes aceptar los Términos y condiciones y la Política de privacidad.';
+
+  @override
+  String get error_AGE_REQUIREMENT =>
+      'Debes confirmar que tienes al menos 18 años.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

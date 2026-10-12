@@ -4,9 +4,22 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
+
+// ConsentRecord es la evidencia de una aceptación (N-DAT-02): quién (el usuario que lo contiene),
+// para qué finalidad, con qué versión del texto, cuándo, por qué canal y desde qué dispositivo.
+// Un consentimiento no se borra: revocarlo agrega un registro nuevo con Granted=false.
+type ConsentRecord struct {
+	Purpose     string
+	TextVersion string
+	Granted     bool
+	RecordedAt  time.Time
+	Channel     string
+	Device      string
+}
 
 // User tal como lo guarda identity. La contraseña SIEMPRE llega ya hasheada; este paquete nunca ve texto plano.
 type User struct {
@@ -16,6 +29,7 @@ type User struct {
 	FullName     string
 	Role         string // valor del enum UserRole del .proto, como string
 	TenantID     string
+	Consents     []ConsentRecord
 }
 
 var ErrUserNotFound = errors.New("usuario no encontrado")

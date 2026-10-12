@@ -2,7 +2,7 @@
 
 Fuente de verdad del avance **con evidencia**. Reglas (AGENTS.md §2.11 y §3): solo se marca ✅ lo ejecutado al nivel exigido, con el comando/fecha en *Evidencia*. 📝 = en curso o parcial (decir qué falta). 📋 = pendiente. ⛔ = bloqueado (citar la pregunta de `docs/open-questions.md`).
 
-**Fase en curso**: F02 (cliente base y shell de navegación). **Siguiente paso recomendado para un agente**: F02.6 (recuperar contraseña, UI de registro y pruebas de integración).
+**Fase en curso**: F02 (cliente base y shell de navegación). **Siguiente paso recomendado para un agente**: F02.7 (builds de release a `output/`) — F02.6 queda con lo que depende de `integration_test` contra compose, que no se ha ejecutado aquí (sin daemon de Docker).
 
 ## Limitaciones del entorno donde se generó este repositorio
 Go se compiló contra clones de dependencias (el proxy de módulos no era alcanzable); Rust 1.97 disponible pero sin código Rust aún; Docker sin acceso a Docker Hub (imágenes no construidas); sin SDK de Flutter (código Dart no compilado); sin OpenTofu. Todo lo marcado ✅ se ejecutó realmente; lo demás no.
@@ -28,6 +28,8 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 ## Contratos pendientes de agregar (aditivos, F03.2)
 `payments.PostMemoEntry` (T8/T9 para pos), `analytics.AskQuestion`, `analytics.AlertTriggered` (+ subject `pp.analytics.alert.triggered.v1`), `identity.NotificationRequested` (+ subject `pp.identity.notification.requested.v1`).
 
+**Agregados el 2026-10-12** (F02.6, aditivos, `./scripts/sync-protos.sh --check` en verde): `ConsentGrant`, `RegisterRequest.consents` (6), `RegisterRequest.channel` (7), `RegisterRequest.device` (8) y `AuthResult.reason` (10) en `identity.proto`.
+
 Además, la especificación funcional y el marco normativo (2026-10-12) requieren las rutas y campos listados en `docs/ux/functional-spec/README.md` §7 (verificación de identidad, consentimientos, solicitudes sobre datos, límites, beneficiarios finales, reclamos, devoluciones, descuento legal, parámetros legales, cola de cumplimiento, reporte de ITBMS, tipos de corrida de nómina, documentos del repartidor). Son aditivos y se incorporan en F03.2 y en el paso de cada módulo.
 
 ## F01 — Fundamentos y gobierno del repositorio
@@ -52,7 +54,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | F02.3 `flutter create` multiplataforma sobre el esqueleto existente; flavors dev/staging/prod; i18n es_PA/en | ✅ | 2026-10-10, Flutter 3.47.6: `flutter create` para android/ios/linux/windows/macos/web; flavors por dart-define (`AppConfig`: staging y prod rechazan http, con prueba); i18n ARB `es_PA`/`en`. `flutter analyze` sin issues; `flutter test` 19/19. Además compilan `flutter build web`, `flutter build apk --debug` y `flutter build linux --release` (la app arranca). Identificador de la app: `app.plentypay.pay`. No verificado: iOS/macOS/Windows (requieren su sistema). Pendiente para F23.2: entitlement NDEF de iOS |
 | F02.4 Tokens y componentes del design system (PPButton, PPTextField, MoneyText, AsyncView, StatusChip, AppShell) con golden tests claro/oscuro | ✅ | 2026-10-12: PPButton, PPTextField, MoneyText, StatusChip, AsyncView y AppShellScaffold en `core/widgets/`; 22 goldens claro/oscuro cubriendo componentes y shell responsive en móvil (<600 dp), tablet (600–1024 dp) y escritorio (>1024 dp); tipografía Inter (OFL) empaquetada en `assets/fonts/inter/`; `check-docs.sh` valida el 100% de los tokens hex; `flutter analyze` sin issues; `flutter test` 55/55 |
 | F02.5 Sesión segura (secure storage), ApiClient (dio) con refresh único, request-id e Idempotency-Key | ✅ | 2026-10-12: ApiClient migrado a Dio con interceptores de autenticación, Idempotency-Key automática en mutaciones (POST/PUT/PATCH), X-Request-Id y traceparent W3C; SessionStore con almacenamiento seguro (flutter_secure_storage); pruebas L1 en `test/core/api/api_client_test.dart` (8/8) verificando 401→refresh→reintento exitoso, refresh fallido→borrado de sesión, refresh único concurrente e Idempotency-Key; `flutter test` 63/63 |
-| F02.6 Login, registro, recuperar contraseña (UI) y shell con navegación dinámica según `enabled_modules` | 📝 | Login + shell dinámico escritos; sin integration_test |
+| F02.6 Login, registro, recuperar contraseña (UI) y shell con navegación dinámica según `enabled_modules` | 📝 | Hecho 2026-10-12: S-GEN-02 (login) y S-GEN-03 (registro) como pantallas propias conectadas por navegación; el registro exige y envía las cuatro aceptaciones de N-DAT-02/N-DAT-14 (versión del texto en `lib/features/auth/legal_texts.dart`); `identity` las valida y las registra con fecha, canal y dispositivo, y devuelve `reason` estable; el gateway reenvía los consentimientos, fija `channel`/`device` y propaga el `reason`. Contratos: `ConsentGrant` + `consents`/`channel`/`device` en `RegisterRequest` y `reason` en `AuthResult` (aditivos). Pruebas: `identity` 48 (L1) + E2E 30/30 (L4), `api-gateway` 23 (L1), `flutter test` 71/71 y `flutter analyze` sin issues. **Falta para cerrar**: (a) `integration_test` contra compose — el criterio del paso (CUSTOMER ve wallet+marketplace, OWNER 11 módulos) no se ha ejecutado; (b) la parte de recuperación de contraseña, que la ficha S-GEN-04 asigna a F08.7 (Q-26); (c) los enlaces a los textos legales, que llegan con S-PUB-03 (Q-27) |
 | F02.7 Builds de release a `output/` (APK split-per-abi, Linux, Windows, Web; iOS/macOS en runner macOS) | 📋 |  |
 | F02.8 Contenedor `web` sirviendo el bundle Flutter Web | 📋 |  |
 
@@ -120,7 +122,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F08.1 Núcleo en memoria: Register/Login/Validate/Permissions/Refresh + catálogo de permisos y módulos | ✅ | go test -race (server + permisos) y E2E 14/14, 2026-10-10 |
+| F08.1 Núcleo en memoria: Register/Login/Validate/Permissions/Refresh + catálogo de permisos y módulos | ✅ | go test -race (server + permisos) y E2E 14/14, 2026-10-10. Ampliado 2026-10-12: consentimientos del registro (R18) y derivación de contraseña (R19); E2E 30/30 |
 | F08.2 PostgreSQL + migraciones + estructura del estándar Go | 📋 |  |
 | F08.3 Sesiones con rotación de refresh y detección de reuso | 📋 |  |
 | F08.4 Bloqueo progresivo | 📋 |  |

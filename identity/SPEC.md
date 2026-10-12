@@ -15,7 +15,7 @@
 | Fase | F08 (núcleo), F05 (step-up/mTLS), F28 (passkeys) |
 | Capa de arranque | L2 |
 
-**Estado actual**: implementados Register, Login, ValidateToken, GetUserPermissions (con catálogo de permisos, presets y derivación de módulos R10/R12), RefreshToken con almacén **en memoria** (`internal/store`). Todo lo demás de este SPEC es objetivo.
+**Estado actual**: implementados Register (con consentimientos R18 y `reason` estable en cada rechazo), Login, ValidateToken, GetUserPermissions (con catálogo de permisos, presets y derivación de módulos R10/R12), RefreshToken con almacén **en memoria** (`internal/store`). Todo lo demás de este SPEC es objetivo.
 
 ## 3. Modelo de datos
 ```sql
@@ -47,6 +47,17 @@ CREATE TABLE identity.roles (
   name text NOT NULL, permissions text[] NOT NULL, is_preset bool NOT NULL DEFAULT false,
   UNIQUE (tenant_id, name)
 );
+CREATE TABLE identity.consents (
+  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES identity.users(id),
+  purpose text NOT NULL,                      -- AGE_CONFIRMATION|TERMS|PRIVACY_DATA_PROCESSING|MARKETING
+  text_version text NOT NULL,                 -- versión del texto que la persona vio
+  granted bool NOT NULL,                      -- false = revocación o no concedido
+  recorded_at timestamptz NOT NULL,           -- la pone el servidor, nunca el cliente
+  channel text NOT NULL, device text NOT NULL -- los fija el gateway (N-DAT-02)
+);
+CREATE INDEX consents_user ON identity.consents (user_id, purpose, recorded_at DESC);
+-- Un consentimiento no se borra ni se actualiza: revocar agrega una fila nueva con granted=false.
+
 CREATE TABLE identity.sessions (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, family_id uuid NOT NULL,
   refresh_hash bytea NOT NULL,                  -- sha256 del refresh vigente
@@ -73,7 +84,7 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 ## 4. RPCs
 | RPC | Permiso | Idemp. | Comportamiento | Errores (`reason`) |
 |---|---|---|---|---|
-| Register | público (vía gateway) | no | crea `CUSTOMER`; el gateway fuerza el rol (R6) | `INVALID_EMAIL`, `WEAK_PASSWORD`, `EMAIL_TAKEN` |
+| Register | público (vía gateway) | no | crea `CUSTOMER`; el gateway fuerza el rol (R6), el canal y el dispositivo; valida y registra los consentimientos (R18) | `INVALID_EMAIL`, `WEAK_PASSWORD`, `EMAIL_TAKEN`, `CONSENT_REQUIRED`, `AGE_REQUIREMENT` |
 | Login | público | no | verifica contraseña, bloqueo progresivo, crea sesión, devuelve access+refresh | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED` |
 | ValidateToken | servicio (gateway) | — | valida access token: firma, exp, algoritmo, sesión no revocada | `TOKEN_INVALID` |
 | GetUserPermissions | servicio / self | — | rol base + rol personalizado → `permissions` y `modules` | `NOT_FOUND` |
@@ -130,6 +141,8 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 - **R15** Token de step-up: un solo uso, 5 min, ligado a usuario+operación+monto; consumir dos veces → `ALREADY_USED`.
 - **R16** Cambiar contraseña o reset revoca todas las demás sesiones.
 - **R17** RUC + DV válidos (formato DGI; algoritmo de DV en F08.6) y únicos.
+- **R18** Consentimientos del registro público (N-DAT-02, N-DAT-14): obligatorios `AGE_CONFIRMATION`, `TERMS` y `PRIVACY_DATA_PROCESSING`, cada uno con la versión del texto visto; `MARKETING` es opcional y se registra también si no se concede. Se guardan con fecha del servidor, canal y dispositivo. Sin ellos no se crea la cuenta: `AGE_REQUIREMENT` si falta la confirmación de mayoría de edad, `CONSENT_REQUIRED` si faltan términos o privacidad. Una finalidad desconocida se ignora. Revocar no borra: agrega un registro con `granted=false`.
+- **R19** Las contraseñas se derivan con SHA-256 + base64 antes de bcrypt costo 12 (esquema declarado en el propio hash, `sha256-bcrypt:`), porque bcrypt solo consume 72 bytes y la política permite 128 caracteres (R2). 
 
 ## 6. Eventos
 Publica: `pp.identity.tenant.status_changed.v1` (`TenantStatusChanged`), `pp.identity.session.revoked.v1` (`SessionRevoked`), `pp.audit.identity.recorded.v1`. Solicitudes de correo (reset, invitación, bienvenida, bloqueo) se publican como `pp.identity.notification.requested.v1` con `notifications.SendRequest` embebido *(mensaje a agregar en F20.2 — hasta entonces notifications consume los eventos anteriores)*.
@@ -159,6 +172,7 @@ Es llamado por: api-gateway, payments-core, settlement, orders, logistics, payro
 
 ## 10. Seguridad
 Hashes de tokens (nunca el token) en BD; correos enmascarados en logs; rate limit en gateway para `/v1/auth/*` (10/min por IP, 5/min por correo).
+Contraseñas: `sha256-bcrypt:<hash bcrypt costo 12>` (R19). El esquema va en el valor guardado, de modo que migrar a argon2id no invalida las contraseñas vigentes (`security-standards.md` §2).
 
 ## 11. Pruebas de aceptación
 1. Dado un correo nuevo, cuando me registro, recibo tokens y mi rol es CUSTOMER (aunque pida otro).
@@ -166,6 +180,7 @@ Hashes de tokens (nunca el token) en BD; correos enmascarados en logs; rate limi
 3. Dado un refresh usado, presentarlo de nuevo revoca la familia y el access vigente deja de validar en ≤ 15 s.
 4. Dado un staff con rol Cajero, `GetUserPermissions` devuelve exactamente los permisos del preset (+ los de CUSTOMER) y módulos `wallet, marketplace, pos, inventory, finance, payroll` (prueba `TestR10_ModulesDerivedFromPermissions`).
 5. Dado un token de step-up, consumirlo dos veces devuelve `valid=false, reason=ALREADY_USED`.
+6. Dado un registro sin la confirmación de mayoría de edad, cuando se crea la cuenta, se rechaza con `AGE_REQUIREMENT` y no queda usuario; con las tres obligatorias, quedan registrados usuario, finalidad, versión del texto, fecha, canal y dispositivo (`TestN_DAT_02_*`, `TestN_DAT_14_*`).
 
 ## 12. Plan de implementación
 F08.1 almacén en memoria + RPC núcleo (✅) → F08.2 PostgreSQL + migraciones → F08.3 sesiones/refresh con rotación y reuso → F08.4 bloqueo progresivo → F08.5 tenants + CreateBusiness/ReviewBusiness + outbox → F08.6 roles personalizados + invitaciones → F08.7 reset de contraseña → F05.x step-up y mTLS → F08.8 pantallas Flutter (perfil, sesiones, alta de negocio, equipo, roles) → F28 passkeys y EdDSA/JWKS.

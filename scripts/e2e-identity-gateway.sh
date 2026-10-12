@@ -21,14 +21,25 @@ for _ in $(seq 1 50); do curl -sf localhost:8980/healthz >/dev/null && break; sl
 PASS=0; FAIL=0
 check() { if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "  ok   $1"; else FAIL=$((FAIL+1)); echo "  FAIL $1 (esperaba $2, obtuve $3)"; fi; }
 code() { curl -s -o "$TMP/body" -w '%{http_code}' "$@"; }
+reason_of() { sed -E 's/.*"reason":"([^"]+)".*/\1/' "$1"; }
 J='-H Content-Type:application/json'
 
 check "healthz del gateway"                       200 "$(code localhost:8980/healthz)"
 check "ruta protegida sin token"                  401 "$(code localhost:8980/v1/me)"
+# Aceptaciones del registro (S-GEN-03): edad, términos y privacidad por separado; mercadeo opcional.
+CONSENTS='[{"purpose":"AGE_CONFIRMATION","text_version":"v1","granted":true},{"purpose":"TERMS","text_version":"v1","granted":true},{"purpose":"PRIVACY_DATA_PROCESSING","text_version":"v1","granted":true},{"purpose":"MARKETING","text_version":"v1","granted":false}]'
 check "registro con rol privilegiado rechazado"   400 "$(code -X POST $J -d '{"email":"x@y.co","password":"contraseña-larga-123","role":"PLATFORM_ADMIN"}' localhost:8980/v1/auth/register)"
 check "registro con contraseña corta rechazado"   400 "$(code -X POST $J -d '{"email":"x@y.co","password":"corta"}' localhost:8980/v1/auth/register)"
-check "registro válido (CUSTOMER)"                200 "$(code -X POST $J -d '{"email":"ana@test.co","password":"contraseña-larga-123","full_name":"Ana"}' localhost:8980/v1/auth/register)"
-check "correo duplicado rechazado"                400 "$(code -X POST $J -d '{"email":"ana@test.co","password":"contraseña-larga-123"}' localhost:8980/v1/auth/register)"
+# N-DAT-02 / N-DAT-14: sin las aceptaciones obligatorias no se crea la cuenta.
+check "registro sin consentimientos rechazado"    400 "$(code -X POST $J -d '{"email":"sin@test.co","password":"contraseña-larga-123"}' localhost:8980/v1/auth/register)"
+check "  reason AGE_REQUIREMENT"                        "$(reason_of "$TMP/body")" "AGE_REQUIREMENT"
+check "registro sin confirmar edad rechazado"    400 "$(code -X POST $J -d '{"email":"menor@test.co","password":"contraseña-larga-123","consents":[{"purpose":"TERMS","text_version":"v1","granted":true},{"purpose":"PRIVACY_DATA_PROCESSING","text_version":"v1","granted":true}]}' localhost:8980/v1/auth/register)"
+check "  reason AGE_REQUIREMENT"                         "$(reason_of "$TMP/body")" "AGE_REQUIREMENT"
+check "registro con términos rechazados"         400 "$(code -X POST $J -d '{"email":"noterms@test.co","password":"contraseña-larga-123","consents":[{"purpose":"AGE_CONFIRMATION","text_version":"v1","granted":true},{"purpose":"TERMS","text_version":"v1","granted":false},{"purpose":"PRIVACY_DATA_PROCESSING","text_version":"v1","granted":true}]}' localhost:8980/v1/auth/register)"
+check "  reason CONSENT_REQUIRED"                        "$(reason_of "$TMP/body")" "CONSENT_REQUIRED"
+check "registro válido (CUSTOMER)"                200 "$(code -X POST $J -d '{"email":"ana@test.co","password":"contraseña-larga-123","full_name":"Ana","consents":'"$CONSENTS"'}' localhost:8980/v1/auth/register)"
+check "correo duplicado rechazado"                400 "$(code -X POST $J -d '{"email":"ana@test.co","password":"contraseña-larga-123","consents":'"$CONSENTS"'}' localhost:8980/v1/auth/register)"
+check "  reason EMAIL_TAKEN"                              "$(reason_of "$TMP/body")" "EMAIL_TAKEN"
 check "login con contraseña incorrecta"           401 "$(code -X POST $J -d '{"email":"ana@test.co","password":"incorrecta-incorrecta"}' localhost:8980/v1/auth/login)"
 check "login correcto"                            200 "$(code -X POST $J -d '{"email":"ana@test.co","password":"contraseña-larga-123"}' localhost:8980/v1/auth/login)"
 ACCESS=$(sed -E 's/.*"access_token":"([^"]+)".*/\1/' "$TMP/body")

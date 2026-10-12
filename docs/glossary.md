@@ -126,6 +126,8 @@ Fuentes: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §1.3 
 | **Parámetro legal** | Valor fijado por una norma (tasa, tope, plazo), guardado como dato con vigencia | regulatory-framework §2 P1 y §13 |
 | **Beneficiario final** | Persona natural con 10 % o más de un negocio | regulatory-framework N-AML-04 |
 | **CUFE** | Código único de factura electrónica de la DGI | dominio §2 |
+| **Consentimiento (finalidad)** | Aceptación de una finalidad concreta, con la versión del texto que la persona vio. Valores: `AGE_CONFIRMATION` (mayoría de edad, N-DAT-14), `TERMS`, `PRIVACY_DATA_PROCESSING` y `MARKETING` (opcional). Nunca se agrupan ni se premarcan (N-DAT-02) | regulatory-framework N-DAT-02, S-GEN-03, `ConsentGrant` en identity.proto |
+| **Canal (de un consentimiento)** | Medio por el que se aceptó. Hoy solo `app` (cliente Flutter vía gateway); lo fija el gateway, nunca el cuerpo de la petición | identity.proto `RegisterRequest.channel`, api-gateway R2b |
 | **PAC** | Proveedor autorizado de certificación que transmite a la DGI | dominio §2 |
 | **Folio** | Numeración fiscal asignada al contribuyente | fiscal SPEC |
 | **ITBMS** | Impuesto de Panamá; tasas válidas 0/7/10/15 % (Q-11) | dominio §2 |

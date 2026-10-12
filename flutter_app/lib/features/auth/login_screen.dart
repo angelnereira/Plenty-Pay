@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/widgets/pp_button.dart';
+import '../../core/widgets/pp_text_field.dart';
+import 'register_screen.dart';
 
-/// Inicio de sesión y registro de cliente (docs/ux/screen-catalog.md §2: /login, /register).
+/// S-GEN-02 · `/login` · Iniciar sesión (docs/ux/functional-spec/00-transversal.md).
+/// R4: el mensaje de error es el mismo exista o no el correo (anti-enumeración).
+/// Q-27/S-GEN-04: «¿Olvidaste tu contraseña?» se agrega en F08.7 con sus rutas (Q-26).
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.api, required this.onSignedIn});
+
   final ApiClient api;
   final VoidCallback onSignedIn;
 
@@ -16,8 +22,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
-  final _name = TextEditingController();
-  bool _registering = false;
   bool _busy = false;
   String? _error;
 
@@ -25,7 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
   static String _reasonMessage(AppLocalizations l10n, String reason) => switch (reason) {
         'INVALID_CREDENTIALS' => l10n.error_INVALID_CREDENTIALS,
         'ACCOUNT_LOCKED' => l10n.error_ACCOUNT_LOCKED,
-        'REGISTRATION_REJECTED' => l10n.error_REGISTRATION_REJECTED,
         'IDENTITY_UNAVAILABLE' => l10n.error_IDENTITY_UNAVAILABLE,
         _ => l10n.errorGeneric(reason),
       };
@@ -37,11 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      if (_registering) {
-        await widget.api.registerCustomer(_name.text.trim(), _email.text.trim(), _password.text);
-      } else {
-        await widget.api.login(_email.text.trim(), _password.text);
-      }
+      await widget.api.login(_email.text.trim(), _password.text);
       widget.onSignedIn();
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = _reasonMessage(l10n, e.reason));
@@ -54,11 +53,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _openRegister() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => RegisterScreen(
+        api: widget.api,
+        onRegistered: widget.onSignedIn,
+        onHaveAccount: () => Navigator.of(context).pop(),
+      ),
+    ));
+  }
+
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
-    _name.dispose();
     super.dispose();
   }
 
@@ -77,27 +85,18 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Text(l10n.appTitle, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                Text(_registering ? l10n.registerTitle : l10n.loginTitle, style: theme.textTheme.titleMedium),
+                Text(l10n.loginTitle, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 24),
-                if (_registering) ...[
-                  TextField(controller: _name, decoration: InputDecoration(labelText: l10n.fieldFullName)),
-                  const SizedBox(height: 12),
-                ],
-                TextField(
+                PPTextField(
                   controller: _email,
+                  label: l10n.fieldEmail,
                   keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  decoration: InputDecoration(labelText: l10n.fieldEmail),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                PPTextField(
                   controller: _password,
+                  label: l10n.fieldPassword,
                   obscureText: true,
-                  autofillHints: const [AutofillHints.password],
-                  decoration: InputDecoration(
-                    labelText: l10n.fieldPassword,
-                    helperText: _registering ? l10n.passwordHelper : null,
-                  ),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
@@ -108,15 +107,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ]),
                 ],
                 const SizedBox(height: 24),
-                FilledButton(
+                PPButton.primary(
+                  label: l10n.actionSignIn,
                   onPressed: _busy ? null : _submit,
-                  child: _busy
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text(_registering ? l10n.actionCreateAccount : l10n.actionSignIn),
+                  loading: _busy,
                 ),
-                TextButton(
-                  onPressed: _busy ? null : () => setState(() => _registering = !_registering),
-                  child: Text(_registering ? l10n.actionHaveAccount : l10n.actionWantAccount),
+                PPButton.text(
+                  label: l10n.actionWantAccount,
+                  onPressed: _busy ? null : _openRegister,
                 ),
               ],
             ),

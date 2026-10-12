@@ -66,12 +66,24 @@ enum UserRole {
   CUSTOMER = 4;         // usuario final sin negocio
 }
 
+// Aceptación de una finalidad concreta (N-DAT-02): una por finalidad, nunca agrupadas ni premarcadas.
+// `purpose` ∈ {AGE_CONFIRMATION, TERMS, PRIVACY_DATA_PROCESSING, MARKETING} (docs/glossary.md §4).
+// `text_version` es la versión del texto que la persona vio; la fecha la pone el servidor.
+message ConsentGrant {
+  string purpose = 1;
+  string text_version = 2;
+  bool granted = 3;
+}
+
 message RegisterRequest {
   string email = 1;
   string password = 2;
   string full_name = 3;
   UserRole role = 4;
   string tenant_id = 5; // vacío si es CUSTOMER sin negocio
+  repeated ConsentGrant consents = 6; // obligatorio en el registro público (N-DAT-02, N-DAT-14)
+  string channel = 7;                 // lo fija el gateway, nunca el cuerpo del cliente
+  string device = 8;                  // User-Agent recortado; lo fija el gateway
 }
 
 message LoginRequest {
@@ -89,6 +101,7 @@ message AuthResult {
   UserRole role = 7;
   google.protobuf.Timestamp access_expires_at = 8;
   string session_id = 9;
+  string reason = 10; // código estable cuando success=false (docs/glossary.md §7.3); el gateway lo traduce
 }
 
 message ValidateTokenRequest {

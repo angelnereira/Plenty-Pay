@@ -59,10 +59,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Inicia sesión'), findsOneWidget);
     expect(find.text('Entrar'), findsOneWidget);
+    // S-GEN-03 es su propia pantalla: el login navega a ella (F02.6).
     await tester.tap(find.text('Crear una cuenta'));
     await tester.pumpAndSettle();
     expect(find.text('Crea tu cuenta'), findsOneWidget);
-    expect(find.text('Mínimo 12 caracteres'), findsOneWidget);
+    expect(find.text('Usa al menos 12 caracteres.'), findsOneWidget);
+    expect(find.text('Tengo 18 años o más.'), findsOneWidget);
+    expect(find.text('Acepto los Términos y condiciones.'), findsOneWidget);
+    expect(find.text('Quiero recibir novedades y ofertas.'), findsOneWidget);
   });
 
   testWidgets('login en inglés', (tester) async {

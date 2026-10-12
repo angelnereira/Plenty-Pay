@@ -133,4 +133,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modulePlatform => 'Platform';
+
+  @override
+  String get passwordHelperRegister => 'Use at least 12 characters.';
+
+  @override
+  String get passwordHelperRegisterOk => 'Valid length.';
+
+  @override
+  String get consentAge => 'I am 18 or older.';
+
+  @override
+  String get consentTerms => 'I accept the Terms and Conditions.';
+
+  @override
+  String get consentPrivacy =>
+      'I have read the Privacy Policy and authorize the processing of my data to create and operate my account.';
+
+  @override
+  String get consentMarketing => 'I want to receive news and offers.';
+
+  @override
+  String get registerDataNotice =>
+      'We process your data according to our Privacy Policy.';
+
+  @override
+  String get error_EMAIL_TAKEN => 'An account with this email already exists.';
+
+  @override
+  String get error_WEAK_PASSWORD => 'Choose a less common password.';
+
+  @override
+  String get error_INVALID_EMAIL => 'Enter a valid email address.';
+
+  @override
+  String get error_CONSENT_REQUIRED =>
+      'You must accept the Terms and Conditions and the Privacy Policy.';
+
+  @override
+  String get error_AGE_REQUIREMENT =>
+      'You must confirm that you are at least 18 years old.';
 }

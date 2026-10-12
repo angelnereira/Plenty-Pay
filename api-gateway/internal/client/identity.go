@@ -42,11 +42,20 @@ type ValidatedSession struct {
 type AuthResult struct {
 	Success      bool
 	ErrorMessage string
+	Reason       string // código estable de identity (docs/glossary.md §7.3); el gateway lo propaga tal cual
 	AccessToken  string
 	RefreshToken string
 	UserID       string
 	TenantID     string
 	Role         string
+}
+
+// Consent es una aceptación del registro público (identity.proto ConsentGrant): la versión del
+// texto que la persona vio la envía la app; el gateway NUNCA la inventa.
+type Consent struct {
+	Purpose     string
+	TextVersion string
+	Granted     bool
 }
 
 type Permissions struct {
@@ -71,7 +80,7 @@ func (c *IdentityClient) ValidateToken(ctx context.Context, accessToken string) 
 
 func toAuthResult(res *pb.AuthResult) *AuthResult {
 	return &AuthResult{
-		Success: res.Success, ErrorMessage: res.ErrorMessage,
+		Success: res.Success, ErrorMessage: res.ErrorMessage, Reason: res.Reason,
 		AccessToken: res.AccessToken, RefreshToken: res.RefreshToken,
 		UserID: res.UserId, TenantID: res.TenantId, Role: res.Role.String(),
 	}
@@ -89,10 +98,21 @@ func (c *IdentityClient) Login(ctx context.Context, email, password string) (*Au
 
 // RegisterCustomer registra SIEMPRE un CUSTOMER sin tenant: el gateway nunca reenvía un rol ni un
 // tenant elegidos por quien llama (escalada de privilegios — api-gateway/SPEC.md R3).
-func (c *IdentityClient) RegisterCustomer(ctx context.Context, email, password, fullName string) (*AuthResult, error) {
+// `consents` son las aceptaciones de la persona (N-DAT-02); `channel` y `device` los fija el
+// gateway, nunca el cliente (identity.proto RegisterRequest).
+func (c *IdentityClient) RegisterCustomer(ctx context.Context, email, password, fullName string, consents []Consent, channel, device string) (*AuthResult, error) {
 	ctx, cancel := withDeadline(ctx)
 	defer cancel()
-	res, err := c.client.Register(ctx, &pb.RegisterRequest{Email: email, Password: password, FullName: fullName, Role: pb.UserRole_CUSTOMER})
+	pbConsents := make([]*pb.ConsentGrant, 0, len(consents))
+	for _, consent := range consents {
+		pbConsents = append(pbConsents, &pb.ConsentGrant{
+			Purpose: consent.Purpose, TextVersion: consent.TextVersion, Granted: consent.Granted,
+		})
+	}
+	res, err := c.client.Register(ctx, &pb.RegisterRequest{
+		Email: email, Password: password, FullName: fullName, Role: pb.UserRole_CUSTOMER,
+		Consents: pbConsents, Channel: channel, Device: device,
+	})
 	if err != nil {
 		return nil, c.fail(ctx, "identity.Register", err)
 	}

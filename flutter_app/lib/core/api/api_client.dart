@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../observability/app_logger.dart';
 import '../session/session_store.dart';
+import 'consents.dart';
 
 /// Error del gateway: {"error": "...", "reason": "...", "request_id": "..."} (api-gateway/SPEC.md §3.11).
 /// La UI traduce `reason` con ARB; nunca muestra texto técnico. `requestId` es el código de soporte
@@ -191,10 +192,17 @@ class ApiClient {
   }
 
   /// El registro público siempre crea CUSTOMER (el gateway lo fuerza: api-gateway R2).
-  Future<void> registerCustomer(String fullName, String email, String password) async {
+  /// `consents` son las aceptaciones de S-GEN-03 (N-DAT-02, N-DAT-14): cada una lleva la versión
+  /// del texto que la persona vio; el canal y el dispositivo los fija el gateway.
+  Future<void> registerCustomer(String fullName, String email, String password, List<ConsentGrant> consents) async {
     final body = await _post(
       '/v1/auth/register',
-      data: {'full_name': fullName, 'email': email, 'password': password},
+      data: {
+        'full_name': fullName,
+        'email': email,
+        'password': password,
+        'consents': consents.map((c) => c.toJson()).toList(),
+      },
       skipAuth: true,
       skipIdempotency: true,
     );
