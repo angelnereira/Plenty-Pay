@@ -1,5 +1,5 @@
 // Package observability expone el puerto admin del contenedor (observability-standards.md §4).
-// Hoy: salud. Las métricas (`/metrics`) llegan en F04.6.
+// Salud y `/metrics` (contadores de peticiones, errores y pánicos; el resto de métricas llega con F04.1).
 package observability
 
 import (
@@ -12,8 +12,14 @@ import (
 
 // NewAdminHandler sirve `/healthz/live` (proceso vivo) y `/healthz/ready` (listo para recibir tráfico).
 // `ready` es false durante el arranque y el apagado ordenado.
-func NewAdminHandler(ready *atomic.Bool) http.Handler {
+func NewAdminHandler(ready *atomic.Bool, metrics *Metrics) http.Handler {
 	mux := http.NewServeMux()
+	if metrics != nil {
+		mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+			metrics.WritePrometheus(w)
+		})
+	}
 	mux.HandleFunc("GET /healthz/live", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -30,10 +36,10 @@ func NewAdminHandler(ready *atomic.Bool) http.Handler {
 }
 
 // NewAdminServer arma el servidor HTTP del puerto admin (nunca se publica fuera de la red interna).
-func NewAdminServer(port string, ready *atomic.Bool) *http.Server {
+func NewAdminServer(port string, ready *atomic.Bool, metrics *Metrics) *http.Server {
 	return &http.Server{
 		Addr:              ":" + port,
-		Handler:           NewAdminHandler(ready),
+		Handler:           NewAdminHandler(ready, metrics),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 }

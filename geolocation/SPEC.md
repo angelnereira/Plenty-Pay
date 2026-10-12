@@ -31,6 +31,7 @@ Scylla: `geo_tracks.points ((tenant_id, subject_id, day), recorded_at) WITH defa
 | UpsertGeofence / ListGeofences / DeleteGeofence | `logistics:geofence:manage` | círculo (centro+radio 20 m–50 km) o polígono ≤ 200 vértices |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LOG-06. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** `subject_id` = `user:<uuid>` o `device:<uuid>`; siempre con tenant.
 - **R2** Retención: series 90 días (TTL); última posición se borra 30 días sin actualización.
 - **R3** Cruce de geocerca: cambio de estado inside/outside con histéresis de 2 pings consecutivos → `GeofenceCrossed`.

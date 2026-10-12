@@ -14,7 +14,7 @@
 | Fase | F09 (núcleo), crece con cada fase que expone rutas |
 | Capa de arranque | L5 |
 
-**Estado actual**: implementado `GET /healthz`, `POST /v1/auth/{login,register,refresh}`, `GET /v1/me`, `GET /v1/me/permissions` (devuelve `role`, `enabled_modules`, `permissions`), middleware `RequireAuth`, errores `{"error","reason"}`, cuerpo ≤ 1 MiB con campos desconocidos rechazados. 10 pruebas unitarias + E2E con identity (14 comprobaciones).
+**Estado actual**: implementado `GET /healthz`, `POST /v1/auth/{login,register,refresh}`, `GET /v1/me`, `GET /v1/me/permissions` (devuelve `role`, `enabled_modules`, `permissions`), middleware `RequireAuth`, errores `{"error","reason","request_id"}`, `X-Request-Id` respetado o generado (UUIDv7) y devuelto, propagación de `traceparent` y `x-pp-request-id` a identity, log de acceso JSON por petición, recuperación de pánicos, cuerpo ≤ 1 MiB con campos desconocidos rechazados. 10 pruebas unitarias + E2E con identity (14 comprobaciones).
 
 ## 3. Cadena de middleware (orden obligatorio)
 1. Recuperación de pánico → 500 `INTERNAL` con `request_id`.
@@ -219,7 +219,11 @@ Exceso → 429 `RATE_LIMITED` + `Retry-After`. Contadores en NATS KV (ventana de
 | Variable | Oblig. | Default |
 |---|---|---|
 | `PORT` | no | `8080` (implementado) |
-| `ADMIN_PORT` | no | `9100` — salud `/healthz/live` y `/healthz/ready` (implementado, F02.1); métricas en F04.6 |
+| `ADMIN_PORT` | no | `9100` — salud `/healthz/live` y `/healthz/ready` (implementado, F02.1) y `/metrics` (contadores, implementado) |
+| `LOG_LEVEL` | no | `info` (`debug`, `info`, `warn`, `error`) |
+| `DEPLOY_ENV` | no | `dev` — valor de `deployment.environment.name` |
+| `OTEL_TRACES_EXPORTER` | no | vacío (no exporta) o `console` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | no | colector OTLP gRPC; si se define, tiene prioridad |
 | `IDENTITY_SERVICE_URL` | sí | `identity:50060` (implementado) |
 | `<SERVICIO>_ADDR` por servicio expuesto | sí al activar su fase | `<servicio>:<puerto>` |
 | `ALLOWED_ORIGINS` | sí en prod | — |

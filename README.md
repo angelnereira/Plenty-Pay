@@ -32,6 +32,9 @@ Todo de código abierto; sin dependencia de un proveedor de nube.
 | [`docs/standards/`](docs/standards) | gRPC, datos, eventos, seguridad, observabilidad, pruebas, Go, Rust, Flutter, entrega |
 | [`docs/architecture/service-dependencies.md`](docs/architecture/service-dependencies.md) | 23 contenedores, puertos, quién llama a quién, degradación |
 | [`docs/ux/screen-catalog.md`](docs/ux/screen-catalog.md) · [`docs/design-system.md`](docs/design-system.md) | Pantallas por módulo/rol y sistema visual |
+| [`docs/ux/functional-spec/`](docs/ux/functional-spec/README.md) | Requisitos funcionales y ficha de cada pantalla: elementos, textos, validaciones, flujos y conexiones entre módulos |
+| [`docs/compliance/regulatory-framework.md`](docs/compliance/regulatory-framework.md) | Normas de Panamá y estándares internacionales convertidos en reglas de negocio `N-…`, con fuentes y nivel de verificación |
+| [`docs/compliance/international-standards.md`](docs/compliance/international-standards.md) | Estándares internacionales (ISO 4217, ISO 8601, GS1, PCI DSS, EMV QR, WCAG, NIST, RFC 9457) convertidos en reglas `N-STD-…` |
 | [`docs/open-questions.md`](docs/open-questions.md) | Lo que requiere decisión de negocio/legal/proveedor |
 | `<contenedor>/SPEC.md` | Especificación ejecutable de cada contenedor |
 

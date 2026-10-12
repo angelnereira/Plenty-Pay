@@ -50,6 +50,7 @@ CREATE TABLE inventory.sales_velocity (tenant_id uuid, variant_id uuid, warehous
 | GetReorderSuggestions | `inventory:read` | §5 R6 |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LOG-01 y N-LOG-07. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Movimientos inmutables; `on_hand` = Σ movimientos (job de verificación diario).
 - **R2** Por defecto `available` no puede quedar < 0 en reservas y ajustes; ventas POS **sí** pueden dejar negativo (venta física ya ocurrida) marcando alerta `NEGATIVE_STOCK` para revisión (configurable por tenant).
 - **R3** Bloqueo por fila de `stock_levels` en orden `(warehouse_id, variant_id)` ascendente.

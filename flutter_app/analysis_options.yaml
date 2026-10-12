@@ -1,6 +1,10 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    avoid_print: error
+    empty_catches: error
+    unawaited_futures: error
   exclude:
     - build/**
     - android/**
@@ -19,3 +23,6 @@ linter:
     - prefer_final_locals
     - avoid_print
     - always_declare_return_types
+    # observability-standards.md §14: ningún fallo se descarta en silencio
+    - empty_catches
+    - unawaited_futures

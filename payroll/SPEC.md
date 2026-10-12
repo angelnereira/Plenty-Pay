@@ -49,11 +49,12 @@ CREATE TABLE payroll.payslips (id uuid PRIMARY KEY, run_id uuid NOT NULL, employ
 | GetPayslip | `payroll:payslip:read:self` o `payroll:employee:read` | PDF |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LAB-01 a N-LAB-16 y N-DAT-04. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Marcaje biométrico: la comparación facial se hace **en el dispositivo** contra el embedding descargado cifrado para ese quiosco/usuario; el servidor recibe método + resultado + prueba de vida firmada por la app; nunca la foto (salvo disputa, 30 días).
 - **R2** QR dinámico: código rotativo cada 30 s (TOTP con secreto del quiosco) que el empleado escanea con su app; NFC: tag NDEF del quiosco con el mismo contenido firmado.
 - **R3** Si el empleado tiene geocerca, `IsInside` debe ser verdadero; si no → marcaje aceptado con `needs_review=true`.
 - **R4** Secuencia válida IN → (BREAK_START → BREAK_END)* → OUT; duplicados en < 60 s se ignoran (idempotentes por `client_txn_id`); anulación de gerente exige motivo y queda auditada.
-- **R5** Cálculo (MVP, configurable por tenant): horas trabajadas por día según marcajes y turno; horas extra > 8 h/día o > 48 h/semana con recargo configurable (por defecto 25 %); salario fijo prorrateado por frecuencia; deducciones parametrizables (CSS, Seguro Educativo, ISR) con tasas en bps configurables — **valores legales vigentes por confirmar (Q-13)**; redondeo half-up por concepto; `net ≥ 0`.
+- **R5** Cálculo: horas trabajadas por día según marcajes y turno; cada turno se clasifica como diurno, nocturno o mixto (N-LAB-01) y las horas sobre la jornada máxima de su tipo son extraordinarias con recargo de 25 %, 50 % o 75 % (N-LAB-02); sobre 3 h extra al día o 9 a la semana el excedente lleva 75 % (N-LAB-03); décimo tercer mes y vacaciones como tipos de corrida (N-LAB-05, N-LAB-06); salario fijo prorrateado por frecuencia; deducciones y aportes (CSS, Seguro Educativo, riesgos profesionales, ISR) con las tasas `legal.pa.*` vigentes en el período (N-LAB-07 a N-LAB-11) — **valores marcados ◐ o ⚠ por confirmar (Q-13)**; redondeo half-up por concepto; `net ≥ 0`.
 - **R6** Pago: saldo de wallet del tenant ≥ Σ netos (si no → `INSUFFICIENT_FUNDS` antes de empezar); fallos individuales → PARTIALLY_FAILED con reintento solo de los fallidos.
 - **R7** Comprobante PDF por empleado y notificación.
 - **R8** Modo offline del quiosco: marcajes guardados localmente y sincronizados con `client_txn_id`.

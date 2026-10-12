@@ -39,7 +39,7 @@ Dependencias permitidas entre paquetes: `server → service → domain`; `servic
 4. **Dinero**: `domain.Money{AmountMinor int64; Currency string}` con operaciones que devuelven error ante desbordamiento o mezcla de monedas. Prohibido `float32/float64` en dominio de dinero (lint).
 5. **SQL**: pgx v5 con `pgxpool`; consultas parametrizadas; preferente **sqlc** para generar código desde `queries/*.sql`. Cada consulta lleva nombre estable para métricas. Transacciones con `pgx.BeginTxFunc`; nivel `READ COMMITTED` salvo que el SPEC exija otro; bloqueo `SELECT ... FOR UPDATE` en orden de id para evitar deadlocks.
 6. **Tenant**: helper `tenancy.FromContext(ctx)` lee metadatos; el store recibe el tenant explícito y además ejecuta `SET LOCAL app.tenant_id = $1` en cada transacción (RLS).
-7. **Logs**: `log/slog` con handler JSON y los campos de `observability-standards.md` §1.
+7. **Logs y errores**: `log/slog` con handler JSON y los campos de `observability-standards.md` §1; modelo de error, trazas de pila y OpenTelemetry según `observability-standards.md` §9–§15 (prohibido `log.Printf`; errores envueltos con `%w`; registro único en el borde).
 8. **Concurrencia**: nada de goroutines sueltas sin dueño; usar `errgroup` con contexto; canales con tamaño justificado.
 9. **Configuración**: solo variables de entorno con prefijo `PP_`/nombres del `.env.example`; validación al arrancar (falla rápido con mensaje claro, sin imprimir valores secretos).
 10. **Apagado ordenado**: SIGTERM → `ready=false` → `GracefulStop` gRPC con tope de **25 s** → cerrar consumidores → vaciar outbox relay → cerrar pool.

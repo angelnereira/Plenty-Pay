@@ -6,10 +6,11 @@ Una sola app para Android, iOS, Linux, Windows, macOS y Web (ADR 0009). Habla **
 | Aspecto | Estado | Evidencia |
 |---|---|---|
 | Código | 📝 base multiplataforma: proyectos nativos de las 6 plataformas, flavors dev/staging/prod, i18n `es_PA`/`en`, tema claro/oscuro con tokens, sesión segura, ApiClient con refresh único, login/registro, shell con navegación dinámica por `enabled_modules`, registro de 12 módulos | F02.3 |
-| Pruebas | L1: `flutter analyze` sin issues y `flutter test` 19/19 (flavors, i18n, registro de módulos) con Flutter 3.47.6 | 2026-10-10 |
+| Pruebas | L1: `flutter analyze` sin issues y `flutter test` 30/30 (flavors, i18n, registro de módulos, observabilidad) con Flutter 3.47.6 | 2026-10-10 |
 | Compila | Web (`flutter build web`), Android (`flutter build apk --debug`) y Linux (`flutter build linux --release`, la app arranca) | 2026-10-10 |
 | No verificado | iOS/macOS requieren un Mac; Windows requiere Windows | — |
 | Builds en `output/` | 📋 | F02.7 |
+| Observabilidad | 📝 Implementado y probado 2026-10-12 (`core/observability/app_logger.dart`): las tres capturas globales, registro de error con pantalla, widget, pila y últimas 20 migas, enmascarado de datos sensibles, `X-Request-Id` (UUIDv7) y `traceparent` en cada petición, `ApiException.requestId`, cola acotada de 500 registros, lints `empty_catches` y `unawaited_futures` como error. **Falta**: envío al gateway (`POST /v1/telemetry` no existe), persistencia de la cola al cerrar la app, estado de red, métricas de rendimiento, símbolos de des-ofuscación y `ErrorState` por sección (depende de F02.4) | `flutter test` 30/30; F22.6 |
 
 Versión de Flutter fijada: **3.47.6** (estable), Dart ≥ 3.6.
 

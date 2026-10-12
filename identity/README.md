@@ -13,8 +13,9 @@ Usuarios, negocios (tenants), sesiones, roles, permisos y confirmación fuerte. 
 |---|---|---|
 | Código | 📝 parcial: Register, Login, ValidateToken, GetUserPermissions (catálogo de permisos + presets + módulos derivados), RefreshToken con almacén **en memoria** | |
 | Pruebas | L1 `go test -race ./...` (server + permisos) y L4 `scripts/e2e-identity-gateway.sh` (14 comprobaciones) — ejecutadas 2026-10-10 | |
-| Imagen Docker | Plantilla de `go-standards.md` §6 (golang:1.24-alpine → distroless nonroot, `go mod download`); construida y `healthy` en Compose — 2026-10-10 | |
+| Imagen Docker | Plantilla de `go-standards.md` §6 (golang:1.24-alpine → distroless nonroot, `go mod download`); construida y `healthy` en Compose — 2026-10-10 . **No reconstruida tras F04.6** (2026-10-12: el daemon de Docker no estaba disponible); sí compila con los mismos parámetros del Dockerfile (`CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"`) | |
 | Salud | Puerto admin `:9100` con `/healthz/live` y `/healthz/ready`, subcomando `/app healthcheck`, apagado ordenado con SIGTERM (F02.1); `/metrics` en F04.6 | L1 `internal/observability` |
+| Observabilidad | 📝 Implementado y probado 2026-10-12: logs JSON de una línea con `request_id`, `trace_id` y `span_id`; modelo de error con pila en el origen y registro único en el borde; recuperación de pánicos con `pp_panics_total`; trazas OpenTelemetry con propagación W3C; `/metrics` con contadores. **Falta para cerrar F04.6**: histogramas y el resto de métricas obligatorias (§2.1), puente de logs a OTLP (hoy solo stdout), exportación verificada contra un colector real (F04.1) y `golangci-lint` con las reglas de §14 (herramienta no instalada: no ejecutado) | L1: pruebas `TestObs_*`; L4: E2E 23/23 con la misma traza en gateway e identity |
 
 ## Arranque local
 ```bash

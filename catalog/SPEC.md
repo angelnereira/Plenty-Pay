@@ -57,6 +57,7 @@ Scylla `catalog_attrs.product_attributes (tenant_id, product_id, attr_key, attr_
 | UpdateStorefront | `catalog:listing:manage` | slug único `^[a-z0-9-]{3,40}$` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-01, N-FIS-02, N-FIS-13, N-CON-02, N-CON-03, N-CON-07, N-CON-09, N-LOG-01, N-LOG-04, N-LOG-05, N-FMT-08 y N-FMT-09. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** SKU único por tenant; barcode único por tenant si existe.
 - **R2** Precios enteros ≥ 0; precio por sucursal sobrescribe al base.
 - **R3** Cambios de precio no afectan ventas/pedidos existentes (instantáneas en pos/orders).

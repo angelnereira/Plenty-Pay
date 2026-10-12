@@ -25,6 +25,7 @@ Agregados particionados por mes; todo con `tenant_id` + RLS.
 | **AskQuestion** *(agregar al .proto en F21.8)* | `analytics:read` | §5 R6 |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-11, N-FIS-12 y N-COM-03. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Consumidores idempotentes de todos los eventos de negocio (`events-and-messaging.md` §7); los agregados se recalculan desde eventos crudos si cambia una definición (`backfill` por tenant/rango).
 - **R2** Catálogo de métricas (definición exacta en `analytics/metrics.yaml`, versionado): `gross_sales`, `net_sales` (tras reembolsos), `orders_count`, `avg_ticket`, `items_sold`, `refund_rate`, `top_products`, `gross_margin` (si hay costo), `new_vs_returning_customers`, `payment_mix_by_rail`, `settlement_paid`, `fees_paid`.
 - **R3** Anomalías: por métrica diaria, z-score robusto (mediana y MAD de 28 días, estacionalidad semanal); |z| > 3.5 → `alert_event`; máximo 1 alerta/métrica/día; notificación vía notifications (evento a definir `pp.analytics.alert.triggered.v1` en F21.6).

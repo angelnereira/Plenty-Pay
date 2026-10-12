@@ -14,7 +14,7 @@ func newTestServer(t *testing.T) *IdentityServer {
 	if err != nil {
 		t.Fatalf("NewTokenIssuer: %v", err)
 	}
-	return NewIdentityServer(store.NewInMemoryUserStore(), tokens)
+	return NewIdentityServer(store.NewInMemoryUserStore(), tokens, nil)
 }
 
 func TestRegisterLoginValidateFlow(t *testing.T) {

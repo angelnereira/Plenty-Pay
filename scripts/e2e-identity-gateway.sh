@@ -42,6 +42,20 @@ grep -q '"enabled_modules":\["wallet","marketplace"\]' "$TMP/body" && grep -q '"
   || { FAIL=$((FAIL+1)); echo "  FAIL módulos de CUSTOMER incorrectos: $(cat "$TMP/body")"; }
 check "refresh con refresh token"                 200 "$(code -X POST $J -d "{\"refresh_token\":\"$REFRESH\"}" localhost:8980/v1/auth/refresh)"
 check "refresh con un ACCESS token (debe fallar)" 401 "$(code -X POST $J -d "{\"refresh_token\":\"$ACCESS\"}" localhost:8980/v1/auth/refresh)"
+# Observabilidad (observability-standards.md §15.3): una petición con traceparent deja el MISMO trace_id y
+# request_id en los logs del gateway y de identity; los errores llevan request_id; /metrics responde.
+TRACE=4bf92f3577b34da6a3ce929d0e0e4736; RID=0192f0c1-7b2a-7c3d-8e4f-5a6b7c8d9e0f
+check "petición trazada"                          200 "$(code -H "Authorization: Bearer $ACCESS" -H "traceparent: 00-$TRACE-00f067aa0ba902b7-01" -H "X-Request-Id: $RID" localhost:8980/v1/me/permissions)"
+sleep 0.3
+ok_if() { if eval "$2"; then PASS=$((PASS+1)); echo "  ok   $1"; else FAIL=$((FAIL+1)); echo "  FAIL $1"; fi; }
+ok_if "gateway registra trace_id y request_id del cliente"  "grep '\"trace_id\":\"$TRACE\"' '$TMP/gateway.log' | grep -q '\"request_id\":\"$RID\"'"
+ok_if "identity continúa la misma traza y request_id"       "grep '\"trace_id\":\"$TRACE\"' '$TMP/identity.log' | grep -q '\"request_id\":\"$RID\"'"
+check "error con X-Request-Id"                    401 "$(code -H "X-Request-Id: $RID" localhost:8980/v1/me)"
+ok_if "el cuerpo de error lleva request_id"                 "grep -q '\"request_id\":\"$RID\"' '$TMP/body'"
+ok_if "todo registro es JSON con ts, level, service y msg"  "! grep -vE '^\{\"ts\":\"[0-9T:.-]+Z\",\"level\":\"(debug|info|warn|error)\",\"msg\":' '$TMP/gateway.log' '$TMP/identity.log' | grep -q ."
+ok_if "ningún registro contiene tokens ni contraseñas"      "! grep -qE 'eyJ[A-Za-z0-9_-]{5,}\\.|contraseña-larga|$REFRESH' '$TMP/gateway.log' '$TMP/identity.log'"
+check "/metrics del gateway (puerto admin)"       200 "$(code localhost:59180/metrics)"
+ok_if "/metrics expone pp_build_info y pp_panics_total"     "grep -q 'pp_build_info{service=\"api-gateway\"' '$TMP/body' && grep -q 'pp_panics_total{service=\"api-gateway\"} 0' '$TMP/body'"
 
 echo; echo "$PASS correctas, $FAIL fallidas"
 [ "$FAIL" -eq 0 ] || { echo "--- logs ---"; tail -n 5 "$TMP/identity.log" "$TMP/gateway.log"; exit 1; }

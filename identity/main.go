@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -29,6 +29,8 @@ var version = "dev"
 // Tope del apagado ordenado (go-standards.md §3.10).
 const shutdownTimeout = 25 * time.Second
 
+const serviceName = "identity"
+
 func envOr(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -37,11 +39,22 @@ func envOr(key, def string) string {
 }
 
 func main() {
+	logger := observability.NewLogger(os.Stdout, serviceName, version, observability.ParseLevel(os.Getenv("LOG_LEVEL")))
+	slog.SetDefault(logger)
+	metrics := observability.NewMetrics(serviceName, version)
+	reporter := observability.NewReporter(logger, serviceName, metrics)
+	ctx := context.Background()
+	// fatal registra el fallo de arranque con su pila y termina: sin esto el proceso no puede servir.
+	fatal := func(msg string, err error) {
+		reporter.Defect(ctx, msg, observability.Wrap(err, "startup"))
+		os.Exit(1)
+	}
+
 	adminPort := envOr("ADMIN_PORT", "9100")
 	// Subcomando para el healthcheck de Compose/Kubernetes (imagen distroless, sin shell ni curl).
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		if err := observability.Healthcheck(context.Background(), "http://127.0.0.1:"+adminPort); err != nil {
-			log.Printf("healthcheck: %v", err)
+			logger.Warn("healthcheck failed", "err", err.Error())
 			os.Exit(1)
 		}
 		return
@@ -50,11 +63,11 @@ func main() {
 	port := envOr("PORT", "50060")
 	accessSecret, refreshSecret := os.Getenv("ACCESS_TOKEN_SECRET"), os.Getenv("REFRESH_TOKEN_SECRET")
 	if accessSecret == "" || refreshSecret == "" {
-		log.Fatal("ACCESS_TOKEN_SECRET y REFRESH_TOKEN_SECRET son obligatorios — ver .env.example. Nunca hay un secreto por defecto.")
+		fatal("missing token secrets", errors.New("ACCESS_TOKEN_SECRET y REFRESH_TOKEN_SECRET son obligatorios (ver .env.example); nunca hay un secreto por defecto"))
 	}
 	tokens, err := auth.NewTokenIssuer(accessSecret, refreshSecret)
 	if err != nil {
-		log.Fatalf("configuración de tokens inválida: %v", err)
+		fatal("invalid token configuration", err)
 	}
 
 	// Fase 8 (identity/SPEC.md §12): reemplazar por la implementación sobre postgres-db. Solo cambia esta línea.
@@ -63,21 +76,25 @@ func main() {
 	var ready atomic.Bool
 	adminLis, err := net.Listen("tcp", ":"+adminPort)
 	if err != nil {
-		log.Fatalf("no se pudo escuchar en el puerto admin :%s: %v", adminPort, err)
+		fatal("admin port listen failed", err)
 	}
-	adminSrv := observability.NewAdminServer(adminPort, &ready)
+	adminSrv := observability.NewAdminServer(adminPort, &ready, metrics)
 	go func() {
 		if err := adminSrv.Serve(adminLis); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("fallo del servidor admin: %v", err)
+			fatal("admin server failed", err)
 		}
 	}()
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("no se pudo escuchar en :%s: %v", port, err)
+		fatal("grpc port listen failed", err)
 	}
-	grpcServer := grpc.NewServer()
-	pb.RegisterIdentityServer(grpcServer, server.NewIdentityServer(users, tokens))
+	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
+	if err != nil {
+		fatal("tracing setup failed", err)
+	}
+	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(observability.UnaryServerInterceptor(logger, reporter, metrics)))
+	pb.RegisterIdentityServer(grpcServer, server.NewIdentityServer(users, tokens, reporter))
 	healthSrv := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthSrv)
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
@@ -89,7 +106,7 @@ func main() {
 	go func() {
 		defer close(done)
 		<-stop
-		log.Print("identity: apagado ordenado")
+		logger.Info("graceful shutdown started")
 		ready.Store(false)
 		healthSrv.Shutdown()
 		stopped := make(chan struct{})
@@ -99,15 +116,16 @@ func main() {
 		case <-time.After(shutdownTimeout):
 			grpcServer.Stop()
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = adminSrv.Shutdown(ctx)
+		_ = adminSrv.Shutdown(sctx)
+		_ = shutdownTracing(sctx) // vacía los spans pendientes antes de salir
 	}()
 
 	ready.Store(true)
-	log.Printf("identity %s escuchando en :%s (admin :%s)", version, port, adminPort)
+	logger.Info("service started", "port", port, "admin_port", adminPort)
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("fallo del servidor gRPC: %v", err)
+		fatal("grpc server failed", err)
 	}
 	<-done
 }

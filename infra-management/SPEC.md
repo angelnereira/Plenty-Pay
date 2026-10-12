@@ -21,6 +21,7 @@ Go · 50074 · `infra_management.proto` · esquema `infra` (fuente de verdad y a
 | GetClientConfig | público | `{min_app_version, latest_app_version, api_base_url, realtime_url, features:{...}, maintenance}` sin datos sensibles |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa el principio P1 (parámetros `legal.pa.*` con vigencia y doble aprobación) y N-AML-01. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Cada servicio lee flags/config de NATS KV con caché local y **último valor conocido** si KV cae.
 - **R2** Flags iniciales obligatorios: `rail.<rail>.enabled`, `payments.enabled` (por tenant), `marketplace.enabled`, `pos.offline.enabled`, `analytics.ask.enabled`, `signup.business.enabled`.
 - **R3** Configs iniciales: `limits.payment.max_minor` (1 000 000), `limits.wallet.max_balance_minor` (500 000), `stepup.threshold_minor` (10 000), `holidays.pa` (lista de fechas), `ratelimits.*`.

@@ -121,12 +121,21 @@ Fuentes: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §1.3 
 | **Carrier / Driver** | Transportista / repartidor. `courier` es solo el nombre del preset de rol | `logistics.proto` |
 | **Step-up** | Confirmación fuerte para una operación concreta | seguridad §4 |
 | **KYB** | Verificación del negocio para pasar a `ACTIVE` (Q-04) | dominio §3 |
+| **Nivel de verificación** | `KYC_0`, `KYC_1`, `KYC_2`: cuánto se ha verificado la identidad del usuario; decide sus límites | regulatory-framework N-AML-03 |
+| **Descuento legal** | Descuento obligatorio por ley a jubilados, tercera edad y personas con discapacidad; distinto del descuento comercial | regulatory-framework N-CON-04 |
+| **Parámetro legal** | Valor fijado por una norma (tasa, tope, plazo), guardado como dato con vigencia | regulatory-framework §2 P1 y §13 |
+| **Beneficiario final** | Persona natural con 10 % o más de un negocio | regulatory-framework N-AML-04 |
 | **CUFE** | Código único de factura electrónica de la DGI | dominio §2 |
 | **PAC** | Proveedor autorizado de certificación que transmite a la DGI | dominio §2 |
 | **Folio** | Numeración fiscal asignada al contribuyente | fiscal SPEC |
 | **ITBMS** | Impuesto de Panamá; tasas válidas 0/7/10/15 % (Q-11) | dominio §2 |
 | **Outbox** | Tabla donde se escribe el evento en la misma transacción que el cambio | eventos §4 |
 | **Módulo** | Sección de la app visible según permisos | §6.3 |
+| **Clase de error** | De dominio (esperable), de dependencia (reintentable) o defecto (bug): decide nivel de log, estado del span y qué ve el cliente | observability-standards §10 |
+| **Huella de error** | `pp.error.fingerprint`: agrupa ocurrencias del mismo defecto | observability-standards §10.7 |
+| **Código de soporte** | El `request_id` que el usuario ve y copia ante un error inesperado | observability-standards §13.4 |
+| **MCC** | Código de categoría del comercio, 4 dígitos (ISO 18245) | international-standards N-STD-35 |
+| **Código interno** | Código de barras con prefijo `02` o `20`–`29`: válido solo dentro del negocio | international-standards N-STD-24 |
 
 "dominio" = [`domain/domain-model.md`](domain/domain-model.md); "seguridad" = [`standards/security-standards.md`](standards/security-standards.md); "eventos" = [`standards/events-and-messaging.md`](standards/events-and-messaging.md).
 
@@ -272,6 +281,7 @@ Transversales (cualquier servicio): `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE
 | fiscal-invoicing | `PROFILE_MISSING`, `NOT_READY`, `INVALID_RUC`, `INVALID_TAXPAYER`, `TOTALS_MISMATCH`, `PAC_AUTH_FAILED`, `RELATED_NOT_ACCEPTED`, `EXCEEDS_ORIGINAL` |
 | orders | `PRICE_CHANGED`, `LISTING_UNAVAILABLE`, `CART_LIMIT`, `ACCEPT_DEADLINE_PASSED`, `OUT_OF_STOCK` |
 | pos | `PRICE_STALE`, `DISCOUNT_EXCEEDS_LIMIT`, `TENDERS_MISMATCH`, `SESSION_ALREADY_OPEN`, `SESSION_CLOSED`, `SALES_PENDING`, `HAS_CAPTURED_PAYMENTS`, `EXCEEDS_SOLD_QTY`, `CREDIT_LIMIT_EXCEEDED`, `INSUFFICIENT_POINTS` |
+| normativos (declarados en `compliance/regulatory-framework.md`; se agregan a la columna *Errores* del SPEC dueño al implementar) | `KYC_REQUIRED`, `ACCOUNT_UNDER_REVIEW`, `CONSENT_REQUIRED`, `AGE_REQUIREMENT`, `INVALID_TAX_RATE`, `FISCAL_RECEIVER_REQUIRED`, `LEGAL_DISCOUNT_ID_REQUIRED`, `BELOW_MINIMUM_WAGE`, `DRIVER_DOCS_EXPIRED` |
 
 Los contenedores sin fila (catalog, inventory, logistics, geolocation, payroll, notifications, analytics-bi, security, infra-management) aún no declaran `reason` propios en su SPEC; al declararlos se agregan aquí (paso F03.5).
 
@@ -336,6 +346,11 @@ Rutas de administración (puerto `9100`, nunca publicado): `/healthz/live`, `/he
 | Vector de comisiones | letra o `R<n>` | `A`, `C-err`, `R2` |
 | Flujo de dominio | `F<n>` de una cifra (dominio §7) | `F3` cobro QR. No confundir con la fase `F03` |
 | Pregunta abierta | `Q-NN` | `Q-07` |
+| Regla normativa | `N-<área>-<nn>`; áreas `FIS`, `AML`, `DAT`, `LAB`, `CON`, `COM`, `PAG`, `LOG`, `FMT` (Panamá) y `STD` (estándares internacionales) | `N-LAB-02`, `N-STD-10` |
+| Pantalla | `S-<módulo>-<nn>` | `S-POS-02` |
+| Requisito funcional | `RF-<módulo>-<nn>` | `RF-WAL-03` |
+| Comportamiento común de pantalla | `C-<nn>` | `C-05` |
+| Parámetro legal | `legal.pa.<área>.<nombre>` con `effective_from` | `legal.pa.css.employer_bps` |
 | ADR | 4 dígitos | `0013` |
 | Nivel de verificación | `L0`–`L4` | `L1` |
 | Prueba | id de regla en el nombre | `TestR4_...`, `r4_...`, `test('R4 ...')` |

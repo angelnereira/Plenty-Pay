@@ -2,11 +2,11 @@ package server
 
 import (
 	"context"
-	"log"
 	"regexp"
 	"strings"
 
 	"plentypay/identity/internal/auth"
+	"plentypay/identity/internal/observability"
 	"plentypay/identity/internal/pb"
 	"plentypay/identity/internal/store"
 )
@@ -17,12 +17,14 @@ var emailPattern = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 // UNIMPLEMENTED (pb.UnimplementedIdentityServer) hasta su paso del roadmap (identity/SPEC.md §12).
 type IdentityServer struct {
 	pb.UnimplementedIdentityServer
-	users  store.UserStore
-	tokens *auth.TokenIssuer
+	users    store.UserStore
+	tokens   *auth.TokenIssuer
+	reporter *observability.Reporter
 }
 
-func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer) *IdentityServer {
-	return &IdentityServer{users: users, tokens: tokens}
+// reporter puede ser nil (pruebas): los fallos internos simplemente no se registran.
+func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter *observability.Reporter) *IdentityServer {
+	return &IdentityServer{users: users, tokens: tokens, reporter: reporter}
 }
 
 // R1–R3 (identity/SPEC.md §5).
@@ -36,7 +38,7 @@ func (s *IdentityServer) Register(ctx context.Context, req *pb.RegisterRequest) 
 	}
 	hash, err := auth.HashPassword(req.Password)
 	if err != nil {
-		log.Printf("error al hashear contraseña: %v", err)
+		s.reporter.Defect(ctx, "password hashing failed", observability.Wrap(err, "hash password"))
 		return &pb.AuthResult{Success: false, ErrorMessage: "error interno"}, nil
 	}
 	user := &store.User{Email: email, PasswordHash: hash, FullName: req.FullName, Role: req.Role.String(), TenantID: req.TenantId}
@@ -44,10 +46,10 @@ func (s *IdentityServer) Register(ctx context.Context, req *pb.RegisterRequest) 
 		if err == store.ErrEmailTaken {
 			return &pb.AuthResult{Success: false, ErrorMessage: "ese correo ya está registrado"}, nil
 		}
-		log.Printf("error al crear usuario: %v", err)
+		s.reporter.Defect(ctx, "user creation failed", observability.Wrap(err, "create user"))
 		return &pb.AuthResult{Success: false, ErrorMessage: "error interno"}, nil
 	}
-	return s.issueTokens(user)
+	return s.issueTokens(ctx, user)
 }
 
 // R4: mismo mensaje si el correo no existe o si la contraseña falla (anti-enumeración).
@@ -57,7 +59,7 @@ func (s *IdentityServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.A
 	if err != nil || !auth.VerifyPassword(req.Password, user.PasswordHash) {
 		return &pb.AuthResult{Success: false, ErrorMessage: "correo o contraseña incorrectos"}, nil
 	}
-	return s.issueTokens(user)
+	return s.issueTokens(ctx, user)
 }
 
 func (s *IdentityServer) ValidateToken(_ context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResult, error) {
@@ -97,18 +99,18 @@ func (s *IdentityServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenR
 	if err != nil {
 		return &pb.AuthResult{Success: false, ErrorMessage: "usuario no encontrado"}, nil
 	}
-	return s.issueTokens(user)
+	return s.issueTokens(ctx, user)
 }
 
-func (s *IdentityServer) issueTokens(user *store.User) (*pb.AuthResult, error) {
+func (s *IdentityServer) issueTokens(ctx context.Context, user *store.User) (*pb.AuthResult, error) {
 	access, err := s.tokens.IssueAccessToken(user.ID, user.TenantID, user.Role)
 	if err != nil {
-		log.Printf("error al emitir access token: %v", err)
+		s.reporter.Defect(ctx, "access token issuance failed", observability.Wrap(err, "issue access token"))
 		return &pb.AuthResult{Success: false, ErrorMessage: "error interno"}, nil
 	}
 	refresh, err := s.tokens.IssueRefreshToken(user.ID, user.TenantID, user.Role)
 	if err != nil {
-		log.Printf("error al emitir refresh token: %v", err)
+		s.reporter.Defect(ctx, "refresh token issuance failed", observability.Wrap(err, "issue refresh token"))
 		return &pb.AuthResult{Success: false, ErrorMessage: "error interno"}, nil
 	}
 	return &pb.AuthResult{

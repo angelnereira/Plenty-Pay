@@ -40,6 +40,7 @@ CREATE TABLE logistics.checkpoints (id uuid PRIMARY KEY, delivery_id uuid NOT NU
 | StreamDelivery | comercio, repartidor, cliente del pedido (vía gateway) | eventos de estado + ubicación |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LOG-03, N-LOG-04 y N-LAB-16. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Transiciones de domain-model §8.11; máximo 3 intentos; luego FAILED terminal y retorno a tienda.
 - **R2** DELIVERED requiere prueba: código del cliente (comparado contra hash), foto o firma; código incorrecto 5 veces → bloqueo y aviso al comercio.
 - **R3** Cada checkpoint registra ubicación del repartidor; si está a > 300 m del destino al marcar ARRIVED/DELIVERED → `needs_review` (no bloquea).

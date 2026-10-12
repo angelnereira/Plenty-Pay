@@ -53,6 +53,7 @@ RLS: `orders` por `buyer_user_id` (políticas por usuario) y `sub_orders` por `t
 | AcceptSubOrder / RejectSubOrder / MarkSubOrderReady / MarkSubOrderCompleted | `orders:manage` | sí por estado | transiciones §8.10; reject → reembolso automático | `INVALID_STATE_TRANSITION`, `ACCEPT_DEADLINE_PASSED` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-01, N-FIS-03, N-CON-01, N-CON-03, N-CON-08 y N-CON-10. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Un sub-pedido por comercio; cada línea guarda **instantánea** de nombre, precio, impuesto y variante.
 - **R2** Solo listados publicados de tenants ACTIVE.
 - **R3** Checkout (saga, en este orden; compensaciones entre paréntesis):

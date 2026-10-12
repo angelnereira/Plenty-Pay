@@ -97,6 +97,7 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 | ConsumeStepUp | servicio | — | atómico: `UPDATE ... SET consumed_at=now() WHERE consumed_at IS NULL AND expires_at>now()`; compara operación/monto/usuario | resultado `valid=false` + reason |
 
 ## 5. Reglas de negocio
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-AML-02, N-AML-03, N-AML-04, N-AML-08, N-AML-12, N-DAT-02, N-DAT-05, N-DAT-07, N-DAT-14, N-COM-01, N-COM-06 y N-PAG-05. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Correo válido (regex simple + longitud ≤ 254), normalizado a minúsculas; único sin distinguir mayúsculas.
 - **R2** Contraseña 12–128 caracteres, no en lista de comunes; bcrypt costo 12.
 - **R3** Correo duplicado → `ALREADY_EXISTS` `EMAIL_TAKEN`.
@@ -142,7 +143,11 @@ Es llamado por: api-gateway, payments-core, settlement, orders, logistics, payro
 | Variable | Oblig. | Default | Descripción |
 |---|---|---|---|
 | `PORT` | no | `50060` | escucha gRPC (implementado) |
-| `ADMIN_PORT` | no | `9100` | salud `/healthz/live` y `/healthz/ready` (implementado, F02.1); métricas en F04.6 |
+| `ADMIN_PORT` | no | `9100` | salud `/healthz/live` y `/healthz/ready` (implementado, F02.1) y `/metrics` (contadores, implementado) |
+| `LOG_LEVEL` | no | `info` | `debug`, `info`, `warn`, `error` |
+| `DEPLOY_ENV` | no | `dev` | valor de `deployment.environment.name` |
+| `OTEL_TRACES_EXPORTER` | no | vacío | vacío (no exporta) o `console` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | no | — | colector OTLP gRPC; si se define, tiene prioridad |
 | `ACCESS_TOKEN_SECRET` | sí | — | ≥ 32 caracteres (implementado; F05 lo lee de OpenBao) |
 | `REFRESH_TOKEN_SECRET` | sí | — | ≥ 32 caracteres y distinto del anterior (implementado) |
 | `DATABASE_URL` | sí (F08.2+) | — | rol `identity_svc` |

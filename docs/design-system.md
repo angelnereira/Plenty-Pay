@@ -50,7 +50,7 @@ Familia: **Inter** (OFL) empaquetada en la app; respaldo del sistema. Cifras **t
 ## 5. Formato de dinero y fechas
 - `es_PA`: `$1,234.56` (o `B/. 1,234.56` si el tenant lo prefiere). Negativo: `−$12.00` con color `error`.
 - Moneda siempre visible en montos de pago; cifras tabulares.
-- Fechas: `10 oct 2026, 14:03` (hora de Panamá); relativo ("hace 5 min") solo en listas de actividad.
+- Fechas: `10 oct 2026, 2:03 p. m.` (hora de Panamá). **El mes va siempre en texto; nunca una fecha solo con números**, porque el formato regional `es-PA` pone el mes primero y sería ambigua (`docs/compliance/international-standards.md` N-STD-10). Hora de 12 horas por defecto en `es_PA` (N-STD-11). Relativo ("hace 5 min") solo en listas de actividad.
 
 ## 6. Componentes (implementar en `core/widgets/` con golden tests claro/oscuro)
 | Componente | Reglas |

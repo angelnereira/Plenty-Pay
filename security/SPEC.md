@@ -23,6 +23,7 @@ Unidad de despliegue con 2 procesos (ADR 0016): servicio Go (50073) + OpenBao (8
 | IssueServiceCertificate | contenedores al arrancar (token de bootstrap de un solo uso) | CSR → certificado SPIFFE 24 h |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-AML-05, N-AML-06, N-AML-07, N-DAT-01, N-DAT-04, N-DAT-08, N-DAT-09, N-DAT-10 y N-COM-05. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Ningún secreto en logs ni respuestas de error; valores en memoria con borrado al liberar donde el lenguaje lo permita.
 - **R2** ACL por secreto: `fiscal/<tenant>/pac` → fiscal-invoicing; `rails/<rail>/*` → payments-core; `bank/*` → settlement; `jwt/*` → identity; `smtp|resend|push|jelou/*` → notifications.
 - **R3** Propósitos de cifrado: `national_id` (payroll, identity), `payout_destination` (settlement), `biometric_template` (payroll), `tax_id` (identity), `pac_credentials` (security interno).

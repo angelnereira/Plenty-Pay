@@ -2,11 +2,11 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 
 	"plentypay/api-gateway/internal/client"
+	"plentypay/api-gateway/internal/observability"
 )
 
 type contextKey string
@@ -37,7 +37,8 @@ func RequireAuth(validator TokenValidator) func(http.Handler) http.Handler {
 				WriteError(w, http.StatusUnauthorized, "TOKEN_INVALID", "token inválido o expirado")
 				return
 			}
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), sessionContextKey, session)))
+			ctx := observability.WithActor(r.Context(), session.UserID, session.TenantID)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, sessionContextKey, session)))
 		})
 	}
 }
@@ -49,7 +50,5 @@ func SessionFromContext(ctx context.Context) (*client.ValidatedSession, bool) {
 
 // WriteError: formato único de error de la API pública (api-gateway/SPEC.md §4).
 func WriteError(w http.ResponseWriter, status int, reason, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg, "reason": reason})
+	observability.WriteProblem(w, status, reason, msg)
 }

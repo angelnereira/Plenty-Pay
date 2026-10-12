@@ -15,7 +15,7 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 | `./scripts/check-isolation.sh` | OK |
 | `./scripts/check-docs.sh` (23 contenedores) | OK |
 | `identity` y `api-gateway`: `go mod tidy` (se commitea `go.sum`, antes ausente), `go vet ./...`, `go test -race ./...` | OK |
-| `./scripts/e2e-identity-gateway.sh` | 14/14 |
+| `./scripts/e2e-identity-gateway.sh` | 14/14 (23/23 desde 2026-10-12, con las comprobaciones de observabilidad) |
 | `scripts/ledger-tests`: `npm test` | 27/27 |
 | `flutter_app`: `flutter pub get` (se commitea `pubspec.lock`), `flutter analyze`, `flutter test` | sin issues; 4/4 |
 | `docker compose build` + `up`: registro, login y `/v1/me/permissions` por `localhost:8080` | OK (CUSTOMER → wallet, marketplace) |
@@ -27,6 +27,8 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 
 ## Contratos pendientes de agregar (aditivos, F03.2)
 `payments.PostMemoEntry` (T8/T9 para pos), `analytics.AskQuestion`, `analytics.AlertTriggered` (+ subject `pp.analytics.alert.triggered.v1`), `identity.NotificationRequested` (+ subject `pp.identity.notification.requested.v1`).
+
+Además, la especificación funcional y el marco normativo (2026-10-12) requieren las rutas y campos listados en `docs/ux/functional-spec/README.md` §7 (verificación de identidad, consentimientos, solicitudes sobre datos, límites, beneficiarios finales, reclamos, devoluciones, descuento legal, parámetros legales, cola de cumplimiento, reporte de ITBMS, tipos de corrida de nómina, documentos del repartidor). Son aditivos y se incorporan en F03.2 y en el paso de cada módulo.
 
 ## F01 — Fundamentos y gobierno del repositorio
 
@@ -73,7 +75,7 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 | F04.3 Tempo + propagación `traceparent` gateway→identity | 📋 |  |
 | F04.4 Grafana con 7 dashboards como código | 📋 |  |
 | F04.5 Alertmanager + reglas críticas/warning con runbook_url | 📋 |  |
-| F04.6 Instrumentar identity y gateway según estándar (logs JSON, métricas obligatorias, puerto admin) | 📋 |  |
+| F04.6 Instrumentar identity y gateway según estándar (logs JSON, métricas obligatorias, puerto admin) | 📝 | 2026-10-12, adelantado sin colector (exporta a stdout; OTLP si se define `OTEL_EXPORTER_OTLP_ENDPOINT`): identity y api-gateway con logs JSON correlacionados, modelo de error con pila, recuperación de pánicos, trazas con propagación W3C y `/metrics` con contadores. `go vet` y `go test -race` OK en ambos; E2E 23/23 (misma traza y `request_id` en los dos servicios; `request_id` en errores). Falta: histogramas y métricas de §2.1, puente de logs a OTLP, verificación contra el colector (F04.1) y `golangci-lint` (no instalado, no ejecutado). No verificado: `docker compose build` (daemon de Docker no disponible); los binarios sí compilan con los parámetros del Dockerfile |
 
 ## F05 — Seguridad base y gestión de plataforma
 
@@ -309,7 +311,7 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 | F22.3 Deep links (App Links/Universal Links) + `.well-known` en web | 📋 |  |
 | F22.4 Actualización forzada por versión mínima | 📋 |  |
 | F22.5 Firma de builds y canales (interno/beta) por plataforma | 📋 |  |
-| F22.6 Telemetría de errores del cliente sin PII (a observability vía gateway) | 📋 |  |
+| F22.6 Telemetría de errores del cliente sin PII (a observability vía gateway) | 📝 | 2026-10-12, adelantado: captura global de errores, `AppLogger` con migas y enmascarado, `X-Request-Id` y `traceparent` por petición, cola acotada. `flutter analyze` sin issues; `flutter test` 30/30. Falta: `POST /v1/telemetry` en el gateway y el envío, persistencia de la cola, métricas de rendimiento y símbolos |
 
 ## F23 — Cliente: pagos presenciales QR/NFC y billeteras del dispositivo
 

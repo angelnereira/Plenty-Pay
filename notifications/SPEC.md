@@ -39,6 +39,7 @@ CREATE TABLE notifications.suppressions (address_hash bytea PRIMARY KEY, channel
 | HandleInboundWebhook | gateway | rebotes/quejas de correo → supresión; mensajes entrantes de WhatsApp (Jelou) → evento para soporte (F25) |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-12, N-CON-10 y el consentimiento de mercadeo de N-DAT-02. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Idempotencia por `dedupe_key` (p. ej. `payment-captured:<payment_id>:<user_id>:email`).
 - **R2** Reglas de suscripción (tabla de código revisada en este SPEC):
 

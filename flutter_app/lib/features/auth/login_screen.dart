@@ -45,7 +45,9 @@ class _LoginScreenState extends State<LoginScreen> {
       widget.onSignedIn();
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = _reasonMessage(l10n, e.reason));
-    } catch (_) {
+    } catch (e, st) {
+      // Borde de la pantalla: un fallo inesperado se registra una vez, con su pila (observability-standards.md §10.3).
+      widget.api.logger.error('login failed unexpectedly', e, st, widget: 'LoginScreen');
       if (mounted) setState(() => _error = l10n.errorNoConnection);
     } finally {
       if (mounted) setState(() => _busy = false);

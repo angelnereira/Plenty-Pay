@@ -2,6 +2,8 @@
 
 Fuente de verdad de **qué pantallas existen, para quién, con qué permiso y de qué datos se alimentan**. Cada pantalla implementa los 4 estados (`flutter-standards.md` §4), usa componentes de `docs/design-system.md` y llama solo a rutas de `api-gateway/SPEC.md` §4. La columna *Paso* indica en qué paso del roadmap se construye.
 
+El detalle de cada pantalla (elementos, textos, validaciones, flujos y estados) está en [`functional-spec/`](functional-spec/README.md), con un identificador `S-<módulo>-<nn>` por pantalla.
+
 ## 1. Módulos y navegación
 Orden de navegación (= orden de `identity` R10 y de `ModuleRegistry`):
 
@@ -184,3 +186,22 @@ Fuera de los módulos (siempre disponibles con sesión): Inicio (`/`), Bandeja (
 5. Listas con paginación infinita (keyset) y pull-to-refresh en móvil.
 6. Formularios largos con guardado de borrador local (sin datos sensibles).
 7. Indicador global de modo offline y de entorno sandbox.
+
+## 17. Pantallas exigidas por el marco normativo
+Agregadas por [`functional-spec/`](functional-spec/README.md) para cumplir [`../compliance/regulatory-framework.md`](../compliance/regulatory-framework.md). Sus rutas del gateway están en la lista de contratos pendientes (`functional-spec/README.md` §7).
+
+| Ruta | Pantalla | Permiso | Regla | Ficha | Paso |
+|---|---|---|---|---|---|
+| `/account/profile` | Datos personales | todos | N-DAT-05 | S-GEN-09 | F08.8 |
+| `/account/privacy` · `/account/privacy/request/:id` | Privacidad y mis datos; solicitudes de acceso, rectificación, cancelación, oposición y portabilidad | todos | N-DAT-02, N-DAT-05 a N-DAT-08 | S-GEN-12, S-GEN-13 | F25.4 |
+| `/account/verify` | Verificación de identidad | todos | N-AML-02, N-AML-03 | S-GEN-14 | F08.8 |
+| `/account/limits` | Límites de mi cuenta | todos | N-AML-03 | S-WAL-09 | F11.9 |
+| `/help/complaints` | Ayuda y reclamos | todos | N-CON-10 | S-MKT-08 | F15.10 |
+| `/finance/tax-report` | Reporte mensual de ITBMS | `fiscal:read` | N-FIS-11 | S-FIN-10 | F13.9 |
+| `/business/privacy` | Privacidad del negocio y solicitudes de sus clientes y empleados | `admin:business:manage` | N-DAT-01, N-DAT-05 | S-ADM-07 | F25.4 |
+| `/platform/users` | Verificación de identidad (revisión) | `platform:users:manage` | N-AML-02, N-AML-08 | S-PLT-02 | F08.8 |
+| `/platform/legal-parameters` | Parámetros legales con vigencia | `platform:flags:manage` | principio P1 | S-PLT-04 | F05.8 |
+| `/platform/compliance` | Cola de cumplimiento y requerimientos de autoridad | `platform:security:read` / `platform:reconcile` | N-AML-05 a N-AML-10 | S-PLT-07 | F28.7 |
+| `/platform/data-requests` | Solicitudes sobre datos dirigidas a PlentyPay | `platform:support` | N-DAT-05 | S-PLT-09 | F25.4 |
+
+Además, dentro de pantallas ya catalogadas: el descuento legal en `/pos/sell` (S-POS-02), los tipos de corrida de décimo tercer mes y vacaciones en `/team/runs` (S-PAY-06), y los documentos del repartidor en `/logistics/drivers` (S-LOG-03).

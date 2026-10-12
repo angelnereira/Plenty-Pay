@@ -76,6 +76,7 @@ CREATE INDEX holds_active_expiry ON ledger.holds (expires_at) WHERE status = 'AC
 Autorización: ledger confía en la identidad de servicio (mTLS) para escrituras; **solo** payments-core y settlement pueden escribir (§3 de `service-dependencies.md`). Lecturas desde el gateway exigen que el `party_id` pedido sea el usuario (`wallet:read`) o el tenant del contexto (`settlement:read`/`payments:read`); PLATFORM solo con `platform:*`.
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-AML-10, N-AML-11, N-COM-02, N-COM-07 y N-PAG-02. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** I1: balance por moneda; ≥ 2 entries.
 - **R2** I2: `amount_minor > 0`.
 - **R3** I3: POSTED inmutable; corrección solo por ReverseTransaction; un reverso por transacción.
