@@ -46,7 +46,7 @@ RLS: `orders` por `buyer_user_id` (políticas por usuario) y `sub_orders` por `t
 |---|---|---|---|---|
 | GetCart / SetCartItem / ClearCart | `orders:create:self` | — | máximo 50 líneas, 10 comercios; `qty=0` elimina | `LISTING_UNAVAILABLE`, `CART_LIMIT` |
 | QuoteCheckout | `orders:create:self` | — | precios actuales (catalog), disponibilidad (inventory), envío por comercio (logistics tarifa), comisiones si el portador es CUSTOMER | `LISTING_UNAVAILABLE`, `OUT_OF_STOCK` |
-| Checkout | `orders:create:self` + step-up si ≥ umbral | sí | §5 R3 | `PRICE_CHANGED`, `OUT_OF_STOCK`, `MERCHANT_NOT_ACTIVE`, errores de pago |
+| Checkout | `orders:create:self` + step-up si ≥ umbral | sí | §5 R3 | `PRICE_CHANGED`, `OUT_OF_STOCK`, `TENANT_NOT_ACTIVE`, errores de pago |
 | GetOrder / ListMyOrders | `orders:read:self` | — | | `NOT_FOUND` |
 | CancelOrder | comprador | sí | solo si todos los sub-pedidos están ≤ AWAITING_ACCEPTANCE | `INVALID_STATE_TRANSITION` |
 | ListMerchantOrders | `orders:read` | — | sub-pedidos del tenant | |

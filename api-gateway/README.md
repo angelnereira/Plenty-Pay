@@ -11,7 +11,7 @@
 ## Estado
 | Aspecto | Estado | Evidencia |
 |---|---|---|
-| Código | 📝 parcial: `/healthz`, `/v1/auth/{login,register,refresh}`, `/v1/me`, `/v1/me/permissions`, middleware de autenticación y errores `{error,reason}` | |
+| Código | 📝 parcial: `/healthz`, `/v1/auth/{login,register,refresh}`, `/v1/me`, `/v1/me/permissions`, middleware de autenticación y errores `{error,reason}` (falta `request_id` en el cuerpo de error que exige SPEC §3.11: pendiente de F09.4) | |
 | Pruebas | L1 10 pruebas de handlers; L4 E2E con identity (14 comprobaciones) — ejecutadas 2026-10-10 | |
 | Imagen Docker | Plantilla de `go-standards.md` §6 (`go mod download`, distroless nonroot); construida y `healthy` en Compose — 2026-10-10 | |
 | Salud | Puerto admin `:9100` con `/healthz/live` y `/healthz/ready`, subcomando `/app healthcheck`, apagado ordenado con SIGTERM (F02.1). `ready` no depende de identity (matriz de degradación); `/metrics` en F04.6 | L1 `internal/observability` |

@@ -213,7 +213,7 @@ Exceso → 429 `RATE_LIMITED` + `Retry-After`. Contadores en NATS KV (ventana de
 - **R8** Errores del servicio se traducen sin filtrar mensajes internos (`INTERNAL` → mensaje genérico).
 - **R9** Webhooks: cuerpo crudo intacto (sin re-serializar) para la verificación de firma.
 - **R10** Al recibir `SessionRevoked`, cerrar WebSockets de esas sesiones en ≤ 5 s.
-- **R11** Modo mantenimiento (infra-management): mutaciones → 503 `MAINTENANCE` excepto rutas de plataforma; lecturas siguen.
+- **R11** Modo mantenimiento (infra-management): mutaciones → 503 `MAINTENANCE_MODE` excepto rutas de plataforma; lecturas siguen.
 
 ## 8. Configuración
 | Variable | Oblig. | Default |

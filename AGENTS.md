@@ -7,7 +7,7 @@ Este repositorio **se gobierna por su documentación** (ADR 0010). Tu trabajo es
 2. `docs/roadmap/status.md` → qué fase está en curso y qué paso te toca. **No adelantes fases**: cada paso tiene precedencia en `05-HOJA-DE-RUTA-30-FASES.md` y `docs/roadmap/phase-matrix.md`.
 3. El `SPEC.md` del contenedor que vas a tocar (y el `.proto` de su contrato en `network-contracts/proto/`).
 4. Los estándares que aplican: `docs/standards/` (siempre: `grpc-conventions.md`, `data-standards.md`, `security-standards.md`, `testing-strategy.md`; por lenguaje: `go-standards.md` | `rust-standards.md` | `flutter-standards.md`).
-5. `docs/domain/domain-model.md` si tocas dinero, estados o permisos. Sus vectores de prueba son obligatorios.
+5. `docs/glossary.md` antes de nombrar cualquier cosa (campo, estado, `reason`, variable, subject): si el nombre existe, se usa tal cual. `docs/domain/domain-model.md` si tocas dinero, estados o permisos. Sus vectores de prueba son obligatorios.
 6. Para pantallas: `docs/ux/screen-catalog.md` y `docs/design-system.md`.
 
 ## 2. Reglas inviolables (un PR que rompa una se rechaza)

@@ -62,7 +62,7 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 | F03.2 Agregar RPC/mensajes pendientes declarados en SPECs (`payments.PostMemoEntry`, `analytics.AskQuestion`, `analytics.AlertTriggered`, `identity.NotificationRequested`) | 📋 |  |
 | F03.3 Configurar `buf lint` + `buf breaking` contra `main` | 📋 |  |
 | F03.4 Generación Go/Rust por `sync-protos.sh` para todas las filas activas de `consumers.txt` | ✅ | sync-protos.sh --check verde para filas activas |
-| F03.5 Documentar códigos `reason` por RPC (catálogo en `grpc-conventions.md` anexo) | 📋 |  |
+| F03.5 Documentar códigos `reason` por RPC (catálogo en `grpc-conventions.md` anexo) | 📋 | Adelantado 2026-10-12: `docs/glossary.md` §7.3 cataloga los `reason` por contenedor dueño y `check-docs.sh` (comprobación 9) exige que todo `reason` de una columna *Errores* esté ahí. Falta para cerrar: los 9 SPEC sin columna *Errores* (catalog, inventory, logistics, geolocation, payroll, notifications, analytics-bi, security, infra-management) y el detalle por RPC en el anexo de `grpc-conventions.md` |
 
 ## F04 — Observabilidad
 

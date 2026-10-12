@@ -27,6 +27,7 @@ Todo de código abierto; sin dependencia de un proveedor de nube.
 | [`05-HOJA-DE-RUTA-30-FASES.md`](05-HOJA-DE-RUTA-30-FASES.md) | 30 fases, 224 pasos con criterio de aceptación |
 | [`docs/roadmap/status.md`](docs/roadmap/status.md) | Qué está hecho, con evidencia |
 | [`docs/adr/`](docs/adr/README.md) | 17 decisiones de arquitectura |
+| [`docs/glossary.md`](docs/glossary.md) | Glosario universal: todos los nombres (tipos, enums, permisos, `reason`, eventos, variables) y su fuente de verdad |
 | [`docs/domain/domain-model.md`](docs/domain/domain-model.md) | Reglas de dinero, ledger, estados (con vectores de prueba) |
 | [`docs/standards/`](docs/standards) | gRPC, datos, eventos, seguridad, observabilidad, pruebas, Go, Rust, Flutter, entrega |
 | [`docs/architecture/service-dependencies.md`](docs/architecture/service-dependencies.md) | 23 contenedores, puertos, quién llama a quién, degradación |

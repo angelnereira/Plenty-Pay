@@ -15,7 +15,7 @@ Fuente de verdad de **las reglas de negocio transversales**: quién es quién, c
 | Inventario | inventory | Warehouse, StockLevel, StockMovement, Lot, Reservation, PurchaseOrder, Supplier |
 | Pedidos | orders | Cart, Order, SubOrder |
 | Punto de venta | pos | Register, CashSession, Sale (+Lines, Tenders), CashMovement, CustomerAccount (crédito de la casa: detalle) |
-| Logística | logistics | Delivery, Courier, DeliveryAttempt, TrackingLink |
+| Logística | logistics | Delivery, Carrier (transportista), Driver (repartidor), DeliveryAttempt, TrackingLink |
 | Geolocalización | geolocation | Subject location, Geofence |
 | Nómina | payroll | Employee, Shift, AttendanceRecord, PayrollRun, Payslip |
 | Notificaciones | notifications | Template, Message, InboxItem, ChannelPreference |
@@ -26,6 +26,8 @@ Fuente de verdad de **las reglas de negocio transversales**: quién es quién, c
 Un agregado tiene **un** dueño. Otros contenedores guardan como mucho una **instantánea** (copia con fecha) o una referencia por id.
 
 ## 2. Glosario
+Términos de negocio esenciales. El glosario completo del proyecto (tipos, enums, permisos, `reason`, eventos, variables y constantes) está en [`../glossary.md`](../glossary.md).
+
 - **Party**: quien puede tener cuentas en el ledger. `user_id` (persona), `tenant_id` (comercio) o **PLATFORM** = `00000000-0000-0000-0000-000000000001` (PlentyPay).
 - **Tenant**: comercio (negocio). Puede tener varias sucursales (`branch_id`) y bodegas.
 - **Riel (rail)**: medio de pago externo o interno (`common.PaymentRail`): WALLET, YAPPY, TELERED_CLAVE, CARD, APPLE_PAY, GOOGLE_PAY, QR_INTEROP, CASH.

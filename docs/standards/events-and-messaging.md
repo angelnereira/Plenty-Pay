@@ -6,9 +6,9 @@
 - Regla: *¿puede el emisor seguir correctamente sin saber si alguien reaccionó?* Sí → evento. No → gRPC.
 
 ## 2. Transporte
-**NATS JetStream** (contenedor `event-bus/`), un *stream* por dominio productor: `PP_IDENTITY`, `PP_PAYMENTS`, `PP_LEDGER`, `PP_SETTLEMENT`, `PP_FISCAL`, `PP_CATALOG`, `PP_ORDERS`, `PP_INVENTORY`, `PP_POS`, `PP_LOGISTICS`, `PP_GEO`, `PP_PAYROLL`.
+**NATS JetStream** (contenedor `event-bus/`). Los *streams* agrupan subjects por dominio y los define `event-bus/SPEC.md` §3 (fuente de verdad): `PP_IDENTITY`, `PP_PAYMENTS`, `PP_LEDGER`, `PP_SETTLEMENT`, `PP_FISCAL`, `PP_COMMERCE` (catalog, inventory, orders, pos), `PP_LOGISTICS` (logistics, geo), `PP_PAYROLL`, `PP_AUDIT`, `PP_ANALYTICS`.
 - **Subject**: `pp.<dominio>.<entidad>.<hecho>.v<N>` en minúsculas (`pp.payments.payment.captured.v1`).
-- Retención 7 días; es transporte, **no** archivo (el histórico vive en la base del productor y en `analytics-bi`).
+- Retención por stream (7 a 30 días, tabla de `event-bus/SPEC.md` §3); es transporte, **no** archivo (el histórico vive en la base del productor y en `analytics-bi`).
 - Almacenamiento `file`, 3 réplicas en producción (1 en desarrollo), dedupe 2 min, `max_deliver=10` con backoff y DLQ `pp.dlq.<consumidor>`.
 
 ## 3. Sobre del evento

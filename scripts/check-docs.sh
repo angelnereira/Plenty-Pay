@@ -9,6 +9,8 @@
 #  6. Cada mensaje del catálogo de eventos existe en algún .proto.
 #  7. Los pasos de docs/roadmap/status.md son exactamente los de 05-HOJA-DE-RUTA-30-FASES.md.
 #  8. Toda pregunta Q-NN citada existe en docs/open-questions.md.
+#  9. Todo `reason` de la columna Errores de un SPEC está en el catálogo de docs/glossary.md §7.
+# 10. Todo enum de network-contracts/proto está en docs/glossary.md §5.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -82,6 +84,25 @@ phases=$(grep -cE '^## F[0-9]{2} — ' 05-HOJA-DE-RUTA-30-FASES.md)
 while IFS= read -r q; do
   grep -qE "\*\*$q\*\*|\| $q \|" docs/open-questions.md || fail "open-questions" "$q citada pero no definida"
 done < <(grep -rhoE 'Q-[0-9]{2}' --include='*.md' . --exclude-dir=_legacy-typescript-reference | sort -u)
+
+# 9. Códigos reason de los SPEC ⊆ catálogo del glosario
+gloss="docs/glossary.md"
+if [ -f "$gloss" ]; then
+  reasons=$(awk '/^## 7\./{f=1;next} /^Pares que se confunden/{f=0} f' "$gloss" | grep -oE '`[A-Z][A-Z0-9_]+`' | tr -d '`' | sort -u)
+  for spec in */SPEC.md; do
+    while IFS= read -r r; do
+      echo "$reasons" | grep -qx "$r" || fail "glosario" "$spec usa el reason \`$r\`, que no está en $gloss §7"
+    done < <(awk -F'|' '/^\| RPC.*Errores/{f=1; n=NF-1; next} f&&/^\|/{print $n} f&&!/^\|/{f=0}' "$spec" | grep -oE '`[A-Z][A-Z0-9_]+`' | tr -d '`' | sort -u)
+  done
+
+  # 10. Enums de los contratos ⊆ glosario §5
+  enums=$(awk '/^## 5\./{f=1;next} /^## 6\./{f=0} f' "$gloss")
+  while IFS= read -r e; do
+    echo "$enums" | grep -q "\`$e\`" || fail "glosario" "el enum \`$e\` de network-contracts/proto no está en $gloss §5"
+  done < <(grep -hoE '^enum [A-Za-z]+' network-contracts/proto/*.proto | awk '{print $2}' | sort -u)
+else
+  fail "glosario" "no existe $gloss"
+fi
 
 if [ "$ERR" -eq 0 ]; then echo "documentación OK"; exit 0; fi
 echo "$ERR problema(s) de documentación"; exit 1

@@ -61,7 +61,7 @@ Códigos gRPC estándar; detalle estructurado en `google.rpc.Status` con `ErrorI
 Los errores de **negocio esperables** (saldo insuficiente, sin stock) son `FAILED_PRECONDITION` con `reason` estable, nunca `INTERNAL`.
 *(Conformidad: `identity` hoy devuelve `success=false`+mensaje dentro de `AuthResult` en `Register/Login/RefreshToken` — contrato ya publicado que se mantiene; **todo RPC nuevo usa códigos gRPC**.)*
 
-Catálogo de `reason` transversales: `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID`, `INSUFFICIENT_FUNDS`, `OUT_OF_STOCK`, `INVALID_STATE_TRANSITION`, `FEES_EXCEED_AMOUNT`, `CURRENCY_MISMATCH`, `UNBALANCED_TRANSACTION`, `RAIL_UNAVAILABLE`, `RATE_LIMITED`, `MAINTENANCE_MODE`. Cada SPEC lista los suyos.
+Catálogo de `reason` transversales: `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID`, `INSUFFICIENT_FUNDS`, `OUT_OF_STOCK`, `INVALID_STATE_TRANSITION`, `AMOUNT_BELOW_FEES`, `CURRENCY_MISMATCH`, `UNBALANCED_TRANSACTION`, `RAIL_UNAVAILABLE`, `RATE_LIMITED`, `MAINTENANCE_MODE`. Cada SPEC lista los suyos; el catálogo completo, con dueño, está en `docs/glossary.md` §7.3.
 
 ## 5. Plazos, reintentos y resiliencia
 - Todo llamador fija **deadline** (3 s lecturas, 10 s escrituras, 30 s cuando cruza a un riel externo). Los servicios propagan el deadline restante, nunca lo amplían.
@@ -77,4 +77,4 @@ Catálogo de `reason` transversales: `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIV
 `network-contracts/consumers.txt` declara qué consume cada contenedor; `scripts/sync-protos.sh` genera (Go, un paquete `pb` por contenedor) o copia (Rust, `<contenedor>/proto/` + `tonic-build` en `build.rs`). El código generado **se commitea** y nunca se edita a mano.
 
 ## 8. Salud y administración
-Cada contenedor expone `grpc.health.v1.Health` en su puerto de servicio **y** un puerto de administración HTTP `:9100` (no publicado al host) con `/healthz` (vivo), `/readyz` (dependencias críticas OK) y `/metrics` (Prometheus) — `observability-standards.md`. Reflexión gRPC solo si `ENV != production`.
+Cada contenedor expone `grpc.health.v1.Health` en su puerto de servicio **y** un puerto de administración HTTP `:9100` (no publicado al host) con `/healthz/live` (vivo), `/healthz/ready` (dependencias críticas OK) y `/metrics` (Prometheus) — `observability-standards.md`. Reflexión gRPC solo si `ENV != production`.

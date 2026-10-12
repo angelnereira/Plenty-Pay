@@ -424,7 +424,7 @@ type ValidateTokenResult struct {
 	UserId      string   `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	TenantId    string   `protobuf:"bytes,3,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Role        UserRole `protobuf:"varint,4,opt,name=role,proto3,enum=plentypay.identity.v1.UserRole" json:"role,omitempty"`
-	Permissions []string `protobuf:"bytes,5,rep,name=permissions,proto3" json:"permissions,omitempty"` // p. ej. "pos:sell" — catálogo en docs/standards/security-standards.md §4
+	Permissions []string `protobuf:"bytes,5,rep,name=permissions,proto3" json:"permissions,omitempty"` // p. ej. "pos:sell" — catálogo en docs/standards/security-standards.md §3.1
 	SessionId   string   `protobuf:"bytes,6,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
 

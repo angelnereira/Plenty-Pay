@@ -63,13 +63,13 @@ CREATE INDEX holds_active_expiry ON ledger.holds (expires_at) WHERE status = 'AC
 ## 4. RPCs
 | RPC | Llamadores permitidos | Idempotente | Comportamiento | Errores |
 |---|---|---|---|---|
-| PostTransaction | payments-core, settlement, pos (T8/T9 vía payments-core en MVP), payroll vía payments-core | sí (`idempotency_key` global) | valida plantilla (§5), crea cuentas perezosamente, bloquea cuentas en orden ascendente de id, verifica I5 y disponibles, inserta, marca POSTED, outbox `TransactionPosted` | `UNBALANCED`, `UNKNOWN_TEMPLATE`, `INVALID_AMOUNT`, `CURRENCY_MISMATCH`, `INSUFFICIENT_FUNDS`, `DUPLICATE_CAPTURE`, `IDEMPOTENCY_KEY_REUSED` |
+| PostTransaction | payments-core, settlement, pos (T8/T9 vía payments-core en MVP), payroll vía payments-core | sí (`idempotency_key` global) | valida plantilla (§5), crea cuentas perezosamente, bloquea cuentas en orden ascendente de id, verifica I5 y disponibles, inserta, marca POSTED, outbox `TransactionPosted` | `UNBALANCED_TRANSACTION`, `UNKNOWN_TEMPLATE`, `INVALID_AMOUNT`, `CURRENCY_MISMATCH`, `INSUFFICIENT_FUNDS`, `DUPLICATE_CAPTURE`, `IDEMPOTENCY_KEY_REUSED` |
 | ReverseTransaction | payments-core, settlement, `platform:reconcile` vía gateway | sí (`rev:<id>`) | crea transacción espejo (lados invertidos), original → REVERSED | `ALREADY_REVERSED`, `NOT_FOUND`, `INSUFFICIENT_FUNDS` |
 | GetTransaction / ListTransactions | servicios + gateway (lectura) | — | por id / por cuenta, referencia o rango; keyset | `NOT_FOUND` |
 | GetBalance / ListBalances | servicios + gateway | — | saldo, retenido, disponible por cuenta | `NOT_FOUND` (cuenta inexistente → saldo 0, no error) |
 | GetStatement | gateway (wallet, comercio) | — | movimientos con saldo corrido, rango ≤ 366 días | `INVALID_RANGE` |
 | CreateHold | payments-core | sí | verifica disponible ≥ monto, crea hold ACTIVE con TTL (def. 15 min, máx. 7 días) | `INSUFFICIENT_FUNDS` |
-| CaptureHold | payments-core | sí | en una transacción: hold → CAPTURED + PostTransaction con D sobre la cuenta del hold por el monto del hold y `legs` de crédito; Σ legs = monto | `HOLD_NOT_ACTIVE`, `UNBALANCED` |
+| CaptureHold | payments-core | sí | en una transacción: hold → CAPTURED + PostTransaction con D sobre la cuenta del hold por el monto del hold y `legs` de crédito; Σ legs = monto | `HOLD_NOT_ACTIVE`, `UNBALANCED_TRANSACTION` |
 | ReleaseHold | payments-core | sí por estado | ACTIVE → RELEASED; otros estados → devuelve el hold sin cambio | `NOT_FOUND` |
 | GetHold | payments-core | — | | `NOT_FOUND` |
 
