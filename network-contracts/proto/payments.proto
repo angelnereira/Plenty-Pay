@@ -33,6 +33,10 @@ service Payments {
   // Rieles: webhooks entrantes (firma verificada; fail-closed) y resolución manual de UNKNOWN
   rpc HandleRailWebhook(HandleRailWebhookRequest) returns (HandleRailWebhookResponse);
   rpc ResolveUnknownPayment(ResolveUnknownPaymentRequest) returns (Payment);
+
+  // Asiento de memoria (T8/T9): crédito de la casa y puntos del POS. No mueve dinero de un riel:
+  // payments-core pide a ledger el asiento de la plantilla del caso.
+  rpc PostMemoEntry(PostMemoEntryRequest) returns (MemoEntry);
 }
 
 enum PaymentStatus {
@@ -90,7 +94,9 @@ message ConfirmPaymentIntentRequest {
   string idempotency_key = 2;
   map<string, string> confirmation_data = 3;
 }
-message CancelPaymentIntentRequest { string payment_intent_id = 1; string reason = 2; }
+message CancelPaymentIntentRequest { string payment_intent_id = 1; string reason = 2; 
+  string idempotency_key = 3; // la cancelación cambia de estado y es reintentable por el cliente
+}
 message GetPaymentIntentRequest { string payment_intent_id = 1; }
 message GetPaymentRequest { string payment_id = 1; }
 
@@ -185,10 +191,12 @@ message Terminal {
   bool active = 5;
   google.protobuf.Timestamp created_at = 6;
 }
-message CreateTerminalRequest { string label = 1; }
+message CreateTerminalRequest { string label = 1; 
+  string idempotency_key = 2;}
 message ListTerminalsRequest { plentypay.common.v1.PageRequest page = 1; }
 message ListTerminalsResponse { repeated Terminal terminals = 1; plentypay.common.v1.PageInfo page = 2; }
-message SetTerminalActiveRequest { string terminal_id = 1; bool active = 2; }
+message SetTerminalActiveRequest { string terminal_id = 1; bool active = 2; 
+  string idempotency_key = 3;}
 message ResolveTerminalRequest { string public_code = 1; }
 message PublicTerminalInfo {
   string public_code = 1;
@@ -232,7 +240,7 @@ message FeePolicy {
   int32 rail_percentage_bps = 11;
   bool rail_fee_refundable = 12;            // ¿el riel devuelve su comisión al reembolsar? (open-questions Q-06)
 }
-message UpsertFeePolicyRequest { FeePolicy policy = 1; }
+message UpsertFeePolicyRequest { FeePolicy policy = 1; string idempotency_key = 2; }
 message ListFeePoliciesRequest { string tenant_id = 1; }
 message ListFeePoliciesResponse { repeated FeePolicy policies = 1; }
 
@@ -247,7 +255,22 @@ message ResolveUnknownPaymentRequest {
   string payment_id = 1;
   PaymentStatus resolution = 2; // solo CAPTURED o FAILED
   string evidence = 3;          // referencia al extracto/ticket (obligatorio)
+
+  string idempotency_key = 4; // fija el estado final de un pago UNKNOWN (R7)
 }
+
+// Asiento de memoria: crédito de la casa (T8) o puntos (T9) originados en el POS.
+message PostMemoEntryRequest {
+  string idempotency_key = 1;   // obligatorio; misma key + mismo contenido devuelve el original
+  string tenant_id = 2;         // comercio dueño del crédito o de los puntos
+  string customer_party_id = 3; // usuario beneficiario
+  string kind = 4;              // "HOUSE_CREDIT" (T8) | "POINTS" (T9)
+  int64 amount_minor = 5;       // crédito: unidades menores; puntos: 1 punto = 1 unidad
+  string currency = 6;          // obligatorio si kind = "HOUSE_CREDIT"
+  plentypay.common.v1.Reference reference = 7; // venta o documento de origen
+  string step_up_token = 8;     // si el monto supera el umbral de confirmación fuerte
+}
+message MemoEntry { string memo_entry_id = 1; string ledger_transaction_id = 2; }
 
 // ── Eventos. Subject: pp.payments.<entidad>.<hecho>.v1 ──
 message PaymentCaptured {

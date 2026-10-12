@@ -62,7 +62,8 @@ message CashSession {
   string approved_by_user_id = 12;           // si la diferencia supera el umbral
 }
 message OpenCashSessionRequest { string terminal_label = 1; plentypay.common.v1.Money opening_float = 2; string idempotency_key = 3; }
-message CloseCashSessionRequest { string session_id = 1; plentypay.common.v1.Money counted_cash = 2; string notes = 3; }
+message CloseCashSessionRequest { string session_id = 1; plentypay.common.v1.Money counted_cash = 2; string notes = 3; 
+  string idempotency_key = 4;}
 message GetCashSessionRequest { string session_id = 1; }
 message RecordCashMovementRequest { string session_id = 1; plentypay.common.v1.Money amount = 2; string direction = 3; string reason = 4; string idempotency_key = 5; } // direction: "IN" | "OUT"
 
@@ -106,8 +107,10 @@ message Sale {
   string reservation_id = 18;
   int32 version = 19;
 }
-message CreateSaleRequest { string session_id = 1; string client_sale_id = 2; }
-message UpdateSaleRequest { string sale_id = 1; repeated SaleLine lines = 2; plentypay.fiscal.v1.Taxpayer customer = 3; int32 expected_version = 4; }
+message CreateSaleRequest { string session_id = 1; string client_sale_id = 2; 
+  string idempotency_key = 3;}
+message UpdateSaleRequest { string sale_id = 1; repeated SaleLine lines = 2; plentypay.fiscal.v1.Taxpayer customer = 3; int32 expected_version = 4; 
+  string idempotency_key = 5;}
 message ParkSaleRequest { string sale_id = 1; string label = 2; }
 message ResumeSaleRequest { string sale_id = 1; }
 message CheckoutRequest {
@@ -117,7 +120,8 @@ message CheckoutRequest {
   bool customer_requests_fiscal = 4;
   string step_up_token = 5;
 }
-message VoidSaleRequest { string sale_id = 1; string reason = 2; }
+message VoidSaleRequest { string sale_id = 1; string reason = 2; 
+  string idempotency_key = 3;}
 message RefundSaleRequest { string sale_id = 1; repeated SaleLine lines = 2; string reason = 3; string idempotency_key = 4; string step_up_token = 5; bool restock = 6; }
 message GetSaleRequest { string sale_id = 1; }
 message ListSalesRequest { string session_id = 1; SaleStatus status = 2; plentypay.common.v1.TimeRange range = 3; plentypay.common.v1.PageRequest page = 4; }
@@ -145,7 +149,8 @@ message PosSettings {
   bool allow_offline_card_pending = 9;      // registrar ventas electrónicas offline como "pendientes de cobro"
 }
 message GetPosSettingsRequest {}
-message UpdatePosSettingsRequest { PosSettings settings = 1; }
+message UpdatePosSettingsRequest { PosSettings settings = 1; 
+  string idempotency_key = 2;}
 
 // ── Eventos. Subject: pp.pos.<entidad>.<hecho>.v1 ──
 message SalePaid { string sale_id = 1; string tenant_id = 2; plentypay.common.v1.Money total = 3; repeated SaleLine lines = 4; string cashier_user_id = 5; string reservation_id = 6; }

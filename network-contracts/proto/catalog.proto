@@ -56,8 +56,10 @@ message Product {
   int32 version = 18;                       // bloqueo optimista
 }
 message CreateProductRequest { Product product = 1; string idempotency_key = 2; }
-message UpdateProductRequest { Product product = 1; repeated string update_mask = 2; }
-message ArchiveProductRequest { string product_id = 1; }
+message UpdateProductRequest { Product product = 1; repeated string update_mask = 2; 
+  string idempotency_key = 3;}
+message ArchiveProductRequest { string product_id = 1; 
+  string idempotency_key = 2;}
 message GetProductRequest { string product_id = 1; }
 message ListProductsRequest { string query = 1; string category_id = 2; ProductStatus status = 3; plentypay.common.v1.PageRequest page = 4; }
 message ListProductsResponse { repeated Product products = 1; plentypay.common.v1.PageInfo page = 2; }
@@ -82,7 +84,8 @@ message Listing {
   bool delivery_available = 4;
   bool pickup_available = 5;
 }
-message SetListingRequest { Listing listing = 1; }
+message SetListingRequest { Listing listing = 1; 
+  string idempotency_key = 2;}
 message MarketplaceProduct {
   Product product = 1;
   Storefront storefront = 2;
@@ -112,7 +115,8 @@ message Storefront {
   bool published = 7;
 }
 message GetStorefrontRequest { string tenant_id = 1; }
-message UpdateStorefrontRequest { Storefront storefront = 1; }
+message UpdateStorefrontRequest { Storefront storefront = 1; 
+  string idempotency_key = 2;}
 
 // ── Eventos. Subject: pp.catalog.<entidad>.<hecho>.v1 ──
 // Lleva lo necesario para que analytics-bi y orders construyan sus dimensiones sin llamar de vuelta.

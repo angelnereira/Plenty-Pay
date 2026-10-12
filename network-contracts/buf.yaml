@@ -1,0 +1,37 @@
+# Configuración de buf (F03.3): lint de los contratos y comprobación de cambios incompatibles
+# contra la rama principal. Las excepciones recogen las convenciones propias del repositorio
+# (docs/standards/grpc-conventions.md §1), que difieren de STANDARD a propósito; sin ellas el
+# lint obligaría a renombrar contratos ya publicados, lo que SÍ sería incompatible (ADR 0004).
+version: v2
+
+modules:
+  - path: proto
+    name: buf.build/plentypay/network-contracts
+
+lint:
+  use:
+    - STANDARD
+  except:
+    # Los 18 contratos comparten una sola carpeta (network-contracts/proto).
+    - DIRECTORY_SAME_PACKAGE
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_VERSION_SUFFIX
+    # §1.2: el servicio es un sustantivo de dominio (Payments, Ledger), no <Nombre>Service.
+    - SERVICE_SUFFIX
+    # §1.2: los mensajes son <Rpc>Request/<Rpc>Response O la entidad devuelta.
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    # §1.3: excepción histórica ya publicada — `UserRole` en identity.
+    - ENUM_VALUE_PREFIX
+    # §1.3: el valor 0 de UserRole no sigue el patrón (misma excepción que arriba).
+    - ENUM_ZERO_VALUE_SUFFIX
+
+breaking:
+  # FILE incluye FIELD_NO_DELETE estricto, que prohíbe hasta retirar un campo con `reserved`
+  # (la forma que grpc-conventions.md §1.1 autoriza). WIRE + WIRE_JSON cubren lo que importa a
+  # un contrato gRPC/JSON: no renombrar, no cambiar de tipo ni de número sin reservar.
+  use:
+    - WIRE
+    - WIRE_JSON
+  ignore_unstable_packages: true

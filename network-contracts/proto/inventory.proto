@@ -110,8 +110,10 @@ message ReserveStockRequest {
   int32 ttl_seconds = 5;          // por defecto 900; ninguna reserva es indefinida
   bool allow_negative = 6;        // decisión explícita; por defecto false
 }
-message CommitReservationRequest { string reservation_id = 1; }
-message ReleaseReservationRequest { string reservation_id = 1; }
+message CommitReservationRequest { string reservation_id = 1; 
+  string idempotency_key = 2;}
+message ReleaseReservationRequest { string reservation_id = 1; 
+  string idempotency_key = 2;}
 
 message Supplier { string supplier_id = 1; string name = 2; string tax_id = 3; string email = 4; string phone = 5; bool active = 6; }
 message UpsertSupplierRequest { Supplier supplier = 1; }
@@ -136,7 +138,8 @@ message PurchaseOrder {
   google.protobuf.Timestamp expected_at = 6;
 }
 message CreatePurchaseOrderRequest { PurchaseOrder order = 1; string idempotency_key = 2; }
-message UpdatePurchaseOrderStatusRequest { string purchase_order_id = 1; PurchaseOrderStatus status = 2; }
+message UpdatePurchaseOrderStatusRequest { string purchase_order_id = 1; PurchaseOrderStatus status = 2; 
+  string idempotency_key = 3;}
 message ReceivedLine { string product_id = 1; int64 received_milli = 2; string lot_code = 3; google.protobuf.Timestamp expires_at = 4; }
 message ReceiveGoodsRequest { string purchase_order_id = 1; string idempotency_key = 2; repeated ReceivedLine lines = 3; }
 message ListPurchaseOrdersRequest { PurchaseOrderStatus status = 1; plentypay.common.v1.PageRequest page = 2; }

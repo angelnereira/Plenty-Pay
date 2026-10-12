@@ -75,7 +75,8 @@ message SendBatchResponse { repeated Notification notifications = 1; }
 message GetNotificationRequest { string notification_id = 1; }
 message ListInboxRequest { bool unread_only = 1; plentypay.common.v1.PageRequest page = 2; }
 message ListInboxResponse { repeated Notification notifications = 1; int32 unread_count = 2; plentypay.common.v1.PageInfo page = 3; }
-message MarkReadRequest { repeated string notification_ids = 1; bool all = 2; }
+message MarkReadRequest { repeated string notification_ids = 1; bool all = 2; 
+  string idempotency_key = 3;}
 message MarkReadResponse { int32 updated = 1; }
 message StreamInboxRequest {}
 
@@ -99,7 +100,8 @@ message Template {
   bool active = 7;
   repeated Channel default_channels = 8;
 }
-message UpsertTemplateRequest { Template template = 1; }
+message UpsertTemplateRequest { Template template = 1; 
+  string idempotency_key = 2;}
 message ListTemplatesRequest {}
 message ListTemplatesResponse { repeated Template templates = 1; }
 

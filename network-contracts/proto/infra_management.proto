@@ -54,4 +54,14 @@ message ListServicesRequest {}
 message ListServicesResponse { repeated ServiceInfo services = 1; }
 
 message GetClientConfigRequest { string platform = 1; string app_version = 2; }
-message ClientConfig { string minimum_app_version = 1; bool update_required = 2; string banner_message = 3; MaintenanceState maintenance = 4; }
+// Los campos 1–4 son los publicados originalmente; 5–8 se agregaron en F03.2 (ADR 0004).
+message ClientConfig {
+  string minimum_app_version = 1; // por debajo, la app exige actualizar (S-GEN-19)
+  bool update_required = 2;
+  string banner_message = 3;
+  MaintenanceState maintenance = 4;
+  string latest_app_version = 5;  // para ofrecer la actualización sin bloquear
+  string api_base_url = 6;        // origen https del gateway
+  string realtime_url = 7;        // wss del gateway para bandeja y seguimiento
+  map<string, string> features = 8; // interruptores para la app (máx. 20 claves)
+}

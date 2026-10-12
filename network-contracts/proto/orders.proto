@@ -53,8 +53,9 @@ enum SubOrderStatus {
 message CartItem { string product_id = 1; string merchant_tenant_id = 2; int64 quantity_milli = 3; plentypay.common.v1.Money unit_price_snapshot = 4; string name_snapshot = 5; }
 message Cart { string cart_id = 1; repeated CartItem items = 2; google.protobuf.Timestamp updated_at = 3; }
 message GetCartRequest {}
-message SetCartItemRequest { string product_id = 1; int64 quantity_milli = 2; }
-message ClearCartRequest {}
+message SetCartItemRequest { string product_id = 1; int64 quantity_milli = 2; 
+  string idempotency_key = 3;}
+message ClearCartRequest { string idempotency_key = 1; }
 
 message MerchantQuote { string merchant_tenant_id = 1; string merchant_name = 2; plentypay.common.v1.Money items_total = 3; plentypay.common.v1.Money delivery_fee = 4; plentypay.common.v1.Money tax = 5; bool all_in_stock = 6; repeated string unavailable_product_ids = 7; }
 message CheckoutQuote { repeated MerchantQuote merchants = 1; plentypay.common.v1.Money grand_total = 2; plentypay.common.v1.Money customer_fees = 3; string quote_id = 4; google.protobuf.Timestamp expires_at = 5; }
@@ -102,11 +103,14 @@ message NextActionInfo { string type = 1; string url = 2; string qr_payload = 3;
 message GetOrderRequest { string order_id = 1; }
 message ListMyOrdersRequest { OrderStatus status = 1; plentypay.common.v1.PageRequest page = 2; }
 message ListOrdersResponse { repeated Order orders = 1; plentypay.common.v1.PageInfo page = 2; }
-message CancelOrderRequest { string order_id = 1; string reason = 2; }
+message CancelOrderRequest { string order_id = 1; string reason = 2; 
+  string idempotency_key = 3;}
 message ListMerchantOrdersRequest { SubOrderStatus status = 1; plentypay.common.v1.TimeRange range = 2; plentypay.common.v1.PageRequest page = 3; }
 message ListSubOrdersResponse { repeated SubOrder sub_orders = 1; plentypay.common.v1.PageInfo page = 2; }
-message SubOrderActionRequest { string sub_order_id = 1; }
-message RejectSubOrderRequest { string sub_order_id = 1; string reason = 2; }
+message SubOrderActionRequest { string sub_order_id = 1; 
+  string idempotency_key = 2;}
+message RejectSubOrderRequest { string sub_order_id = 1; string reason = 2; 
+  string idempotency_key = 3;}
 
 // ── Eventos. Subject: pp.orders.<entidad>.<hecho>.v1 ──
 message OrderPaid { string order_id = 1; string buyer_user_id = 2; plentypay.common.v1.Money grand_total = 3; repeated string merchant_tenant_ids = 4; }
