@@ -28,6 +28,12 @@ Go 1.26.0, Rust 1.99.0, Flutter 3.47.6, Docker 29.9 + Compose v5.5, Node 22. Eje
 ## Contratos pendientes de agregar (aditivos, F03.2)
 `payments.PostMemoEntry` (T8/T9 para pos), `analytics.AskQuestion`, `analytics.AlertTriggered` (+ subject `pp.analytics.alert.triggered.v1`), `identity.NotificationRequested` (+ subject `pp.identity.notification.requested.v1`).
 
+**Lista concreta de F03.1** (detalle y referencias en `docs/architecture/rpc-coverage.md`):
+- `idempotency_key` en 31 RPC que su SPEC ya marca idempotentes: identity (Logout, RevokeSession, ChangePassword, ConfirmPasswordReset, CreateBusiness, ReviewBusiness, InviteStaff, AcceptInvitation, DeactivateUser, UpsertRole, AssignRole), orders (CancelOrder y las 3 acciones de sub-pedido), pos (CloseCashSession, CreateSale, VoidSale, UpdatePosSettings, UpdateSale), settlement (SetPayoutSchedule, ConfirmPayout, FailPayout, ResolveException), payments-core (CreateTerminal, SetTerminalActive, UpsertFeePolicy, ResolveUnknownPayment, CancelPaymentIntent), fiscal-invoicing (ConfigureFiscalProfile, UpsertTaxpayer) y ledger (ReleaseHold).
+- `step_up_token` en `identity.ChangePasswordRequest`; DV del RUC en `CreateBusiness`/`Tenant`; `all` en `LogoutRequest`; `pac_provider` y forma de pago en `ConfigureFiscalProfileRequest`/`IssueInvoiceRequest`; variantes y precio por sucursal en `catalog.Product`; clave de lote en `catalog.BulkImportProducts`; `latest_app_version`, `api_base_url`, `realtime_url` y `features` en `infra_management.ClientConfig`; formato canónico del AAD en `security.Encrypt/Decrypt`; `pdf_object_key` en `payroll.Payslip`.
+- `analytics.proto`: sustituir `double` por enteros en `ForecastPoint` y en `AlertRule.threshold`/`AlertEvent.observed_value` (ADR 0013).
+- Derivar de metadatos (ADR 0011/0014) los `user_id`/`tenant_id`/`scope` que viajan en el cuerpo de identity, security e infra-management.
+
 **Agregados el 2026-10-12** (F02.6, aditivos, `./scripts/sync-protos.sh --check` en verde): `ConsentGrant`, `RegisterRequest.consents` (6), `RegisterRequest.channel` (7), `RegisterRequest.device` (8) y `AuthResult.reason` (10) en `identity.proto`.
 
 Además, la especificación funcional y el marco normativo (2026-10-12) requieren las rutas y campos listados en `docs/ux/functional-spec/README.md` §7 (verificación de identidad, consentimientos, solicitudes sobre datos, límites, beneficiarios finales, reclamos, devoluciones, descuento legal, parámetros legales, cola de cumplimiento, reporte de ITBMS, tipos de corrida de nómina, documentos del repartidor). Son aditivos y se incorporan en F03.2 y en el paso de cada módulo.
@@ -62,7 +68,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F03.1 Revisión RPC por RPC de los 18 `.proto` contra cada SPEC §4 (nombres, permisos documentados, idempotency_key) | 📝 | 18 .proto compilan juntos (protoc 29.3, 231+ RPC); falta tabla de cobertura |
+| F03.1 Revisión RPC por RPC de los 18 `.proto` contra cada SPEC §4 (nombres, permisos documentados, idempotency_key) | ✅ | 2026-10-12: revisión de los 231 RPC de los 16 `.proto` con servicio contra la §4 de cada SPEC dueño → [`docs/architecture/rpc-coverage.md`](../architecture/rpc-coverage.md). Los 231 tienen fila y permiso documentados y ningún nombre difiere. 117 observaciones en 53 hallazgos (F-1 a F-53): 31 RPC cuyo SPEC declara idempotencia que el contrato no puede expresar (falta `idempotency_key`), 9 contenedores sin columna *Idemp.* ni *Errores*, dinero en `double` en `analytics.proto`, tenant/actor en el cuerpo en varios RPC y campos prometidos por el modelo que el contrato no transporta. Sin cambios de contrato en este paso: todo se cierra en F03.2 (aditivo) y F03.5 |
 | F03.2 Agregar RPC/mensajes pendientes declarados en SPECs (`payments.PostMemoEntry`, `analytics.AskQuestion`, `analytics.AlertTriggered`, `identity.NotificationRequested`) | 📋 |  |
 | F03.3 Configurar `buf lint` + `buf breaking` contra `main` | 📋 |  |
 | F03.4 Generación Go/Rust por `sync-protos.sh` para todas las filas activas de `consumers.txt` | ✅ | sync-protos.sh --check verde para filas activas |

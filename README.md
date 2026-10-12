@@ -31,6 +31,7 @@ Todo de código abierto; sin dependencia de un proveedor de nube.
 | [`docs/domain/domain-model.md`](docs/domain/domain-model.md) | Reglas de dinero, ledger, estados (con vectores de prueba) |
 | [`docs/standards/`](docs/standards) | gRPC, datos, eventos, seguridad, observabilidad, pruebas, Go, Rust, Flutter, entrega |
 | [`docs/architecture/service-dependencies.md`](docs/architecture/service-dependencies.md) | 23 contenedores, puertos, quién llama a quién, degradación |
+| [`docs/architecture/rpc-coverage.md`](docs/architecture/rpc-coverage.md) | Cobertura de los 231 RPC contra cada SPEC §4 y los hallazgos de contrato (F03.1) |
 | [`docs/ux/screen-catalog.md`](docs/ux/screen-catalog.md) · [`docs/design-system.md`](docs/design-system.md) | Pantallas por módulo/rol y sistema visual |
 | [`docs/ux/functional-spec/`](docs/ux/functional-spec/README.md) | Requisitos funcionales y ficha de cada pantalla: elementos, textos, validaciones, flujos y conexiones entre módulos |
 | [`docs/compliance/regulatory-framework.md`](docs/compliance/regulatory-framework.md) | Normas de Panamá y estándares internacionales convertidos en reglas de negocio `N-…`, con fuentes y nivel de verificación |
