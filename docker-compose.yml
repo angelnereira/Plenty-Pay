@@ -41,6 +41,20 @@ services:
     networks: [edge, services]
     healthcheck: *healthcheck
 
+  # F02.8: sirve la app Flutter Web. El bundle lo construye ./scripts/build-release.sh web
+  # y se monta en solo lectura; sin él, `web` responde página de mantenimiento (SPEC R4).
+  web:
+    <<: *hardening
+    build:
+      context: ./web
+    env_file: ./web/.env
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./web/static/app:/app/static/app:ro
+    networks: [edge]
+    healthcheck: *healthcheck
+
   # --- Plantilla para nuevos contenedores (descomentar al llegar a su fase) ---
   # <contenedor>:
   #   <<: *hardening

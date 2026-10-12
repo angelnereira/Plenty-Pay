@@ -74,6 +74,11 @@ for platform in "${PLATFORMS[@]}"; do
       rm -rf "$OUT/web"; mkdir -p "$OUT/web"
       tar -czf "$OUT/web/plentypay-web-$VERSION.tar.gz" -C build/web .
       checksums web
+      # El contenedor `web` sirve el bundle desde web/static/app/ (ADR 0016: no se versiona).
+      rm -rf "$ROOT/web/static/app"
+      mkdir -p "$ROOT/web/static/app"
+      tar -xzf "$OUT/web/plentypay-web-$VERSION.tar.gz" -C "$ROOT/web/static/app"
+      echo "  bundle servido por web: web/static/app/"
       ;;
     linux)
       flutter build linux --release "${DEFINES[@]}"
