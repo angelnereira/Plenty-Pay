@@ -13,16 +13,16 @@ Go · 50072 · `analytics.proto` · PostgreSQL esquema `analytics` (agregados) +
 Agregados particionados por mes; todo con `tenant_id` + RLS.
 
 ## 4. RPCs
-| RPC | Permiso | Comportamiento |
-|---|---|---|
-| ListMetrics / QueryMetric | `analytics:read` | métricas del catálogo (§5 R2) por rango, granularidad (día/semana/mes), dimensiones (sucursal, canal, categoría) |
-| GetForecast | `analytics:read` | §5 R4 |
-| ListSegments | `analytics:read` | §5 R5 |
-| GetProductAbc | `analytics:read` | clasificación ABC por ingresos (80/15/5) |
-| UpsertDashboard / ListDashboards / GetDashboard | `analytics:dashboard:manage` / `analytics:read` | widgets = consultas del catálogo |
-| UpsertAlertRule / ListAlertRules / ListAlertEvents | `analytics:alert:manage` / `analytics:read` | umbral fijo o anomalía (§5 R3) |
-| CreateExport / GetExport | `analytics:export` | CSV/XLSX asíncrono a object-storage, enlace 24 h |
-| **AskQuestion** *(agregar al .proto en F21.8)* | `analytics:read` | §5 R6 |
+| RPC | Permiso | Comportamiento | Errores (`reason`) |
+|---|---|---|---|
+| ListMetrics / QueryMetric | `analytics:read` | métricas del catálogo (§5 R2) por rango, granularidad (día/semana/mes), dimensiones (sucursal, canal, categoría) | `METRIC_NOT_FOUND` |
+| GetForecast | `analytics:read` | §5 R4 | `METRIC_NOT_FOUND` |
+| ListSegments | `analytics:read` | §5 R5 | — |
+| GetProductAbc | `analytics:read` | clasificación ABC por ingresos (80/15/5) | — |
+| UpsertDashboard / ListDashboards / GetDashboard | `analytics:dashboard:manage` / `analytics:read` | widgets = consultas del catálogo | `METRIC_NOT_FOUND`, `NOT_FOUND` |
+| UpsertAlertRule / ListAlertRules / ListAlertEvents | `analytics:alert:manage` / `analytics:read` | umbral fijo o anomalía (§5 R3) | `METRIC_NOT_FOUND` |
+| CreateExport / GetExport | `analytics:export` | CSV/XLSX asíncrono a object-storage, enlace 24 h | `IDEMPOTENCY_KEY_REUSED`, `NOT_FOUND` |
+| **AskQuestion** | `analytics:read` | §5 R6 | `QUESTION_NOT_UNDERSTOOD` |
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-11, N-FIS-12 y N-COM-03. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.

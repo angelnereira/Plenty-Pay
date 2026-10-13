@@ -13,14 +13,14 @@ Unidad de despliegue con 2 procesos (ADR 0016): servicio Go (50073) + OpenBao (8
 - `security.secret_acl (name, allowed_readers text[])`, `security.blocks (subject, kind, until, reason)`, `security.security_events` (ventana 30 días).
 
 ## 4. RPCs
-| RPC | Llamador | Comportamiento |
-|---|---|---|
-| GetSecret | solo contenedores en `allowed_readers` (SAN mTLS) | devuelve valor; cada lectura auditada |
-| PutSecret / RotateSecret / ListSecrets | servicios dueños (fiscal, payments-core por tenant) y plataforma | ListSecrets solo metadatos |
-| Encrypt / Decrypt / RotateDataKey | servicios autorizados por propósito (tabla §5 R3) | ciphertext + `key_version`; Decrypt con AAD = `tenant_id|resource_id` |
-| AppendAuditEvent / QueryAuditEvents / VerifyAuditChain | gateway; plataforma (`platform:security:read`); dueño del tenant (`admin:audit:read`, filtrado a su tenant) | §5 R4 |
-| ReportSecurityEvent / IsBlocked | identity, gateway, payments-core | reglas de bloqueo §5 R5 |
-| IssueServiceCertificate | contenedores al arrancar (token de bootstrap de un solo uso) | CSR → certificado SPIFFE 24 h |
+| RPC | Llamador | Comportamiento | Errores (`reason`) |
+|---|---|---|---|
+| GetSecret | solo contenedores en `allowed_readers` (SAN mTLS) | devuelve valor; cada lectura auditada | `NOT_FOUND` |
+| PutSecret / RotateSecret / ListSecrets | servicios dueños (fiscal, payments-core por tenant) y plataforma | ListSecrets solo metadatos | `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| Encrypt / Decrypt / RotateDataKey | servicios autorizados por propósito (tabla §5 R3) | ciphertext + `key_version`; Decrypt con AAD = `tenant_id|resource_id` | `UNKNOWN_KEY_PURPOSE`, `AAD_MISMATCH`, `IDEMPOTENCY_KEY_REUSED` |
+| AppendAuditEvent / QueryAuditEvents / VerifyAuditChain | gateway; plataforma (`platform:security:read`); dueño del tenant (`admin:audit:read`, filtrado a su tenant) | §5 R4 | `IDEMPOTENCY_KEY_REUSED` |
+| ReportSecurityEvent / IsBlocked | identity, gateway, payments-core | reglas de bloqueo §5 R5 | `UNKNOWN_EVENT_KIND`, `IDEMPOTENCY_KEY_REUSED`; motivos de bloqueo en `IsBlockedResponse.reason`: `LOGIN_FAILED`, `TOKEN_REUSE`, `VELOCITY_EXCEEDED` |
+| IssueServiceCertificate | contenedores al arrancar (token de bootstrap de un solo uso) | CSR → certificado SPIFFE 24 h | `BOOTSTRAP_TOKEN_INVALID`, `IDEMPOTENCY_KEY_REUSED` |
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-AML-05, N-AML-06, N-AML-07, N-DAT-01, N-DAT-04, N-DAT-08, N-DAT-09, N-DAT-10 y N-COM-05. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.

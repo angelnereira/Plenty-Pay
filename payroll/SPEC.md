@@ -35,18 +35,18 @@ CREATE TABLE payroll.payslips (id uuid PRIMARY KEY, run_id uuid NOT NULL, employ
 ```
 
 ## 4. RPCs
-| RPC | Permiso | Comportamiento clave |
-|---|---|---|
-| UpsertEmployee / GetEmployee / ListEmployees | `payroll:employee:manage` / `:read` | cédula → `security.Encrypt(national_id)`; nunca se devuelve completa |
-| UpsertShift / AssignSchedule / ListSchedule | `payroll:employee:manage` / `:read` | |
-| ClockEvent | `payroll:attendance:record` (propio) o sesión de quiosco | §5 R1–R4 |
-| ListAttendance | `payroll:attendance:read` o propio | |
-| EnrollBiometric | `payroll:employee:manage` + consentimiento del empleado | guarda embedding cifrado |
-| CreateKioskSession | `payroll:employee:manage` | token de dispositivo de 12 h renovable; solo permite ClockEvent |
-| CreatePayrollRun / GetPayrollRun / ListPayrollRuns | `payroll:run:create` / `:read` | calcula borrador §5 R5 |
-| ApprovePayrollRun | `payroll:run:approve` + step-up | DRAFT → APPROVED (inmutable) |
-| PayPayrollRun | `payroll:run:pay` + step-up | APPROVED → PAYING; un pago T10 por empleado vía payments-core (`payroll:<run>:<employee>`) |
-| GetPayslip | `payroll:payslip:read:self` o `payroll:employee:read` | PDF |
+| RPC | Permiso | Comportamiento clave | Errores (`reason`) |
+|---|---|---|---|
+| UpsertEmployee / GetEmployee / ListEmployees | `payroll:employee:manage` / `:read` | cédula → `security.Encrypt(national_id)`; nunca se devuelve completa | `BELOW_MINIMUM_WAGE`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| UpsertShift / AssignSchedule / ListSchedule | `payroll:employee:manage` / `:read` | | `NOT_FOUND` |
+| ClockEvent | `payroll:attendance:record` (propio) o sesión de quiosco | §5 R1–R4 | `INVALID_CLOCK_SEQUENCE`, `INVALID_PIN`, `OVERRIDE_REASON_REQUIRED`, `LOW_LIVENESS`, `BIOMETRIC_NOT_ENROLLED`, `KIOSK_SESSION_INVALID`, `CONSENT_REQUIRED`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED`, `RATE_LIMITED` |
+| ListAttendance | `payroll:attendance:read` o propio | | `NOT_FOUND` |
+| EnrollBiometric | `payroll:employee:manage` + consentimiento del empleado | guarda embedding cifrado | `CONSENT_REQUIRED`, `NOT_FOUND` |
+| CreateKioskSession | `payroll:employee:manage` | token de dispositivo de 12 h renovable; solo permite ClockEvent | `IDEMPOTENCY_KEY_REUSED` |
+| CreatePayrollRun / GetPayrollRun / ListPayrollRuns | `payroll:run:create` / `:read` | calcula borrador §5 R5 | `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| ApprovePayrollRun | `payroll:run:approve` + step-up | DRAFT → APPROVED (inmutable) | `CANNOT_APPROVE_OWN_RUN`, `PROFESSIONAL_RISK_RATE_MISSING`, `ATTENDANCE_NEEDS_REVIEW`, `STEP_UP_REQUIRED`, `INVALID_STATE_TRANSITION` |
+| PayPayrollRun | `payroll:run:pay` + step-up | APPROVED → PAYING; un pago T10 por empleado vía payments-core (`payroll:<run>:<employee>`) | `INVALID_STATE_TRANSITION`, `STEP_UP_REQUIRED`, `INSUFFICIENT_FUNDS`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| GetPayslip | `payroll:payslip:read:self` o `payroll:employee:read` | PDF | `NOT_FOUND` |
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LAB-01 a N-LAB-16 y N-DAT-04. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.

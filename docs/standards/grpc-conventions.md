@@ -63,6 +63,24 @@ Los errores de **negocio esperables** (saldo insuficiente, sin stock) son `FAILE
 
 Catálogo de `reason` transversales: `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID`, `INSUFFICIENT_FUNDS`, `OUT_OF_STOCK`, `INVALID_STATE_TRANSITION`, `AMOUNT_BELOW_FEES`, `CURRENCY_MISMATCH`, `UNBALANCED_TRANSACTION`, `RAIL_UNAVAILABLE`, `RATE_LIMITED`, `MAINTENANCE_MODE`. Cada SPEC lista los suyos; el catálogo completo, con dueño, está en `docs/glossary.md` §7.3.
 
+## 4.1 Anexo — `reason` por RPC (F03.5)
+
+Dónde buscar el detalle de cada RPC, para no duplicarlo aquí:
+
+| Dueño | Dónde están sus `reason` por RPC |
+|---|---|
+| identity, payments-core, settlement, fiscal-invoicing, orders, pos, ledger | columna *Errores (`reason`)* de la tabla §4 de su `SPEC.md` |
+| api-gateway | `api-gateway/SPEC.md` §3.11 y la tabla de rutas §4 |
+| catalog, inventory, logistics, geolocation, payroll, notifications, analytics-bi, security, infra-management | ídem (columna añadida el 2026-10-12, F03.5) |
+| **todos** | catálogo completo con dueño: `docs/glossary.md` §7.3 |
+
+Reglas para añadir uno:
+1. El nombre se decide con el SPEC abierto: si §5 ya nombra el fallo, se usa esa palabra.
+2. Se declara en la columna *Errores (`reason`)* de la fila del RPC **y** en la fila del contenedor de `docs/glossary.md` §7.3, en el mismo cambio (`scripts/check-docs.sh` comprueba las dos cosas).
+3. Si el fallo es transversal (recurso inexistente, estado inválido, clave de idempotencia reutilizada), **no** se declara como propio: se reutiliza el transversal.
+4. Un `reason` normativo (los de la fila *normativos* de §7.3) no se copia al contenedor: se cita desde la regla `N-…` que lo fija.
+5. Un fallo interno del servidor **nunca** lleva `reason` de negocio: es `INTERNAL` sin detalle al cliente.
+
 ## 5. Plazos, reintentos y resiliencia
 - Todo llamador fija **deadline** (3 s lecturas, 10 s escrituras, 30 s cuando cruza a un riel externo). Los servicios propagan el deadline restante, nunca lo amplían.
 - Reintento automático **solo** de RPC idempotentes (lecturas o mutaciones con `idempotency_key`), solo ante `UNAVAILABLE`/`ABORTED`, backoff exponencial con jitter (100 ms ×2, tope 2 s, máx. 3 intentos). Nunca reintentar a ciegas un cobro tras `DEADLINE_EXCEEDED`: se consulta estado.

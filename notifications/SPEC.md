@@ -28,15 +28,15 @@ CREATE TABLE notifications.suppressions (address_hash bytea PRIMARY KEY, channel
 ```
 
 ## 4. RPCs
-| RPC | Llamador / permiso | Comportamiento |
-|---|---|---|
-| Send / SendBatch | servicios internos | `dedupe_key` obligatorio; resuelve contactos (identity.GetUserContacts), preferencias, plantilla, canal; encola |
-| GetNotification | servicios / plataforma | |
-| ListInbox / MarkRead / StreamInbox | propio usuario | |
-| RegisterDevice / UnregisterDevice | propio usuario | un token push pertenece a un solo usuario (reasignación al último) |
-| GetPreferences / SetPreferences | propio usuario | categorías transaccionales (pagos, seguridad) no se pueden desactivar en todos los canales: al menos in-app |
-| UpsertTemplate / ListTemplates | `notifications:template:manage` (tenant) / plataforma | variables validadas contra esquema de la plantilla; vista previa |
-| HandleInboundWebhook | gateway | rebotes/quejas de correo → supresión; mensajes entrantes de WhatsApp (Jelou) → evento para soporte (F25) |
+| RPC | Llamador / permiso | Comportamiento | Errores (`reason`) |
+|---|---|---|---|
+| Send / SendBatch | servicios internos | `dedupe_key` obligatorio; resuelve contactos (identity.GetUserContacts), preferencias, plantilla, canal; encola | `TEMPLATE_NOT_FOUND`, `TEMPLATE_PARAM_MISMATCH`, `RECIPIENT_UNREACHABLE`, `CONSENT_REQUIRED`, `IDEMPOTENCY_KEY_REUSED` |
+| GetNotification | servicios / plataforma | | `NOT_FOUND` |
+| ListInbox / MarkRead / StreamInbox | propio usuario | | `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| RegisterDevice / UnregisterDevice | propio usuario | un token push pertenece a un solo usuario (reasignación al último) | `NOT_FOUND` |
+| GetPreferences / SetPreferences | propio usuario | categorías transaccionales (pagos, seguridad) no se pueden desactivar en todos los canales: al menos in-app | `TRANSACTIONAL_IN_APP_REQUIRED` |
+| UpsertTemplate / ListTemplates | `notifications:template:manage` (tenant) / plataforma | variables validadas contra esquema de la plantilla; vista previa | `TEMPLATE_VERSION_EXISTS`, `TEMPLATE_PARAM_MISMATCH`, `IDEMPOTENCY_KEY_REUSED` |
+| HandleInboundWebhook | gateway | rebotes/quejas de correo → supresión; mensajes entrantes de WhatsApp (Jelou) → evento para soporte (F25) | `WEBHOOK_SIGNATURE_INVALID`, `UNKNOWN_PROVIDER` |
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-12, N-CON-10 y el consentimiento de mercadeo de N-DAT-02. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
