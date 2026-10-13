@@ -78,6 +78,32 @@ services:
       - ./observability/alerts:/etc/prometheus/alerts:ro
     networks: [services]
 
+  # F04.2/F04.3: Loki (logs) y Tempo (trazas). Alloy lee el stdout de los contenedores.
+  loki:
+    <<: *hardening
+    image: grafana/loki:latest # ídem: la versión exacta se fija al cerrar F04
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./observability/loki.yaml:/etc/loki/config.yaml:ro
+    networks: [services]
+
+  tempo:
+    <<: *hardening
+    image: grafana/tempo:latest # ídem
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo/config.yaml:ro
+    networks: [services]
+
+  alloy:
+    <<: *hardening
+    image: grafana/alloy:latest # ídem
+    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data"]
+    volumes:
+      - ./observability/alloy.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [services]
+
   # --- Plantilla para nuevos contenedores (descomentar al llegar a su fase) ---
   # <contenedor>:
   #   <<: *hardening
