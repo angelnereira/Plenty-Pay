@@ -1,0 +1,89 @@
+# Reglas de alerta (observability-standards.md §6). Toda alerta lleva `runbook_url`
+# (R1/R4: el runbook se escribe cuando la alerta se activa por primera vez).
+groups:
+  - name: criticas-servicios
+    interval: 30s
+    rules:
+      # Tasa de error 5xx del gateway > 2 % durante 5 min.
+      - alert: Gateway5xxRate
+        expr: |
+          sum(rate(pp_http_requests_total{service="api-gateway",status=~"5.."}[5m]))
+          / clamp_min(sum(rate(pp_http_requests_total{service="api-gateway"}[5m])), 1)
+          > 0.02
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "El gateway responde 5xx por encima del 2 %"
+          description: "Tasa de 5xx = {{ $value | humanizePercentage }} en los últimos 5 min."
+          runbook_url: https://docs.plentypay.local/runbooks/gateway-5xx.md
+
+      # identity deja de servir (sin peticiones correctas en 5 min): el login se cae para todos.
+      - alert: IdentityNoTraffic
+        expr: sum(rate(pp_rpc_server_requests_total{service="identity",code="OK"}[5m])) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "identity no recibe peticiones correctas"
+          description: "Sin RPC OK en 5 min. Comprobar identity:9100/healthz/ready."
+          runbook_url: https://docs.plentypay.local/runbooks/identity-down.md
+
+      # Reuso de refresh detectado: posible robo de token (§6).
+      - alert: RefreshReuseDetected
+        expr: increase(pp_refresh_reuse_detected_total[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Se detectó reuso de un refresh token"
+          description: "{{ $value }} eventos en 15 min. Revisar sesiones revocadas."
+          runbook_url: https://docs.plentypay.local/runbooks/refresh-reuse.md
+
+      # El collector deja de recibir telemetría: las alertas siguientes quedarían ciegas.
+      - alert: TelemetryPipelineDown
+        expr: up{job="otel-collector"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "El OTel Collector no responde"
+          description: "Sin métricas del colector: trazas y métricas de todos los servicios dejan de exportarse."
+          runbook_url: https://docs.plentypay.local/runbooks/collector-down.md
+
+  - name: advertencias-servicios
+    interval: 60s
+    rules:
+      # p95 de la duración de los RPC de identity por encima de 500 ms durante 15 min.
+      - alert: IdentityLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(pp_rpc_server_duration_seconds_bucket{service="identity"}[15m])) by (le))
+          > 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 de identity por encima del SLO (500 ms)"
+          description: "p95 = {{ $value | humanizeDuration }}."
+          runbook_url: https://docs.plentypay.local/runbooks/identity-latency.md
+
+      # Cualquier contenedor con su endpoint de métricas caído.
+      - alert: MetricsEndpointDown
+        expr: up{job="plentypay-services"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Un servicio no expone /metrics"
+          description: "{{ $labels.instance }} lleva 10 min sin responder; sus alarmas quedan ciegas."
+          runbook_url: https://docs.plentypay.local/runbooks/metrics-down.md
+
+      # Pánicos recuperados en cualquier servicio (AGENTS.md §2.14: nunca se descartan).
+      - alert: PanicsRecovered
+        expr: increase(pp_panics_total[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Se recuperó un pánico en {{ $labels.service }}"
+          description: "{{ $value }} pánicos en 15 min. Revisar los registros con el request_id."
+          runbook_url: https://docs.plentypay.local/runbooks/panics.md

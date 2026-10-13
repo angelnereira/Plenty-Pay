@@ -55,6 +55,29 @@ services:
     networks: [edge]
     healthcheck: *healthcheck
 
+  # F04.1: colector OTLP (4317/4318), Prometheus (9090) y scrape de los :9100/metrics de
+  # los servicios. Tempo/Loki/Grafana/Alertmanager llegan en F04.2–F04.5.
+  otel-collector:
+    <<: *hardening
+    image: otel/opentelemetry-collector-contrib:latest # la versión exacta se fija al cerrar F04
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otel/config.yaml:ro
+    environment:
+      DEPLOY_ENV: ${DEPLOY_ENV:-dev}
+    networks: [services]
+
+  prometheus:
+    <<: *hardening
+    image: prom/prometheus:latest # ídem
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts:/etc/prometheus/alerts:ro
+    networks: [services]
+
   # --- Plantilla para nuevos contenedores (descomentar al llegar a su fase) ---
   # <contenedor>:
   #   <<: *hardening

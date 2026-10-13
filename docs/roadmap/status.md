@@ -78,7 +78,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F04.1 OTel Collector + Prometheus con scrape de `:9100` | 📋 |  |
+| F04.1 OTel Collector + Prometheus con scrape de `:9100` | 📝 | 2026-10-13: `observability/otel-collector.yaml` (receptores OTLP 4317/4318, *tail sampling* con 100 % de errores y trazas lentas + 10 % del resto según §3.4, exportadores a Tempo/Loki/Prometheus con el prefijo pp_ ya aplicado, `health_check`, `zpages` y *memory ballast*), `observability/prometheus.yml` (scrape de `identity:9100`, `api-gateway:9100`, `web:9100` con plantilla para las fases siguientes) y 7 reglas de alerta en `observability/alerts/services.yml` (4 críticas, 3 de advertencia) con `runbook_url`. Verificado lo verificable sin Docker: YAML válido y las series que citan las alertas existen en los `/metrics` reales (E2E 35/35, incluye comprobación de etiquetas prohibidas §2.3). **No ejecutado**: levantar el stack y ver "métricas de identity visibles" (sin daemon de Docker); versiones de imágenes aún en `latest` |
 | F04.2 Loki + recolector de logs de Docker | 📋 |  |
 | F04.3 Tempo + propagación `traceparent` gateway→identity | 📋 |  |
 | F04.4 Grafana con 7 dashboards como código | 📋 |  |

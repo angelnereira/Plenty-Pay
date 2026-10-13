@@ -67,6 +67,16 @@ ok_if "todo registro es JSON con ts, level, service y msg"  "! grep -vE '^\{\"ts
 ok_if "ningún registro contiene tokens ni contraseñas"      "! grep -qE 'eyJ[A-Za-z0-9_-]{5,}\\.|contraseña-larga|$REFRESH' '$TMP/gateway.log' '$TMP/identity.log'"
 check "/metrics del gateway (puerto admin)"       200 "$(code localhost:59180/metrics)"
 ok_if "/metrics expone pp_build_info y pp_panics_total"     "grep -q 'pp_build_info{service=\"api-gateway\"' '$TMP/body' && grep -q 'pp_panics_total{service=\"api-gateway\"} 0' '$TMP/body'"
+# observability-standards.md §2.1: las series que usan las alertas de observability/alerts/
+# tienen que existir de verdad; si no, Prometheus no podría evaluarlas.
+IDM="$(curl -s localhost:59160/metrics)"
+metric_has() { printf '%s\n' "$IDM" | grep -q "$1"; }
+ok_if "identity expone pp_logins_total (alerta de bloqueos)"        'metric_has "pp_logins_total{service=\"identity\",result="'
+ok_if "identity expone pp_rpc_server_requests_total"                'metric_has "pp_rpc_server_requests_total{service=\"identity\""'
+ok_if "identity expone el histograma pp_rpc_server_duration_seconds" 'metric_has "pp_rpc_server_duration_seconds_bucket{service=\"identity\"" && metric_has "pp_rpc_server_duration_seconds_count{service=\"identity\""'
+ok_if "el login correcto y el fallido dejaron pp_logins_total"       'metric_has "result=\"success\"" && metric_has "result=\"failure\""'
+ok_if "ninguna metrica usa etiquetas prohibidas (seccion 2.3)"       '! printf "%s%s\n" "$IDM" "$(cat "$TMP/body")" | grep -qE "(user_id|tenant_id|request_id|payment_id)="'
+
 
 echo; echo "$PASS correctas, $FAIL fallidas"
 [ "$FAIL" -eq 0 ] || { echo "--- logs ---"; tail -n 5 "$TMP/identity.log" "$TMP/gateway.log"; exit 1; }
