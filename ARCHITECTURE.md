@@ -49,7 +49,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [infra-management](infra-management/SPEC.md) | Go | 50074 | ✅ feature flags, configuración dinámica con JSON Schema, modo mantenimiento y cliente config | F05 |
 | [orders](orders/SPEC.md) | Go | 50075 | 📋 | F15 |
 | [observability](observability/SPEC.md) | OSS | 4317/9090/3000 | ✅ pila completa operando en Docker (OTel, Prometheus, Loki, Tempo, Alloy, Alertmanager, Grafana con 7 dashboards) | F04 |
-| [postgres-db](postgres-db/SPEC.md) | PostgreSQL 16 + PostGIS | 5432/6432 | 📝 PostgreSQL 16 + PostGIS con 16 esquemas y roles aislados en Docker Compose | F06 |
+| [postgres-db](postgres-db/SPEC.md) | PostgreSQL 16 + PostGIS | 5432/6432 | ✅ PostgreSQL 16 + PostGIS con 16 esquemas/roles aislados, PgBouncer en transacción, exporter/alertas, respaldos base y PITR demostrado (RPO ≤ 5 min) | F06 |
 | [nosql-db](nosql-db/SPEC.md) | ScyllaDB | 9042 | 📋 | F07 |
 | [event-bus](event-bus/SPEC.md) | NATS JetStream | 4222 | 📋 | F07 |
 | [object-storage](object-storage/SPEC.md) | Garage | 3900 | 📋 | F07 |

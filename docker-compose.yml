@@ -126,6 +126,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - postgres-wal:/var/lib/postgresql/wal_archive
+      - postgres-backup:/var/lib/postgresql/backup
     networks: [data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d plentypay"]
@@ -275,3 +276,4 @@ volumes:
   grafana-data:
   postgres-data:
   postgres-wal:
+  postgres-backup:

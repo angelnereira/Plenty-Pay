@@ -16,6 +16,8 @@ Base relacional: un esquema y un rol por contenedor. Especificación completa: [
 | Imagen Docker | ✅ fijada y verificada | Construida sobre postgis 16-3.4-alpine, scripts en `init/`, `postgresql.conf` con `wal_level=replica` y archivado |
 | PgBouncer | ✅ implementado | Pooler en puerto 6432 con `pool_mode=transaction` y auth SCRAM delegada vía `auth_query`; `./postgres-db/test/test_pgbouncer.sh` pasa (7/7) |
 | Monitoreo y alertas | ✅ implementado | `postgres_exporter` v0.16.0 en `:9187`, Prometheus target activo, 6 alertas (réplica, disco, conexiones, WAL) y paneles en dashboard Plataforma (`pp-platform`); `./postgres-db/test/test_monitoring.sh` pasa (8/8) |
+| Respaldos base y WAL | ✅ implementado | Script `backup.sh` (`pg_basebackup -Ft -z -Xs`) genera respaldos comprimidos diarios con streaming de WAL y verificación SHA-256; `./postgres-db/test/test_backup.sh` pasa (7/7) |
+| Restauración PITR | ✅ implementado y probado | Procedimiento documentado en `docs/runbooks/postgres-pitr.md`; `./postgres-db/test/test_pitr.sh` pasa (4/4) verificando restauración exacta a restore point y descarte de corrupción |
 
 ## Arranque local
 Integrado en `docker-compose.yml`:
@@ -28,5 +30,7 @@ docker compose up -d postgres-db pgbouncer postgres-exporter
 ./postgres-db/test/test_isolation.sh
 ./postgres-db/test/test_pgbouncer.sh
 ./postgres-db/test/test_monitoring.sh
+./postgres-db/test/test_backup.sh
+./postgres-db/test/test_pitr.sh
 ```
 
