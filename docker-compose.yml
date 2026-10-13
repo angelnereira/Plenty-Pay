@@ -116,6 +116,24 @@ services:
     networks: [services]
     healthcheck: *healthcheck
 
+  # ── PostgreSQL de producción (F06) ───────────────────────────────────────────
+  postgres-db:
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    build:
+      context: ./postgres-db
+    env_file: ./postgres-db/.env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - postgres-wal:/var/lib/postgresql/wal_archive
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d plentypay"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   # ── Observabilidad (F04) ────────────────────────────────────────────────────────
   # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
   otel-collector:
@@ -225,3 +243,5 @@ volumes:
   alloy-data:
   alertmanager-data:
   grafana-data:
+  postgres-data:
+  postgres-wal:

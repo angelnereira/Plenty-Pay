@@ -4,19 +4,24 @@ Base relacional: un esquema y un rol por contenedor. Especificación completa: [
 
 | | |
 |---|---|
-| Tecnología | PostgreSQL 16 + PostGIS + PgBouncer |
-| Puerto | 5432/6432 (admin `:9100` en servicios propios) |
-| Fase del roadmap | F06 |
+| Tecnología | PostgreSQL 16 + PostGIS (`postgis/postgis@sha256:681931a625df344215e9b8998bf34daf146b6a395ceacee4439eb9c85869239f`) |
+| Puerto | 5432 (interno red data) / 6432 (PgBouncer) |
+| Fase del roadmap | F06 (F06.1) |
 
 ## Estado
 | Aspecto | Estado | Evidencia |
 |---|---|---|
-| Código | 📋 planificado: solo especificación (`SPEC.md`) | |
-| Pruebas | — | |
-| Imagen Docker | — | |
+| Esquemas y roles | ✅ implementado | 16 esquemas (`identity`, `ledger`, `payments`, etc.) y 16 roles (`<svc>_svc`) con permisos estrictos de no-cruce |
+| Pruebas de aislamiento | ✅ implementadas | `./postgres-db/test/test_isolation.sh` verifica que un rol no puede leer ni escribir en el esquema de otro rol |
+| Imagen Docker | ✅ fijada y verificada | Construida sobre postgis 16-3.4-alpine, scripts en `init/`, `postgresql.conf` con `wal_level=replica` y archivado |
 
 ## Arranque local
-Se agrega a `docker-compose.yml` al llegar a su fase (F06). Hasta entonces no forma parte del sistema local.
+Integrado en `docker-compose.yml`:
+```bash
+docker compose up -d postgres-db
+```
 
-## Limitaciones conocidas
-Todo pendiente; ver plan en `SPEC.md` §12 y la fase en `05-HOJA-DE-RUTA-30-FASES.md`.
+## Pruebas de aislamiento
+```bash
+./postgres-db/test/test_isolation.sh
+```

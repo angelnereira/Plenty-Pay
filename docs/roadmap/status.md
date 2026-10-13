@@ -103,7 +103,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F06.1 Imagen PostgreSQL 16 + PostGIS + init de esquemas y roles | 📋 |  |
+| F06.1 Imagen PostgreSQL 16 + PostGIS + init de esquemas y roles | ✅ | 2026-10-13: Imagen `postgres-db` construida sobre `postgis/postgis@sha256:681931a625df344215e9b8998bf34daf146b6a395ceacee4439eb9c85869239f` (16-3.4-alpine). Inicialización de 16 esquemas y roles (`<svc>_svc`, `migrator_<svc>`) con `00-roles-and-schemas.sql` y `01-passwords.sh`. Acceso a `public` revocado. Aislamiento entre contenedores verificado mediante `./postgres-db/test/test_isolation.sh`: `identity_svc` no puede leer ni escribir en `ledger`, `ledger_svc` no puede acceder a `identity`, ninguno puede escribir en `public`, y `readonly_ops` solo lectura (12/12 pruebas pasando). Saludable en Docker Compose. Verificado L2 |
 | F06.2 PgBouncer en modo transacción | 📋 |  |
 | F06.3 postgres_exporter + alertas (réplica, disco, conexiones) | 📋 |  |
 | F06.4 Respaldos base + WAL a object-storage (o directorio local en compose) | 📋 |  |
