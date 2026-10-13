@@ -69,6 +69,42 @@ services:
     networks: [edge, services]
     healthcheck: *healthcheck
 
+  # ── Seguridad base (F05) ──────────────────────────────────────────────────────
+  openbao:
+    <<: *hardening
+    user: "100:1000"
+    image: openbao/openbao@sha256:19612d67a4a95d05a7b77c6ebc6c2ac5dac67a8712d8df2e4c31ad28bee7edaa # 2.2.0
+    command:
+      - server
+      - -dev
+      - -dev-listen-address=0.0.0.0:8200
+      - -dev-root-token-id=${VAULT_DEV_ROOT_TOKEN_ID:-plentypay-dev-root-token}
+      - -dev-no-store-token
+    tmpfs: [/tmp:rw]
+    networks: [data]
+    healthcheck:
+      test: ["CMD", "bao", "status", "-address=http://127.0.0.1:8200"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  security:
+    <<: *hardening
+    build:
+      context: ./security
+    env_file: ./security/.env
+    environment:
+      VAULT_ADDR: http://openbao:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN_ID:-plentypay-dev-root-token}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+    depends_on:
+      openbao:
+        condition: service_healthy
+    networks: [services, data]
+    healthcheck: *healthcheck
+
   # ── Observabilidad (F04) ────────────────────────────────────────────────────────
   # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
   otel-collector:

@@ -45,7 +45,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [payroll](payroll/SPEC.md) | Go | 50070 | 📋 | F19 |
 | [notifications](notifications/SPEC.md) | Go | 50071 | 📋 | F20 |
 | [analytics-bi](analytics-bi/SPEC.md) | Go | 50072 | 📋 | F21 |
-| [security](security/SPEC.md) | Go + OpenBao | 50073 | 📋 | F05 |
+| [security](security/SPEC.md) | Go + OpenBao | 50073 | ✅ secretos con ACL, transit, auditoría encadenada, bloqueos y OpenBao 2.2.0 operando en Docker Compose | F05 |
 | [infra-management](infra-management/SPEC.md) | Go | 50074 | 📋 | F05 |
 | [orders](orders/SPEC.md) | Go | 50075 | 📋 | F15 |
 | [observability](observability/SPEC.md) | OSS | 4317/9090/3000 | ✅ pila completa operando en Docker (OTel, Prometheus, Loki, Tempo, Alloy, Alertmanager, Grafana con 7 dashboards) | F04 |

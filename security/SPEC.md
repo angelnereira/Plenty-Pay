@@ -5,7 +5,7 @@
 **No hace**: autenticación de usuarios (identity), lógica de negocio.
 
 ## 2. Ficha
-Unidad de despliegue con 2 procesos (ADR 0016): servicio Go (50073) + OpenBao (8200, solo red `data`). `security.proto`. Esquema `security`. Fase F05 (base), F28 (endurecimiento). Capa L1.
+Unidad de despliegue con 2 procesos (ADR 0016): servicio Go (50073) + OpenBao (8200, solo red `data`). Imagen OpenBao: `openbao/openbao@sha256:19612d67a4a95d05a7b77c6ebc6c2ac5dac67a8712d8df2e4c31ad28bee7edaa` (v2.2.0). `security.proto`. Esquema `security`. Fase F05 (base), F28 (endurecimiento). Capa L1.
 
 ## 3. Modelo de datos
 - OpenBao: KV v2 en `secret/plentypay/<ámbito>/<nombre>`; transit con llaves por propósito (`national_id`, `payout_destination`, `biometric_template`, `tax_id`, `pac_credentials`); PKI para certificados de servicio (TTL 24 h).

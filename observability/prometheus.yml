@@ -29,6 +29,7 @@ scrape_configs:
           - identity:9100
           - api-gateway:9100
           - web:9100
+          - security:9100
         labels:
           stack: plentypay
 

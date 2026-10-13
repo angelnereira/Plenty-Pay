@@ -89,11 +89,11 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F05.1 OpenBao en compose (modo dev solo local; política de unseal documentada) | 📋 |  |
-| F05.2 Servicio security: GetSecret/PutSecret con ACL por SAN | 📋 |  |
-| F05.3 Encrypt/Decrypt por propósito con AAD | 📋 |  |
-| F05.4 Auditoría encadenada + consumidor `pp.audit.>` + VerifyAuditChain | 📋 |  |
-| F05.5 ReportSecurityEvent / IsBlocked con reglas R5 | 📋 |  |
+| F05.1 OpenBao en compose (modo dev solo local; política de unseal documentada) | ✅ | 2026-10-13: OpenBao 2.2.0 fijado por digest (`openbao/openbao@sha256:19612d67a4a95d05a7b77c6ebc6c2ac5dac67a8712d8df2e4c31ad28bee7edaa`), corriendo en Docker Compose dev mode en red `data`, hardened con non-root `100:1000` y tmpfs. Healthcheck `bao status` saludable. Secretos KV probados con put/get (`secret/data/plentypay/test`). Política de unseal documentada en `docs/runbooks/openbao-unseal.md`. Verificado L2/L4 |
+| F05.2 Servicio security: GetSecret/PutSecret con ACL por SAN | ✅ | 2026-10-13: Servicio `security` implementa `GetSecret`/`PutSecret`/`RotateSecret`/`ListSecrets` con control de acceso por llamador (`allowed_readers` según SPEC §5 R2). Contenedor no listado recibe `PERMISSION_DENIED` (`TestR2_SecretACL_EnforcesAllowedReaders` y `TestServer_GetSecret_ACL`). Cada lectura auditada. Cliente OpenBao HTTP (`client.OpenBaoClient`) con `TestOpenBaoClient_*`. Verificado L2 |
+| F05.3 Encrypt/Decrypt por propósito con AAD | ✅ | 2026-10-13: `Encrypt`/`Decrypt`/`RotateDataKey` por propósito (`national_id`, `payout_destination`, `biometric_template`, `tax_id`, `pac_credentials`) con AAD canónico (`tenant_id\|resource_id`, SPEC §5 R3). AAD distinto falla con `AAD_MISMATCH` (`TestR3_EncryptDecrypt_AADAndRotation` y `TestServer_EncryptDecrypt_AADMismatchAndRotation`). Rotación de llave mantiene descifrado de versiones antiguas (R7). Verificado L2 |
+| F05.4 Auditoría encadenada + consumidor `pp.audit.>` + VerifyAuditChain | ✅ | 2026-10-13: `AppendAuditEvent`, `QueryAuditEvents` y `VerifyAuditChain` con cálculo determinista `hash = sha256(prev_hash \|\| canonical(event))` (SPEC §5 R4). Alterar una fila en la base de datos detecta ruptura de la cadena con `intact=false` e id del primer evento roto (`TestR4_AuditHashChain_TamperDetection` y `TestServer_AuditChain_TamperDetection`). Verificado L2 |
+| F05.5 ReportSecurityEvent / IsBlocked con reglas R5 | ✅ | 2026-10-13: `ReportSecurityEvent` e `IsBlocked` con reglas R5: 20 `LOGIN_FAILED` por IP en 10 min bloquean la IP por 1 hora; `TOKEN_REUSE` bloquea la cuenta inmediatamente (`TestR5_SecurityEvent_LoginFailedBlockThreshold`, `TestR5_SecurityEvent_TokenReuseBlocksAccount`, `TestServer_ReportSecurityEvent_BlockThreshold`). Verificado L2 |
 | F05.6 PKI SPIFFE + mTLS en identity y gateway; step-up en identity (Issue/Verify/Consume) | 📋 |  |
 | F05.7 infra-management: flags + NATS KV | 📋 |  |
 | F05.8 Config con JSON Schema + valores iniciales (límites, umbrales, feriados) | 📋 |  |
