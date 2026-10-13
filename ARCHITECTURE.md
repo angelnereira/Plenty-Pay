@@ -50,7 +50,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [orders](orders/SPEC.md) | Go | 50075 | 📋 | F15 |
 | [observability](observability/SPEC.md) | OSS | 4317/9090/3000 | ✅ pila completa operando en Docker (OTel, Prometheus, Loki, Tempo, Alloy, Alertmanager, Grafana con 7 dashboards) | F04 |
 | [postgres-db](postgres-db/SPEC.md) | PostgreSQL 16 + PostGIS | 5432/6432 | ✅ PostgreSQL 16 + PostGIS con 16 esquemas/roles aislados, PgBouncer en transacción, exporter/alertas, respaldos base y PITR demostrado (RPO ≤ 5 min) | F06 |
-| [nosql-db](nosql-db/SPEC.md) | ScyllaDB | 9042 | 📋 | F07 |
+| [nosql-db](nosql-db/SPEC.md) | ScyllaDB 6.2 | 9042/9180 | ✅ ScyllaDB 6.2 con keyspaces y roles aislados, TTLs, Prometheus scraping :9180, alertas y backup por snapshots | F07 |
 | [event-bus](event-bus/SPEC.md) | NATS JetStream | 4222 | 📋 | F07 |
 | [object-storage](object-storage/SPEC.md) | Garage | 3900 | 📋 | F07 |
 | [web](web/SPEC.md) | Go | 8081 | ✅ servidor estático del bundle Flutter Web verificado en Docker Compose | F02 |

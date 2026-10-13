@@ -164,6 +164,21 @@ services:
         condition: service_healthy
     networks: [services, data]
 
+  # ── NoSQL (F07) ─────────────────────────────────────────────────────────────
+  nosql-db:
+    restart: unless-stopped
+    build:
+      context: ./nosql-db
+    volumes:
+      - scylla-data:/var/lib/scylla
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -u cassandra -p cassandra -e 'DESCRIBE KEYSPACES;' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+
 
   # ── Observabilidad (F04) ────────────────────────────────────────────────────────
   # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
@@ -189,7 +204,7 @@ services:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/alerts:/etc/prometheus/alerts:ro
       - prometheus-data:/prometheus
-    networks: [services]
+    networks: [services, data]
 
   loki:
     <<: *hardening
@@ -277,3 +292,4 @@ volumes:
   postgres-data:
   postgres-wal:
   postgres-backup:
+  scylla-data:

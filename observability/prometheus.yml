@@ -62,6 +62,13 @@ scrape_configs:
           service: postgres-db
           stack: plentypay
 
+  - job_name: scylladb
+    static_configs:
+      - targets: [nosql-db:9180]
+        labels:
+          service: nosql-db
+          stack: plentypay
+
 # Alertmanager (F04.5). La ruta se completa cuando exista el canal de on-call.
 alerting:
   alertmanagers:

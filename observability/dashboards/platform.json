@@ -151,14 +151,77 @@
         { "expr": "rate(pg_stat_database_xact_commit{datname=\"plentypay\"}[5m])", "legendFormat": "Commits/s" },
         { "expr": "rate(pg_stat_database_xact_rollback{datname=\"plentypay\"}[5m])", "legendFormat": "Rollbacks/s" }
       ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 13,
+      "title": "ScyllaDB NoSQL (F07)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "mappings": [
+            { "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" }
+          ]
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 27 },
+      "id": 14,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "ScyllaDB Status",
+      "type": "stat",
+      "targets": [{ "expr": "up{job=\"scylladb\"} or vector(0)", "legendFormat": "Estado" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "green", "value": 0.8 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 27 },
+      "id": 15,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Cache Hit Ratio ScyllaDB",
+      "type": "stat",
+      "targets": [{ "expr": "(sum(scylla_cache_row_hits) / clamp_min(sum(scylla_cache_row_hits + scylla_cache_row_misses), 1)) or vector(0)", "legendFormat": "Hit Ratio" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 27 },
+      "id": 16,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Memoria de Caché ScyllaDB",
+      "type": "stat",
+      "targets": [{ "expr": "sum(scylla_cache_bytes_used) or vector(0)", "legendFormat": "Bytes Usados" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 31 },
+      "id": 17,
+      "title": "Uso de Memoria y Caché de ScyllaDB",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(scylla_cache_bytes_used)", "legendFormat": "Caché Usada" },
+        { "expr": "sum(scylla_cache_bytes_total)", "legendFormat": "Caché Total" }
+      ]
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
-  "tags": ["plentypay", "platform", "postgres"],
+  "tags": ["plentypay", "platform", "postgres", "scylladb"],
   "time": { "from": "now-1h", "to": "now" },
   "timezone": "browser",
   "title": "PlentyPay — Plataforma",
   "uid": "pp-platform",
-  "version": 2
+  "version": 3
 }

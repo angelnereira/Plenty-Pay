@@ -113,9 +113,9 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F07.1 ScyllaDB nodo + healthcheck | 📋 |  |
-| F07.2 Roles y keyspaces por dueño | 📋 |  |
-| F07.3 Monitoreo y procedimiento de backup | 📋 |  |
+| F07.1 ScyllaDB nodo + healthcheck | ✅ | 2026-10-13: ScyllaDB 6.2 en Compose (`nosql-db`) en red `data`, configurado con `--smp 1 --memory 1G --developer-mode 1` y autenticación interna (`PasswordAuthenticator`, `CassandraAuthorizer`). Healthcheck nativo con cqlsh en `:9042`. Verificado L2 |
+| F07.2 Roles y keyspaces por dueño | ✅ | 2026-10-13: 3 keyspaces creados con NetworkTopologyStrategy (`catalog_attrs`, `geo_tracks` con TTL 90 días, `analytics_events` con TTL 25 meses). Roles aislados `catalog_svc`, `geo_svc`, `analytics_svc`. `./nosql-db/test/test_cql_isolation.sh`: 14/14 pruebas pasando (aislamiento estricto comprobado: geo_svc no puede escribir ni leer analytics_events). Verificado L2 |
+| F07.3 Monitoreo y procedimiento de backup | ✅ | 2026-10-13: Métricas Prometheus nativas en `:9180` recolectadas por Prometheus. Alertas `ScyllaDBDown` y `ScyllaDBHighCacheUsage` en `observability/alerts/scylladb.yml`. 5 paneles en Grafana dashboard `pp-platform`. Script `/usr/local/bin/scripts/backup.sh` con snapshots nodetool y manifiesto `metadata.json` con SHA-256. Runbook en `docs/runbooks/scylladb-backup.md`. `./nosql-db/test/test_monitoring_and_backup.sh`: 11/11 pruebas pasando. Verificado L4 |
 | F07.4 NATS + JetStream persistente | 📋 |  |
 | F07.5 Streams y KV como código | 📋 |  |
 | F07.6 Cuentas y permisos por servicio (nkeys en prod) | 📋 |  |
