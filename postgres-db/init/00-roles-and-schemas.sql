@@ -17,6 +17,7 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'readonly_ops') THEN
     CREATE ROLE readonly_ops WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'readonly_ops_dev_pass';
   END IF;
+  GRANT pg_monitor TO readonly_ops;
 END
 $$;
 

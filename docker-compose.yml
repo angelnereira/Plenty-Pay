@@ -153,6 +153,17 @@ services:
       retries: 5
       start_period: 5s
 
+  postgres-exporter:
+    <<: *hardening
+    image: prometheuscommunity/postgres-exporter@sha256:6999a7657e2f2fb0ca6ebf417213eebf6dc7d21b30708c622f6fcb11183a2bb0 # v0.16.0
+    environment:
+      DATA_SOURCE_NAME: postgresql://readonly_ops:${READONLY_OPS_PASSWORD:-readonly_ops_dev_pass}@postgres-db:5432/plentypay?sslmode=disable
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks: [services, data]
+
+
   # ── Observabilidad (F04) ────────────────────────────────────────────────────────
   # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
   otel-collector:

@@ -1,0 +1,73 @@
+# Reglas de alerta para PostgreSQL (F06.3, observability-standards.md §6).
+# Monitorea disponibilidad, réplica, disco, conexiones y archivado de WAL.
+groups:
+  - name: criticas-postgres
+    interval: 30s
+    rules:
+      # Base de datos no responde
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL no responde"
+          description: "La base de datos relacional principal no está respondiendo a las consultas del exporter."
+          runbook_url: https://docs.plentypay.local/runbooks/postgres-down.md
+
+      # Lag de replicación superior a 30s
+      - alert: PostgresReplicationLag
+        expr: pg_replication_lag_seconds > 30
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Lag de replicación en PostgreSQL excesivo"
+          description: "La réplica tiene un retraso de {{ $value }}s respecto al primario (umbral 30s)."
+          runbook_url: https://docs.plentypay.local/runbooks/postgres-replication-lag.md
+
+      # Agotamiento crítico de conexiones (> 90%)
+      - alert: PostgresConnectionsCritical
+        expr: (sum(pg_stat_database_numbackends) / max(pg_settings_max_connections)) > 0.90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Conexiones de PostgreSQL al borde del límite"
+          description: "Uso de conexiones al {{ $value | humanizePercentage }} del máximo configurado."
+          runbook_url: https://docs.plentypay.local/runbooks/postgres-connections.md
+
+      # Fallo en el archivado continuo de WAL (amenaza RPO <= 5 min)
+      - alert: PostgresWALArchivingFailed
+        expr: increase(pg_stat_archiver_failed_count[10m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Fallos al archivar WAL en PostgreSQL"
+          description: "{{ $value }} fallos de archivado de WAL en los últimos 10 min. El RPO está comprometido."
+          runbook_url: https://docs.plentypay.local/runbooks/postgres-wal-archiving.md
+
+  - name: advertencias-postgres
+    interval: 60s
+    rules:
+      # Conexiones altas (> 75%)
+      - alert: PostgresConnectionsWarning
+        expr: (sum(pg_stat_database_numbackends) / max(pg_settings_max_connections)) > 0.75
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto número de conexiones a PostgreSQL"
+          description: "Conexiones activas superan el 75% del pool máximo (actual: {{ $value | humanizePercentage }})."
+          runbook_url: https://docs.plentypay.local/runbooks/postgres-connections.md
+
+      # Uso de disco / tamaño de base de datos elevado (> 40GB en entorno local / alerta temprana)
+      - alert: PostgresHighDiskUsage
+        expr: sum(pg_database_size_bytes{datname="plentypay"}) > 42949672960
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tamaño de base de datos PostgreSQL elevado"
+          description: "La base de datos plentypay ha superado 40 GB (tamaño: {{ $value | humanize1024 }}B)."
+          runbook_url: https://docs.plentypay.local/runbooks/postgres-disk.md

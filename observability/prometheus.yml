@@ -55,6 +55,12 @@ scrape_configs:
   #         - infra-management:9100
 
   # Infraestructura (F06, F07): postgres-db, nosql-db, event-bus, object-storage.
+  - job_name: postgres
+    static_configs:
+      - targets: [postgres-exporter:9187]
+        labels:
+          service: postgres-db
+          stack: plentypay
 
 # Alertmanager (F04.5). La ruta se completa cuando exista el canal de on-call.
 alerting:

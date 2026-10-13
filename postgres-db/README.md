@@ -15,16 +15,18 @@ Base relacional: un esquema y un rol por contenedor. Especificación completa: [
 | Pruebas de aislamiento | ✅ implementadas | `./postgres-db/test/test_isolation.sh` verifica que un rol no puede leer ni escribir en el esquema de otro rol |
 | Imagen Docker | ✅ fijada y verificada | Construida sobre postgis 16-3.4-alpine, scripts en `init/`, `postgresql.conf` con `wal_level=replica` y archivado |
 | PgBouncer | ✅ implementado | Pooler en puerto 6432 con `pool_mode=transaction` y auth SCRAM delegada vía `auth_query`; `./postgres-db/test/test_pgbouncer.sh` pasa (7/7) |
+| Monitoreo y alertas | ✅ implementado | `postgres_exporter` v0.16.0 en `:9187`, Prometheus target activo, 6 alertas (réplica, disco, conexiones, WAL) y paneles en dashboard Plataforma (`pp-platform`); `./postgres-db/test/test_monitoring.sh` pasa (8/8) |
 
 ## Arranque local
 Integrado en `docker-compose.yml`:
 ```bash
-docker compose up -d postgres-db pgbouncer
+docker compose up -d postgres-db pgbouncer postgres-exporter
 ```
 
-## Pruebas de aislamiento y PgBouncer
+## Pruebas de verificación
 ```bash
 ./postgres-db/test/test_isolation.sh
 ./postgres-db/test/test_pgbouncer.sh
+./postgres-db/test/test_monitoring.sh
 ```
 

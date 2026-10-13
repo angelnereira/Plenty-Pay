@@ -51,22 +51,114 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "percentunit" } },
+      "fieldConfig": { "defaults": { "unit": "short" } },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
       "id": 5,
-      "title": "Uso de Recursos y Conexiones de Base de Datos",
+      "title": "Uso de Recursos y Conexiones por Servicio",
       "type": "timeseries",
       "targets": [
         { "expr": "sum(pp_db_connections_active_current) by (service)", "legendFormat": "Conexiones activas: {{service}}" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 6,
+      "title": "PostgreSQL de Producción (F06)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "mappings": [
+            { "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" }
+          ]
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 14 },
+      "id": 7,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "PostgreSQL Status",
+      "type": "stat",
+      "targets": [{ "expr": "pg_up or vector(0)", "legendFormat": "Estado" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.75 }, { "color": "red", "value": 0.90 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 14 },
+      "id": 8,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Uso de Conexiones PostgreSQL",
+      "type": "stat",
+      "targets": [{ "expr": "(sum(pg_stat_database_numbackends) / max(pg_settings_max_connections)) or vector(0)", "legendFormat": "Ratio Conexiones" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 14 },
+      "id": 9,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Tamaño BD plentypay",
+      "type": "stat",
+      "targets": [{ "expr": "pg_database_size_bytes{datname=\"plentypay\"} or vector(0)", "legendFormat": "Tamaño" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 30 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 14 },
+      "id": 10,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Lag de Réplica PostgreSQL",
+      "type": "stat",
+      "targets": [{ "expr": "pg_replication_lag_seconds or vector(0)", "legendFormat": "Lag" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "id": 11,
+      "title": "Conexiones PostgreSQL vs Límite",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(pg_stat_database_numbackends)", "legendFormat": "Conexiones activas totales" },
+        { "expr": "pg_stat_database_numbackends{datname=\"plentypay\"}", "legendFormat": "Conexiones plentypay" },
+        { "expr": "max(pg_settings_max_connections)", "legendFormat": "Límite max_connections" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "id": 12,
+      "title": "Transacciones por Segundo (Commit / Rollback)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "rate(pg_stat_database_xact_commit{datname=\"plentypay\"}[5m])", "legendFormat": "Commits/s" },
+        { "expr": "rate(pg_stat_database_xact_rollback{datname=\"plentypay\"}[5m])", "legendFormat": "Rollbacks/s" }
       ]
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
-  "tags": ["plentypay", "platform"],
+  "tags": ["plentypay", "platform", "postgres"],
   "time": { "from": "now-1h", "to": "now" },
   "timezone": "browser",
   "title": "PlentyPay — Plataforma",
   "uid": "pp-platform",
-  "version": 1
+  "version": 2
 }
