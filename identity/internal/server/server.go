@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"plentypay/identity/internal/auth"
 	"plentypay/identity/internal/observability"
 	"plentypay/identity/internal/pb"
@@ -39,6 +41,7 @@ type IdentityServer struct {
 	pb.UnimplementedIdentityServer
 	users    store.UserStore
 	tokens   *auth.TokenIssuer
+	stepUp   *auth.StepUpManager
 	reporter *observability.Reporter
 	metrics  *observability.Metrics
 	// now es el reloj del servidor; se inyecta para que las pruebas sean deterministas.
@@ -47,7 +50,14 @@ type IdentityServer struct {
 
 // reporter puede ser nil (pruebas): los fallos internos simplemente no se registran.
 func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter *observability.Reporter, metrics *observability.Metrics) *IdentityServer {
-	return &IdentityServer{users: users, tokens: tokens, reporter: reporter, metrics: metrics, now: time.Now}
+	return &IdentityServer{
+		users:    users,
+		tokens:   tokens,
+		stepUp:   auth.NewStepUpManager(),
+		reporter: reporter,
+		metrics:  metrics,
+		now:      time.Now,
+	}
 }
 
 // R1–R3 (identity/SPEC.md §5).
@@ -207,3 +217,34 @@ func (s *IdentityServer) issueTokens(ctx context.Context, user *store.User) (*pb
 		UserId: user.ID, TenantId: user.TenantID, Role: pb.UserRole(pb.UserRole_value[user.Role]),
 	}, nil
 }
+
+// IssueStepUpChallenge emite un reto de confirmación fuerte (Passkey/WebAuthn) atado a la operación.
+func (s *IdentityServer) IssueStepUpChallenge(_ context.Context, req *pb.StepUpRequest) (*pb.PasskeyChallenge, error) {
+	chID, optionsJSON := s.stepUp.IssueChallenge(req.UserId, req.Operation, req.AmountMinor, req.Currency)
+	return &pb.PasskeyChallenge{
+		ChallengeId:          chID,
+		PublicKeyOptionsJson: optionsJSON,
+	}, nil
+}
+
+// VerifyStepUp valida el reto y emite un token de confirmación de un solo uso (TTL 5 min).
+func (s *IdentityServer) VerifyStepUp(_ context.Context, req *pb.VerifyStepUpRequest) (*pb.StepUpToken, error) {
+	token, expiresAt, err := s.stepUp.VerifyChallenge(req.ChallengeId, req.AssertionJson)
+	if err != nil {
+		return &pb.StepUpToken{}, nil
+	}
+	return &pb.StepUpToken{
+		Token:     token,
+		ExpiresAt: timestamppb.New(expiresAt),
+	}, nil
+}
+
+// ConsumeStepUp valida y consume el token atado a la operación exacta. Single-use.
+func (s *IdentityServer) ConsumeStepUp(_ context.Context, req *pb.ConsumeStepUpRequest) (*pb.ConsumeStepUpResult, error) {
+	valid, reason := s.stepUp.ConsumeToken(req.Token, req.UserId, req.Operation, req.AmountMinor, req.Currency)
+	return &pb.ConsumeStepUpResult{
+		Valid:  valid,
+		Reason: reason,
+	}, nil
+}
+

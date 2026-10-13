@@ -5,12 +5,15 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"io"
 	"math/big"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,6 +49,9 @@ type MemoryStore struct {
 	// PKI / Certificados
 	bootstrapToken string
 	certIdem       map[string]*domain.ServiceCertificate
+	caCert         *x509.Certificate
+	caKey          *ecdsa.PrivateKey
+	caPEM          []byte
 }
 
 // NewMemoryStore inicializa el store en memoria con llaves transit para los propósitos permitidos.
@@ -80,6 +86,36 @@ func NewMemoryStore(bootstrapToken string) *MemoryStore {
 		m.cryptoKeys[purpose] = map[string][]byte{"1": key}
 		m.activeVersion[purpose] = 1
 	}
+
+	// Inicializar CA interna PlentyPay para emisión mTLS SPIFFE (F05.6)
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	m.caKey = caKey
+
+	caTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName:   "PlentyPay Internal Root CA",
+			Organization: []string{"PlentyPay"},
+		},
+		NotBefore:             time.Now().UTC().Add(-1 * time.Hour),
+		NotAfter:              time.Now().UTC().Add(10 * 365 * 24 * time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+	}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		panic(err)
+	}
+	caCert, err := x509.ParseCertificate(caDER)
+	if err != nil {
+		panic(err)
+	}
+	m.caCert = caCert
+	m.caPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
 
 	return m
 }
@@ -485,7 +521,7 @@ func (m *MemoryStore) GetBlock(_ context.Context, subject, ip string) (*domain.B
 
 // --- CertStore ---
 
-func (m *MemoryStore) IssueCert(_ context.Context, serviceName string, _ []byte, bootstrapToken, idempotencyKey string) (*domain.ServiceCertificate, error) {
+func (m *MemoryStore) IssueCert(_ context.Context, serviceName string, csrPEM []byte, bootstrapToken, idempotencyKey string) (*domain.ServiceCertificate, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -499,33 +535,47 @@ func (m *MemoryStore) IssueCert(_ context.Context, serviceName string, _ []byte,
 		return nil, domain.ErrBootstrapTokenInvalid
 	}
 
-	// Generar certificado autofirmado para el servicio con SAN (SPIFFE)
-	privKey, err := rand.Prime(rand.Reader, 1024)
-	if err != nil {
-		return nil, err
+	var pubKey any
+	if len(csrPEM) > 0 {
+		block, _ := pem.Decode(csrPEM)
+		if block != nil {
+			csr, err := x509.ParseCertificateRequest(block.Bytes)
+			if err == nil {
+				pubKey = csr.PublicKey
+			}
+		}
 	}
-	_ = privKey
+	if pubKey == nil {
+		svcKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		pubKey = &svcKey.PublicKey
+	}
 
 	expiresAt := time.Now().UTC().Add(24 * time.Hour)
+	spiffeURI, _ := url.Parse("spiffe://plentypay/" + serviceName)
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().UnixNano()),
 		Subject: pkix.Name{
 			CommonName:   serviceName,
 			Organization: []string{"PlentyPay"},
 		},
-		NotBefore: time.Now().UTC().Add(-1 * time.Minute),
-		NotAfter:  expiresAt,
-		DNSNames:  []string{serviceName, serviceName + ".plentypay.internal"},
+		NotBefore:   time.Now().UTC().Add(-5 * time.Minute),
+		NotAfter:    expiresAt,
+		DNSNames:    []string{serviceName, serviceName + ".plentypay.internal", "localhost"},
+		URIs:        []*url.URL{spiffeURI},
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}
 
-	// Para prueba/dev, emitir DER PEM básico
-	certDER := template.Raw
-	if len(certDER) == 0 {
-		certDER = []byte("MOCK_CERT_DER_FOR_" + serviceName)
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, m.caCert, pubKey, m.caKey)
+	if err != nil {
+		return nil, err
 	}
 
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("MOCK_CA_BUNDLE")})
+	caPEM := m.caPEM
 
 	cert := &domain.ServiceCertificate{
 		ServiceName:    serviceName,

@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"testing"
 	"time"
 
@@ -284,5 +286,17 @@ func TestServer_IssueServiceCertificate(t *testing.T) {
 	}
 	if cert.ExpiresAt.AsTime().Before(time.Now().Add(23 * time.Hour)) {
 		t.Fatalf("expiración debe ser a 24 horas: %v", cert.ExpiresAt.AsTime())
+	}
+
+	block, _ := pem.Decode(cert.CertificatePem)
+	if block == nil {
+		t.Fatal("PEM decode falló")
+	}
+	parsed, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("x509.ParseCertificate falló: %v", err)
+	}
+	if len(parsed.URIs) == 0 || parsed.URIs[0].String() != "spiffe://plentypay/identity" {
+		t.Fatalf("esperaba URI SPIFFE spiffe://plentypay/identity, obtuve %v", parsed.URIs)
 	}
 }

@@ -2,9 +2,11 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"plentypay/api-gateway/internal/observability"
@@ -20,14 +22,23 @@ type IdentityClient struct {
 }
 
 func NewIdentityClient(target string, reporter *observability.Reporter) (*IdentityClient, error) {
-	// insecure: válido solo dentro de la red interna; Fase 5 agrega mTLS (ADR 0011).
+	return NewIdentityClientWithCredentials(target, reporter, insecure.NewCredentials())
+}
+
+// NewIdentityClientWithCredentials permite inicializar el cliente con credenciales de transporte personalizadas.
+func NewIdentityClientWithCredentials(target string, reporter *observability.Reporter, creds credentials.TransportCredentials) (*IdentityClient, error) {
 	conn, err := grpc.NewClient(target,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 		grpc.WithUnaryInterceptor(observability.UnaryClientInterceptor(reporter.Metrics())))
 	if err != nil {
 		return nil, observability.Wrap(err, "create identity client")
 	}
 	return &IdentityClient{conn: conn, client: pb.NewIdentityClient(conn), reporter: reporter}, nil
+}
+
+// NewIdentityClientWithTLS inicializa el cliente con mTLS (SPIFFE, ADR 0011).
+func NewIdentityClientWithTLS(target string, reporter *observability.Reporter, tlsConfig *tls.Config) (*IdentityClient, error) {
+	return NewIdentityClientWithCredentials(target, reporter, credentials.NewTLS(tlsConfig))
 }
 
 func (c *IdentityClient) Close() error { return c.conn.Close() }

@@ -96,7 +96,11 @@ func main() {
 	if err != nil {
 		fatal("tracing setup failed", err)
 	}
-	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(observability.UnaryServerInterceptor(logger, reporter, metrics)))
+	enforceMTLS := os.Getenv("MTLS_ENFORCED") == "true"
+	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
+		observability.UnaryServerInterceptor(logger, reporter, metrics),
+		server.SPIFFEServerInterceptor(enforceMTLS, server.AllowedIdentityCallers),
+	))
 	pb.RegisterIdentityServer(grpcServer, server.NewIdentityServer(users, tokens, reporter, metrics))
 	healthSrv := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthSrv)

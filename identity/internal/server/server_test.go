@@ -198,3 +198,93 @@ func TestTokenIssuerRejectsSameSecrets(t *testing.T) {
 		t.Fatal("NewTokenIssuer aceptó secretos iguales para access y refresh")
 	}
 }
+
+func TestServer_StepUpFlowAndSingleUse(t *testing.T) {
+	s := newTestServer(t)
+	ctx := context.Background()
+
+	ch, err := s.IssueStepUpChallenge(ctx, &pb.StepUpRequest{
+		UserId:      "user-123",
+		Operation:   "refund",
+		AmountMinor: 5000,
+		Currency:    "USD",
+	})
+	if err != nil || ch.ChallengeId == "" || len(ch.PublicKeyOptionsJson) == 0 {
+		t.Fatalf("IssueStepUpChallenge falló: %v, %+v", err, ch)
+	}
+
+	tok, err := s.VerifyStepUp(ctx, &pb.VerifyStepUpRequest{
+		ChallengeId:   ch.ChallengeId,
+		AssertionJson: []byte(`{"signature":"test-sig"}`),
+	})
+	if err != nil || tok.Token == "" || tok.ExpiresAt == nil {
+		t.Fatalf("VerifyStepUp falló: %v, %+v", err, tok)
+	}
+
+	// Primer consumo: válido
+	c1, err := s.ConsumeStepUp(ctx, &pb.ConsumeStepUpRequest{
+		Token:       tok.Token,
+		UserId:      "user-123",
+		Operation:   "refund",
+		AmountMinor: 5000,
+		Currency:    "USD",
+	})
+	if err != nil || !c1.Valid {
+		t.Fatalf("primer consumo debe ser válido: %v, %+v", err, c1)
+	}
+
+	// Segundo consumo: rechazado por ALREADY_USED (un solo uso)
+	c2, err := s.ConsumeStepUp(ctx, &pb.ConsumeStepUpRequest{
+		Token:       tok.Token,
+		UserId:      "user-123",
+		Operation:   "refund",
+		AmountMinor: 5000,
+		Currency:    "USD",
+	})
+	if err != nil || c2.Valid || c2.Reason != "ALREADY_USED" {
+		t.Fatalf("segundo consumo debe ser ALREADY_USED: %v, %+v", err, c2)
+	}
+}
+
+func TestServer_StepUpMismatch(t *testing.T) {
+	s := newTestServer(t)
+	ctx := context.Background()
+
+	ch, _ := s.IssueStepUpChallenge(ctx, &pb.StepUpRequest{
+		UserId:      "user-456",
+		Operation:   "payout",
+		AmountMinor: 10000,
+		Currency:    "USD",
+	})
+	tok, _ := s.VerifyStepUp(ctx, &pb.VerifyStepUpRequest{
+		ChallengeId: ch.ChallengeId,
+	})
+
+	// Consumo con monto distinto
+	res, _ := s.ConsumeStepUp(ctx, &pb.ConsumeStepUpRequest{
+		Token:       tok.Token,
+		UserId:      "user-456",
+		Operation:   "payout",
+		AmountMinor: 20000,
+		Currency:    "USD",
+	})
+	if res.Valid || res.Reason != "MISMATCH" {
+		t.Fatalf("monto distinto debe ser MISMATCH: %+v", res)
+	}
+}
+
+func TestServer_StepUpNotFound(t *testing.T) {
+	s := newTestServer(t)
+	ctx := context.Background()
+
+	res, _ := s.ConsumeStepUp(ctx, &pb.ConsumeStepUpRequest{
+		Token:       "token-inexistente",
+		UserId:      "user-1",
+		Operation:   "refund",
+		AmountMinor: 100,
+		Currency:    "USD",
+	})
+	if res.Valid || res.Reason != "NOT_FOUND" {
+		t.Fatalf("token desconocido debe ser NOT_FOUND: %+v", res)
+	}
+}
