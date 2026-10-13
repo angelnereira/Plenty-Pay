@@ -1,10 +1,10 @@
-# OpenTelemetry Collector — configuración como código (F04.1).
-# Recibe OTLP de todos los contenedores (4317 gRPC / 4318 HTTP), aplica tail sampling
+# OpenTelemetry Collector (contrib 0.162.0) — configuración como código (F04.1).
+# Recibe OTLP de todos los contenedores (4317 gRPC / 4318 HTTP), aplica *tail sampling*
 # (100 % de trazas con error o latencia alta, 10 % del resto — observability-standards.md §3.4)
-# y exporta métricas y trazas. Los logs van por el puente OTLP de cada servicio (F04.2).
+# y exporta métricas a Prometheus y trazas a Tempo. Los logs los recoge Alloy (F04.2):
+# esta versión del colector no trae exportador `loki`.
 #
 # Referencias: docs/standards/observability-standards.md §3, §5; observability/SPEC.md §3.
-# Versión de la imagen: la fija observability/SPEC.md §2 al cerrar F04 (pendiente).
 receivers:
   otlp:
     protocols:
@@ -19,29 +19,30 @@ processors:
     timeout: 5s
     send_batch_size: 8192
 
-  # Atributos que faltan en los recursos de los servicios (el resto los pone cada contenedor).
+  # Entorno de despliegue en cada span, para poder separar local/staging/prod en Tempo.
   resource:
     attributes:
       - key: deployment.environment.name
-        from_attribute: ""
-        action: upsert
         value: ${env:DEPLOY_ENV}
+        action: upsert
 
-  # Muestreo de cola. `num_traces` debe cubrir el tráfico esperado del entorno local.
+  # Muestreo de cola (§3.4). `decision_wait` obliga a esperar a que el span termine para decidir.
   tail_sampling:
     decision_wait: 5s
     num_traces: 50000
     expected_new_traces_per_sec: 100
     policies:
-      # §3.4: 100 % de las trazas con error o latencia por encima de p99.
+      # 100 % de las trazas con error.
       - name: errors
         type: status_code
         status_code:
           status_codes: [ERROR]
+      # 100 % de las trazas lentas (p99 aproximado).
       - name: slow
         type: latency
         latency:
           threshold_ms: 1000
+      # 10 % del resto.
       - name: rest
         type: probabilistic
         probabilistic:
@@ -59,46 +60,27 @@ exporters:
       max_interval: 10s
       max_elapsed_time: 60s
 
-  # Métricas → Prometheus (F04.1). El contenedor del colector expone :8889 en la misma red.
-  # SIN `namespace`: las series ya nacen con el prefijo `pp_` (§2) y un namespace aquí las
-  # duplicaría (`pp_pp_http_requests_total`).
+  # Métricas → Prometheus (F04.1). El colector expone :8889 en la red interna.
+  # SIN `namespace`: las series ya nacen con el prefijo `pp_` (§2) y un namespace las duplicaría.
   prometheus:
     endpoint: 0.0.0.0:8889
     resource_to_telemetry_conversion:
       enabled: true
-
-  # Logs → Loki (F04.2). Los servicios pueden enviarlos por OTLP además de escribirlos en stdout.
-  loki:
-    endpoint: http://loki:3100/loki/api/v1/push
-    default_labels_enabled:
-      service: true
-      level: true
-    labels:
-      resource:
-        service.name: service
-        deployment.environment.name: env
 
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
   zpages:
     endpoint: 0.0.0.0:55679
-  # Memoria acotada: el colectar cae antes que el servicio que lo llama.
-  memory_ballast:
-    size_in_mib: 64
 
 service:
-  extensions: [health_check, zpages, memory_ballast]
+  extensions: [health_check, zpages]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_ballast, batch, tail_sampling]
+      processors: [batch, tail_sampling]
       exporters: [otlp/tempo]
     metrics:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
-    logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [loki]

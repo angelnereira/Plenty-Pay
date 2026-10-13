@@ -1,0 +1,72 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Infraestructura Base y Bus de Eventos",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Lag de Consumidores NATS (p95)",
+      "type": "stat",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(pp_events_consumer_lag_seconds_bucket[5m]))) or vector(0)", "legendFormat": "p95 Lag" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Eventos en Dead-Letter Queue (DLQ)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pp_events_dlq_total) or vector(0)", "legendFormat": "DLQ Total" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Outbox Más Viejo (Pendiente)",
+      "type": "stat",
+      "targets": [{ "expr": "max(pp_outbox_oldest_seconds) or vector(0)", "legendFormat": "Antigüedad" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+      "id": 5,
+      "title": "Uso de Recursos y Conexiones de Base de Datos",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(pp_db_connections_active_current) by (service)", "legendFormat": "Conexiones activas: {{service}}" }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["plentypay", "platform"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "PlentyPay — Plataforma",
+  "uid": "pp-platform",
+  "version": 1
+}

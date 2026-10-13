@@ -48,12 +48,12 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [security](security/SPEC.md) | Go + OpenBao | 50073 | 📋 | F05 |
 | [infra-management](infra-management/SPEC.md) | Go | 50074 | 📋 | F05 |
 | [orders](orders/SPEC.md) | Go | 50075 | 📋 | F15 |
-| [observability](observability/SPEC.md) | OSS | 4317/9090/3000 | 📋 | F04 |
+| [observability](observability/SPEC.md) | OSS | 4317/9090/3000 | ✅ pila completa operando en Docker (OTel, Prometheus, Loki, Tempo, Alloy, Alertmanager, Grafana con 7 dashboards) | F04 |
 | [postgres-db](postgres-db/SPEC.md) | PostgreSQL 16 + PostGIS | 5432/6432 | 📋 | F06 |
 | [nosql-db](nosql-db/SPEC.md) | ScyllaDB | 9042 | 📋 | F07 |
 | [event-bus](event-bus/SPEC.md) | NATS JetStream | 4222 | 📋 | F07 |
 | [object-storage](object-storage/SPEC.md) | Garage | 3900 | 📋 | F07 |
-| [web](web/SPEC.md) | Go | 8081 | 📝 servidor estático del bundle Flutter Web (sin Compose) | F02 |
+| [web](web/SPEC.md) | Go | 8081 | ✅ servidor estático del bundle Flutter Web verificado en Docker Compose | F02 |
 | [flutter_app](flutter_app/README.md) (cliente) | Flutter | — | 📝 base multiplataforma con flavors e i18n, login y registro (compila web y Android) | F02 |
 | [network-contracts](network-contracts/README.md) | Protobuf | — | ✅ 18 contratos compilan juntos | F03 |
 

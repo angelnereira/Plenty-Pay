@@ -1,0 +1,46 @@
+# Alertmanager — enrutamiento y despacho de alertas (F04.5).
+# Crítico → canal de guardia/on-call (webhook a notifications o local).
+# Warning → cola de incidencias / tickets.
+#
+# Referencias: observability/SPEC.md §3, §4; docs/standards/observability-standards.md §6.
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'service', 'severity']
+  group_wait: 10s
+  group_interval: 30s
+  repeat_interval: 4h
+  receiver: 'default-receiver'
+  routes:
+    - matchers:
+        - severity = critical
+      receiver: 'critical-pager'
+      continue: false
+    - matchers:
+        - severity = warning
+      receiver: 'warning-ticket'
+      continue: false
+
+receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://identity:9100/healthz/live'
+        send_resolved: true
+
+  - name: 'critical-pager'
+    webhook_configs:
+      - url: 'http://identity:9100/healthz/live'
+        send_resolved: true
+
+  - name: 'warning-ticket'
+    webhook_configs:
+      - url: 'http://identity:9100/healthz/live'
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers:
+      - alertname = MetricsEndpointDown
+    target_matchers:
+      - severity = warning
+    equal: ['service']

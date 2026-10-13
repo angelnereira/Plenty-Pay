@@ -1,0 +1,73 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Liquidación y Conciliación",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Lotes de Liquidación Procesados",
+      "type": "stat",
+      "targets": [{ "expr": "sum(rate(pp_settlement_batches_total[1h])) or vector(0)", "legendFormat": "Lotes/h" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Discrepancias de Conciliación",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pp_settlement_discrepancies_total) or vector(0)", "legendFormat": "Discrepancias" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Duración de Conciliación",
+      "type": "stat",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(pp_settlement_reconcile_duration_seconds_bucket[5m]))) or vector(0)", "legendFormat": "p95" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+      "id": 5,
+      "title": "Transacciones Conciliadas vs Pendientes",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(pp_settlement_reconciled_current) or vector(0)", "legendFormat": "Conciliadas" },
+        { "expr": "sum(pp_settlement_unreconciled_current) or vector(0)", "legendFormat": "Pendientes" }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["plentypay", "settlement"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "PlentyPay — Liquidación y Conciliación",
+  "uid": "pp-settlement",
+  "version": 1
+}

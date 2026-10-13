@@ -1,5 +1,5 @@
 # PlentyPay — sistema local (ADR 0006). Reglas: docs/standards/delivery-pipeline.md §5.
-# Hoy: identity + api-gateway (implementados). Cada fase agrega su bloque copiando la plantilla del final.
+# Hoy: identity + api-gateway + web (implementados) y el stack de observabilidad (F04).
 # Solo se publican api-gateway (8080) y web (8081). Contexto de build SIEMPRE ./<contenedor> (check-isolation.sh).
 
 name: plentypay
@@ -25,6 +25,9 @@ services:
     build:
       context: ./identity
     env_file: ./identity/.env
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
     networks: [services]
     healthcheck: *healthcheck
 
@@ -33,6 +36,9 @@ services:
     build:
       context: ./api-gateway
     env_file: ./api-gateway/.env
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
     ports:
       - "8080:8080"
     depends_on:
@@ -43,23 +49,31 @@ services:
 
   # F02.8: sirve la app Flutter Web. El bundle lo construye ./scripts/build-release.sh web
   # y se monta en solo lectura; sin él, `web` responde página de mantenimiento (SPEC R4).
+  # El bundle va en /static/app porque /app es el binario del contenedor.
   web:
     <<: *hardening
     build:
       context: ./web
     env_file: ./web/.env
+    environment:
+      WEB_APP_DIR: /static/app
+      WEB_STATIC_DIR: /static
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
     ports:
       - "8081:8081"
     volumes:
-      - ./web/static/app:/app/static/app:ro
-    networks: [edge]
+      - ./web/static/app:/static/app:ro
+    # `edge` para servir al cliente y `services` para que el stack de observabilidad pueda
+    # scrapear su :9100 (SPEC §2: "puerto admin en todos los servicios propios").
+    networks: [edge, services]
     healthcheck: *healthcheck
 
-  # F04.1: colector OTLP (4317/4318), Prometheus (9090) y scrape de los :9100/metrics de
-  # los servicios. Tempo/Loki/Grafana/Alertmanager llegan en F04.2–F04.5.
+  # ── Observabilidad (F04) ────────────────────────────────────────────────────────
+  # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
   otel-collector:
     <<: *hardening
-    image: otel/opentelemetry-collector-contrib:latest # la versión exacta se fija al cerrar F04
+    image: otel/opentelemetry-collector-contrib@sha256:39923a8e431bd1f57be82411999d389fcfe40857492e4365456d97a4c1f74be6 # 0.162.0
     command: ["--config=/etc/otel/config.yaml"]
     volumes:
       - ./observability/otel-collector.yaml:/etc/otel/config.yaml:ro
@@ -69,39 +83,76 @@ services:
 
   prometheus:
     <<: *hardening
-    image: prom/prometheus:latest # ídem
+    image: prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e # 3.15.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+      - --web.enable-lifecycle
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/alerts:/etc/prometheus/alerts:ro
+      - prometheus-data:/prometheus
     networks: [services]
 
-  # F04.2/F04.3: Loki (logs) y Tempo (trazas). Alloy lee el stdout de los contenedores.
   loki:
     <<: *hardening
-    image: grafana/loki:latest # ídem: la versión exacta se fija al cerrar F04
+    image: grafana/loki@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193 # 3.7.8
     command: ["-config.file=/etc/loki/config.yaml"]
+    tmpfs: [/tmp:rw]
     volumes:
       - ./observability/loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
     networks: [services]
 
   tempo:
     <<: *hardening
-    image: grafana/tempo:latest # ídem
+    image: grafana/tempo@sha256:1ce31d6d7ffab62189685e8c47881d4a561c5d38bd0dbd66e40ca83cef07923d # 3.0.0
     command: ["-config.file=/etc/tempo/config.yaml"]
+    tmpfs: [/tmp:rw]
     volumes:
       - ./observability/tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
     networks: [services]
 
   alloy:
     <<: *hardening
-    image: grafana/alloy:latest # ídem
-    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data"]
+    image: grafana/alloy@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f # 1.20.1
+    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/alloy-data"]
+    tmpfs: [/tmp:rw]
     volumes:
       - ./observability/alloy.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/alloy-data
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [services]
+
+  alertmanager:
+    <<: *hardening
+    image: prom/alertmanager@sha256:d5155cfac40a6d9250ffc97c19db2c5e190c7bc57c6b67125c94903358f8c7d8 # v0.28.0
+    command:
+      - --config.file=/etc/alertmanager/config.yml
+      - --storage.path=/alertmanager
+    tmpfs: [/tmp:rw]
+    volumes:
+      - ./observability/alertmanager.yml:/etc/alertmanager/config.yml:ro
+      - alertmanager-data:/alertmanager
+    networks: [services]
+
+  grafana:
+    <<: *hardening
+    image: grafana/grafana-oss@sha256:163be84f32fdf9d204c6b8b2f2cccb04628baa365cf973eb1c32d1faaa8fbfc3 # 11.5.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    tmpfs: [/tmp:rw]
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
     networks: [services]
 
   # --- Plantilla para nuevos contenedores (descomentar al llegar a su fase) ---
@@ -112,8 +163,6 @@ services:
   #   env_file: ./<contenedor>/.env
   #   networks: [services, data]          # data solo si usa postgres/nosql/bus/objetos
   #   healthcheck: *healthcheck
-  #   depends_on:
-  #     postgres-db: { condition: service_healthy }
 
 networks:
   edge: {}
@@ -121,3 +170,11 @@ networks:
     internal: true
   data:
     internal: true
+
+volumes:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  alloy-data:
+  alertmanager-data:
+  grafana-data:

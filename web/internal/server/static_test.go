@@ -137,3 +137,20 @@ func TestHealthzIsPublicAndDoesNotRequireBundle(t *testing.T) {
 		t.Fatalf("/healthz debe responder 200 para las sondas, obtuve %d", rec.Code)
 	}
 }
+
+// Un POST a una ruta que no existe (p. ej. /v1/auth/* enviado al contenedor equivocado)
+// debe ser 404, no el HTML de la app: responder 200 con HTML ocultaría el fallo.
+func TestPostToUnknownRouteIs404NotSpaHtml(t *testing.T) {
+	s := newServer(t, bundleDePrueba(t))
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
+		rec := httptest.NewRecorder()
+		s.Handler().ServeHTTP(rec, httptest.NewRequest(method, "/v1/auth/register", nil))
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("%s /v1/auth/register: esperaba 404, obtuvo %d (%s)", method, rec.Code, rec.Body.String())
+		}
+	}
+	// El GET sí sigue devolviendo la app.
+	if rec := get(t, s, "/register"); rec.Code != http.StatusOK {
+		t.Fatalf("GET /register debe servir la app, obtuvo %d", rec.Code)
+	}
+}

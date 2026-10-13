@@ -110,8 +110,10 @@ func (s *Server) serveApp(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", cachePolicy(clean))
 	info, err := os.Stat(file)
 	if err != nil || info.IsDir() {
-		if path.Ext(clean) == "" {
-			file = filepath.Join(root, "index.html") // ruta de la SPA
+		// Ruta sin extensión: es una ruta de la SPA. **Solo para GET/HEAD**: responder HTML a un
+		// POST (p. ej. un /v1/auth/* que la app envió al contenedor equivocado) ocultaría el fallo.
+		if path.Ext(clean) == "" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+			file = filepath.Join(root, "index.html")
 		} else {
 			observability.WriteProblem(w, http.StatusNotFound, "NOT_FOUND", "no encontrado")
 			return

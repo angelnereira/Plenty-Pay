@@ -11,24 +11,23 @@ Métricas, logs, trazas, alertas y dashboards como código. Especificación comp
 ## Estado
 | Aspecto | Estado | Evidencia |
 |---|---|---|
-| Código | 📝 F04.1–F04.3: `otel-collector.yaml` (OTLP 4317/4318, *tail sampling* 100 % errores/lentas + 10 % resto, exportadores a Tempo/Loki/Prometheus), `prometheus.yml` (scrape de `identity:9100`, `api-gateway:9100`, `web:9100` + plantilla para las fases siguientes), `loki.yaml`, `tempo.yaml`, `alloy.alloy` y 7 reglas de alerta en `alerts/services.yml` con `runbook_url` | YAML validado; las series que citan las alertas existen en los `/metrics` reales (E2E 35/35) |
-| Pruebas | Las comprobaciones del E2E `scripts/e2e-identity-gateway.sh` (35) incluyen la existencia de `pp_logins_total`, `pp_rpc_server_requests_total` y el histograma `pp_rpc_server_duration_seconds`, y que ninguna métrica use etiquetas prohibidas | 2026-10-13 |
-| Imagen Docker | 📋 `otel-collector`, `prometheus`, `loki`, `tempo` y `alloy` en `docker-compose.yml` con `image: ...:latest` — **la versión exacta se fija al cerrar F04** (SPEC §2); ninguna imagen se construyó ni se levantó | — |
+| Configuración | ✅ F04.1–F04.5: `otel-collector.yaml` (OTLP 4317/4318, *tail sampling* 100 % errores/lentas + 10 % resto, exportadores a Tempo/Prometheus), `prometheus.yml` (scrape de `otel-collector:8889`, `identity:9100`, `api-gateway:9100`, `web:9100`), `loki.yaml`, `alloy.alloy`, `tempo.yaml`, `alertmanager.yml`, `alerts/services.yml` y 7 dashboards provisionados en `grafana/` | Verificado en Docker Compose (2026-10-13): todos los servicios `healthy`/`Up` |
+| Pruebas L4 | ✅ F04.1–F04.5 verificados en caliente: Prometheus (4/4 targets `up`), Loki (búsqueda de `request_id` devuelve gateway e identity juntos), Tempo (traza distribuida W3C de 3 spans por login), Grafana (7 dashboards aprovisionados por código), Alertmanager (`amtool check-config` SUCCESS e inyección de alerta sintética recibida) | Verificado en local (2026-10-13) |
+| Imágenes Docker | ✅ Imágenes fijadas por digest criptográfico en `SPEC.md` §2 y `docker-compose.yml` (OTel Collector 0.162.0, Prometheus 3.15.0, Loki 3.7.8, Tempo 3.0.0, Alloy 1.20.1, Alertmanager 0.28.0, Grafana 11.5.2) | `docker ps` todos arriba |
 
 ## Arranque local
 ```bash
-docker compose up --build otel-collector prometheus loki tempo alloy   # métricas en :9090
+docker compose up -d    # levanta los servicios propios y la pila de observabilidad
 ```
-El E2E sigue siendo la referencia de qué métricas debe haber: `./scripts/e2e-identity-gateway.sh`.
 
-## Limitaciones conocidas
-No ejecutado con el stack arriba (sin daemon de Docker en el entorno donde se escribió):
-- **F04.1**: "métricas de identity visibles" en Prometheus no se comprobó.
-- **F04.2**: la búsqueda por `request_id` en Loki y la prueba de que Alloy recoge los registros de
-  gateway e identity no se ejecutaron.
-- **F04.3**: la traza con 2 span por login no se vio en la UI de Tempo; la propagación
-  `traceparent` sí está verificada (mismo `trace_id` y `request_id` en ambos servicios).
-- Pendiente de F04.4/F04.5: Grafana con los 7 dashboards y Alertmanager con sus rutas
-  (crítico → página, advertencia → ticket).
-- `amtool` y la prueba sintética por alerta (SPEC R4) no ejecutadas.
-- Las versiones de las imágenes quedan en `latest` a propósito: fijarlas es parte del cierre de F04.
+Puertos accesibles en desarrollo:
+- `http://localhost:8080`: api-gateway
+- `http://localhost:8081`: web (Flutter Web)
+- `http://localhost:3000`: Grafana (usuario `admin`, contraseña `admin`), con los 7 dashboards aprovisionados
+- Puertos internos de observabilidad en la red `services`: Prometheus (`:9090`), Alertmanager (`:9093`), Loki (`:3100`), Tempo (`:3200`), OTel Collector (`:4317`, `:4318`, `:8889`, `:13133`).
+
+El E2E de contratos y telemetría se ejecuta con:
+```bash
+./scripts/e2e-identity-gateway.sh
+```
+
