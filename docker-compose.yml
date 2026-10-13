@@ -105,6 +105,17 @@ services:
     networks: [services, data]
     healthcheck: *healthcheck
 
+  infra-management:
+    <<: *hardening
+    build:
+      context: ./infra-management
+    env_file: ./infra-management/.env
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+    networks: [services]
+    healthcheck: *healthcheck
+
   # ── Observabilidad (F04) ────────────────────────────────────────────────────────
   # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
   otel-collector:
