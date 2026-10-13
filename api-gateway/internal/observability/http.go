@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,7 +14,9 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -75,6 +78,8 @@ func HTTPMiddleware(log *slog.Logger, reporter *Reporter, metrics *Metrics) func
 				span.SetName(route)
 				span.SetAttributes(attribute.String("http.route", route), attribute.Int("http.response.status_code", rec.status))
 				metrics.Inc("pp_http_requests_total", "route", route, "status", strconv.Itoa(rec.status))
+				metrics.Observe("pp_http_duration_seconds", time.Since(start).Seconds(), "route", route)
+				metrics.Observe("pp_http_duration_seconds", time.Since(start).Seconds(), "route", route)
 				log.LogAttrs(ctx, slog.LevelInfo, "http request handled",
 					slog.String("route", route),
 					slog.Int("http_status", rec.status),
@@ -86,8 +91,9 @@ func HTTPMiddleware(log *slog.Logger, reporter *Reporter, metrics *Metrics) func
 }
 
 // UnaryClientInterceptor propaga la traza (`traceparent`) y el contexto de petición (`x-pp-*`) a
-// cada llamada gRPC saliente, y abre un span de cliente por llamada (grpc-conventions.md §2).
-func UnaryClientInterceptor() grpc.UnaryClientInterceptor {
+// cada llamada gRPC saliente, abre un span de cliente por llamada (grpc-conventions.md §2) y
+// registra `pp_rpc_client_requests_total`/`pp_rpc_client_duration_seconds` (§2.1).
+func UnaryClientInterceptor(metrics *Metrics) grpc.UnaryClientInterceptor {
 	tracer := otel.Tracer(tracerName)
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		ctx, span := tracer.Start(ctx, method, trace.WithSpanKind(trace.SpanKindClient))
@@ -101,7 +107,10 @@ func UnaryClientInterceptor() grpc.UnaryClientInterceptor {
 		otel.GetTextMapPropagator().Inject(ctx, mdCarrier(md))
 		md.Set("x-pp-request-id", RequestID(ctx))
 		md.Set("x-pp-actor-service", serviceName)
+		started := time.Now()
 		err := invoker(metadata.NewOutgoingContext(ctx, md), method, req, reply, cc, opts...)
+		metrics.Inc("pp_rpc_client_requests_total", "target", targetOf(cc.Target()), "rpc", method, "code", grpcStatusCode(err))
+		metrics.Observe("pp_rpc_client_duration_seconds", time.Since(started).Seconds(), "target", targetOf(cc.Target()), "rpc", method)
 		if err != nil {
 			markSpanFailed(ctx, err)
 		}
@@ -124,6 +133,22 @@ func (c mdCarrier) Keys() []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// targetOf normaliza el destino gRPC ("identity:50060" → "identity") para usarlo como etiqueta.
+func targetOf(target string) string {
+	if i := strings.IndexByte(target, ':'); i > 0 {
+		return target[:i]
+	}
+	return target
+}
+
+// grpcStatusCode devuelve el código gRPC como texto; "OK" cuando no hay error.
+func grpcStatusCode(err error) string {
+	if err == nil {
+		return codes.OK.String()
+	}
+	return status.Code(err).String()
 }
 
 // WriteProblem escribe el cuerpo único de error de la API pública (api-gateway/SPEC.md §3.11):

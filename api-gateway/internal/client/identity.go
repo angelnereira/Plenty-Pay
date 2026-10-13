@@ -23,7 +23,7 @@ func NewIdentityClient(target string, reporter *observability.Reporter) (*Identi
 	// insecure: válido solo dentro de la red interna; Fase 5 agrega mTLS (ADR 0011).
 	conn, err := grpc.NewClient(target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(observability.UnaryClientInterceptor()))
+		grpc.WithUnaryInterceptor(observability.UnaryClientInterceptor(reporter.Metrics())))
 	if err != nil {
 		return nil, observability.Wrap(err, "create identity client")
 	}

@@ -73,6 +73,7 @@ func UnaryServerInterceptor(log *slog.Logger, reporter *Reporter, metrics *Metri
 			code := status.Code(err)
 			span.SetAttributes(attribute.String("rpc.grpc.status_code", code.String()))
 			metrics.Inc("pp_rpc_server_requests_total", "rpc", info.FullMethod, "code", code.String())
+			metrics.Observe("pp_rpc_server_duration_seconds", time.Since(start).Seconds(), "rpc", info.FullMethod)
 			log.LogAttrs(ctx, slog.LevelInfo, "rpc handled", rpc,
 				slog.Int64("duration_ms", time.Since(start).Milliseconds()),
 				slog.String("grpc_code", code.String()))

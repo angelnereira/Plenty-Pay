@@ -34,7 +34,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	out := &bytes.Buffer{}
 	logger := NewLogger(out, "identity", "test", slog.LevelDebug)
-	metrics := NewMetrics("identity", "test")
+	metrics := NewMetrics("identity", "test", "none")
 	interceptor := UnaryServerInterceptor(logger, NewReporter(logger, "identity", metrics), metrics)
 	info := &grpc.UnaryServerInfo{FullMethod: "/plentypay.identity.v1.Identity/Login"}
 	return &harness{out: out, metrics: metrics, call: func(ctx context.Context, h grpc.UnaryHandler) (any, error) {
@@ -224,14 +224,20 @@ func TestObs_NoSecretsInRecords(t *testing.T) {
 }
 
 func TestObs_MetricsExposition(t *testing.T) {
-	m := NewMetrics("identity", "1.2.3")
+	m := NewMetrics("identity", "1.2.3", "abc123")
 	m.Inc("pp_rpc_server_requests_total", "rpc", "/x/Y", "code", "OK")
+	m.Observe("pp_rpc_server_duration_seconds", 0.02, "rpc", "/x/Y")
+	m.Set("pp_outbox_pending", 0)
 	out := &bytes.Buffer{}
 	m.WritePrometheus(out)
 	for _, want := range []string{
-		`pp_build_info{service="identity",version="1.2.3"} 1`,
+		`pp_build_info{service="identity",version="1.2.3",commit="abc123"} 1`,
 		`pp_panics_total{service="identity"} 0`,
 		`pp_rpc_server_requests_total{service="identity",rpc="/x/Y",code="OK"} 1`,
+		`pp_rpc_server_duration_seconds_bucket{service="identity",rpc="/x/Y",le="0.025"} 1`,
+		`pp_rpc_server_duration_seconds_sum{service="identity",rpc="/x/Y"} 0.02`,
+		`pp_rpc_server_duration_seconds_count{service="identity",rpc="/x/Y"} 1`,
+		`pp_outbox_pending{service="identity"} 0`,
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("falta la serie %s en:\n%s", want, out.String())

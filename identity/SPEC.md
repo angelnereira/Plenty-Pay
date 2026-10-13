@@ -168,7 +168,8 @@ Es llamado por: api-gateway, payments-core, settlement, orders, logistics, payro
 | `BCRYPT_COST` | no | 12 | ≥ 12 |
 
 ## 9. Observabilidad
-`pp_logins_total{result}`, `pp_lockouts_total`, `pp_refresh_reuse_detected_total`, `pp_step_up_total{operation,result}`. Alerta crítica si `pp_refresh_reuse_detected_total` crece.
+De negocio: `pp_logins_total{result}`, `pp_lockouts_total`, `pp_refresh_reuse_detected_total`, `pp_step_up_total{operation,result}`. Alerta crítica si `pp_refresh_reuse_detected_total` crece.
+Obligatorias §2.1 (`internal/observability`): `pp_rpc_server_requests_total{service,rpc,code}`, `pp_rpc_server_duration_seconds{service,rpc}` (histograma 5 ms–10 s) y `pp_build_info{service,version,commit}`. Las etiquetas prohibidas de §2.3 (`user_id`, `tenant_id`, `request_id`, montos) se descartan en el registro.
 
 ## 10. Seguridad
 Hashes de tokens (nunca el token) en BD; correos enmascarados en logs; rate limit en gateway para `/v1/auth/*` (10/min por IP, 5/min por correo).

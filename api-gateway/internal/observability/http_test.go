@@ -35,7 +35,7 @@ func newHarness(t *testing.T, mux *http.ServeMux) *harness {
 	}
 	out := &bytes.Buffer{}
 	logger := NewLogger(out, "api-gateway", "test", slog.LevelDebug)
-	metrics := NewMetrics("api-gateway", "test")
+	metrics := NewMetrics("api-gateway", "test", "none")
 	reporter := NewReporter(logger, "api-gateway", metrics)
 	return &harness{out: out, metrics: metrics, reporter: reporter, handler: HTTPMiddleware(logger, reporter, metrics)(mux)}
 }
@@ -168,7 +168,7 @@ func TestObs_ClientInterceptorPropagatesContext(t *testing.T) {
 	var sent metadata.MD
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/call", func(_ http.ResponseWriter, r *http.Request) {
-		_ = UnaryClientInterceptor()(r.Context(), "/plentypay.identity.v1.Identity/ValidateToken", nil, nil, nil,
+		_ = UnaryClientInterceptor(NewMetrics("api-gateway", "test", "none"))(r.Context(), "/plentypay.identity.v1.Identity/ValidateToken", nil, nil, nil,
 			func(ctx context.Context, _ string, _, _ any, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 				sent, _ = metadata.FromOutgoingContext(ctx)
 				return nil

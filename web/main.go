@@ -20,7 +20,10 @@ import (
 )
 
 // version se inyecta en el build (-ldflags "-X main.version=...").
-var version = "dev"
+var (
+	version = "dev"
+	commit  = "none"
+)
 
 // Tope del apagado ordenado (go-standards.md §3.10).
 const shutdownTimeout = 25 * time.Second
@@ -30,7 +33,7 @@ const serviceName = "web"
 func main() {
 	logger := observability.NewLogger(os.Stdout, serviceName, version, observability.ParseLevel(os.Getenv("LOG_LEVEL")))
 	slog.SetDefault(logger)
-	metrics := observability.NewMetrics(serviceName, version)
+	metrics := observability.NewMetrics(serviceName, version, commit)
 	reporter := observability.NewReporter(logger, serviceName, metrics)
 	ctx := context.Background()
 	fatal := func(msg string, err error) {

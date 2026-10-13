@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"plentypay/identity/internal/auth"
+	"plentypay/identity/internal/observability"
 	"plentypay/identity/internal/pb"
 	"plentypay/identity/internal/store"
 )
@@ -17,7 +18,7 @@ func newTestServer(t *testing.T) *IdentityServer {
 	if err != nil {
 		t.Fatalf("NewTokenIssuer: %v", err)
 	}
-	return NewIdentityServer(store.NewInMemoryUserStore(), tokens, nil)
+	return NewIdentityServer(store.NewInMemoryUserStore(), tokens, nil, observability.NewMetrics("identity", "test", "none"))
 }
 
 // requiredConsents son las aceptaciones mínimas del registro (N-DAT-02, N-DAT-14).

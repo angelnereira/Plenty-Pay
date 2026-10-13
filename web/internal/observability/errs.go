@@ -146,6 +146,9 @@ func NewReporter(log *slog.Logger, service string, metrics *Metrics) *Reporter {
 	return &Reporter{log: log, service: service, metrics: metrics}
 }
 
+// Metrics devuelve el registro de métricas del contenedor (lo usan los interceptores de cliente).
+func (r *Reporter) Metrics() *Metrics { return r.metrics }
+
 // Defect registra un bug o una invariante rota: nivel error, con pila, y marca el span como fallido.
 func (r *Reporter) Defect(ctx context.Context, msg string, err error, extra ...slog.Attr) {
 	if r == nil {

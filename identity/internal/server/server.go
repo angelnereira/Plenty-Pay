@@ -40,13 +40,14 @@ type IdentityServer struct {
 	users    store.UserStore
 	tokens   *auth.TokenIssuer
 	reporter *observability.Reporter
+	metrics  *observability.Metrics
 	// now es el reloj del servidor; se inyecta para que las pruebas sean deterministas.
 	now func() time.Time
 }
 
 // reporter puede ser nil (pruebas): los fallos internos simplemente no se registran.
-func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter *observability.Reporter) *IdentityServer {
-	return &IdentityServer{users: users, tokens: tokens, reporter: reporter, now: time.Now}
+func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter *observability.Reporter, metrics *observability.Metrics) *IdentityServer {
+	return &IdentityServer{users: users, tokens: tokens, reporter: reporter, metrics: metrics, now: time.Now}
 }
 
 // R1–R3 (identity/SPEC.md §5).
@@ -142,8 +143,11 @@ func (s *IdentityServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.A
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil || !auth.VerifyPassword(req.Password, user.PasswordHash) {
+		// §9: `result` lleva solo el resultado, nunca el correo (§2.3 de observabilidad).
+		s.metrics.Inc("pp_logins_total", "result", "failure")
 		return rejected("INVALID_CREDENTIALS", "correo o contraseña incorrectos"), nil
 	}
+	s.metrics.Inc("pp_logins_total", "result", "success")
 	return s.issueTokens(ctx, user)
 }
 
