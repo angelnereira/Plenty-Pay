@@ -134,6 +134,25 @@ services:
       retries: 5
       start_period: 10s
 
+  pgbouncer:
+    restart: unless-stopped
+    build:
+      context: ./postgres-db
+      dockerfile: pgbouncer/Dockerfile
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_dev_master_password_32ch}
+      READONLY_OPS_PASSWORD: ${READONLY_OPS_PASSWORD:-readonly_ops_dev_pass}
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks: [services, data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U postgres -d plentypay"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
   # ── Observabilidad (F04) ────────────────────────────────────────────────────────
   # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
   otel-collector:

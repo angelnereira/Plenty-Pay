@@ -14,14 +14,17 @@ Base relacional: un esquema y un rol por contenedor. Especificación completa: [
 | Esquemas y roles | ✅ implementado | 16 esquemas (`identity`, `ledger`, `payments`, etc.) y 16 roles (`<svc>_svc`) con permisos estrictos de no-cruce |
 | Pruebas de aislamiento | ✅ implementadas | `./postgres-db/test/test_isolation.sh` verifica que un rol no puede leer ni escribir en el esquema de otro rol |
 | Imagen Docker | ✅ fijada y verificada | Construida sobre postgis 16-3.4-alpine, scripts en `init/`, `postgresql.conf` con `wal_level=replica` y archivado |
+| PgBouncer | ✅ implementado | Pooler en puerto 6432 con `pool_mode=transaction` y auth SCRAM delegada vía `auth_query`; `./postgres-db/test/test_pgbouncer.sh` pasa (7/7) |
 
 ## Arranque local
 Integrado en `docker-compose.yml`:
 ```bash
-docker compose up -d postgres-db
+docker compose up -d postgres-db pgbouncer
 ```
 
-## Pruebas de aislamiento
+## Pruebas de aislamiento y PgBouncer
 ```bash
 ./postgres-db/test/test_isolation.sh
+./postgres-db/test/test_pgbouncer.sh
 ```
+
