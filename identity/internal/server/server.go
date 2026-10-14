@@ -50,6 +50,12 @@ func (s *IdentityServer) WithSessions(ss store.SessionStore) *IdentityServer {
 	return s
 }
 
+// WithLockout activa el bloqueo progresivo (R5).
+func (s *IdentityServer) WithLockout(la store.LoginAttemptStore) *IdentityServer {
+	s.svc.WithLockout(la)
+	return s
+}
+
 // WithSecurityReporter activa el reporte de TOKEN_REUSE a `security`.
 func (s *IdentityServer) WithSecurityReporter(r service.SecurityReporter) *IdentityServer {
 	s.svc.WithSecurityReporter(r)

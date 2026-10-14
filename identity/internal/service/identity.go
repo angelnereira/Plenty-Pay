@@ -19,6 +19,7 @@ import (
 	"plentypay/identity/internal/domain"
 	"plentypay/identity/internal/observability"
 	"plentypay/identity/internal/store"
+	"plentypay/identity/internal/tenancy"
 )
 
 // ConsentGrant es una aceptacion tal como la entrega quien se registra.
@@ -58,9 +59,11 @@ type Permissions struct {
 	Permissions    []string
 }
 
-// SecurityReporter reporta eventos de abuso a `security` (R8: TOKEN_REUSE).
+// SecurityReporter reporta eventos de abuso a `security`: TOKEN_REUSE (R8) y
+// LOGIN_FAILED (F05.5, bloqueo por IP).
 type SecurityReporter interface {
 	ReportTokenReuse(ctx context.Context, userID, ip string) error
+	ReportLoginFailed(ctx context.Context, userID, ip string) error
 }
 
 // revocationCache evita consultar la base en cada request (R9). Guarda dos
@@ -112,7 +115,9 @@ func (c *revocationCache) isRevoked(sessionID string) bool {
 // IdentityService implementa los casos de uso sobre la interfaz del store.
 type IdentityService struct {
 	users    store.UserStore
-	sessions store.SessionStore // nil = sin sesiones (pruebas/E2E sin BD)
+	sessions store.SessionStore      // nil = sin sesiones (pruebas/E2E sin BD)
+	attempts store.LoginAttemptStore // nil = sin bloqueo progresivo
+	lockout  domain.LockoutPolicy
 	tokens   *auth.TokenIssuer
 	reporter *observability.Reporter
 	metrics  *observability.Metrics
@@ -127,8 +132,21 @@ func New(users store.UserStore, tokens *auth.TokenIssuer, reporter *observabilit
 	return &IdentityService{
 		users: users, tokens: tokens, reporter: reporter, metrics: metrics,
 		revoked: newRevocationCache(15 * time.Second),
+		lockout: domain.DefaultLockoutPolicy,
 		now:     time.Now,
 	}
+}
+
+// WithLockout activa el bloqueo progresivo (R5).
+func (s *IdentityService) WithLockout(la store.LoginAttemptStore) *IdentityService {
+	s.attempts = la
+	return s
+}
+
+// WithLockoutPolicy inyecta otra escalera (pruebas).
+func (s *IdentityService) WithLockoutPolicy(p domain.LockoutPolicy) *IdentityService {
+	s.lockout = p
+	return s
 }
 
 // WithSessions activa sesiones con rotacion de refresh (R8/R9).
@@ -227,20 +245,88 @@ func (s *IdentityService) Register(ctx context.Context, in RegisterInput) (*Auth
 	return s.issueTokens(ctx, user, s.startSession(ctx, user.ID))
 }
 
-// Login autentica (R4: mismo error exista o no el correo).
+// Login autentica (R4: mismo error exista o no el correo) y aplica el bloqueo
+// progresivo (R5).
 func (s *IdentityService) Login(ctx context.Context, email, password string) (*AuthResult, error) {
 	user, err := s.users.FindByEmail(ctx, domain.NormalizeEmail(email))
-	if err != nil || !auth.VerifyPassword(password, user.PasswordHash) {
+	if err != nil {
+		// R4: se compara contra un hash ficticio para gastar el mismo tiempo.
+		auth.VerifyPassword(password, auth.DummyHash)
+		s.reportLoginFailed(ctx, "", ipFromContext(ctx))
 		if s.metrics != nil {
 			s.metrics.Inc("pp_logins_total", "result", "failure")
 		}
 		return reject("INVALID_CREDENTIALS", "correo o contrasena incorrectos"), nil
+	}
+	if !auth.VerifyPassword(password, user.PasswordHash) {
+		locked := s.registerFailure(ctx, user.ID)
+		if s.metrics != nil {
+			s.metrics.Inc("pp_logins_total", "result", "failure")
+		}
+		if locked {
+			return reject("ACCOUNT_LOCKED", "cuenta bloqueada temporalmente por intentos fallidos"), nil
+		}
+		return reject("INVALID_CREDENTIALS", "correo o contrasena incorrectos"), nil
+	}
+	// Credenciales correctas: si la cuenta sigue bloqueada, no entra (R5).
+	if s.attempts != nil {
+		if until, _ := s.attempts.BlockedUntil(ctx, user.ID); until != nil {
+			return reject("ACCOUNT_LOCKED", "cuenta bloqueada temporalmente por intentos fallidos"), nil
+		}
+		_ = s.attempts.ResetFailures(ctx, user.ID) // R5: el exito reinicia la cuenta
 	}
 	if s.metrics != nil {
 		s.metrics.Inc("pp_logins_total", "result", "success")
 	}
 	return s.issueTokens(ctx, user, s.startSession(ctx, user.ID))
 }
+
+// registerFailure cuenta el fallo y devuelve true si la cuenta queda bloqueada.
+// Ademas reporta a `security` y, en el ultimo escalon, pide la notificacion (R5).
+func (s *IdentityService) registerFailure(ctx context.Context, userID string) bool {
+	block, locked := time.Duration(0), false
+	if s.attempts != nil {
+		current, err := s.attempts.CurrentFailures(ctx, userID)
+		if err != nil && s.reporter != nil {
+			s.reporter.Defect(ctx, "failure count failed", observability.Wrap(err, "current failures"))
+		}
+		block, locked = s.lockout.BlockFor(current + 1)
+		_, until, err := s.attempts.RegisterFailure(ctx, userID, block)
+		if err != nil && s.reporter != nil {
+			s.reporter.Defect(ctx, "failure register failed", observability.Wrap(err, "register failure"))
+			return false
+		}
+		if until != nil && until.After(time.Now()) {
+			locked = true
+		}
+		if s.lockout.NotifiesAt(current+1) && s.sessions != nil {
+			_ = s.sessions.WriteOutboxEvent(ctx, "pp.identity.notification.requested.v1", userID, "",
+				notificationPayload(userID, "ACCOUNT_LOCKED"))
+		}
+	}
+	s.reportLoginFailed(ctx, userID, ipFromContext(ctx))
+	return locked
+}
+
+// reportLoginFailed reporta el fallo a `security` (F05.5: bloqueo por IP).
+func (s *IdentityService) reportLoginFailed(ctx context.Context, userID, ip string) {
+	if s.security == nil {
+		return
+	}
+	if err := s.security.ReportLoginFailed(ctx, userID, ip); err != nil && s.reporter != nil {
+		s.reporter.Defect(ctx, "security report failed", observability.Wrap(err, "report login failed"))
+	}
+}
+
+// notificationPayload es la solicitud de correo provisional (SPEC §6; el mensaje
+// notifications.SendRequest se agrega en F20.2).
+func notificationPayload(userID, reason string) []byte {
+	b, _ := json.Marshal(map[string]any{"user_id": userID, "event": reason})
+	return b
+}
+
+// ipFromContext lee la IP del llamador de los metadatos (F09.2 la poblará).
+func ipFromContext(ctx context.Context) string { return tenancy.IPFromContext(ctx) }
 
 // ValidateAccessToken verifica el access token (R9): ademas de la firma, la
 // sesion no puede estar revocada. La cache TTL <= 15 s evita consultar la base

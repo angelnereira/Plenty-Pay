@@ -43,3 +43,8 @@ func VerifyPassword(plain, hash string) bool {
 	}
 	return bcrypt.CompareHashAndPassword([]byte(strings.TrimPrefix(hash, schemeSHA256Bcrypt)), derive(plain)) == nil
 }
+
+// DummyHash es un hash bcrypt valido de una contrasena cualquiera: se usa para
+// que el login de un correo inexistente gaste el mismo tiempo que uno real
+// (R4: anti-enumeracion por tiempo).
+const DummyHash = "sha256-bcrypt:$2a$12$C6UzMDM.H6dfI/f/IKcEe.nIVfXFwFrLLu9Ug5wPQ08lJXRzHnK6u"

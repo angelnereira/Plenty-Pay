@@ -15,7 +15,20 @@ const (
 	keyTenantID ctxKey = iota
 	keyUserID
 	keyActorRole
+	keyIP
 )
+
+// WithIP devuelve un contexto que lleva la IP del llamador (metadatos del
+// gateway; F09.2 la pobla).
+func WithIP(ctx context.Context, ip string) context.Context {
+	return context.WithValue(ctx, keyIP, ip)
+}
+
+// IPFromContext lee la IP del llamador; cadena vacia si no viene.
+func IPFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(keyIP).(string)
+	return v
+}
 
 // WithTenant devuelve un contexto que lleva el tenant del actor.
 func WithTenant(ctx context.Context, tenantID string) context.Context {

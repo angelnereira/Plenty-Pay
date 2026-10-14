@@ -113,6 +113,7 @@ func main() {
 	var (
 		users    store.UserStore
 		sessions store.SessionStore
+		attempts store.LoginAttemptStore
 	)
 	if dsn := cfg.DBDSN; dsn != "" {
 		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
@@ -122,10 +123,11 @@ func main() {
 		defer pgStore.Close()
 		users = pgStore
 		sessions = store.NewPostgresSessionStore(pgStore.Pool())
-		logger.Info("using postgres user store with sessions", "dsn_host", dsnHost(dsn))
+		attempts = store.NewPostgresLoginAttemptStore(pgStore.Pool())
+		logger.Info("using postgres user store with sessions and lockout", "dsn_host", dsnHost(dsn))
 	} else {
 		users = store.NewInMemoryUserStore()
-		logger.Info("using in-memory user store without sessions (PP_DB_DSN no definido)")
+		logger.Info("using in-memory user store without sessions or lockout (PP_DB_DSN no definido)")
 	}
 
 	var ready atomic.Bool
@@ -157,6 +159,10 @@ func main() {
 	if sessions != nil {
 		identitySrv = identitySrv.WithSessions(sessions)
 		logger.Info("refresh rotation enabled (R8/R9)")
+	}
+	if attempts != nil {
+		identitySrv = identitySrv.WithLockout(attempts)
+		logger.Info("progressive lockout enabled (R5)")
 	}
 	if cfg.SecurityAddr != "" {
 		sec, err := client.NewSecurityReporter(cfg.SecurityAddr, cfg.SecurityInsecure)

@@ -40,6 +40,27 @@ func NewSecurityReporter(addr string, insecureTransport bool) (*SecurityReporter
 // Close cierra la conexion (apagado ordenado).
 func (r *SecurityReporter) Close() error { return r.conn.Close() }
 
+// ReportLoginFailed reporta LOGIN_FAILED a `security` (F05.5: 20 fallos por IP
+// en 10 min bloquean la IP). El subject vacio indica correo inexistente.
+func (r *SecurityReporter) ReportLoginFailed(ctx context.Context, userID, ip string) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	subject := userID
+	if subject == "" {
+		subject = "unknown"
+	}
+	_, err := r.client.ReportSecurityEvent(ctx, &pb.ReportSecurityEventRequest{
+		Kind:           "LOGIN_FAILED",
+		Subject:        subject,
+		IpAddress:      ip,
+		IdempotencyKey: fmt.Sprintf("login-failed:%s:%s:%d", subject, ip, time.Now().Unix()),
+	})
+	if err != nil {
+		return fmt.Errorf("report login failed: %w", err)
+	}
+	return nil
+}
+
 // ReportTokenReuse reporta TOKEN_REUSE (SPEC de security R5: bloquea la cuenta).
 // La idempotency_key evita que un reintento sume dos eventos al umbral.
 func (r *SecurityReporter) ReportTokenReuse(ctx context.Context, userID, ip string) error {

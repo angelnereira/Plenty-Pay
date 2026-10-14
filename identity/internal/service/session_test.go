@@ -99,7 +99,14 @@ type fakeSecurityReporter struct {
 func (f *fakeSecurityReporter) ReportTokenReuse(_ context.Context, userID, _ string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.hits = append(f.hits, userID)
+	f.hits = append(f.hits, "reuse:"+userID)
+	return nil
+}
+
+func (f *fakeSecurityReporter) ReportLoginFailed(_ context.Context, userID, _ string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.hits = append(f.hits, "login-failed:"+userID)
 	return nil
 }
 

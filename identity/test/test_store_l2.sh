@@ -52,9 +52,19 @@ for d in migrations internal/config internal/store internal/server internal/serv
     assert_eq "Existe identity/$d (go-standards.md 2)" "si" "no"
   fi
 done
-UPMIG=$(ls identity/migrations/*.up.sql 2>/dev/null | wc -l | tr -d ' ')
-DOWNMIG=$(ls identity/migrations/*.down.sql 2>/dev/null | wc -l | tr -d ' ')
-assert_eq "Cada migracion tiene su .down.sql (data-standards.md 5)" "$UPMIG" "$DOWNMIG"
+# Paridad estricta por numero: un NNNN sin .up.sql (o sin .down.sql) es un error
+# grave — golang-migrate ejecutaria el archivo que si existe y registraria la
+# version, dejando el esquema incompleto en silencio.
+MIG_NUMBERS=$(ls identity/migrations/ | grep -oE '^[0-9]{4}' | sort -u)
+MIG_ERRORS=0
+for n in $MIG_NUMBERS; do
+  [ -f "identity/migrations/${n}_"*.up.sql ] || { echo "  [FAIL] migracion $n sin .up.sql"; MIG_ERRORS=$((MIG_ERRORS + 1)); }
+  [ -f "identity/migrations/${n}_"*.down.sql ] || { echo "  [FAIL] migracion $n sin .down.sql"; MIG_ERRORS=$((MIG_ERRORS + 1)); }
+done
+assert_eq "Cada migracion tiene su .up.sql y su .down.sql (data-standards.md 5)" "0" "$MIG_ERRORS"
+# Ademas: ningun archivo suelto sin sufijo up/down.
+STRAY=$(ls identity/migrations/ | grep -vcE '\.(up|down)\.sql$' || true)
+assert_eq "No hay archivos de migracion sin sufijo .up.sql/.down.sql" "0" "$STRAY"
 
 # 2. Reconstruir la imagen de identity (cambia main.go/store)
 echo "  [*] Reconstruyendo identity..."
@@ -64,7 +74,7 @@ compose up -d --build identity >/dev/null 2>&1
 echo "  [*] Aplicando migraciones (identity migrate)..."
 MIG_OUT=$(compose exec -T -e PP_DB_DSN="$SVC_DSN" identity /app migrate 2>&1 || true)
 MIG_VERSION=$(echo "$MIG_OUT" | grep -oE '"version":[0-9]+' | head -1 | cut -d: -f2)
-assert_eq "La ultima migracion aplicada es la 0002 (sesiones)" "2" "$MIG_VERSION"
+assert_eq "La ultima migracion aplicada es la 0003 (bloqueo)" "3" "$MIG_VERSION"
 
 # 4. Idempotencia: la segunda ejecucion no aplica nada
 MIG_OUT2=$(compose exec -T -e PP_DB_DSN="$SVC_DSN" identity /app migrate 2>&1 || true)
@@ -74,14 +84,14 @@ assert_eq "La segunda ejecucion de migrate no reaplica (idempotente)" "false" "$
 # 5. Las tablas y las politicas RLS existen (RLS ACTIVO, ADR 0014)
 TABLES=$(compose exec -T -e PGPASSWORD="identity_svc_dev_secret_32_chars!" postgres-db \
   psql -h postgres-db -U identity_svc -d plentypay -tAc \
-  "SELECT count(*) FROM pg_tables WHERE schemaname='identity' AND tablename IN ('users','consents','sessions','refresh_tokens','outbox')" 2>/dev/null | tr -d '[:space:]')
-assert_eq "Las tablas del esquema identity existen (users, consents, sessions, refresh_tokens, outbox)" "5" "$TABLES"
+  "SELECT count(*) FROM pg_tables WHERE schemaname='identity' AND tablename IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts')" 2>/dev/null | tr -d '[:space:]')
+assert_eq "Las tablas del esquema identity existen (users, consents, sessions, refresh_tokens, outbox, login_attempts)" "6" "$TABLES"
 
 RLS_ON=$(compose exec -T -e PGPASSWORD="identity_svc_dev_secret_32_chars!" postgres-db \
   psql -h postgres-db -U identity_svc -d plentypay -tAc \
   "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-   WHERE n.nspname='identity' AND c.relname IN ('users','consents','sessions','refresh_tokens','outbox') AND c.relrowsecurity" 2>/dev/null | tr -d '[:space:]')
-assert_eq "RLS esta activo en las 5 tablas (ADR 0014)" "5" "$RLS_ON"
+   WHERE n.nspname='identity' AND c.relname IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts') AND c.relrowsecurity" 2>/dev/null | tr -d '[:space:]')
+assert_eq "RLS esta activo en las 6 tablas (ADR 0014)" "6" "$RLS_ON"
 
 # 6. Compilar las pruebas L2 y ejecutarlas dentro de la red de datos
 echo "  [*] Compilando y ejecutando las pruebas Go L2 del store..."
@@ -93,12 +103,12 @@ echo "$TEST_OUT" | grep -E "^(=== RUN|--- (PASS|FAIL|SKIP)|PASS|FAIL|ok)" | head
 RESULT=$(echo "$TEST_OUT" | grep -cE "^--- PASS" || true)
 FAILS=$(echo "$TEST_OUT" | grep -cE "^--- FAIL" || true)
 SKIPS=$(echo "$TEST_OUT" | grep -cE "^--- SKIP" || true)
-if [ "$FAILS" = "0" ] && [ "${RESULT:-0}" -ge 10 ]; then
+if [ "$FAILS" = "0" ] && [ "${RESULT:-0}" -ge 13 ]; then
   assert_true "Las pruebas Go L2 del store pasan ($RESULT pasan, $SKIPS saltadas)" "true"
 else
   assert_true "Las pruebas Go L2 del store pasan ($RESULT pasan, $FAILS fallan)" "false"
 fi
 
 echo ""
-echo "Resultado F08.2: $PASS pasadas, $FAIL fallidas"
+echo "Resultado L2 (F08.2-F08.4): $PASS pasadas, $FAIL fallidas"
 [ "$FAIL" -eq 0 ] || exit 1
