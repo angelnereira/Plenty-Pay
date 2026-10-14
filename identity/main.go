@@ -19,6 +19,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"plentypay/identity/internal/auth"
+	"plentypay/identity/internal/client"
 	"plentypay/identity/internal/config"
 	"plentypay/identity/internal/migrate"
 	"plentypay/identity/internal/observability"
@@ -109,7 +110,10 @@ func main() {
 
 	// F08.2: con PP_DB_DSN se usa el store sobre postgres-db; sin el, memoria
 	// (pruebas unitarias y el E2E sin base de datos). La interfaz no cambia.
-	var users store.UserStore
+	var (
+		users    store.UserStore
+		sessions store.SessionStore
+	)
 	if dsn := cfg.DBDSN; dsn != "" {
 		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
 		if err != nil {
@@ -117,10 +121,11 @@ func main() {
 		}
 		defer pgStore.Close()
 		users = pgStore
-		logger.Info("using postgres user store", "dsn_host", dsnHost(dsn))
+		sessions = store.NewPostgresSessionStore(pgStore.Pool())
+		logger.Info("using postgres user store with sessions", "dsn_host", dsnHost(dsn))
 	} else {
 		users = store.NewInMemoryUserStore()
-		logger.Info("using in-memory user store (PP_DB_DSN no definido)")
+		logger.Info("using in-memory user store without sessions (PP_DB_DSN no definido)")
 	}
 
 	var ready atomic.Bool
@@ -148,7 +153,21 @@ func main() {
 		observability.UnaryServerInterceptor(logger, reporter, metrics),
 		server.SPIFFEServerInterceptor(enforceMTLS, server.AllowedIdentityCallers),
 	))
-	pb.RegisterIdentityServer(grpcServer, server.NewIdentityServer(users, tokens, reporter, metrics))
+	identitySrv := server.NewIdentityServer(users, tokens, reporter, metrics)
+	if sessions != nil {
+		identitySrv = identitySrv.WithSessions(sessions)
+		logger.Info("refresh rotation enabled (R8/R9)")
+	}
+	if cfg.SecurityAddr != "" {
+		sec, err := client.NewSecurityReporter(cfg.SecurityAddr, cfg.SecurityInsecure)
+		if err != nil {
+			fatal("security client failed", err)
+		}
+		defer sec.Close()
+		identitySrv = identitySrv.WithSecurityReporter(sec)
+		logger.Info("reporting token reuse to security", "addr", cfg.SecurityAddr)
+	}
+	pb.RegisterIdentityServer(grpcServer, identitySrv)
 	healthSrv := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthSrv)
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)

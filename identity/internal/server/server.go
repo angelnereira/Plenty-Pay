@@ -44,6 +44,18 @@ func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter
 	}
 }
 
+// WithSessions activa sesiones con rotacion de refresh en el servicio.
+func (s *IdentityServer) WithSessions(ss store.SessionStore) *IdentityServer {
+	s.svc.WithSessions(ss)
+	return s
+}
+
+// WithSecurityReporter activa el reporte de TOKEN_REUSE a `security`.
+func (s *IdentityServer) WithSecurityReporter(r service.SecurityReporter) *IdentityServer {
+	s.svc.WithSecurityReporter(r)
+	return s
+}
+
 // rejected construye un AuthResult fallido con su `reason` estable (docs/glossary.md §7.3).
 func rejected(reason, message string) *pb.AuthResult {
 	return &pb.AuthResult{Success: false, Reason: reason, ErrorMessage: message}
@@ -101,9 +113,9 @@ func (s *IdentityServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.A
 	return toPB(res), nil
 }
 
-// ValidateToken delega en el servicio (R9).
-func (s *IdentityServer) ValidateToken(_ context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResult, error) {
-	claims, err := s.svc.ValidateAccessToken(req.AccessToken)
+// ValidateToken delega en el servicio (R9: tambien valida el estado de la sesion).
+func (s *IdentityServer) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResult, error) {
+	claims, err := s.svc.ValidateAccessToken(ctx, req.AccessToken)
 	if err != nil {
 		return &pb.ValidateTokenResult{Valid: false}, nil
 	}
@@ -141,7 +153,7 @@ func (s *IdentityServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenR
 func (s *IdentityServer) IssueStepUpChallenge(_ context.Context, req *pb.StepUpRequest) (*pb.PasskeyChallenge, error) {
 	chID, optionsJSON := s.stepUp.IssueChallenge(req.UserId, req.Operation, req.AmountMinor, req.Currency)
 	return &pb.PasskeyChallenge{
-		ChallengeId:           chID,
+		ChallengeId:          chID,
 		PublicKeyOptionsJson: optionsJSON,
 	}, nil
 }

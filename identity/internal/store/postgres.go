@@ -63,6 +63,9 @@ func NewPostgresUserStore(ctx context.Context, dsn string) (*PostgresUserStore, 
 // Close libera el pool (llamado en el apagado ordenado).
 func (s *PostgresUserStore) Close() { s.pool.Close() }
 
+// Pool comparte el pool con el store de sesiones (misma base, un solo pool).
+func (s *PostgresUserStore) Pool() *pgxpool.Pool { return s.pool }
+
 // tenancySettings respeta los valores ya presentes en el contexto y completa
 // con los del usuario sobre el que se opera (fail-closed si no hay nada).
 func tenancySettings(ctx context.Context, userID, tenantID string) (string, string, string) {

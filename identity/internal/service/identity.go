@@ -5,10 +5,15 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"plentypay/identity/internal/auth"
 	"plentypay/identity/internal/domain"
@@ -33,15 +38,17 @@ type AuthResult struct {
 	UserID       string
 	TenantID     string
 	Role         string
+	SessionID    string
 	AccessToken  string
 	RefreshToken string
 }
 
 // Claims validados de un access token.
 type Claims struct {
-	UserID   string
-	TenantID string
-	Role     string
+	UserID    string
+	TenantID  string
+	Role      string
+	SessionID string
 }
 
 // Permissions es el resultado de GetUserPermissions (R10).
@@ -51,25 +58,116 @@ type Permissions struct {
 	Permissions    []string
 }
 
+// SecurityReporter reporta eventos de abuso a `security` (R8: TOKEN_REUSE).
+type SecurityReporter interface {
+	ReportTokenReuse(ctx context.Context, userID, ip string) error
+}
+
+// revocationCache evita consultar la base en cada request (R9). Guarda dos
+// estados: sesiones sabidas VIVAS (TTL <= 15 s, como pide la regla) y sesiones
+// REVOCADAS (sin TTL: revocar es permanente). Revocar invalida la entrada viva.
+type revocationCache struct {
+	ttl     time.Duration
+	mu      sync.Mutex
+	alive   map[string]time.Time
+	revoked map[string]struct{}
+}
+
+func newRevocationCache(ttl time.Duration) *revocationCache {
+	return &revocationCache{ttl: ttl, alive: map[string]time.Time{}, revoked: map[string]struct{}{}}
+}
+
+// freshAlive indica si la sesion se sabe viva y la consulta es reciente.
+func (c *revocationCache) freshAlive(sessionID string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	at, ok := c.alive[sessionID]
+	return ok && time.Since(at) < c.ttl
+}
+
+// markAlive registra la sesion como viva.
+func (c *revocationCache) markAlive(sessionID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.revoked, sessionID)
+	c.alive[sessionID] = time.Now()
+}
+
+// markRevoked registra la revocacion e invalida la entrada viva.
+func (c *revocationCache) markRevoked(sessionID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.revoked[sessionID] = struct{}{}
+	delete(c.alive, sessionID)
+}
+
+// isRevoked consulta el estado cacheado de revocacion.
+func (c *revocationCache) isRevoked(sessionID string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_, ok := c.revoked[sessionID]
+	return ok
+}
+
 // IdentityService implementa los casos de uso sobre la interfaz del store.
 type IdentityService struct {
 	users    store.UserStore
+	sessions store.SessionStore // nil = sin sesiones (pruebas/E2E sin BD)
 	tokens   *auth.TokenIssuer
 	reporter *observability.Reporter
 	metrics  *observability.Metrics
+	security SecurityReporter
+	revoked  *revocationCache
 	// now es el reloj inyectado (go-standards.md 3.3): time.Now solo en main.
 	now func() time.Time
 }
 
 // New construye el servicio. reporter y metrics pueden ser nil en pruebas.
 func New(users store.UserStore, tokens *auth.TokenIssuer, reporter *observability.Reporter, metrics *observability.Metrics) *IdentityService {
-	return &IdentityService{users: users, tokens: tokens, reporter: reporter, metrics: metrics, now: time.Now}
+	return &IdentityService{
+		users: users, tokens: tokens, reporter: reporter, metrics: metrics,
+		revoked: newRevocationCache(15 * time.Second),
+		now:     time.Now,
+	}
+}
+
+// WithSessions activa sesiones con rotacion de refresh (R8/R9).
+func (s *IdentityService) WithSessions(ss store.SessionStore) *IdentityService {
+	s.sessions = ss
+	return s
+}
+
+// WithSecurityReporter activa el reporte de TOKEN_REUSE a `security`.
+func (s *IdentityService) WithSecurityReporter(r SecurityReporter) *IdentityService {
+	s.security = r
+	return s
+}
+
+// WithRevocationTTL ajusta el TTL de la cache de revocacion (pruebas).
+func (s *IdentityService) WithRevocationTTL(d time.Duration) *IdentityService {
+	s.revoked = newRevocationCache(d)
+	return s
 }
 
 // WithClock inyecta el reloj (pruebas deterministas).
 func (s *IdentityService) WithClock(now func() time.Time) *IdentityService {
 	s.now = now
 	return s
+}
+
+// startSession abre sesion (o devuelve "" si el servicio corre sin sesiones).
+func (s *IdentityService) startSession(ctx context.Context, userID string) string {
+	if s.sessions == nil {
+		return ""
+	}
+	session, err := s.sessions.CreateSession(ctx, userID)
+	if err != nil {
+		if s.reporter != nil {
+			s.reporter.Defect(ctx, "session creation failed", observability.Wrap(err, "create session"))
+		}
+		return ""
+	}
+	return session.ID
 }
 
 // Purposes de consentimiento que acepta el registro publico (R18).
@@ -113,6 +211,7 @@ func (s *IdentityService) Register(ctx context.Context, in RegisterInput) (*Auth
 		return internal(), nil
 	}
 	user := &domain.User{
+		ID:    uuid.NewString(),
 		Email: domain.NormalizeEmail(in.Email), PasswordHash: hash, FullName: in.FullName,
 		Role: in.Role, TenantID: in.TenantID, Consents: records,
 	}
@@ -125,7 +224,7 @@ func (s *IdentityService) Register(ctx context.Context, in RegisterInput) (*Auth
 		}
 		return internal(), nil
 	}
-	return s.issueTokens(ctx, user)
+	return s.issueTokens(ctx, user, s.startSession(ctx, user.ID))
 }
 
 // Login autentica (R4: mismo error exista o no el correo).
@@ -140,16 +239,42 @@ func (s *IdentityService) Login(ctx context.Context, email, password string) (*A
 	if s.metrics != nil {
 		s.metrics.Inc("pp_logins_total", "result", "success")
 	}
-	return s.issueTokens(ctx, user)
+	return s.issueTokens(ctx, user, s.startSession(ctx, user.ID))
 }
 
-// ValidateAccessToken verifica el access token (R9).
-func (s *IdentityService) ValidateAccessToken(accessToken string) (*Claims, error) {
+// ValidateAccessToken verifica el access token (R9): ademas de la firma, la
+// sesion no puede estar revocada. La cache TTL <= 15 s evita consultar la base
+// en cada request sin dejar tokens revocados validos mas de ese plazo.
+func (s *IdentityService) ValidateAccessToken(ctx context.Context, accessToken string) (*Claims, error) {
 	claims, err := s.tokens.VerifyAccessToken(accessToken)
 	if err != nil {
 		return nil, err
 	}
-	return &Claims{UserID: claims.UserID, TenantID: claims.TenantID, Role: claims.Role}, nil
+	if s.sessions != nil && claims.SessionID != "" {
+		if err := s.assertSessionAlive(ctx, claims.SessionID); err != nil {
+			return nil, err
+		}
+	}
+	return &Claims{UserID: claims.UserID, TenantID: claims.TenantID, Role: claims.Role, SessionID: claims.SessionID}, nil
+}
+
+func (s *IdentityService) assertSessionAlive(ctx context.Context, sessionID string) error {
+	if s.revoked.isRevoked(sessionID) {
+		return domain.ErrSessionRevoked
+	}
+	if s.revoked.freshAlive(sessionID) {
+		return nil // vista viva hace menos del TTL
+	}
+	session, err := s.sessions.SessionByID(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if session.Revoked() {
+		s.revoked.markRevoked(sessionID)
+		return domain.ErrSessionRevoked
+	}
+	s.revoked.markAlive(sessionID)
+	return nil
 }
 
 // PermissionsForUser devuelve rol, permisos y modulos derivados (R10).
@@ -162,38 +287,110 @@ func (s *IdentityService) PermissionsForUser(ctx context.Context, userID string)
 	return &Permissions{Role: user.Role, EnabledModules: auth.ModulesForPermissions(perms), Permissions: perms}, nil
 }
 
-// Refresh rota el refresh token (F08.3 añade rotacion y deteccion de reuso).
+// Refresh rota el refresh token (R8): cada uso emite uno nuevo e invalida el
+// anterior. Presentar uno ya usado revoca la familia completa, publica
+// SessionRevoked y reporta TOKEN_REUSE a `security`.
 func (s *IdentityService) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	claims, err := s.tokens.VerifyRefreshToken(refreshToken)
 	if err != nil {
 		return reject("TOKEN_INVALID", "refresh token invalido o expirado"), nil
 	}
-	user, err := s.users.FindByID(ctx, claims.UserID)
+	if s.sessions == nil || claims.SessionID == "" {
+		user, err := s.users.FindByID(ctx, claims.UserID)
+		if err != nil {
+			return reject("NOT_FOUND", "usuario no encontrado"), nil
+		}
+		return s.issueTokens(ctx, user, claims.SessionID)
+	}
+
+	sessionID, reused, err := s.sessions.ConsumeRefreshToken(ctx, hashToken(refreshToken))
+	if err != nil {
+		if errors.Is(err, domain.ErrRefreshTokenUnknown) {
+			return reject("TOKEN_INVALID", "refresh token invalido o expirado"), nil
+		}
+		if s.reporter != nil {
+			s.reporter.Defect(ctx, "refresh consumption failed", observability.Wrap(err, "consume refresh token"))
+		}
+		return internal(), nil
+	}
+	if reused {
+		return s.handleReuse(ctx, claims, sessionID), nil
+	}
+
+	// Primera rotacion: la sesion sigue viva y el token consumido ya no sirve.
+	session, err := s.sessions.SessionByID(ctx, sessionID)
+	if err != nil || session.Revoked() {
+		return reject("SESSION_REVOKED", "la sesion fue revocada"), nil
+	}
+	user, err := s.users.FindByID(ctx, session.UserID)
 	if err != nil {
 		return reject("NOT_FOUND", "usuario no encontrado"), nil
 	}
-	return s.issueTokens(ctx, user)
+	return s.issueTokens(ctx, user, sessionID)
 }
 
-func (s *IdentityService) issueTokens(ctx context.Context, user *domain.User) (*AuthResult, error) {
-	access, err := s.tokens.IssueAccessToken(user.ID, user.TenantID, user.Role)
+// handleReuse aplica R8: revoca la familia, publica el evento y reporta a security.
+func (s *IdentityService) handleReuse(ctx context.Context, claims *auth.Claims, sessionID string) *AuthResult {
+	if err := s.sessions.RevokeSession(ctx, sessionID, domain.RevokedReasonReuse); err != nil && s.reporter != nil {
+		s.reporter.Defect(ctx, "session revocation failed", observability.Wrap(err, "revoke session"))
+	}
+	s.revoked.markRevoked(sessionID)
+	// ADR 0012: el evento se escribe en el outbox junto con el efecto.
+	_ = s.sessions.WriteOutboxEvent(ctx, "pp.identity.session.revoked.v1", sessionID, claims.TenantID,
+		sessionRevokedPayload(claims.UserID, []string{sessionID}, domain.RevokedReasonReuse))
+	if s.security != nil {
+		if err := s.security.ReportTokenReuse(ctx, claims.UserID, ""); err != nil && s.reporter != nil {
+			s.reporter.Defect(ctx, "security report failed", observability.Wrap(err, "report token reuse"))
+		}
+	}
+	if s.metrics != nil {
+		s.metrics.Inc("pp_session_reuse_total", "reason", domain.RevokedReasonReuse)
+	}
+	return reject("SESSION_REVOKED", "la sesion fue revocada por seguridad")
+}
+
+// sessionRevokedPayload serializa el evento SessionRevoked (identity.proto §6).
+// El envelope canonico llegara con el relay del outbox (F08.5); hoy JSON.
+func sessionRevokedPayload(userID string, sessionIDs []string, reason string) []byte {
+	b, _ := json.Marshal(map[string]any{
+		"user_id":     userID,
+		"session_ids": sessionIDs,
+		"reason":      reason,
+	})
+	return b
+}
+
+func (s *IdentityService) issueTokens(ctx context.Context, user *domain.User, sessionID string) (*AuthResult, error) {
+	access, err := s.tokens.IssueAccessToken(sessionID, user.ID, user.TenantID, user.Role)
 	if err != nil {
 		if s.reporter != nil {
 			s.reporter.Defect(ctx, "access token issuance failed", observability.Wrap(err, "issue access token"))
 		}
 		return internal(), nil
 	}
-	refresh, err := s.tokens.IssueRefreshToken(user.ID, user.TenantID, user.Role)
+	refresh, err := s.tokens.IssueRefreshToken(sessionID, user.ID, user.TenantID, user.Role)
 	if err != nil {
 		if s.reporter != nil {
 			s.reporter.Defect(ctx, "refresh token issuance failed", observability.Wrap(err, "issue refresh token"))
 		}
 		return internal(), nil
 	}
+	// El refresh se guarda solo como hash (R8).
+	if s.sessions != nil && sessionID != "" {
+		if err := s.sessions.IssueRefreshToken(ctx, sessionID, user.ID, hashToken(refresh), time.Now().UTC().Add(30*24*time.Hour)); err != nil && s.reporter != nil {
+			s.reporter.Defect(ctx, "refresh token registration failed", observability.Wrap(err, "register refresh token"))
+		}
+	}
 	return &AuthResult{
 		Success: true, AccessToken: access, RefreshToken: refresh,
-		UserID: user.ID, TenantID: user.TenantID, Role: user.Role,
+		UserID: user.ID, TenantID: user.TenantID, Role: user.Role, SessionID: sessionID,
 	}, nil
+}
+
+// hashToken es el sha256 del refresh: la base nunca guarda el valor util.
+func hashToken(token string) []byte {
+	sum := sha256.Sum256([]byte(token))
+	return sum[:]
 }
 
 // ValidateConsents aplica R18: sin edad confirmada no hay cuenta; los terminos y

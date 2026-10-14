@@ -5,7 +5,7 @@
 # Matriz OBJETIVO completa (quién llama a quién): docs/architecture/service-dependencies.md §3.
 #
 # --- implementados hoy ---
-identity|go|internal/pb|identity.proto,common.proto
+identity|go|internal/pb|identity.proto,security.proto,common.proto
 api-gateway|go|internal/pb|identity.proto,common.proto
 # --- objetivo (se activan al llegar a su fase) ---
 ledger|rust|proto|ledger.proto,common.proto,events.proto

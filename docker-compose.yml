@@ -34,6 +34,9 @@ services:
       # El job de migracion conecta directo a postgres-db:5432 (lib/pq de
       # golang-migrate envia parametros que PgBouncer en transaccion rechaza).
       PP_MIGRATE_DSN: "${IDENTITY_MIGRATE_DSN:-postgres://migrator_identity:identity_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      # Reporte de TOKEN_REUSE a security (R8). Vacio = no reporta.
+      PP_SECURITY_ADDR: "${IDENTITY_SECURITY_ADDR:-security:50073}"
+      PP_SECURITY_INSECURE: "true"
     networks: [services, data]
     healthcheck: *healthcheck
     depends_on:

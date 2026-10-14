@@ -21,6 +21,8 @@ type Config struct {
 	RefreshSecret string
 	DBDSN      string // vacio = store en memoria (pruebas unitarias y E2E sin BD)
 	MigrateDSN string // DSN del job de migracion (directo a postgres, sin PgBouncer)
+	SecurityAddr   string // destino de ReportSecurityEvent (vacio = no reporta)
+	SecurityInsecure bool
 	MTLSEnforced bool
 }
 
@@ -35,6 +37,8 @@ func Load() (Config, error) {
 		RefreshSecret: os.Getenv("REFRESH_TOKEN_SECRET"),
 		DBDSN:         os.Getenv("PP_DB_DSN"),
 		MigrateDSN:    os.Getenv("PP_MIGRATE_DSN"),
+		SecurityAddr:   os.Getenv("PP_SECURITY_ADDR"),
+		SecurityInsecure: os.Getenv("PP_SECURITY_INSECURE") == "true",
 		MTLSEnforced:  os.Getenv("MTLS_ENFORCED") == "true",
 	}
 
