@@ -112,11 +112,12 @@ func main() {
 	// F08.2: con PP_DB_DSN se usa el store sobre postgres-db; sin el, memoria
 	// (pruebas unitarias y el E2E sin base de datos). La interfaz no cambia.
 	var (
-		users    store.UserStore
-		sessions store.SessionStore
-		attempts store.LoginAttemptStore
-		tenants  store.TenantStore
-		roles    store.RoleStore
+		users     store.UserStore
+		sessions  store.SessionStore
+		attempts  store.LoginAttemptStore
+		tenants   store.TenantStore
+		roles     store.RoleStore
+		passwords store.PasswordStore
 	)
 	if dsn := cfg.DBDSN; dsn != "" {
 		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
@@ -129,6 +130,7 @@ func main() {
 		attempts = store.NewPostgresLoginAttemptStore(pgStore.Pool())
 		tenants = store.NewPostgresTenantStore(pgStore.Pool())
 		roles = store.NewPostgresRoleStore(pgStore.Pool())
+		passwords = store.NewPostgresPasswordStore(pgStore.Pool())
 		logger.Info("using postgres user store with sessions and lockout", "dsn_host", dsnHost(dsn))
 	} else {
 		users = store.NewInMemoryUserStore()
@@ -176,6 +178,10 @@ func main() {
 	if roles != nil {
 		identitySrv = identitySrv.WithRoles(roles)
 		logger.Info("roles and invitations enabled (F08.6)")
+	}
+	if passwords != nil {
+		identitySrv = identitySrv.WithPasswords(passwords)
+		logger.Info("password recovery enabled (F08.7)")
 	}
 	// Relay del outbox (ADR 0012): publica TenantStatusChanged en JetStream.
 	var relay *events.Relay

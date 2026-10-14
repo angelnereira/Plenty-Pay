@@ -104,6 +104,13 @@ func (c *revocationCache) markRevoked(sessionID string) {
 	delete(c.alive, sessionID)
 }
 
+// invalidateAlive borra las sesiones sabidas vivas (se re-consultaran).
+func (c *revocationCache) invalidateAlive() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.alive = map[string]time.Time{}
+}
+
 // isRevoked consulta el estado cacheado de revocacion.
 func (c *revocationCache) isRevoked(sessionID string) bool {
 	c.mu.Lock()
@@ -114,17 +121,18 @@ func (c *revocationCache) isRevoked(sessionID string) bool {
 
 // IdentityService implementa los casos de uso sobre la interfaz del store.
 type IdentityService struct {
-	users    store.UserStore
-	sessions store.SessionStore      // nil = sin sesiones (pruebas/E2E sin BD)
-	attempts store.LoginAttemptStore // nil = sin bloqueo progresivo
-	tenants  store.TenantStore       // nil = sin tenants (pruebas)
-	roles    store.RoleStore         // nil = sin roles (pruebas)
-	lockout  domain.LockoutPolicy
-	tokens   *auth.TokenIssuer
-	reporter *observability.Reporter
-	metrics  *observability.Metrics
-	security SecurityReporter
-	revoked  *revocationCache
+	users     store.UserStore
+	sessions  store.SessionStore      // nil = sin sesiones (pruebas/E2E sin BD)
+	attempts  store.LoginAttemptStore // nil = sin bloqueo progresivo
+	tenants   store.TenantStore       // nil = sin tenants (pruebas)
+	roles     store.RoleStore         // nil = sin roles (pruebas)
+	passwords store.PasswordStore     // nil = sin recuperacion (pruebas)
+	lockout   domain.LockoutPolicy
+	tokens    *auth.TokenIssuer
+	reporter  *observability.Reporter
+	metrics   *observability.Metrics
+	security  SecurityReporter
+	revoked   *revocationCache
 	// now es el reloj inyectado (go-standards.md 3.3): time.Now solo en main.
 	now func() time.Time
 }
@@ -142,6 +150,12 @@ func New(users store.UserStore, tokens *auth.TokenIssuer, reporter *observabilit
 // WithRoles activa roles personalizados e invitaciones (F08.6).
 func (s *IdentityService) WithRoles(rs store.RoleStore) *IdentityService {
 	s.roles = rs
+	return s
+}
+
+// WithPasswords activa recuperacion y cambio de contrasena (F08.7).
+func (s *IdentityService) WithPasswords(ps store.PasswordStore) *IdentityService {
+	s.passwords = ps
 	return s
 }
 
@@ -353,6 +367,13 @@ func (s *IdentityService) ValidateAccessToken(ctx context.Context, accessToken s
 	if s.sessions != nil && claims.SessionID != "" {
 		if err := s.assertSessionAlive(ctx, claims.SessionID); err != nil {
 			return nil, err
+		}
+	}
+	// R16: un token emitido antes del ultimo cambio de contrasena ya no vale.
+	if s.passwords != nil && claims.IssuedAt != nil {
+		changed, err := s.passwords.PasswordChangedAt(ctx, claims.UserID)
+		if err == nil && changed != nil && claims.IssuedAt.Time.Before(*changed) {
+			return nil, domain.ErrSessionRevoked
 		}
 	}
 	return &Claims{UserID: claims.UserID, TenantID: claims.TenantID, Role: claims.Role, SessionID: claims.SessionID}, nil

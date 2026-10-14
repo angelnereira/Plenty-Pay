@@ -58,6 +58,12 @@ func (s *IdentityServer) WithRoles(rs store.RoleStore) *IdentityServer {
 	return s
 }
 
+// WithPasswords activa recuperacion y cambio de contrasena (F08.7).
+func (s *IdentityServer) WithPasswords(ps store.PasswordStore) *IdentityServer {
+	s.svc.WithPasswords(ps)
+	return s
+}
+
 // WithTenants activa la gestion de negocios (F08.5).
 func (s *IdentityServer) WithTenants(ts store.TenantStore) *IdentityServer {
 	s.svc.WithTenants(ts)
@@ -379,3 +385,49 @@ func roleName(r *pb.Role) string {
 
 func tenantFromContext(ctx context.Context) string { return tenancy.TenantIDFromContext(ctx) }
 func userFromContext(ctx context.Context) string   { return tenancy.UserIDFromContext(ctx) }
+
+// ── Contrasena (F08.7) ────────────────────────────────────────────────────────
+
+// ChangePassword cambia la contrasena (R14 exige step-up; R16 revoca las demas
+// sesiones).
+func (s *IdentityServer) ChangePassword(ctx context.Context, req *pb.ChangePasswordRequest) (*pb.SimpleResult, error) {
+	if req.StepUpToken == "" {
+		return &pb.SimpleResult{Success: false, ErrorMessage: "STEP_UP_REQUIRED"}, nil
+	}
+	keep := ""
+	if req.CurrentPassword != "" {
+		// El cambio conserva la sesion desde la que se hace; el reset no.
+		keep = sessionOf(ctx)
+	}
+	res, err := s.svc.ChangePassword(ctx, req.UserId, req.CurrentPassword, req.NewPassword, keep)
+	if err != nil {
+		return &pb.SimpleResult{Success: false, ErrorMessage: "error interno"}, nil
+	}
+	if !res.Success {
+		return &pb.SimpleResult{Success: false, ErrorMessage: res.ErrorMessage}, nil
+	}
+	return &pb.SimpleResult{Success: true}, nil
+}
+
+// RequestPasswordReset siempre responde igual (no revela si el correo existe).
+func (s *IdentityServer) RequestPasswordReset(ctx context.Context, req *pb.RequestPasswordResetRequest) (*pb.SimpleResult, error) {
+	if _, err := s.svc.RequestPasswordReset(ctx, req.Email); err != nil {
+		return &pb.SimpleResult{Success: false, ErrorMessage: "error interno"}, nil
+	}
+	return &pb.SimpleResult{Success: true}, nil
+}
+
+// ConfirmPasswordReset canjea el token y cambia la contrasena (R16).
+func (s *IdentityServer) ConfirmPasswordReset(ctx context.Context, req *pb.ConfirmPasswordResetRequest) (*pb.SimpleResult, error) {
+	res, err := s.svc.ConfirmPasswordReset(ctx, req.ResetToken, req.NewPassword)
+	if err != nil {
+		return &pb.SimpleResult{Success: false, ErrorMessage: "error interno"}, nil
+	}
+	if !res.Success {
+		return &pb.SimpleResult{Success: false, ErrorMessage: res.ErrorMessage}, nil
+	}
+	return &pb.SimpleResult{Success: true}, nil
+}
+
+// sessionOf devuelve la sesion del llamador si viene en el contexto.
+func sessionOf(ctx context.Context) string { return tenancy.SessionIDFromContext(ctx) }

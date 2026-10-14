@@ -16,6 +16,7 @@ const (
 	keyUserID
 	keyActorRole
 	keyIP
+	keySessionID
 )
 
 // WithIP devuelve un contexto que lleva la IP del llamador (metadatos del
@@ -62,5 +63,16 @@ func UserIDFromContext(ctx context.Context) string {
 // ActorRoleFromContext lee el rol base del actor; cadena vacia si no viene.
 func ActorRoleFromContext(ctx context.Context) string {
 	v, _ := ctx.Value(keyActorRole).(string)
+	return v
+}
+
+// WithSession devuelve un contexto que lleva la sesion del llamador.
+func WithSession(ctx context.Context, sessionID string) context.Context {
+	return context.WithValue(ctx, keySessionID, sessionID)
+}
+
+// SessionIDFromContext lee la sesion del llamador; cadena vacia si no viene.
+func SessionIDFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(keySessionID).(string)
 	return v
 }

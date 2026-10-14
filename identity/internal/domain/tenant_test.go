@@ -10,10 +10,10 @@ import (
 // dominio-model.md §3.3: PENDING_REVIEW -> ACTIVE | REJECTED; ACTIVE <-> SUSPENDED.
 func TestR11_TenantTransitions(t *testing.T) {
 	casos := []struct {
-		current  string
-		approve  bool
-		want     string
-		wantErr  bool
+		current string
+		approve bool
+		want    string
+		wantErr bool
 	}{
 		{domain.TenantPendingReview, true, domain.TenantActive, false},
 		{domain.TenantPendingReview, false, domain.TenantRejected, false},
