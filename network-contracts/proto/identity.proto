@@ -201,6 +201,7 @@ message CreateBusinessResult {
   string error_message = 2;
   Tenant tenant = 3;
   AuthResult session = 4;
+  string reason = 5;         // reason estable del rechazo (SPEC §4: ALREADY_HAS_TENANT, RUC_TAKEN, INVALID_RUC)
 }
 message ReviewBusinessRequest { string tenant_id = 1; bool approve = 2; string notes = 3; string idempotency_key = 4; }
 message GetTenantRequest { string tenant_id = 1; }

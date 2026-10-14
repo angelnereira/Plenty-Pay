@@ -6,7 +6,7 @@ Usuarios, negocios (tenants), sesiones, roles, permisos y confirmación fuerte. 
 |---|---|
 | Tecnología | Go |
 | Puerto | 50060 (admin `:9100` en servicios propios) |
-| Fase del roadmap | F08 (F08.1, F08.2, F08.3, F08.4) |
+| Fase del roadmap | F08 (F08.1–F08.5) |
 
 ## Estado
 | Aspecto | Estado | Evidencia |
@@ -14,8 +14,8 @@ Usuarios, negocios (tenants), sesiones, roles, permisos y confirmación fuerte. 
 | Estructura | ✅ | Cumple `go-standards.md` §2: `internal/{config,domain,service,store,server,observability,tenancy,migrate}` + `migrations/` (2026-10-14, F08.2) |
 | Código | ✅ | Register (R1–R3, R6, R18 con `reason` estable), Login (R4), ValidateToken, GetUserPermissions (R10), RefreshToken sobre la interfaz `store.UserStore`; reglas puras en `domain`, casos de uso en `service`, adaptador gRPC en `server` |
 | Persistencia | ✅ | `PostgresUserStore` con pgx v5 + PgBouncer: crea usuario y consentimientos en una transacción, `SET LOCAL app.tenant_id/app.user_id/app.actor_role` (RLS como segunda barrera, ADR 0014); login por `find_user_by_email` (SECURITY DEFINER del migrador) |
-| Migraciones | ✅ | `0001_users_and_consents`, `0002_sessions_and_refresh` (sesiones, refresh_tokens, outbox) y `0003_login_attempts` (bloqueo), cada una con `.up.sql` y `.down.sql`; aplicadas por `identity migrate`; DDL como `migrator_identity`, DML como `identity_svc`; idempotentes |
-| Pruebas | ✅ | L1 `go test -race ./...` (65 pruebas: domain R1/R2/R5, service R3/R4/R5/R6/R7/R8/R9/R18, server, auth, observabilidad); L2 `./identity/test/test_store_l2.sh` (14 aserciones + 13 pruebas Go contra PostgreSQL real: store, RLS, sesiones, rotacion, reuso, outbox y bloqueo); L4 E2E 35/35 + R5 verificado por el gateway (5 fallos bloquean y el 6.º con clave correcta devuelve `ACCOUNT_LOCKED`) |
+| Migraciones | ✅ | `0001_users_and_consents`, `0002_sessions_and_refresh`, `0003_login_attempts` y `0004_tenants` (tenants + documentos KYB), cada una con `.up.sql` y `.down.sql`; aplicadas por `identity migrate`; DDL como `migrator_identity`, DML como `identity_svc`; idempotentes |
+| Pruebas | ✅ | L1 `go test -race ./...` (81 pruebas: domain R1/R2/R5/R11/R17, service R3/R4/R5/R6/R7/R8/R9/R18 + tenants, server, auth); L2 `./identity/test/test_store_l2.sh` (14 aserciones + 15 pruebas Go contra PostgreSQL **y NATS** reales: store, RLS, sesiones, rotacion, reuso, outbox, bloqueo y **exactamente un evento por transicion**); L4 E2E 35/35 + R5 verificado por el gateway |
 | Imagen Docker | ✅ | `golang:1.26-alpine` → distroless nonroot; construida y `healthy` en Compose con `PP_DB_DSN` |
 | Observabilidad | ✅ | Logs JSON con `request_id`/`trace_id`, error con pila y registro único en el borde, trazas W3C, métricas §2.1 |
 
@@ -40,6 +40,11 @@ go vet ./...                # L0
 - El registro y el login abren una sesion; los tokens llevan `session_id` y un `token_id` por emision (dos tokens del mismo segundo serian identicos sin el).
 - **R8**: cada refresh emite uno nuevo y consume el anterior de forma atomica; presentar uno ya usado revoca la sesion (`REFRESH_REUSE`), escribe `pp.identity.session.revoked.v1` en el outbox y reporta `TOKEN_REUSE` a `security`.
 - **R9**: `ValidateToken` exige sesion viva, con cache de revocacion (TTL <= 15 s); una revocacion se ve de inmediato en el mismo proceso.
+
+## Negocios y eventos (F08.5)
+- `CreateBusiness` da de alta el negocio en `PENDING_REVIEW`, asciende al dueño a `BUSINESS_OWNER` y devuelve sesion.
+- `ReviewBusiness` (solo plataforma) aplica la máquina de estados del dominio; cada transición escribe **un** evento en el outbox y el relay lo publica en `pp.identity.tenant.status_changed.v1` con `Nats-Msg-Id = event_id` (JetStream deduplica).
+- Un `event_type` sin publicador (la solicitud de notificación provisional de F08.4) queda **pendiente** en el outbox en vez de perderse.
 
 ## Base de datos
 - DSN de servicio: `PP_DB_DSN` (por defecto `postgres://identity_svc:***@pgbouncer:6432/plentypay`).

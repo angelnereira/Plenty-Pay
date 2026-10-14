@@ -21,6 +21,7 @@ import (
 	"plentypay/identity/internal/auth"
 	"plentypay/identity/internal/client"
 	"plentypay/identity/internal/config"
+	"plentypay/identity/internal/events"
 	"plentypay/identity/internal/migrate"
 	"plentypay/identity/internal/observability"
 	"plentypay/identity/internal/pb"
@@ -114,6 +115,7 @@ func main() {
 		users    store.UserStore
 		sessions store.SessionStore
 		attempts store.LoginAttemptStore
+		tenants  store.TenantStore
 	)
 	if dsn := cfg.DBDSN; dsn != "" {
 		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
@@ -124,6 +126,7 @@ func main() {
 		users = pgStore
 		sessions = store.NewPostgresSessionStore(pgStore.Pool())
 		attempts = store.NewPostgresLoginAttemptStore(pgStore.Pool())
+		tenants = store.NewPostgresTenantStore(pgStore.Pool())
 		logger.Info("using postgres user store with sessions and lockout", "dsn_host", dsnHost(dsn))
 	} else {
 		users = store.NewInMemoryUserStore()
@@ -164,6 +167,28 @@ func main() {
 		identitySrv = identitySrv.WithLockout(attempts)
 		logger.Info("progressive lockout enabled (R5)")
 	}
+	if tenants != nil {
+		identitySrv = identitySrv.WithTenants(tenants)
+		logger.Info("tenants enabled (F08.5)")
+	}
+	// Relay del outbox (ADR 0012): publica TenantStatusChanged en JetStream.
+	var relay *events.Relay
+	if tenants != nil && cfg.NATSUrl != "" {
+		r, err := events.NewRelay(ctx, tenants, cfg.NATSUrl, cfg.NATSUser, cfg.NATSPass, logger, metrics)
+		if err != nil {
+			logger.Warn("outbox relay disabled", "err", err.Error())
+		} else {
+			relay = r
+			relayCtx, cancelRelay := context.WithCancel(context.Background())
+			defer cancelRelay()
+			go func() {
+				if err := relay.Run(relayCtx); err != nil {
+					logger.Error("outbox relay stopped", "err", err.Error())
+				}
+			}()
+			logger.Info("outbox relay enabled", "url", cfg.NATSUrl)
+		}
+	}
 	if cfg.SecurityAddr != "" {
 		sec, err := client.NewSecurityReporter(cfg.SecurityAddr, cfg.SecurityInsecure)
 		if err != nil {
@@ -194,6 +219,9 @@ func main() {
 		case <-stopped:
 		case <-time.After(shutdownTimeout):
 			grpcServer.Stop()
+		}
+		if relay != nil {
+			relay.Close()
 		}
 		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

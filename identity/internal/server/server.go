@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -47,6 +48,12 @@ func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter
 // WithSessions activa sesiones con rotacion de refresh en el servicio.
 func (s *IdentityServer) WithSessions(ss store.SessionStore) *IdentityServer {
 	s.svc.WithSessions(ss)
+	return s
+}
+
+// WithTenants activa la gestion de negocios (F08.5).
+func (s *IdentityServer) WithTenants(ts store.TenantStore) *IdentityServer {
+	s.svc.WithTenants(ts)
 	return s
 }
 
@@ -183,4 +190,87 @@ func (s *IdentityServer) ConsumeStepUp(_ context.Context, req *pb.ConsumeStepUpR
 		Valid:  valid,
 		Reason: reason,
 	}, nil
+}
+
+// ── Negocios (tenants) ────────────────────────────────────────────────────────
+
+func toPBTenant(v *service.TenantView) *pb.Tenant {
+	if v == nil {
+		return &pb.Tenant{}
+	}
+	return &pb.Tenant{
+		TenantId:    v.ID,
+		LegalName:   v.LegalName,
+		TradeName:   v.TradeName,
+		TaxId:       v.TaxID,
+		Dv:          v.DV,
+		Status:      pb.TenantStatus(pb.TenantStatus_value["TENANT_STATUS_"+v.Status]),
+		Country:     v.Country,
+		ReviewNotes: v.ReviewNotes,
+		CreatedAt:   timestamppb.New(v.CreatedAt),
+	}
+}
+
+func pbTenantStatus(s string) pb.TenantStatus {
+	if v, ok := pb.TenantStatus_value["TENANT_STATUS_"+s]; ok {
+		return pb.TenantStatus(v)
+	}
+	return pb.TenantStatus_TENANT_STATUS_UNSPECIFIED
+}
+
+func pbStatusString(s pb.TenantStatus) string {
+	if s == pb.TenantStatus_TENANT_STATUS_UNSPECIFIED {
+		return ""
+	}
+	return strings.TrimPrefix(s.String(), "TENANT_STATUS_")
+}
+
+// CreateBusiness da de alta el negocio (SPEC §4).
+func (s *IdentityServer) CreateBusiness(ctx context.Context, req *pb.CreateBusinessRequest) (*pb.CreateBusinessResult, error) {
+	res, err := s.svc.CreateBusiness(ctx, service.CreateBusinessInput{
+		OwnerEmail: req.OwnerEmail, OwnerPassword: req.OwnerPassword, OwnerFullName: req.OwnerFullName,
+		LegalName: req.LegalName, TradeName: req.TradeName, TaxID: req.TaxId, DV: req.Dv,
+		Country: req.Country, DocumentKeys: req.KybDocumentObjectKeys, Now: s.now(),
+	})
+	if err != nil {
+		return nil, status.Error(codes.Internal, "error interno")
+	}
+	if !res.Success {
+		return &pb.CreateBusinessResult{Success: false, Reason: res.Reason, ErrorMessage: res.ErrorMessage}, nil
+	}
+	return &pb.CreateBusinessResult{Success: true, Tenant: toPBTenant(res.Tenant), Session: toPB(res.Session)}, nil
+}
+
+// ReviewBusiness cambia el estado del negocio (solo plataforma).
+func (s *IdentityServer) ReviewBusiness(ctx context.Context, req *pb.ReviewBusinessRequest) (*pb.Tenant, error) {
+	review, err := s.svc.ReviewBusiness(ctx, req.TenantId, req.Approve, req.Notes)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "error interno")
+	}
+	if review == nil {
+		return &pb.Tenant{}, nil
+	}
+	return toPBTenant(review.Tenant), nil
+}
+
+// GetTenant devuelve los datos del negocio.
+func (s *IdentityServer) GetTenant(ctx context.Context, req *pb.GetTenantRequest) (*pb.Tenant, error) {
+	t, err := s.svc.Tenant(ctx, req.TenantId)
+	if err != nil {
+		return &pb.Tenant{}, nil
+	}
+	return toPBTenant(t), nil
+}
+
+// ListTenants pagina los negocios (consola de plataforma).
+func (s *IdentityServer) ListTenants(ctx context.Context, req *pb.ListTenantsRequest) (*pb.ListTenantsResult, error) {
+	list, err := s.svc.ListTenants(ctx, pbStatusString(req.Status), int(req.PageSize))
+	if err != nil {
+		return &pb.ListTenantsResult{}, nil
+	}
+	out := &pb.ListTenantsResult{}
+	for i := range list {
+		out.Tenants = append(out.Tenants, toPBTenant(&list[i]))
+	}
+	return out, nil
 }

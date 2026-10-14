@@ -117,6 +117,7 @@ type IdentityService struct {
 	users    store.UserStore
 	sessions store.SessionStore      // nil = sin sesiones (pruebas/E2E sin BD)
 	attempts store.LoginAttemptStore // nil = sin bloqueo progresivo
+	tenants  store.TenantStore       // nil = sin tenants (pruebas)
 	lockout  domain.LockoutPolicy
 	tokens   *auth.TokenIssuer
 	reporter *observability.Reporter
@@ -135,6 +136,12 @@ func New(users store.UserStore, tokens *auth.TokenIssuer, reporter *observabilit
 		lockout: domain.DefaultLockoutPolicy,
 		now:     time.Now,
 	}
+}
+
+// WithTenants activa la gestion de negocios (F08.5).
+func (s *IdentityService) WithTenants(ts store.TenantStore) *IdentityService {
+	s.tenants = ts
+	return s
 }
 
 // WithLockout activa el bloqueo progresivo (R5).

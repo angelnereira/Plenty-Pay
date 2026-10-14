@@ -13,33 +13,39 @@ import (
 
 // Config es la configuracion ya validada de identity.
 type Config struct {
-	Port       string // gRPC (50060)
-	AdminPort  string // healthz/metrics (9100)
-	LogLevel   string
-	DeployEnv  string
-	AccessSecret string
-	RefreshSecret string
-	DBDSN      string // vacio = store en memoria (pruebas unitarias y E2E sin BD)
-	MigrateDSN string // DSN del job de migracion (directo a postgres, sin PgBouncer)
-	SecurityAddr   string // destino de ReportSecurityEvent (vacio = no reporta)
+	Port             string // gRPC (50060)
+	AdminPort        string // healthz/metrics (9100)
+	LogLevel         string
+	DeployEnv        string
+	AccessSecret     string
+	RefreshSecret    string
+	DBDSN            string // vacio = store en memoria (pruebas unitarias y E2E sin BD)
+	MigrateDSN       string // DSN del job de migracion (directo a postgres, sin PgBouncer)
+	SecurityAddr     string // destino de ReportSecurityEvent (vacio = no reporta)
 	SecurityInsecure bool
-	MTLSEnforced bool
+	NATSUrl          string // endpoint del bus (vacio = sin relay de outbox)
+	NATSUser         string
+	NATSPass         string
+	MTLSEnforced     bool
 }
 
 // Load lee el entorno y falla con error descriptivo si algo falta o es invalido.
 func Load() (Config, error) {
 	cfg := Config{
-		Port:        getOr("PORT", "50060"),
-		AdminPort:   getOr("ADMIN_PORT", "9100"),
-		LogLevel:    getOr("LOG_LEVEL", "info"),
-		DeployEnv:   getOr("DEPLOY_ENV", "dev"),
-		AccessSecret:  os.Getenv("ACCESS_TOKEN_SECRET"),
-		RefreshSecret: os.Getenv("REFRESH_TOKEN_SECRET"),
-		DBDSN:         os.Getenv("PP_DB_DSN"),
-		MigrateDSN:    os.Getenv("PP_MIGRATE_DSN"),
-		SecurityAddr:   os.Getenv("PP_SECURITY_ADDR"),
+		Port:             getOr("PORT", "50060"),
+		AdminPort:        getOr("ADMIN_PORT", "9100"),
+		LogLevel:         getOr("LOG_LEVEL", "info"),
+		DeployEnv:        getOr("DEPLOY_ENV", "dev"),
+		AccessSecret:     os.Getenv("ACCESS_TOKEN_SECRET"),
+		RefreshSecret:    os.Getenv("REFRESH_TOKEN_SECRET"),
+		DBDSN:            os.Getenv("PP_DB_DSN"),
+		MigrateDSN:       os.Getenv("PP_MIGRATE_DSN"),
+		SecurityAddr:     os.Getenv("PP_SECURITY_ADDR"),
 		SecurityInsecure: os.Getenv("PP_SECURITY_INSECURE") == "true",
-		MTLSEnforced:  os.Getenv("MTLS_ENFORCED") == "true",
+		NATSUrl:          getOr("PP_NATS_URL", ""),
+		NATSUser:         os.Getenv("PP_NATS_USER"),
+		NATSPass:         os.Getenv("PP_NATS_PASS"),
+		MTLSEnforced:     os.Getenv("MTLS_ENFORCED") == "true",
 	}
 
 	if len(cfg.AccessSecret) < 32 {

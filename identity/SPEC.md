@@ -184,7 +184,7 @@ Contraseñas: `sha256-bcrypt:<hash bcrypt costo 12>` (R19). El esquema va en el 
 6. Dado un registro sin la confirmación de mayoría de edad, cuando se crea la cuenta, se rechaza con `AGE_REQUIREMENT` y no queda usuario; con las tres obligatorias, quedan registrados usuario, finalidad, versión del texto, fecha, canal y dispositivo (`TestN_DAT_02_*`, `TestN_DAT_14_*`).
 
 ## 12. Plan de implementación
-F08.1 almacén en memoria + RPC núcleo (✅) → F08.2 PostgreSQL + migraciones + RLS (✅) → F08.3 sesiones/refresh con rotación y reuso (✅) → F08.4 bloqueo progresivo (✅) → F08.5 tenants + CreateBusiness/ReviewBusiness + relay del outbox → F08.6 roles personalizados + invitaciones → F08.7 reset de contraseña → F05.x step-up y mTLS → F08.8 pantallas Flutter (perfil, sesiones, alta de negocio, equipo, roles) → F28 passkeys y EdDSA/JWKS.
+F08.1 almacén en memoria + RPC núcleo (✅) → F08.2 PostgreSQL + migraciones + RLS (✅) → F08.3 sesiones/refresh con rotación y reuso (✅) → F08.4 bloqueo progresivo (✅) → F08.5 tenants + CreateBusiness/ReviewBusiness + relay del outbox (✅) → F08.6 roles personalizados + invitaciones → F08.7 reset de contraseña → F05.x step-up y mTLS → F08.8 pantallas Flutter (perfil, sesiones, alta de negocio, equipo, roles) → F28 passkeys y EdDSA/JWKS.
 
 ## 13. Riesgos y preguntas abiertas
 Q-04 (requisitos KYB exactos de la SBP para comercios), Q-09 (proveedor de verificación de identidad).

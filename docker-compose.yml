@@ -37,6 +37,10 @@ services:
       # Reporte de TOKEN_REUSE a security (R8). Vacio = no reporta.
       PP_SECURITY_ADDR: "${IDENTITY_SECURITY_ADDR:-security:50073}"
       PP_SECURITY_INSECURE: "true"
+      # Relay del outbox (F08.5, ADR 0012): publica TenantStatusChanged en NATS.
+      PP_NATS_URL: "${IDENTITY_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${IDENTITY_NATS_USER:-identity_svc}"
+      PP_NATS_PASS: "${IDENTITY_NATS_PASS:-identity_nats_secret}"
     networks: [services, data]
     healthcheck: *healthcheck
     depends_on:
