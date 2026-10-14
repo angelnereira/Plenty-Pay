@@ -23,15 +23,26 @@ assert_eq() {
 
 compose() { docker compose "$@"; }
 GARAGE=(/usr/local/bin/garage)
-NODE_IMAGE="node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402"
-S3_CLI="$(cd "$(dirname "$0")" && pwd)/s3cli.mjs"
 NETWORK="plentypay_data"
+S3CLI_DIR="$(cd "$(dirname "$0")/s3cli" && pwd)"
+S3CLI_BIN="$S3CLI_DIR/s3clibin"
+RUNNER_IMAGE="busybox:stable"
 
-# s3 <keyId> <secret> <LIST|PUT|GET|DELETE> <bucket> [key]: código HTTP
+# compile_s3cli compila el cliente de prueba (Go stdlib, binario estatico) si falta.
+compile_s3cli() {
+  if [ ! -x "$S3CLI_BIN" ]; then
+    echo "  [*] Compilando el cliente S3 de prueba (Go stdlib)..."
+    (cd "$S3CLI_DIR" && CGO_ENABLED=0 go build -o s3clibin .) || return 1
+  fi
+}
+compile_s3cli || { echo "no se pudo compilar el cliente S3 de prueba"; exit 1; }
+
+# s3 <keyId> <secret> <LIST|PUT|GET|DELETE> <bucket> [key]: codigo HTTP
 s3() {
-  local kid="$1" secret="$2" method="$3" bucket="$4" key="${5:-}"
-  docker run --rm --network "$NETWORK" -v "$S3_CLI:/s3cli.mjs:ro" "$NODE_IMAGE" \
-    node /s3cli.mjs "$kid" "$secret" "$method" "$bucket" "$key" 2>/dev/null | head -1
+  local kid="$1" secret="$2" method="$3" bucket="$4" key="${5:-}" envs=()
+  [ -n "${S3_PUT_SIZE:-}" ] && envs+=(-e "S3_PUT_SIZE=$S3_PUT_SIZE")
+  docker run --rm --network "$NETWORK" -v "$S3CLI_DIR:/src:ro" "${envs[@]}" \
+    "$RUNNER_IMAGE" /src/s3clibin "$kid" "$secret" "$method" "$bucket" "$key" 2>/dev/null | head -1
 }
 
 # key_credentials <llave>: imprime "keyId secret"

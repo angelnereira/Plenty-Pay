@@ -24,9 +24,11 @@ docker compose up -d object-storage    # aplica layout, buckets y llaves al arra
 ```
 
 ## Cliente S3 de prueba
-`s3cli.mjs` (herramienta de prueba, no despliegue): firma SigV4 con la stdlib de
-Node y habla con la API de Garage. Las pruebas lo usan para verificar permisos
-reales (criterio de F07.9: *la llave de catalog no lee pp-fiscal*).
+`s3cli/` (herramienta de prueba, no despliegue): cliente Go con **stdlib pura**
+(net/http + crypto/hmac) que firma SigV4 y habla con la API de Garage. El script
+lo compila (`CGO_ENABLED=0 go build`) y lo ejecuta dentro de la red de Compose
+vía busybox. Las pruebas verifican permisos reales con él (criterio de F07.9:
+*la llave de catalog no lee pp-fiscal*).
 
 ## URLs prefirmadas
 Referencia para los contenedores dueños (endpoint, estilo path-style, llaves por
