@@ -52,6 +52,9 @@ func NewIdentityClientWithTLS(target string, reporter *observability.Reporter, t
 	return NewIdentityClientWithCredentials(target, reporter, credentials.NewTLS(tlsConfig))
 }
 
+// Conn expone la conexión gRPC (traductor genérico de rutas, F09.3).
+func (c *IdentityClient) Conn() *grpc.ClientConn { return c.conn }
+
 func (c *IdentityClient) Close() error { return c.conn.Close() }
 
 type ValidatedSession struct {

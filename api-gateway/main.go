@@ -17,6 +17,7 @@ import (
 	"plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/middleware"
 	"plentypay/api-gateway/internal/observability"
+	"plentypay/api-gateway/internal/routes"
 )
 
 // version se inyecta en el build (-ldflags "-X main.version=...").
@@ -37,6 +38,17 @@ func envOr(key, def string) string {
 	return def
 }
 
+// rutasConHandlerPropio son las que necesitan moldeado especial del request o de
+// la respuesta (R2: el registro fuerza CUSTOMER; R2b: fija channel/device). El
+// resto de la tabla se sirve con el handler genérico (F09.3).
+var rutasConHandlerPropio = map[string]bool{
+	"POST /v1/auth/login":    true,
+	"POST /v1/auth/register": true,
+	"POST /v1/auth/refresh":  true,
+	"GET /v1/me":             true,
+	"GET /v1/me/permissions": true,
+}
+
 func newMux(identity *client.IdentityClient) *http.ServeMux {
 	h := handlers.NewAuthHandlers(identity)
 	auth := middleware.RequireAuth(identity)
@@ -45,13 +57,25 @@ func newMux(identity *client.IdentityClient) *http.ServeMux {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	// Públicas
+	// Públicas con moldeado propio
 	mux.HandleFunc("POST /v1/auth/login", h.Login)
 	mux.HandleFunc("POST /v1/auth/register", h.Register)
 	mux.HandleFunc("POST /v1/auth/refresh", h.Refresh)
-	// Protegidas: toda ruta nueva se envuelve con `auth` (catálogo completo en api-gateway/SPEC.md §4)
+	// Protegidas con moldeado propio
 	mux.Handle("GET /v1/me", auth(http.HandlerFunc(h.Me)))
 	mux.Handle("GET /v1/me/permissions", auth(http.HandlerFunc(h.Permissions)))
+
+	// Resto de la tabla declarativa: una fila = una ruta, sin código por endpoint.
+	for _, r := range routes.Table {
+		if rutasConHandlerPropio[r.Method+" "+r.Path] {
+			continue
+		}
+		var handler http.Handler = routes.Handler(identity.Conn(), r)
+		if r.RequireAuth {
+			handler = auth(handler)
+		}
+		mux.Handle(r.Method+" "+r.Path, handler)
+	}
 	return mux
 }
 
