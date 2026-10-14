@@ -14,5 +14,8 @@ trap 'kill "$SERVER_PID" 2>/dev/null' TERM INT
 # Aplicación idempotente del layout (no recrea nada si ya está asignado).
 /usr/local/bin/scripts/init-layout.sh
 
+# Aplicación idempotente de buckets y llaves (F07.9).
+/usr/local/bin/scripts/init-buckets.sh
+
 # Proceso principal = servidor Garage (PID 1 recibe las señales por el trap).
 wait "$SERVER_PID"
