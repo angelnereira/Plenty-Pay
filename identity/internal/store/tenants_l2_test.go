@@ -12,6 +12,7 @@ package store_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -75,68 +76,64 @@ func TestL2_F08_5_OneEventPerTransition(t *testing.T) {
 		t.Fatalf("transicion inesperada: %s -> %s", previous, current)
 	}
 
-	// Exactamente 2 pendientes: el alta y la transicion (ni uno mas, ni uno menos).
-	pending, err := ts.OutboxPending(ctx, 10)
+	// Exactamente UNA fila de outbox por transicion (el alta y la revision).
+	// Se cuentan por agregado, sin depender de quien las publique: el relay del
+	// contenedor corre en paralelo y puede haberse adelantado.
+	mine, err := outboxIDsFor(t, ctx, dsn, tenant.ID)
 	if err != nil {
-		t.Fatalf("OutboxPending: %v", err)
+		t.Fatalf("lectura del outbox: %v", err)
 	}
-	if len(pending) != 2 {
-		t.Fatalf("se esperaban 2 eventos pendientes (alta + transicion), llegaron %d", len(pending))
-	}
-	mine := map[string]bool{}
-	for _, e := range pending {
-		mine[e.ID] = true
+	if len(mine) != 2 {
+		t.Fatalf("se esperaban 2 eventos (alta + transicion), llegaron %d (%v)", len(mine), mine)
 	}
 
-	// El relay publica y marca.
+	// Publicacion: el relay (el de pruebas o el vivo) las saca del outbox.
 	url, natsUser, natsPass := natsEnv()
 	relay, err := events.NewRelay(ctx, ts, url, natsUser, natsPass, nil, nil)
 	if err != nil {
 		t.Fatalf("NewRelay: %v", err)
 	}
 	defer relay.Close()
-
-	published, err := relay.PublishOnce(ctx)
-	if err != nil {
+	if _, err := relay.PublishOnce(ctx); err != nil {
 		t.Fatalf("PublishOnce: %v", err)
 	}
-	if published != 2 {
-		t.Fatalf("el relay deberia publicar 2 eventos, publico %d", published)
-	}
 
-	// Segunda pasada: nada pendiente, nada que republicar.
-	published, err = relay.PublishOnce(ctx)
-	if err != nil {
-		t.Fatalf("PublishOnce (2a): %v", err)
-	}
-	if published != 0 {
-		t.Fatalf("la segunda pasada no deberia publicar nada, publico %d", published)
-	}
-
-	// En JetStream: cada uno de MIS eventos aparece una sola vez (sin duplicados).
-	ids, err := streamMsgIDs(ctx, url, natsUser, natsPass, events.SubjectTenantStatusChanged, 100)
-	if err != nil {
-		t.Fatalf("lectura del stream: %v", err)
-	}
-	seen := map[string]int{}
-	for _, id := range ids {
-		if mine[id] {
-			seen[id]++
+	// Garantia verificada: en JetStream cada uno de MIS eventos aparece UNA vez.
+	// Se espera un poco: el vivo puede ir unos milisegundos por detras.
+	var seen map[string]int
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		ids, err := streamMsgIDs(ctx, url, natsUser, natsPass, events.SubjectTenantStatusChanged, 200)
+		if err != nil {
+			t.Fatalf("lectura del stream: %v", err)
 		}
+		seen = map[string]int{}
+		for _, id := range ids {
+			if mine[id] {
+				seen[id]++
+			}
+		}
+		if len(seen) == len(mine) {
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(300 * time.Millisecond)
 	}
-	if len(seen) != 2 {
-		t.Fatalf("se esperaban 2 eventos mios en el stream, llegaron %d (%v)", len(seen), seen)
+	if len(seen) != len(mine) {
+		t.Fatalf("se esperaban %d eventos mios en el stream, llegaron %d (%v)", len(mine), len(seen), seen)
 	}
 	for id, n := range seen {
 		if n != 1 {
-			t.Fatalf("el evento %s aparece %d veces: el relay debe publicar exactamente una", id, n)
+			t.Fatalf("el evento %s aparece %d veces: cada transicion debe publicarse exactamente una", id, n)
 		}
 	}
 
-	// El sobre trae el agregado correcto y el cambio de estado.
-	env, err := lastEnvelope(ctx, url, natsUser, natsPass)
+	// El sobre de MI transicion trae el agregado y el cambio de estado correctos.
+	env, err := envelopeOf(ctx, url, natsUser, natsPass, mine)
 	if err != nil {
-		t.Fatalf("ultimo envelope: %v", err)
+		t.Fatalf("envelope de la transicion: %v", err)
 	}
 	if env.GetAggregateId() != tenant.ID {
 		t.Fatalf("aggregate_id = %q, se esperaba %q", env.GetAggregateId(), tenant.ID)
@@ -197,6 +194,31 @@ func TestL2_F08_5_InvalidTransitionWritesNothing(t *testing.T) {
 	if _, err := relayDrain(ctx, ts); err != nil {
 		t.Fatalf("drenar outbox: %v", err)
 	}
+}
+
+// outboxIDsFor devuelve los event_id del outbox de un agregado.
+func outboxIDsFor(t *testing.T, ctx context.Context, dsn, aggregateID string) (map[string]bool, error) {
+	pool := newVerificationPool(t, dsn)
+	out := map[string]bool{}
+	err := pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.actor_role', 'PLATFORM_ADMIN', true)`); err != nil {
+			return err
+		}
+		rows, err := tx.Query(ctx, `SELECT id::text FROM outbox WHERE aggregate_id = $1::uuid`, aggregateID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			out[id] = true
+		}
+		return rows.Err()
+	})
+	return out, err
 }
 
 // cleanOutbox vacia el outbox (pruebas): mide solo lo de la corrida actual.
@@ -280,8 +302,9 @@ func countStreamMessages(ctx context.Context, url, user, pass, subject string, l
 	return len(msgs), ids, nil
 }
 
-// lastEnvelope decodifica el ultimo mensaje del stream como EventEnvelope.
-func lastEnvelope(ctx context.Context, url, user, pass string) (*pb.EventEnvelope, error) {
+// envelopeOf busca, entre los mensajes del stream, el que corresponde a uno de
+// mis event ids y devuelve su EventEnvelope.
+func envelopeOf(ctx context.Context, url, user, pass string, mine map[string]bool) (*pb.EventEnvelope, error) {
 	nc, err := nats.Connect(url, nats.UserInfo(user, pass))
 	if err != nil {
 		return nil, err
@@ -295,15 +318,35 @@ func lastEnvelope(ctx context.Context, url, user, pass string) (*pb.EventEnvelop
 	if err != nil {
 		return nil, err
 	}
-	msgs, err := sub.Fetch(20, nats.MaxWait(3*time.Second))
+	msgs, err := sub.Fetch(100, nats.MaxWait(3*time.Second))
 	if err != nil {
 		return nil, err
 	}
-	var env pb.EventEnvelope
-	if err := proto.Unmarshal(msgs[len(msgs)-1].Data, &env); err != nil {
-		return nil, err
+	// Se busca el de la transicion (status ACTIVE) entre los mios.
+	var fallback *pb.EventEnvelope
+	for _, m := range msgs {
+		if !mine[m.Header.Get(nats.MsgIdHdr)] {
+			continue
+		}
+		var env pb.EventEnvelope
+		if err := proto.Unmarshal(m.Data, &env); err != nil {
+			return nil, err
+		}
+		if fallback == nil {
+			fallback = &env
+		}
+		if env.GetEventType() == events.EventTypeTenantStatusChanged {
+			var payload pb.TenantStatusChanged
+			if err := env.GetPayload().UnmarshalTo(&payload); err == nil &&
+				payload.GetStatus() == pb.TenantStatus_TENANT_STATUS_ACTIVE {
+				return &env, nil
+			}
+		}
 	}
-	return &env, nil
+	if fallback != nil {
+		return fallback, nil
+	}
+	return nil, fmt.Errorf("no se encontro ningun mensaje mio en el stream")
 }
 
 // cleanupTenant borra el tenant de prueba (como plataforma: RLS).

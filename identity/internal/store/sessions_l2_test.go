@@ -188,7 +188,12 @@ func cleanupSession(t *testing.T, dsn, userID string) {
 }
 
 func poolExec(dsn, sql string, args ...any) (int, error) {
-	pool, err := pgxpool.New(context.Background(), dsn)
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return 0, err
+	}
+	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		return 0, err
 	}

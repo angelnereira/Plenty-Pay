@@ -116,6 +116,7 @@ func main() {
 		sessions store.SessionStore
 		attempts store.LoginAttemptStore
 		tenants  store.TenantStore
+		roles    store.RoleStore
 	)
 	if dsn := cfg.DBDSN; dsn != "" {
 		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
@@ -127,6 +128,7 @@ func main() {
 		sessions = store.NewPostgresSessionStore(pgStore.Pool())
 		attempts = store.NewPostgresLoginAttemptStore(pgStore.Pool())
 		tenants = store.NewPostgresTenantStore(pgStore.Pool())
+		roles = store.NewPostgresRoleStore(pgStore.Pool())
 		logger.Info("using postgres user store with sessions and lockout", "dsn_host", dsnHost(dsn))
 	} else {
 		users = store.NewInMemoryUserStore()
@@ -170,6 +172,10 @@ func main() {
 	if tenants != nil {
 		identitySrv = identitySrv.WithTenants(tenants)
 		logger.Info("tenants enabled (F08.5)")
+	}
+	if roles != nil {
+		identitySrv = identitySrv.WithRoles(roles)
+		logger.Info("roles and invitations enabled (F08.6)")
 	}
 	// Relay del outbox (ADR 0012): publica TenantStatusChanged en JetStream.
 	var relay *events.Relay

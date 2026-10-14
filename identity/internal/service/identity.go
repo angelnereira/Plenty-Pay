@@ -118,6 +118,7 @@ type IdentityService struct {
 	sessions store.SessionStore      // nil = sin sesiones (pruebas/E2E sin BD)
 	attempts store.LoginAttemptStore // nil = sin bloqueo progresivo
 	tenants  store.TenantStore       // nil = sin tenants (pruebas)
+	roles    store.RoleStore         // nil = sin roles (pruebas)
 	lockout  domain.LockoutPolicy
 	tokens   *auth.TokenIssuer
 	reporter *observability.Reporter
@@ -136,6 +137,12 @@ func New(users store.UserStore, tokens *auth.TokenIssuer, reporter *observabilit
 		lockout: domain.DefaultLockoutPolicy,
 		now:     time.Now,
 	}
+}
+
+// WithRoles activa roles personalizados e invitaciones (F08.6).
+func (s *IdentityService) WithRoles(rs store.RoleStore) *IdentityService {
+	s.roles = rs
+	return s
 }
 
 // WithTenants activa la gestion de negocios (F08.5).
@@ -478,6 +485,11 @@ func (s *IdentityService) issueTokens(ctx context.Context, user *domain.User, se
 		Success: true, AccessToken: access, RefreshToken: refresh,
 		UserID: user.ID, TenantID: user.TenantID, Role: user.Role, SessionID: sessionID,
 	}, nil
+}
+
+// wrapErr envuelve el error con la operacion (go-standards.md 3.1).
+func wrapErr(err error, op string) error {
+	return fmt.Errorf("%s: %w", op, err)
 }
 
 // hashToken es el sha256 del refresh: la base nunca guarda el valor util.

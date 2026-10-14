@@ -14,6 +14,7 @@ import (
 	"plentypay/identity/internal/pb"
 	"plentypay/identity/internal/service"
 	"plentypay/identity/internal/store"
+	"plentypay/identity/internal/tenancy"
 )
 
 // IdentityServer es el adaptador gRPC: traduce pb <-> service y los errores del
@@ -48,6 +49,12 @@ func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter
 // WithSessions activa sesiones con rotacion de refresh en el servicio.
 func (s *IdentityServer) WithSessions(ss store.SessionStore) *IdentityServer {
 	s.svc.WithSessions(ss)
+	return s
+}
+
+// WithRoles activa roles personalizados e invitaciones (F08.6).
+func (s *IdentityServer) WithRoles(rs store.RoleStore) *IdentityServer {
+	s.svc.WithRoles(rs)
 	return s
 }
 
@@ -274,3 +281,101 @@ func (s *IdentityServer) ListTenants(ctx context.Context, req *pb.ListTenantsReq
 	}
 	return out, nil
 }
+
+// ── Roles, invitaciones y equipo (F08.6) ──────────────────────────────────────
+
+// UpsertRole crea un rol personalizado (R12).
+func (s *IdentityServer) UpsertRole(ctx context.Context, req *pb.UpsertRoleRequest) (*pb.Role, error) {
+	perms := []string(nil)
+	if req.Role != nil {
+		perms = req.Role.Permissions
+	}
+	role, err := s.svc.UpsertRole(ctx, tenantFromContext(ctx), roleName(req.Role), perms)
+	if err != nil || role == nil {
+		return &pb.Role{}, nil
+	}
+	return toPBRole(role), nil
+}
+
+// ListRoles devuelve presets y roles del tenant.
+func (s *IdentityServer) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.ListRolesResult, error) {
+	list, err := s.svc.ListRoles(ctx, req.TenantId)
+	if err != nil {
+		return &pb.ListRolesResult{}, nil
+	}
+	out := &pb.ListRolesResult{}
+	for i := range list {
+		out.Roles = append(out.Roles, toPBRole(&list[i]))
+	}
+	return out, nil
+}
+
+// AssignRole asigna un rol a un usuario.
+func (s *IdentityServer) AssignRole(ctx context.Context, req *pb.AssignRoleRequest) (*pb.SimpleResult, error) {
+	if err := s.svc.AssignRole(ctx, req.UserId, req.RoleId); err != nil {
+		return &pb.SimpleResult{Success: false, ErrorMessage: "no se pudo asignar el rol"}, nil
+	}
+	return &pb.SimpleResult{Success: true}, nil
+}
+
+// InviteStaff invita a una persona al equipo (SPEC §4: 7 dias).
+func (s *IdentityServer) InviteStaff(ctx context.Context, req *pb.InviteStaffRequest) (*pb.Invitation, error) {
+	res, err := s.svc.InviteStaff(ctx, tenantFromContext(ctx), req.Email, req.FullName, req.RoleId, userFromContext(ctx))
+	if err != nil || !res.Success {
+		return &pb.Invitation{}, nil
+	}
+	return &pb.Invitation{
+		InvitationId: res.InvitationID, Email: req.Email, RoleId: req.RoleId,
+		ExpiresAt: timestamppb.New(res.ExpiresAt),
+	}, nil
+}
+
+// AcceptInvitation canjea el token y devuelve la sesion del nuevo staff.
+func (s *IdentityServer) AcceptInvitation(ctx context.Context, req *pb.AcceptInvitationRequest) (*pb.AuthResult, error) {
+	res, err := s.svc.AcceptInvitation(ctx, req.InvitationToken, req.Password)
+	if err != nil || !res.Success {
+		return toPB(nil), nil
+	}
+	return toPB(res.Session), nil
+}
+
+// ListUsers devuelve el equipo del tenant.
+func (s *IdentityServer) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.ListUsersResult, error) {
+	users, err := s.svc.ListUsers(ctx, req.TenantId)
+	if err != nil {
+		return &pb.ListUsersResult{}, nil
+	}
+	out := &pb.ListUsersResult{}
+	for i := range users {
+		out.Users = append(out.Users, &pb.UserSummary{
+			UserId: users[i].ID, Email: users[i].Email, FullName: users[i].FullName,
+			Role: pb.UserRole(pb.UserRole_value[users[i].Role]),
+		})
+	}
+	return out, nil
+}
+
+// DeactivateUser desactiva a un miembro (R13).
+func (s *IdentityServer) DeactivateUser(ctx context.Context, req *pb.DeactivateUserRequest) (*pb.SimpleResult, error) {
+	if err := s.svc.DeactivateUser(ctx, req.UserId); err != nil {
+		return &pb.SimpleResult{Success: false, ErrorMessage: "no se puede desactivar al ultimo dueno del negocio"}, nil
+	}
+	return &pb.SimpleResult{Success: true}, nil
+}
+
+func toPBRole(r *service.RoleResult) *pb.Role {
+	if r == nil {
+		return &pb.Role{}
+	}
+	return &pb.Role{RoleId: r.ID, TenantId: r.TenantID, Name: r.Name, Permissions: r.Permissions, System: r.System}
+}
+
+func roleName(r *pb.Role) string {
+	if r == nil {
+		return ""
+	}
+	return r.Name
+}
+
+func tenantFromContext(ctx context.Context) string { return tenancy.TenantIDFromContext(ctx) }
+func userFromContext(ctx context.Context) string   { return tenancy.UserIDFromContext(ctx) }

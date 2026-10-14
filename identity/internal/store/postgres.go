@@ -131,10 +131,12 @@ func (s *PostgresUserStore) FindByEmail(ctx context.Context, email string) (*Use
 	}
 	var u User
 	var tenantID *string
-	var createdAt, updatedAt time.Time
 
-	err := s.pool.QueryRow(ctx, `SELECT * FROM find_user_by_email($1)`, normalized).
-		Scan(&u.ID, &u.Email, &normalized, &u.PasswordHash, &u.FullName, &u.Role, &tenantID, &createdAt, &updatedAt)
+	// Columnas explicitas (no SELECT *): la funcion devuelve SETOF users y una
+	// columna nueva en la tabla romperia el scan posicional.
+	err := s.pool.QueryRow(ctx, `SELECT id, email, password_hash, full_name, role, tenant_id
+		FROM find_user_by_email($1)`, normalized).
+		Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.Role, &tenantID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
