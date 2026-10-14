@@ -69,6 +69,13 @@ scrape_configs:
           service: nosql-db
           stack: plentypay
 
+  - job_name: nats
+    static_configs:
+      - targets: [nats-exporter:7777]
+        labels:
+          service: event-bus
+          stack: plentypay
+
 # Alertmanager (F04.5). La ruta se completa cuando exista el canal de on-call.
 alerting:
   alertmanagers:

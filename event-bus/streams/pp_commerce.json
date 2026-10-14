@@ -1,0 +1,10 @@
+{
+  "name": "PP_COMMERCE",
+  "subjects": ["pp.catalog.>", "pp.inventory.>", "pp.orders.>", "pp.pos.>"],
+  "retention": "limits",
+  "max_age": 1209600000000000,
+  "storage": "file",
+  "discard": "old",
+  "num_replicas": 1,
+  "duplicate_window": 120000000000
+}

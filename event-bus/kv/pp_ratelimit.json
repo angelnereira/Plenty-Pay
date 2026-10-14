@@ -1,0 +1,7 @@
+{
+  "bucket": "pp_ratelimit",
+  "history": 1,
+  "ttl": "1m",
+  "storage": "file",
+  "num_replicas": 1
+}

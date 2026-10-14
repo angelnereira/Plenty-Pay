@@ -1,0 +1,10 @@
+{
+  "name": "PP_AUDIT",
+  "subjects": ["pp.audit.>"],
+  "retention": "limits",
+  "max_age": 2592000000000000,
+  "storage": "file",
+  "discard": "old",
+  "num_replicas": 1,
+  "duplicate_window": 120000000000
+}

@@ -180,6 +180,30 @@ services:
       start_period: 30s
 
 
+  # ── Bus de eventos (F07) ─────────────────────────────────────────────────────
+  event-bus:
+    restart: unless-stopped
+    build:
+      context: ./event-bus
+    volumes:
+      - nats-data:/data/jetstream
+    networks: [services, data]
+    healthcheck:
+      test: ["CMD-SHELL", "nats rtt -s localhost:4222 --user admin --password admin_nats_secret || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  nats-exporter:
+    <<: *hardening
+    image: natsio/prometheus-nats-exporter@sha256:c623b608e148e31e1c1c878673a197f1828e58ce90de4f01d22f1baa84c8fee9
+    command: ["-varz", "-connz", "-subz", "-jsz=all", "http://event-bus:8222"]
+    depends_on:
+      event-bus:
+        condition: service_healthy
+    networks: [services, data]
+
   # ── Observabilidad (F04) ────────────────────────────────────────────────────────
   # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
   otel-collector:
@@ -293,3 +317,4 @@ volumes:
   postgres-wal:
   postgres-backup:
   scylla-data:
+  nats-data:

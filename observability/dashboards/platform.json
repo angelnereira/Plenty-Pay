@@ -214,14 +214,62 @@
         { "expr": "sum(scylla_cache_bytes_used)", "legendFormat": "Caché Usada" },
         { "expr": "sum(scylla_cache_bytes_total)", "legendFormat": "Caché Total" }
       ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 39 },
+      "id": 18,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Conexiones Clientes NATS",
+      "type": "stat",
+      "targets": [{ "expr": "gnatsd_connz_num_connections or vector(0)", "legendFormat": "Conexiones" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 39 },
+      "id": 19,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Mensajes en DLQ NATS",
+      "type": "stat",
+      "targets": [{ "expr": "sum(jetstream_stream_total_messages{stream_name=\"PP_DLQ\"}) or vector(0)", "legendFormat": "Mensajes DLQ" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 39 },
+      "id": 20,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Streams Activos JetStream",
+      "type": "stat",
+      "targets": [{ "expr": "count(jetstream_stream_total_messages) or vector(0)", "legendFormat": "Total Streams" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "msgs" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+      "id": 21,
+      "title": "Mensajes Almacenados por Stream JetStream",
+      "type": "timeseries",
+      "targets": [{ "expr": "jetstream_stream_total_messages", "legendFormat": "{{stream_name}}" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+      "id": 22,
+      "title": "Almacenamiento por Stream JetStream",
+      "type": "timeseries",
+      "targets": [{ "expr": "jetstream_stream_total_bytes", "legendFormat": "{{stream_name}}" }]
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
-  "tags": ["plentypay", "platform", "postgres", "scylladb"],
+  "tags": ["plentypay", "platform", "postgres", "scylladb", "nats"],
   "time": { "from": "now-1h", "to": "now" },
   "timezone": "browser",
   "title": "PlentyPay — Plataforma",
   "uid": "pp-platform",
-  "version": 3
+  "version": 4
 }
