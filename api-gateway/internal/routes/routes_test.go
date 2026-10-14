@@ -253,13 +253,13 @@ func TestGoldenIdempotencyField(t *testing.T) {
 	r, _ := routes.Find("POST", "/v1/business")
 	req := httptest.NewRequest(http.MethodPost, "/v1/business", strings.NewReader(
 		`{"owner_email":"ana@example.com","legal_name":"Ana S.A.","tax_id":"155612345-2-2023"}`))
-	req.Header.Set("Idempotency-Key", "clave-de-idempotencia-16")
+	req.Header.Set("Idempotency-Key", "0199f0c8-1111-7000-8000-0000000000ff")
 	msg, err := r.DecodeRequest(req)
 	if err != nil {
 		t.Fatalf("DecodeRequest: %v", err)
 	}
 	cb := msg.(*pb.CreateBusinessRequest)
-	if cb.GetIdempotencyKey() != "clave-de-idempotencia-16" {
+	if cb.GetIdempotencyKey() != "0199f0c8-1111-7000-8000-0000000000ff" {
 		t.Fatalf("idempotency_key = %q: la tabla de rutas debe copiar la cabecera", cb.GetIdempotencyKey())
 	}
 }
