@@ -2,7 +2,7 @@
 
 Fuente de verdad del avance **con evidencia**. Reglas (AGENTS.md §2.11 y §3): solo se marca ✅ lo ejecutado al nivel exigido, con el comando/fecha en *Evidencia*. 📝 = en curso o parcial (decir qué falta). 📋 = pendiente. ⛔ = bloqueado (citar la pregunta de `docs/open-questions.md`).
 
-**Fase en curso**: F07 (NoSQL, bus de eventos y almacenamiento de objetos). **F03, F04, F05 y F06 quedaron cerradas**; de F02 quedan F02.6 y F02.7 parciales; **F07 completo (F07.1–F07.10 ✅)**: ScyllaDB, NATS JetStream y Garage operando en Docker Compose, verificados L2/L4. **Siguiente paso recomendado para un agente**: F08.2 (identity contra PostgreSQL: migraciones y estructura del estándar Go) o F09.2 (interceptor de metadatos `x-pp-*` en api-gateway).
+**Fase en curso**: F08 (identity completo). **F03–F07 cerradas** (F07 completo: ScyllaDB, NATS JetStream y Garage en Compose, L2/L4); de F02 quedan F02.6 y F02.7 parciales; **F08.1 y F08.2 ✅** (núcleo de identity + PostgreSQL con RLS, migraciones idempotentes y pruebas L2/L4). **Siguiente paso recomendado para un agente**: F08.3 (sesiones con rotación de refresh y detección de reuso en identity) o F09.2 (interceptor de metadatos `x-pp-*` en api-gateway).
 
 ## Limitaciones del entorno donde se generó este repositorio
 Go se compiló contra clones de dependencias (el proxy de módulos no era alcanzable); Rust 1.97 disponible pero sin código Rust aún; Docker sin acceso a Docker Hub (imágenes no construidas); sin SDK de Flutter (código Dart no compilado); sin OpenTofu. Todo lo marcado ✅ se ejecutó realmente; lo demás no.
@@ -129,7 +129,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
 | F08.1 Núcleo en memoria: Register/Login/Validate/Permissions/Refresh + catálogo de permisos y módulos | ✅ | go test -race (server + permisos) y E2E 14/14, 2026-10-10. Ampliado 2026-10-12: consentimientos del registro (R18) y derivación de contraseña (R19); E2E 30/30 |
-| F08.2 PostgreSQL + migraciones + estructura del estándar Go | 📋 |  |
+| F08.2 PostgreSQL + migraciones + estructura del estándar Go | ✅ | 2026-10-14: `migrations/0001_users_and_consents.{up,down}.sql` (tablas `users`/`consents`, índices, **RLS con políticas por tenant/usuario y fail-closed**, función `find_user_by_email` SECURITY DEFINER del migrador) aplicadas por el subcomando `identity migrate` (embebidas, idempotentes; DDL con `migrator_identity`, DML con `identity_svc`). Store `PostgresUserStore` con pgx v5 sobre PgBouncer (`QueryExecModeExec`: PgBouncer transacción no admite prepared statements) y `SET LOCAL app.tenant_id/app.user_id/app.actor_role`. Estructura alineada a `go-standards.md` §2 (`internal/{config,domain,service,store,server,observability,tenancy,migrate}`) con las reglas puras en `domain` y los casos de uso en `service`. `./identity/test/test_store_l2.sh` 14/14 + 6 pruebas Go L2 contra PostgreSQL real (incluido **aislamiento RLS**: como T1 solo se ve el usuario de T1; sin contexto, fail-closed). E2E identity↔gateway 35/35 sigue en verde |
 | F08.3 Sesiones con rotación de refresh y detección de reuso | 📋 |  |
 | F08.4 Bloqueo progresivo | 📋 |  |
 | F08.5 Tenants: CreateBusiness/ReviewBusiness/GetTenant + outbox `TenantStatusChanged` | 📋 |  |

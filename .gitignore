@@ -34,3 +34,4 @@ output/*
 *.swp
 .DS_Store
 object-storage/test/s3cli/s3clibin
+identity/test/bin/

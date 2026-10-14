@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -17,11 +19,19 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"plentypay/identity/internal/auth"
+	"plentypay/identity/internal/config"
+	"plentypay/identity/internal/migrate"
 	"plentypay/identity/internal/observability"
 	"plentypay/identity/internal/pb"
 	"plentypay/identity/internal/server"
 	"plentypay/identity/internal/store"
 )
+
+// Migraciones SQL embebidas en el binario (go:embed no admite rutas con ..).
+// Las aplica el Job migrate-identity (data-standards.md seccion 5).
+//
+//go:embed all:migrations
+var migrationsFS embed.FS
 
 // version se inyecta en el build (-ldflags "-X main.version=...").
 var (
@@ -34,14 +44,18 @@ const shutdownTimeout = 25 * time.Second
 
 const serviceName = "identity"
 
-func envOr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+// dsnHost extrae solo host:puerto del DSN para el log: nunca se registran
+// credenciales (observability-standards.md seccion 16).
+func dsnHost(dsn string) string {
+	u, err := url.Parse(dsn)
+	if err != nil {
+		return "desconocido"
 	}
-	return def
+	return u.Host
 }
 
 func main() {
+	cfg, cfgErr := config.Load()
 	logger := observability.NewLogger(os.Stdout, serviceName, version, observability.ParseLevel(os.Getenv("LOG_LEVEL")))
 	slog.SetDefault(logger)
 	metrics := observability.NewMetrics(serviceName, version, commit)
@@ -53,7 +67,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	adminPort := envOr("ADMIN_PORT", "9100")
+	if cfgErr != nil {
+		logger.Error("invalid configuration", "err", cfgErr.Error())
+		os.Exit(1)
+	}
+	adminPort := cfg.AdminPort
 	// Subcomando para el healthcheck de Compose/Kubernetes (imagen distroless, sin shell ni curl).
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		if err := observability.Healthcheck(context.Background(), "http://127.0.0.1:"+adminPort); err != nil {
@@ -63,18 +81,47 @@ func main() {
 		return
 	}
 
-	port := envOr("PORT", "50060")
-	accessSecret, refreshSecret := os.Getenv("ACCESS_TOKEN_SECRET"), os.Getenv("REFRESH_TOKEN_SECRET")
-	if accessSecret == "" || refreshSecret == "" {
-		fatal("missing token secrets", errors.New("ACCESS_TOKEN_SECRET y REFRESH_TOKEN_SECRET son obligatorios (ver .env.example); nunca hay un secreto por defecto"))
+	// Subcomando `migrate`: aplica las migraciones versionadas y termina.
+	// Lo ejecuta el Job migrate-identity antes del despliegue (F08.2).
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		dsn := os.Getenv("PP_MIGRATE_DSN")
+		if dsn == "" {
+			dsn = os.Getenv("PP_DB_DSN")
+		}
+		if dsn == "" {
+			logger.Error("migrate requires PP_MIGRATE_DSN or PP_DB_DSN")
+			os.Exit(1)
+		}
+		res, err := migrate.Up(ctx, dsn, migrationsFS)
+		if err != nil {
+			logger.Error("migrate failed", "err", err.Error(), "version", res.Version, "dirty", res.Dirty)
+			os.Exit(1)
+		}
+		logger.Info("migrate done", "version", res.Version, "applied", res.Applied, "dirty", res.Dirty)
+		return
 	}
-	tokens, err := auth.NewTokenIssuer(accessSecret, refreshSecret)
+
+	port := cfg.Port
+	tokens, err := auth.NewTokenIssuer(cfg.AccessSecret, cfg.RefreshSecret)
 	if err != nil {
 		fatal("invalid token configuration", err)
 	}
 
-	// Fase 8 (identity/SPEC.md §12): reemplazar por la implementación sobre postgres-db. Solo cambia esta línea.
-	users := store.NewInMemoryUserStore()
+	// F08.2: con PP_DB_DSN se usa el store sobre postgres-db; sin el, memoria
+	// (pruebas unitarias y el E2E sin base de datos). La interfaz no cambia.
+	var users store.UserStore
+	if dsn := cfg.DBDSN; dsn != "" {
+		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
+		if err != nil {
+			fatal("postgres store failed", err)
+		}
+		defer pgStore.Close()
+		users = pgStore
+		logger.Info("using postgres user store", "dsn_host", dsnHost(dsn))
+	} else {
+		users = store.NewInMemoryUserStore()
+		logger.Info("using in-memory user store (PP_DB_DSN no definido)")
+	}
 
 	var ready atomic.Bool
 	adminLis, err := net.Listen("tcp", ":"+adminPort)
@@ -96,7 +143,7 @@ func main() {
 	if err != nil {
 		fatal("tracing setup failed", err)
 	}
-	enforceMTLS := os.Getenv("MTLS_ENFORCED") == "true"
+	enforceMTLS := cfg.MTLSEnforced
 	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		observability.UnaryServerInterceptor(logger, reporter, metrics),
 		server.SPIFFEServerInterceptor(enforceMTLS, server.AllowedIdentityCallers),

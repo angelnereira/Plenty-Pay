@@ -6,31 +6,40 @@ Usuarios, negocios (tenants), sesiones, roles, permisos y confirmación fuerte. 
 |---|---|
 | Tecnología | Go |
 | Puerto | 50060 (admin `:9100` en servicios propios) |
-| Fase del roadmap | F08 |
+| Fase del roadmap | F08 (F08.1, F08.2) |
 
 ## Estado
 | Aspecto | Estado | Evidencia |
 |---|---|---|
-| Código | 📝 parcial: Register (con consentimientos N-DAT-02/N-DAT-14 y `reason` estable en cada rechazo), Login, ValidateToken, GetUserPermissions (catálogo de permisos + presets + módulos derivados), RefreshToken con almacén **en memoria** | |
-| Pruebas | L1 `go test -race ./...` (48 pruebas: server, auth, permisos) y L4 `scripts/e2e-identity-gateway.sh` (30 comprobaciones, incluye los rechazos por consentimiento) — ejecutadas 2026-10-12 | |
-| Imagen Docker | Plantilla de `go-standards.md` §6 (golang:1.24-alpine → distroless nonroot, `go mod download`); construida y `healthy` en Compose — 2026-10-10 . **No reconstruida tras F04.6** (2026-10-12: el daemon de Docker no estaba disponible); sí compila con los mismos parámetros del Dockerfile (`CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"`) | |
-| Salud | Puerto admin `:9100` con `/healthz/live` y `/healthz/ready`, subcomando `/app healthcheck`, apagado ordenado con SIGTERM (F02.1); `/metrics` en F04.6 | L1 `internal/observability` |
-| Observabilidad | 📝 Implementado y probado 2026-10-12: logs JSON de una línea con `request_id`, `trace_id` y `span_id`; modelo de error con pila en el origen y registro único en el borde; recuperación de pánicos con `pp_panics_total`; trazas OpenTelemetry con propagación W3C; `/metrics` con contadores. Métricas obligatorias §2.1 implementadas 2026-10-12: `pp_rpc_server_requests_total{service,rpc,code}`, `pp_rpc_server_duration_seconds` (histograma con buckets 5 ms–10 s, `_sum`/`_count`), medidores (`pp_outbox_pending`, `pp_outbox_oldest_age_seconds`), `pp_build_info{service,version,commit}` y rechazo de etiquetas prohibidas (§2.3) con prueba. **Falta para cerrar F04.6**: métricas de base de datos y de outbox en uso real (llegan con PostgreSQL, F08.2), puente de logs a OTLP (hoy solo stdout), exportación verificada contra un colector real (F04.1) y `golangci-lint` con las reglas de §14 (herramienta no instalada: no ejecutado) | L1: pruebas `TestObs_*`; L4: E2E 23/23 con la misma traza en gateway e identity |
+| Estructura | ✅ | Cumple `go-standards.md` §2: `internal/{config,domain,service,store,server,observability,tenancy,migrate}` + `migrations/` (2026-10-14, F08.2) |
+| Código | ✅ | Register (R1–R3, R6, R18 con `reason` estable), Login (R4), ValidateToken, GetUserPermissions (R10), RefreshToken sobre la interfaz `store.UserStore`; reglas puras en `domain`, casos de uso en `service`, adaptador gRPC en `server` |
+| Persistencia | ✅ | `PostgresUserStore` con pgx v5 + PgBouncer: crea usuario y consentimientos en una transacción, `SET LOCAL app.tenant_id/app.user_id/app.actor_role` (RLS como segunda barrera, ADR 0014); login por `find_user_by_email` (SECURITY DEFINER del migrador) |
+| Migraciones | ✅ | `migrations/0001_users_and_consents.{up,down}.sql` aplicadas por `identity migrate` (embebidas con `go:embed`); DDL como `migrator_identity`, DML como `identity_svc`; idempotentes |
+| Pruebas | ✅ | L1 `go test -race ./...` (58 pruebas: domain R1/R2, service R3/R4/R6/R18, server, auth, observabilidad); L2 `./identity/test/test_store_l2.sh` (14 aserciones + 6 pruebas Go contra PostgreSQL real, incluido aislamiento RLS); L4 `./scripts/e2e-identity-gateway.sh` 35/35 |
+| Imagen Docker | ✅ | `golang:1.26-alpine` → distroless nonroot; construida y `healthy` en Compose con `PP_DB_DSN` |
+| Observabilidad | ✅ | Logs JSON con `request_id`/`trace_id`, error con pila y registro único en el borde, trazas W3C, métricas §2.1 |
 
 ## Arranque local
 ```bash
 cp .env.example .env       # completar valores (nunca commitear .env)
-docker compose up --build identity
+docker compose up --build identity          # store en memoria (sin PP_DB_DSN) o postgres
+docker compose exec identity /app migrate   # aplicar migraciones (job migrate-identity)
 ```
 
 ## Desarrollo
 ```bash
 cd identity
 go test -race ./...         # L1
+go test -race -tags l2 ./internal/store/   # L2 (requiere PP_TEST_DB_DSN)
 go vet ./...                # L0
-../scripts/e2e-identity-gateway.sh   # L4 (desde la raíz: ./scripts/e2e-identity-gateway.sh)
+./identity/test/test_store_l2.sh            # L2 orquestado (migraciones + RLS + store)
+../scripts/e2e-identity-gateway.sh          # L4
 ```
-Estándar: `docs/standards/go-standards.md`. La estructura actual es anterior al estándar (falta `internal/config`, `domain`, `service`, `observability`); alinear en F08.2/F09.2.
+
+## Base de datos
+- DSN de servicio: `PP_DB_DSN` (por defecto `postgres://identity_svc:***@pgbouncer:6432/plentypay`).
+- DSN de migración: `PP_MIGRATE_DSN` (directo a `postgres-db:5432` como `migrator_identity`: PgBouncer en modo transacción rechaza los parámetros de arranque de lib/pq).
+- El DSN **no lleva `search_path`**: PgBouncer lo rechaza; el rol ya lo trae por defecto.
 
 ## Limitaciones conocidas
-Sin PostgreSQL (F08.2: los consentimientos se guardan hoy solo en memoria), sin rotación/reuso de refresh (F08.3), sin bloqueo progresivo (F08.4), sin tenants/roles personalizados/invitaciones (F08.5–F08.7), sin step-up ni mTLS (F05).
+Sin rotación/reuso de refresh (F08.3), sin bloqueo progresivo (F08.4), sin tenants/roles personalizados/invitaciones (F08.5–F08.7). Las consultas de plataforma sobre otros tenants aún no cruzan RLS con su `app.actor_role` (F08.5).

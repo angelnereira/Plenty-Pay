@@ -2,38 +2,25 @@ package store
 
 import (
 	"context"
-	"errors"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
+
+	"plentypay/identity/internal/domain"
 )
 
-// ConsentRecord es la evidencia de una aceptación (N-DAT-02): quién (el usuario que lo contiene),
-// para qué finalidad, con qué versión del texto, cuándo, por qué canal y desde qué dispositivo.
-// Un consentimiento no se borra: revocarlo agrega un registro nuevo con Granted=false.
-type ConsentRecord struct {
-	Purpose     string
-	TextVersion string
-	Granted     bool
-	RecordedAt  time.Time
-	Channel     string
-	Device      string
-}
+// Los tipos y errores del dominio viven en internal/domain (go-standards.md
+// seccion 2: el dominio no importa SQL ni gRPC). Estos alias mantienen la
+// superficie del paquete estable para el resto del codigo.
+type (
+	User          = domain.User
+	ConsentRecord = domain.ConsentRecord
+)
 
-// User tal como lo guarda identity. La contraseña SIEMPRE llega ya hasheada; este paquete nunca ve texto plano.
-type User struct {
-	ID           string
-	Email        string
-	PasswordHash string
-	FullName     string
-	Role         string // valor del enum UserRole del .proto, como string
-	TenantID     string
-	Consents     []ConsentRecord
-}
-
-var ErrUserNotFound = errors.New("usuario no encontrado")
-var ErrEmailTaken = errors.New("el correo ya está registrado")
+var (
+	ErrUserNotFound = domain.ErrUserNotFound
+	ErrEmailTaken   = domain.ErrEmailTaken
+)
 
 // UserStore es la interfaz que usa el servidor gRPC — nunca una base de datos concreta.
 // Hoy: implementación en memoria (desarrollo/pruebas). Fase 8 (identity/SPEC.md §12): implementación

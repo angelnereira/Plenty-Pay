@@ -31,7 +31,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 
 | Contenedor | Tecnología | Puerto | Estado | Fase |
 |---|---|---|---|---|
-| [identity](identity/SPEC.md) | Go | 50060 | 📝 núcleo de autenticación, permisos y consentimientos (memoria) | F08 |
+| [identity](identity/SPEC.md) | Go | 50060 | ✅ F08.1 núcleo + F08.2 PostgreSQL: migraciones con RLS, store pgx sobre PgBouncer, estructura go-standards §2 y pruebas L2/L4 en verde | F08 |
 | [api-gateway](api-gateway/SPEC.md) | Go | 8080 | 📝 rutas de autenticación (con consentimientos y `reason` estable) | F09 |
 | [ledger](ledger/SPEC.md) | Rust | 50061 | 📋 (invariantes SQL de referencia verificadas: 27/27) | F10 |
 | [payments-core](payments-core/SPEC.md) | Rust | 50062 | 📋 | F11 |

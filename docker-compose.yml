@@ -28,8 +28,17 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_INSECURE: "true"
-    networks: [services]
+      # F08.2: DSN del store sobre postgres-db (rol identity_svc por PgBouncer).
+      # El valor por defecto apunta al PgBouncer local; vacío = store en memoria.
+      PP_DB_DSN: "${IDENTITY_DB_DSN:-postgres://identity_svc:identity_svc_dev_secret_32_chars!@pgbouncer:6432/plentypay?sslmode=disable}"
+      # El job de migracion conecta directo a postgres-db:5432 (lib/pq de
+      # golang-migrate envia parametros que PgBouncer en transaccion rechaza).
+      PP_MIGRATE_DSN: "${IDENTITY_MIGRATE_DSN:-postgres://migrator_identity:identity_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+    networks: [services, data]
     healthcheck: *healthcheck
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
 
   api-gateway:
     <<: *hardening
