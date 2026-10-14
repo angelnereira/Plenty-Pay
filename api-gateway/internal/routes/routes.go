@@ -188,32 +188,57 @@ func Handler(conn *grpc.ClientConn, r Route) http.HandlerFunc {
 	}
 }
 
-// TranslateError convierte un error gRPC en la respuesta del API (R8: sin
-// filtrar mensajes internos).
+// TranslateError convierte un error gRPC en la respuesta del API siguiendo la
+// tabla de grpc-conventions.md §4 (R8: nunca filtra el detalle interno; INTERNAL
+// responde genérico).
 func TranslateError(w http.ResponseWriter, err error) {
 	st, ok := status.FromError(err)
 	if !ok {
 		writeError(w, http.StatusInternalServerError, "INTERNAL", "error interno")
 		return
 	}
+	reason := reasonOf(st)
 	switch st.Code() {
-	case codes.InvalidArgument, codes.FailedPrecondition, codes.OutOfRange:
-		writeError(w, http.StatusBadRequest, reasonOf(st), st.Message())
+	case codes.InvalidArgument, codes.OutOfRange:
+		writeError(w, http.StatusBadRequest, reason, st.Message())
+	case codes.FailedPrecondition:
+		// Regla de negocio o transicion invalida: el reason estable viaja tal cual.
+		writeError(w, http.StatusConflict, reason, st.Message())
 	case codes.Unauthenticated:
-		writeError(w, http.StatusUnauthorized, reasonOf(st), "no autenticado")
+		writeError(w, http.StatusUnauthorized, reason, "no autenticado")
 	case codes.PermissionDenied:
-		writeError(w, http.StatusForbidden, reasonOf(st), st.Message())
+		writeError(w, http.StatusForbidden, reason, st.Message())
 	case codes.NotFound:
-		writeError(w, http.StatusNotFound, reasonOf(st), st.Message())
+		// No se revela si el recurso existe pero es de otro tenant.
+		writeError(w, http.StatusNotFound, reason, st.Message())
 	case codes.AlreadyExists:
-		writeError(w, http.StatusConflict, reasonOf(st), st.Message())
+		writeError(w, http.StatusConflict, reason, st.Message())
 	case codes.Aborted:
-		writeError(w, http.StatusConflict, reasonOf(st), "operación en curso, reintente")
+		// Conflicto de concurrencia: el cliente reintenta.
+		w.Header().Set("Retry-After", "1")
+		writeError(w, http.StatusConflict, reason, "operacion en curso, reintente")
+	case codes.ResourceExhausted:
+		w.Header().Set("Retry-After", retryAfter(st))
+		writeError(w, http.StatusTooManyRequests, reason, st.Message())
 	case codes.Unavailable:
-		writeError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "servicio no disponible")
+		writeError(w, http.StatusServiceUnavailable, reason, "servicio no disponible")
+	case codes.DeadlineExceeded:
+		writeError(w, http.StatusGatewayTimeout, reason, "el servicio no respondio a tiempo")
+	case codes.Unimplemented:
+		writeError(w, http.StatusNotImplemented, reason, "operacion no implementada")
 	default:
 		writeError(w, http.StatusInternalServerError, "INTERNAL", "error interno")
 	}
+}
+
+// retryAfter lee los segundos de reintento de los metadatos del estado.
+func retryAfter(st *status.Status) string {
+	for _, d := range st.Details() {
+		if ri, ok := d.(*errdetails.RetryInfo); ok && ri.GetRetryDelay() != nil {
+			return fmt.Sprintf("%d", int(ri.GetRetryDelay().AsDuration().Seconds()))
+		}
+	}
+	return "1"
 }
 
 func writeError(w http.ResponseWriter, status int, reason, msg string) {
@@ -269,12 +294,34 @@ func IdempotencyKey(r *http.Request) string {
 // Timestamp es un helper para las pruebas (protojson usa RFC3339).
 func Timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
-// reasonOf extrae el reason estable del ErrorInfo (grpc-conventions.md §4).
+// reasonOf extrae el reason estable del ErrorInfo (grpc-conventions.md §4). Si el
+// servicio no lo envio, se usa el reason canonico del codigo para que el cliente
+// siempre tenga algo que traducir.
 func reasonOf(st *status.Status) string {
 	for _, d := range st.Details() {
 		if info, ok := d.(*errdetails.ErrorInfo); ok && info.GetReason() != "" {
 			return info.GetReason()
 		}
 	}
+	if canonical, ok := canonicalReason[st.Code()]; ok {
+		return canonical
+	}
 	return "INTERNAL"
+}
+
+// canonicalReason es el reason por defecto de cada codigo de la tabla §4.
+var canonicalReason = map[codes.Code]string{
+	codes.InvalidArgument:    "INVALID_ARGUMENT",
+	codes.OutOfRange:         "INVALID_ARGUMENT",
+	codes.Unauthenticated:    "UNAUTHENTICATED",
+	codes.PermissionDenied:   "PERMISSION_DENIED",
+	codes.NotFound:           "NOT_FOUND",
+	codes.FailedPrecondition: "FAILED_PRECONDITION",
+	codes.AlreadyExists:      "ALREADY_EXISTS",
+	codes.Aborted:            "ABORTED",
+	codes.ResourceExhausted:  "RATE_LIMITED",
+	codes.Unavailable:        "SERVICE_UNAVAILABLE",
+	codes.DeadlineExceeded:   "DEADLINE_EXCEEDED",
+	codes.Unimplemented:      "UNIMPLEMENTED",
+	codes.Internal:           "INTERNAL",
 }

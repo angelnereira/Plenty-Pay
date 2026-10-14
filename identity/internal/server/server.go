@@ -261,16 +261,22 @@ func (s *IdentityServer) ReviewBusiness(ctx context.Context, req *pb.ReviewBusin
 		return nil, status.Error(codes.Internal, "error interno")
 	}
 	if review == nil {
-		return &pb.Tenant{}, nil
+		// Sin cambio de estado: la transicion no es valida (dominio 3.3).
+		return nil, ErrorInfo(codes.FailedPrecondition, ReasonInvalidStateTransition,
+			"la transicion de estado no es valida")
 	}
 	return toPBTenant(review.Tenant), nil
 }
 
-// GetTenant devuelve los datos del negocio.
+// GetTenant devuelve los datos del negocio. No encontrado -> NOT_FOUND con
+// reason estable (grpc-conventions.md §4: no se revela si es de otro tenant).
 func (s *IdentityServer) GetTenant(ctx context.Context, req *pb.GetTenantRequest) (*pb.Tenant, error) {
 	t, err := s.svc.Tenant(ctx, req.TenantId)
 	if err != nil {
-		return &pb.Tenant{}, nil
+		return nil, ErrorInfo(codes.NotFound, ReasonNotFound, "negocio no encontrado")
+	}
+	if t == nil {
+		return nil, ErrorInfo(codes.NotFound, ReasonNotFound, "negocio no encontrado")
 	}
 	return toPBTenant(t), nil
 }

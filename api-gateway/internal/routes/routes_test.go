@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	errdetails "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -213,30 +214,101 @@ func TestGoldenListRolesResponse(t *testing.T) {
 	golden(t, "list_roles.response.json", jsonOneLine(body))
 }
 
-// ── Traducción de errores (R8) ────────────────────────────────────────────────
+// ── Traducción de errores: toda la tabla de grpc-conventions.md §4 ───────────
 
+// TestTranslateError cubre fila por fila la tabla §4 (F09.4).
 func TestTranslateError(t *testing.T) {
 	casos := []struct {
-		code   codes.Code
-		status int
+		code       codes.Code
+		status     int
+		wantReason string
 	}{
-		{codes.InvalidArgument, 400},
-		{codes.FailedPrecondition, 400},
-		{codes.Unauthenticated, 401},
-		{codes.PermissionDenied, 403},
-		{codes.NotFound, 404},
-		{codes.AlreadyExists, 409},
-		{codes.Aborted, 409},
-		{codes.Unavailable, 503},
-		{codes.Internal, 500},
+		{codes.InvalidArgument, 400, "INVALID_ARGUMENT"},
+		{codes.OutOfRange, 400, "INVALID_ARGUMENT"},
+		{codes.Unauthenticated, 401, "UNAUTHENTICATED"},
+		{codes.PermissionDenied, 403, "PERMISSION_DENIED"},
+		{codes.NotFound, 404, "NOT_FOUND"},
+		{codes.FailedPrecondition, 409, "FAILED_PRECONDITION"},
+		{codes.AlreadyExists, 409, "ALREADY_EXISTS"},
+		{codes.Aborted, 409, "ABORTED"},
+		{codes.ResourceExhausted, 429, "RATE_LIMITED"},
+		{codes.Unavailable, 503, "SERVICE_UNAVAILABLE"},
+		{codes.DeadlineExceeded, 504, "DEADLINE_EXCEEDED"},
+		{codes.Unimplemented, 501, "UNIMPLEMENTED"},
+		{codes.Internal, 500, "INTERNAL"},
 	}
 	for _, c := range casos {
 		rec := httptest.NewRecorder()
-		routes.TranslateError(rec, status.Error(c.code, "detalle"))
+		routes.TranslateError(rec, status.Error(c.code, "detalle interno"))
 		if rec.Code != c.status {
-			t.Errorf("%v → HTTP %d, se esperaba %d", c.code, rec.Code, c.status)
+			t.Errorf("%v → HTTP %d, la tabla §4 dice %d", c.code, rec.Code, c.status)
+		}
+		if got := reasonFrom(rec.Body.String()); got != c.wantReason {
+			t.Errorf("%v → reason %q, se esperaba %q", c.code, got, c.wantReason)
 		}
 	}
+}
+
+// El reason estable del ErrorInfo manda sobre el canonico del codigo.
+func TestTranslateErrorUsesErrorInfoReason(t *testing.T) {
+	st := status.New(codes.NotFound, "no encontrado")
+	st, _ = st.WithDetails(&errdetails.ErrorInfo{
+		Reason: "TENANT_NOT_FOUND", Domain: "plentypay",
+	})
+	rec := httptest.NewRecorder()
+	routes.TranslateError(rec, st.Err())
+	if rec.Code != 404 {
+		t.Fatalf("HTTP %d, se esperaba 404", rec.Code)
+	}
+	if got := reasonFrom(rec.Body.String()); got != "TENANT_NOT_FOUND" {
+		t.Fatalf("reason = %q, se esperaba el del ErrorInfo (TENANT_NOT_FOUND)", got)
+	}
+}
+
+// Un reason de negocio viaja tal cual (FAILED_PRECONDITION con reason estable).
+func TestTranslateErrorBusinessReason(t *testing.T) {
+	st := status.New(codes.FailedPrecondition, "la transicion no es valida")
+	st, _ = st.WithDetails(&errdetails.ErrorInfo{Reason: "INVALID_STATE_TRANSITION", Domain: "plentypay"})
+	rec := httptest.NewRecorder()
+	routes.TranslateError(rec, st.Err())
+	if rec.Code != 409 {
+		t.Fatalf("HTTP %d, se esperaba 409", rec.Code)
+	}
+	if got := reasonFrom(rec.Body.String()); got != "INVALID_STATE_TRANSITION" {
+		t.Fatalf("reason = %q", got)
+	}
+}
+
+// INTERNAL nunca filtra el mensaje interno al cliente.
+func TestTranslateErrorInternalHidesDetail(t *testing.T) {
+	rec := httptest.NewRecorder()
+	routes.TranslateError(rec, status.Error(codes.Internal, "sql: relacion usuarios rota en 127.0.0.1:5432"))
+	body := rec.Body.String()
+	if strings.Contains(body, "sql:") || strings.Contains(body, "5432") {
+		t.Fatalf("el detalle interno se filtro al cliente: %s", body)
+	}
+	if got := reasonFrom(body); got != "INTERNAL" {
+		t.Fatalf("reason = %q", got)
+	}
+}
+
+// Los casos reintentables llevan Retry-After (tabla §4).
+func TestTranslateErrorRetryAfter(t *testing.T) {
+	for _, code := range []codes.Code{codes.Aborted, codes.ResourceExhausted} {
+		rec := httptest.NewRecorder()
+		routes.TranslateError(rec, status.Error(code, "reintente"))
+		if got := rec.Header().Get("Retry-After"); got == "" {
+			t.Errorf("%v deberia llevar Retry-After", code)
+		}
+	}
+}
+
+func reasonFrom(body string) string {
+	var v struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.Unmarshal([]byte(body), &v)
+	return v.Reason
 }
 
 // IdempotencyKey lee la cabecera estándar (grpc-conventions.md §3).
