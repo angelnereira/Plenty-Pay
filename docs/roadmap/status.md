@@ -142,7 +142,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
 | F09.1 Núcleo auth (login/register/refresh/me/permissions) | ✅ | 10 pruebas de handlers + E2E 14/14, 2026-10-10 |
-| F09.2 Interceptor de metadatos `x-pp-*` y descarte de cabeceras entrantes | 📋 |  |
+| F09.2 Interceptor de metadatos `x-pp-*` y descarte de cabeceras entrantes | ✅ | 2026-10-14: paquete `internal/metadata` con (a) `StripInbound`/`StripInboundMiddleware`, que descarta en el borde toda cabecera `x-pp-*` entrante del cliente, y (b) `OutgoingInterceptor`, que inyecta en cada llamada gRPC salida el `x-pp-user-id`/`x-pp-tenant-id`/`x-pp-role`/`x-pp-permissions`/`x-pp-step-up` **del contexto** (lo que el gateway validó) más `x-pp-actor-service`; los permisos de más de 4 KB se omiten (el servicio consulta a identity). Cadena encadenada en el cliente de identity: metadatos → instrumentación (que añade `x-pp-request-id` y `traceparent`). **R5 probado con un servidor gRPC real en memoria**: identity recibe el tenant/usuario validados, una ruta pública viaja sin usuario, una cabecera espuria del cliente nunca llega a los metadatos salientes y el `request-id` del gateway viaja al servicio. 40 pruebas L1 + E2E 35/35 |
 | F09.3 Tabla declarativa de rutas + traductor JSON↔proto | 📋 |  |
 | F09.4 Errores con ErrorInfo/reason estables | 📋 |  |
 | F09.5 WebSocket `/v1/realtime` con topics session e inbox | 📋 |  |

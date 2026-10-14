@@ -246,7 +246,7 @@ Cabeceras: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Refe
 6. WebSocket: sin `auth` en 5 s se cierra; `SessionRevoked` cierra la conexión.
 
 ## 12. Plan de implementación
-F09.1 núcleo auth (✅) → F09.2 interceptor de metadatos `x-pp-*` → F09.3 traductor genérico JSON↔proto + tabla de rutas declarativa → F09.4 errores con `ErrorInfo` → F09.5 WebSocket con topic `session`/`inbox` → F09.6 rate limits NATS KV → F09.7 OpenAPI generado → cada fase posterior agrega sus rutas (golden tests).
+F09.1 núcleo auth (✅) → F09.2 interceptor de metadatos `x-pp-*` (✅) → F09.3 traductor genérico JSON↔proto + tabla de rutas declarativa → F09.4 errores con `ErrorInfo` → F09.5 WebSocket con topic `session`/`inbox` → F09.6 rate limits NATS KV → F09.7 OpenAPI generado → cada fase posterior agrega sus rutas (golden tests).
 
 ## 13. Riesgos
 Crecimiento de la tabla de rutas: mantenerla **declarativa** (un archivo `internal/routes/routes.go` con ruta, método, RPC, permiso, step-up, idempotencia) para que la tabla de este SPEC, OpenAPI y el código no diverjan.

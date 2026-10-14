@@ -14,6 +14,7 @@ import (
 
 	"plentypay/api-gateway/internal/client"
 	"plentypay/api-gateway/internal/handlers"
+	"plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/middleware"
 	"plentypay/api-gateway/internal/observability"
 )
@@ -107,7 +108,8 @@ func main() {
 		fatal("http port listen failed", err)
 	}
 	srv := &http.Server{
-		Handler:           observability.HTTPMiddleware(logger, reporter, metrics)(newMux(identity)),
+		// R5: las x-pp-* del cliente se descartan en el borde, antes de cualquier handler.
+		Handler:           metadata.StripInboundMiddleware(observability.HTTPMiddleware(logger, reporter, metrics)(newMux(identity))),
 		ReadHeaderTimeout: 5 * time.Second, // protege contra conexiones lentas (slowloris)
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

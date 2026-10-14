@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"plentypay/api-gateway/internal/client"
+	"plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/observability"
 )
 
@@ -38,6 +39,10 @@ func RequireAuth(validator TokenValidator) func(http.Handler) http.Handler {
 				return
 			}
 			ctx := observability.WithActor(r.Context(), session.UserID, session.TenantID)
+			// R5: el caller de los metadatos sale del token validado, nunca del cliente.
+			ctx = metadata.NewContext(ctx, metadata.Caller{
+				UserID: session.UserID, TenantID: session.TenantID, Role: session.Role,
+			})
 			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, sessionContextKey, session)))
 		})
 	}

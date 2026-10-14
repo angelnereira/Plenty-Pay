@@ -6,7 +6,7 @@
 |---|---|
 | Tecnología | Go |
 | Puerto | 8080 (público) (admin `:9100` en servicios propios) |
-| Fase del roadmap | F09 |
+| Fase del roadmap | F09 (F09.1, F09.2) |
 
 ## Estado
 | Aspecto | Estado | Evidencia |

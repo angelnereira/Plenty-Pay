@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/observability"
 	"plentypay/api-gateway/internal/pb"
 )
@@ -25,11 +26,21 @@ func NewIdentityClient(target string, reporter *observability.Reporter) (*Identi
 	return NewIdentityClientWithCredentials(target, reporter, insecure.NewCredentials())
 }
 
+// dialOptions arma la cadena de interceptores del cliente: primero los metadatos
+// x-pp-* del contexto (R5), luego la instrumentacion. Reutilizada por las pruebas.
+func dialOptions(reporter *observability.Reporter, creds credentials.TransportCredentials) []grpc.DialOption {
+	return []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
+		grpc.WithChainUnaryInterceptor(
+			metadata.OutgoingInterceptor(metadata.ActorServiceGateway),
+			observability.UnaryClientInterceptor(reporter.Metrics()),
+		),
+	}
+}
+
 // NewIdentityClientWithCredentials permite inicializar el cliente con credenciales de transporte personalizadas.
 func NewIdentityClientWithCredentials(target string, reporter *observability.Reporter, creds credentials.TransportCredentials) (*IdentityClient, error) {
-	conn, err := grpc.NewClient(target,
-		grpc.WithTransportCredentials(creds),
-		grpc.WithUnaryInterceptor(observability.UnaryClientInterceptor(reporter.Metrics())))
+	conn, err := grpc.NewClient(target, dialOptions(reporter, creds)...)
 	if err != nil {
 		return nil, observability.Wrap(err, "create identity client")
 	}
