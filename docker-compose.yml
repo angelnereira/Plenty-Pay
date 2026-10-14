@@ -204,6 +204,29 @@ services:
         condition: service_healthy
     networks: [services, data]
 
+  # ── Almacenamiento de objetos (F07) ────────────────────────────────────────────
+  # Secretos de desarrollo por entorno; en producción los inyecta OpenBao (F28.4).
+  object-storage:
+    <<: *hardening
+    build:
+      context: ./object-storage
+    environment:
+      # Solo desarrollo (SPEC §2). En producción los inyecta OpenBao (F28.4).
+      # El RPC secret debe ser exactamente 64 caracteres hexadecimales.
+      GARAGE_RPC_SECRET: "${GARAGE_RPC_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}"
+      GARAGE_ADMIN_TOKEN: "${GARAGE_ADMIN_TOKEN:-garage_dev_admin_token_0123456789abcdef}"
+    volumes:
+      - garage-data:/var/lib/garage
+    networks: [services, data]
+    # Salud del clúster vía CLI oficial (la API S3 responde 403 a anónimos: no sirve
+    # como healthcheck). La prueba L2 verifica que la API S3 responda (criterio F07.8).
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/garage", "health"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+
   # ── Observabilidad (F04) ────────────────────────────────────────────────────────
   # Imágenes fijadas por digest (SPEC §2): una actualización es un cambio de commit.
   otel-collector:
@@ -318,3 +341,4 @@ volumes:
   postgres-backup:
   scylla-data:
   nats-data:
+  garage-data:
