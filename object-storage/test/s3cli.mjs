@@ -94,7 +94,12 @@ let body;
 switch (method.toUpperCase()) {
   case "PUT":
     pathAndQuery = `${bucketPath}/${key ?? "test-probe"}`;
-    body = process.env.S3_PUT_BODY ?? "probe";
+    if (process.env.S3_PUT_SIZE) {
+      // Buffer de tamaño fijo (para probar válvulas de tamaño/cuota).
+      body = Buffer.alloc(Number(process.env.S3_PUT_SIZE), 0x61);
+    } else {
+      body = process.env.S3_PUT_BODY ?? "probe";
+    }
     break;
   case "GET":
     pathAndQuery = `${bucketPath}/${key ?? "test-probe"}`;

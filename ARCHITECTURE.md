@@ -52,7 +52,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [postgres-db](postgres-db/SPEC.md) | PostgreSQL 16 + PostGIS | 5432/6432 | ✅ PostgreSQL 16 + PostGIS con 16 esquemas/roles aislados, PgBouncer en transacción, exporter/alertas, respaldos base y PITR demostrado (RPO ≤ 5 min) | F06 |
 | [nosql-db](nosql-db/SPEC.md) | ScyllaDB 6.2 | 9042/9180 | ✅ ScyllaDB 6.2 con keyspaces y roles aislados, TTLs, Prometheus scraping :9180, alertas y backup por snapshots | F07 |
 | [event-bus](event-bus/SPEC.md) | NATS 2.10 + JetStream | 4222/8222 | ✅ NATS 2.10 con JetStream persistente en volumen, 11 streams y 3 buckets KV como código idempotentes, permisos por servicio, exporter y 4 alertas con DLQ | F07 |
-| [object-storage](object-storage/SPEC.md) | Garage v2.4.1 (S3) | 3900 | ✅ Garage v2.4.1 con API S3 respondiendo, layout v1 idempotente (nodo único dc1, RF=1) y endurecimiento en Compose | F07 |
+| [object-storage](object-storage/SPEC.md) | Garage v2.4.1 (S3) | 3900 | ✅ Garage v2.4.1 con API S3 respondiendo, 6 buckets y 11 llaves por contenedor (permisos verificados), cuotas por bucket y URLs prefirmadas de referencia | F07 |
 | [web](web/SPEC.md) | Go | 8081 | ✅ servidor estático del bundle Flutter Web verificado en Docker Compose | F02 |
 | [flutter_app](flutter_app/README.md) (cliente) | Flutter | — | 📝 base multiplataforma con flavors e i18n, login y registro (compila web y Android) | F02 |
 | [network-contracts](network-contracts/README.md) | Protobuf | — | ✅ 18 contratos compilan juntos | F03 |

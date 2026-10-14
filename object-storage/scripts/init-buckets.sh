@@ -12,15 +12,31 @@ GARAGE=/usr/local/bin/garage
 
 echo "=== Aplicando definiciones de buckets y llaves (F07.9) ==="
 
-# 1. Buckets (SPEC §3). Se crean solo si no existen.
-BUCKETS="pp-catalog-media pp-kyb pp-fiscal pp-receipts pp-exports pp-backups"
-for b in $BUCKETS; do
+# 1. Buckets (SPEC §3). Se crean solo si no existen. La cuota de tamaño por
+#    bucket es la segunda barrera; el tamaño máximo por objeto lo valida el
+#    contenedor dueño antes de pedir la URL prefirmada (R2, presigned-reference.md).
+#    Formato: <bucket>:<cuota>
+BUCKET_RULES="
+pp-catalog-media:2GiB
+pp-kyb:5GiB
+pp-fiscal:20GiB
+pp-receipts:20GiB
+pp-exports:50GiB
+pp-backups:none
+"
+echo "$BUCKET_RULES" | while read -r rule; do
+  [ -z "$rule" ] && continue
+  b="${rule%%:*}"
+  quota="${rule##*:}"
   if "$GARAGE" bucket list 2>/dev/null | awk 'NR>1 {print $3}' | grep -qx "$b"; then
     echo "  - Bucket $b ya existe (sin cambios)"
   else
     "$GARAGE" bucket create "$b" >/dev/null 2>&1
     echo "  - Bucket $b creado"
   fi
+  # Idempotente: fija la cuota documentada (none = sin restricción de tamaño).
+  "$GARAGE" bucket set-quotas --max-size "$quota" "$b" >/dev/null 2>&1
+  echo "    - cuota $b: $quota"
 done
 
 # 2. Llaves y permisos: <llave>|<bucket>:<permisos>

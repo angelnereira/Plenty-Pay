@@ -14,9 +14,9 @@ Imágenes, documentos fiscales, recibos, exportes y respaldos. Especificación c
 | Nodo + layout | ✅ | Garage v2.4.1 sobre busybox (imagen propia, binario estático, ambas imágenes por digest) en Compose con volumen `garage-data`; layout v1 aplicado de forma idempotente al arrancar (nodo único, zona `dc1`, RF=1) |
 | API S3 | ✅ | Responde en `:3900` con XML S3 válido (región `garage`); acceso anónimo rechazado con `AccessDenied` — las cargas se harán por URL prefirmada (F07.10) |
 | API admin | ✅ | Responde 200 en `:3903/health` con token (solo desarrollo inyectado por compose) |
-| Buckets y llaves | ✅ | 6 buckets del SPEC §3 y 11 llaves (una por contenedor) aplicados de forma idempotente por `scripts/init-buckets.sh`; cada llave solo llega a sus buckets |
+| Buckets y llaves | ✅ | 6 buckets del SPEC §3 y 11 llaves (una por contenedor) aplicados de forma idempotente por `scripts/init-buckets.sh`; cuota de tamaño por bucket (`set-quotas`) como segunda barrera |
 | Imagen Docker | ✅ | Dockerfile multi-stage (`dxflrs/garage` + busybox), saludable en Compose con hardening (read_only, cap_drop ALL, no-new-privileges) |
-| Pruebas | ✅ | `./object-storage/test/test_s3_api.sh` (13/13, F07.8) y `./object-storage/test/test_buckets_keys.sh` (29/29, F07.9) — incluyen operaciones S3 reales firmadas con SigV4 |
+| Pruebas | ✅ | 49/49 aserciones: `test_s3_api.sh` (13, F07.8), `test_buckets_keys.sh` (29, F07.9) y `test_presigned_quotas.sh` (7, F07.10) — incluyen operaciones S3 reales firmadas con SigV4 |
 
 ## Arranque local
 ```bash
@@ -28,10 +28,16 @@ docker compose up -d object-storage    # aplica layout, buckets y llaves al arra
 Node y habla con la API de Garage. Las pruebas lo usan para verificar permisos
 reales (criterio de F07.9: *la llave de catalog no lee pp-fiscal*).
 
+## URLs prefirmadas
+Referencia para los contenedores dueños (endpoint, estilo path-style, llaves por
+servicio, tipos MIME válvula, tamaños máximos por objeto y por bucket, expiración
+de 10 min): [`presigned-reference.md`](presigned-reference.md) (F07.10).
+
 ## Pruebas
 ```bash
-./object-storage/test/test_s3_api.sh
-./object-storage/test/test_buckets_keys.sh
+./object-storage/test/test_s3_api.sh              # F07.8 — API S3 responde (13)
+./object-storage/test/test_buckets_keys.sh         # F07.9 — llaves por bucket (29)
+./object-storage/test/test_presigned_quotas.sh    # F07.10 — válvula de tamaño (7)
 ```
 
 ## Limitaciones conocidas
