@@ -20,22 +20,38 @@
   "errorGeneric": "Algo salió mal ({reason}).",
   "@errorGeneric": {
     "description": "Error con un reason que la app todavía no traduce.",
-    "placeholders": { "reason": { "type": "String" } }
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   },
   "errorNoConnection": "Sin conexión con el servidor.",
   "shellMenuLoadFailed": "No pudimos cargar tu menú.",
   "navHome": "Inicio",
   "homeModuleCount": "{count, plural, =0{Todavía no tienes módulos.} =1{Tienes acceso a 1 módulo.} other{Tienes acceso a {count} módulos.}}",
   "@homeModuleCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "moduleScreensIn": "Pantallas en {phase}",
   "@moduleScreensIn": {
-    "placeholders": { "phase": { "type": "String" } }
+    "placeholders": {
+      "phase": {
+        "type": "String"
+      }
+    }
   },
   "moduleComingSoon": "Disponible próximamente ({phase})",
   "@moduleComingSoon": {
-    "placeholders": { "phase": { "type": "String" } }
+    "placeholders": {
+      "phase": {
+        "type": "String"
+      }
+    }
   },
   "moduleWallet": "Billetera",
   "moduleMarketplace": "Comprar",
@@ -48,5 +64,17 @@
   "modulePayroll": "Equipo",
   "moduleAnalytics": "Análisis",
   "moduleAdmin": "Mi negocio",
-  "modulePlatform": "Plataforma"
+  "modulePlatform": "Plataforma",
+  "passwordHelperRegister": "Usa al menos 12 caracteres.",
+  "passwordHelperRegisterOk": "Longitud válida.",
+  "consentAge": "Tengo 18 años o más.",
+  "consentTerms": "Acepto los Términos y condiciones.",
+  "consentPrivacy": "He leído la Política de privacidad y autorizo el tratamiento de mis datos para crear y operar mi cuenta.",
+  "consentMarketing": "Quiero recibir novedades y ofertas.",
+  "registerDataNotice": "Tratamos tus datos según nuestra Política de privacidad.",
+  "error_EMAIL_TAKEN": "Ya existe una cuenta con este correo.",
+  "error_WEAK_PASSWORD": "Elige una contraseña menos común.",
+  "error_INVALID_EMAIL": "Escribe un correo válido.",
+  "error_CONSENT_REQUIRED": "Debes aceptar los Términos y condiciones y la Política de privacidad.",
+  "error_AGE_REQUIREMENT": "Debes confirmar que tienes al menos 18 años."
 }

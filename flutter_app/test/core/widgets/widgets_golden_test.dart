@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plentypay/core/theme/app_theme.dart';
+import 'package:plentypay/core/widgets/app_shell.dart';
 import 'package:plentypay/core/widgets/async_view.dart';
 import 'package:plentypay/core/widgets/money_text.dart';
 import 'package:plentypay/core/widgets/pp_button.dart';
@@ -21,6 +22,18 @@ Future<void> _pump(WidgetTester tester, ThemeData theme, Widget child) async {
     ),
   ));
   // pump, no pumpAndSettle: el spinner de PPButton(loading) anima sin fin.
+  await tester.pump();
+}
+
+Future<void> _pumpShell(WidgetTester tester, ThemeData theme, Size size, Widget child) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(MaterialApp(
+    debugShowCheckedModeBanner: false,
+    theme: theme,
+    home: child,
+  ));
   await tester.pump();
 }
 
@@ -93,6 +106,73 @@ void main() {
     'async_view_data',
     () => _asyncFrom(const AsyncSnapshot<List<String>>.withData(ConnectionState.done, ['Pago 1', 'Pago 2'])),
   );
+
+  const shellDestinations = [
+    ShellDestination(label: 'Inicio', icon: Icons.home_outlined),
+    ShellDestination(label: 'Billetera', icon: Icons.account_balance_wallet_outlined),
+    ShellDestination(label: 'Comprar', icon: Icons.shopping_bag_outlined),
+    ShellDestination(label: 'Cobrar', icon: Icons.point_of_sale_outlined),
+    ShellDestination(label: 'Nómina', icon: Icons.badge_outlined),
+  ];
+
+  for (final mode in ['light', 'dark']) {
+    testWidgets('app_shell_mobile ($mode)', (tester) async {
+      final theme = mode == 'light' ? AppTheme.light() : AppTheme.dark();
+      await _pumpShell(
+        tester,
+        theme,
+        const Size(420, 800),
+        AppShellScaffold(
+          selectedIndex: 0,
+          onDestinationSelected: (_) {},
+          destinations: shellDestinations,
+          body: const Center(child: Text('Contenido móvil')),
+        ),
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/app_shell_mobile_$mode.png'),
+      );
+    });
+
+    testWidgets('app_shell_tablet ($mode)', (tester) async {
+      final theme = mode == 'light' ? AppTheme.light() : AppTheme.dark();
+      await _pumpShell(
+        tester,
+        theme,
+        const Size(800, 600),
+        AppShellScaffold(
+          selectedIndex: 1,
+          onDestinationSelected: (_) {},
+          destinations: shellDestinations,
+          body: const Center(child: Text('Contenido tablet')),
+        ),
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/app_shell_tablet_$mode.png'),
+      );
+    });
+
+    testWidgets('app_shell_desktop ($mode)', (tester) async {
+      final theme = mode == 'light' ? AppTheme.light() : AppTheme.dark();
+      await _pumpShell(
+        tester,
+        theme,
+        const Size(1200, 800),
+        AppShellScaffold(
+          selectedIndex: 2,
+          onDestinationSelected: (_) {},
+          destinations: shellDestinations,
+          body: const Center(child: Text('Contenido escritorio')),
+        ),
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/app_shell_desktop_$mode.png'),
+      );
+    });
+  }
 }
 
 void _noop() {}

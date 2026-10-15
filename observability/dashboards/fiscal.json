@@ -1,0 +1,77 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Facturación Fiscal y Comunicación PAC (DGI Panamá)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Facturas Emitidas / Segundo",
+      "type": "stat",
+      "targets": [{ "expr": "sum(rate(pp_fiscal_invoices_issued_total[1m])) or vector(0)", "legendFormat": "Emitidas/s" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Facturas Rechazadas por el PAC",
+      "type": "stat",
+      "targets": [{ "expr": "sum(rate(pp_fiscal_invoices_rejected_total[5m])) or vector(0)", "legendFormat": "Rechazos/s" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Facturas Pendientes PAC (> 1 h)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pp_fiscal_invoices_pending_pac_current) or vector(0)", "legendFormat": "Pendientes > 1h" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+      "id": 5,
+      "title": "Latencia de Autorización del PAC (p95)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (le, pac) (rate(pp_fiscal_pac_duration_seconds_bucket[5m]))) or vector(0)", "legendFormat": "p95 {{pac}}" }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["plentypay", "fiscal"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "PlentyPay — Fiscal",
+  "uid": "pp-fiscal",
+  "version": 1
+}

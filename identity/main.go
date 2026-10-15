@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"embed"
 	"errors"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -17,67 +19,198 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"plentypay/identity/internal/auth"
+	"plentypay/identity/internal/client"
+	"plentypay/identity/internal/config"
+	"plentypay/identity/internal/events"
+	"plentypay/identity/internal/migrate"
 	"plentypay/identity/internal/observability"
 	"plentypay/identity/internal/pb"
 	"plentypay/identity/internal/server"
 	"plentypay/identity/internal/store"
 )
 
+// Migraciones SQL embebidas en el binario (go:embed no admite rutas con ..).
+// Las aplica el Job migrate-identity (data-standards.md seccion 5).
+//
+//go:embed all:migrations
+var migrationsFS embed.FS
+
 // version se inyecta en el build (-ldflags "-X main.version=...").
-var version = "dev"
+var (
+	version = "dev"
+	commit  = "none"
+)
 
 // Tope del apagado ordenado (go-standards.md §3.10).
 const shutdownTimeout = 25 * time.Second
 
-func envOr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+const serviceName = "identity"
+
+// dsnHost extrae solo host:puerto del DSN para el log: nunca se registran
+// credenciales (observability-standards.md seccion 16).
+func dsnHost(dsn string) string {
+	u, err := url.Parse(dsn)
+	if err != nil {
+		return "desconocido"
 	}
-	return def
+	return u.Host
 }
 
 func main() {
-	adminPort := envOr("ADMIN_PORT", "9100")
+	cfg, cfgErr := config.Load()
+	logger := observability.NewLogger(os.Stdout, serviceName, version, observability.ParseLevel(os.Getenv("LOG_LEVEL")))
+	slog.SetDefault(logger)
+	metrics := observability.NewMetrics(serviceName, version, commit)
+	reporter := observability.NewReporter(logger, serviceName, metrics)
+	ctx := context.Background()
+	// fatal registra el fallo de arranque con su pila y termina: sin esto el proceso no puede servir.
+	fatal := func(msg string, err error) {
+		reporter.Defect(ctx, msg, observability.Wrap(err, "startup"))
+		os.Exit(1)
+	}
+
+	if cfgErr != nil {
+		logger.Error("invalid configuration", "err", cfgErr.Error())
+		os.Exit(1)
+	}
+	adminPort := cfg.AdminPort
 	// Subcomando para el healthcheck de Compose/Kubernetes (imagen distroless, sin shell ni curl).
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		if err := observability.Healthcheck(context.Background(), "http://127.0.0.1:"+adminPort); err != nil {
-			log.Printf("healthcheck: %v", err)
+			logger.Warn("healthcheck failed", "err", err.Error())
 			os.Exit(1)
 		}
 		return
 	}
 
-	port := envOr("PORT", "50060")
-	accessSecret, refreshSecret := os.Getenv("ACCESS_TOKEN_SECRET"), os.Getenv("REFRESH_TOKEN_SECRET")
-	if accessSecret == "" || refreshSecret == "" {
-		log.Fatal("ACCESS_TOKEN_SECRET y REFRESH_TOKEN_SECRET son obligatorios — ver .env.example. Nunca hay un secreto por defecto.")
-	}
-	tokens, err := auth.NewTokenIssuer(accessSecret, refreshSecret)
-	if err != nil {
-		log.Fatalf("configuración de tokens inválida: %v", err)
+	// Subcomando `migrate`: aplica las migraciones versionadas y termina.
+	// Lo ejecuta el Job migrate-identity antes del despliegue (F08.2).
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		dsn := os.Getenv("PP_MIGRATE_DSN")
+		if dsn == "" {
+			dsn = os.Getenv("PP_DB_DSN")
+		}
+		if dsn == "" {
+			logger.Error("migrate requires PP_MIGRATE_DSN or PP_DB_DSN")
+			os.Exit(1)
+		}
+		res, err := migrate.Up(ctx, dsn, migrationsFS)
+		if err != nil {
+			logger.Error("migrate failed", "err", err.Error(), "version", res.Version, "dirty", res.Dirty)
+			os.Exit(1)
+		}
+		logger.Info("migrate done", "version", res.Version, "applied", res.Applied, "dirty", res.Dirty)
+		return
 	}
 
-	// Fase 8 (identity/SPEC.md §12): reemplazar por la implementación sobre postgres-db. Solo cambia esta línea.
-	users := store.NewInMemoryUserStore()
+	port := cfg.Port
+	tokens, err := auth.NewTokenIssuer(cfg.AccessSecret, cfg.RefreshSecret)
+	if err != nil {
+		fatal("invalid token configuration", err)
+	}
+
+	// F08.2: con PP_DB_DSN se usa el store sobre postgres-db; sin el, memoria
+	// (pruebas unitarias y el E2E sin base de datos). La interfaz no cambia.
+	var (
+		users     store.UserStore
+		sessions  store.SessionStore
+		attempts  store.LoginAttemptStore
+		tenants   store.TenantStore
+		roles     store.RoleStore
+		passwords store.PasswordStore
+	)
+	if dsn := cfg.DBDSN; dsn != "" {
+		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
+		if err != nil {
+			fatal("postgres store failed", err)
+		}
+		defer pgStore.Close()
+		users = pgStore
+		sessions = store.NewPostgresSessionStore(pgStore.Pool())
+		attempts = store.NewPostgresLoginAttemptStore(pgStore.Pool())
+		tenants = store.NewPostgresTenantStore(pgStore.Pool())
+		roles = store.NewPostgresRoleStore(pgStore.Pool())
+		passwords = store.NewPostgresPasswordStore(pgStore.Pool())
+		logger.Info("using postgres user store with sessions and lockout", "dsn_host", dsnHost(dsn))
+	} else {
+		users = store.NewInMemoryUserStore()
+		logger.Info("using in-memory user store without sessions or lockout (PP_DB_DSN no definido)")
+	}
 
 	var ready atomic.Bool
 	adminLis, err := net.Listen("tcp", ":"+adminPort)
 	if err != nil {
-		log.Fatalf("no se pudo escuchar en el puerto admin :%s: %v", adminPort, err)
+		fatal("admin port listen failed", err)
 	}
-	adminSrv := observability.NewAdminServer(adminPort, &ready)
+	adminSrv := observability.NewAdminServer(adminPort, &ready, metrics)
 	go func() {
 		if err := adminSrv.Serve(adminLis); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("fallo del servidor admin: %v", err)
+			fatal("admin server failed", err)
 		}
 	}()
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("no se pudo escuchar en :%s: %v", port, err)
+		fatal("grpc port listen failed", err)
 	}
-	grpcServer := grpc.NewServer()
-	pb.RegisterIdentityServer(grpcServer, server.NewIdentityServer(users, tokens))
+	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
+	if err != nil {
+		fatal("tracing setup failed", err)
+	}
+	enforceMTLS := cfg.MTLSEnforced
+	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
+		observability.UnaryServerInterceptor(logger, reporter, metrics),
+		server.SPIFFEServerInterceptor(enforceMTLS, server.AllowedIdentityCallers),
+	))
+	identitySrv := server.NewIdentityServer(users, tokens, reporter, metrics)
+	if sessions != nil {
+		identitySrv = identitySrv.WithSessions(sessions)
+		logger.Info("refresh rotation enabled (R8/R9)")
+	}
+	if attempts != nil {
+		identitySrv = identitySrv.WithLockout(attempts)
+		logger.Info("progressive lockout enabled (R5)")
+	}
+	if tenants != nil {
+		identitySrv = identitySrv.WithTenants(tenants)
+		logger.Info("tenants enabled (F08.5)")
+	}
+	if roles != nil {
+		identitySrv = identitySrv.WithRoles(roles)
+		logger.Info("roles and invitations enabled (F08.6)")
+	}
+	if passwords != nil {
+		identitySrv = identitySrv.WithPasswords(passwords)
+		logger.Info("password recovery enabled (F08.7)")
+	}
+	// Relay del outbox (ADR 0012): publica TenantStatusChanged en JetStream.
+	var relay *events.Relay
+	if tenants != nil && cfg.NATSUrl != "" {
+		r, err := events.NewRelay(ctx, tenants, cfg.NATSUrl, cfg.NATSUser, cfg.NATSPass, logger, metrics)
+		if err != nil {
+			logger.Warn("outbox relay disabled", "err", err.Error())
+		} else {
+			relay = r
+			relayCtx, cancelRelay := context.WithCancel(context.Background())
+			defer cancelRelay()
+			go func() {
+				if err := relay.Run(relayCtx); err != nil {
+					logger.Error("outbox relay stopped", "err", err.Error())
+				}
+			}()
+			logger.Info("outbox relay enabled", "url", cfg.NATSUrl)
+		}
+	}
+	if cfg.SecurityAddr != "" {
+		sec, err := client.NewSecurityReporter(cfg.SecurityAddr, cfg.SecurityInsecure)
+		if err != nil {
+			fatal("security client failed", err)
+		}
+		defer sec.Close()
+		identitySrv = identitySrv.WithSecurityReporter(sec)
+		logger.Info("reporting token reuse to security", "addr", cfg.SecurityAddr)
+	}
+	pb.RegisterIdentityServer(grpcServer, identitySrv)
 	healthSrv := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthSrv)
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
@@ -89,7 +222,7 @@ func main() {
 	go func() {
 		defer close(done)
 		<-stop
-		log.Print("identity: apagado ordenado")
+		logger.Info("graceful shutdown started")
 		ready.Store(false)
 		healthSrv.Shutdown()
 		stopped := make(chan struct{})
@@ -99,15 +232,19 @@ func main() {
 		case <-time.After(shutdownTimeout):
 			grpcServer.Stop()
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if relay != nil {
+			relay.Close()
+		}
+		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = adminSrv.Shutdown(ctx)
+		_ = adminSrv.Shutdown(sctx)
+		_ = shutdownTracing(sctx) // vacía los spans pendientes antes de salir
 	}()
 
 	ready.Store(true)
-	log.Printf("identity %s escuchando en :%s (admin :%s)", version, port, adminPort)
+	logger.Info("service started", "port", port, "admin_port", adminPort)
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("fallo del servidor gRPC: %v", err)
+		fatal("grpc server failed", err)
 	}
 	<-done
 }

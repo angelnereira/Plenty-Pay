@@ -28,18 +28,19 @@ CREATE TABLE logistics.checkpoints (id uuid PRIMARY KEY, delivery_id uuid NOT NU
 ```
 
 ## 4. RPCs
-| RPC | Permiso | Comportamiento clave |
-|---|---|---|
-| UpsertCarrier / ListCarriers / UpsertDriver / ListDrivers | `logistics:manage` / `logistics:read` | repartidor debe ser usuario del tenant con permiso `logistics:deliver` |
-| CreateDelivery | `logistics:manage` / orders | genera `tracking_token` y código de entrega (enviado al cliente por notifications) |
-| AssignDelivery | `logistics:manage` | manual o `auto=true` → el repartidor activo más cercano (geolocation.FindNearby) |
-| RecordCheckpoint | `logistics:deliver` (repartidor asignado) | transiciones §8.11; PICKED_UP exige escanear QR del paquete; DELIVERED exige prueba |
-| CancelDelivery | `logistics:manage` | solo PENDING/ASSIGNED |
-| GetDelivery / ListDeliveries / ListMyDeliveries | `logistics:read` / `logistics:deliver` | |
-| GetPublicTracking | público con token | estado, ETA, ubicación aproximada (redondeada a ~100 m) solo durante IN_TRANSIT; sin nombres completos ni teléfonos |
-| StreamDelivery | comercio, repartidor, cliente del pedido (vía gateway) | eventos de estado + ubicación |
+| RPC | Permiso | Comportamiento clave | Errores (`reason`) |
+|---|---|---|---|
+| UpsertCarrier / ListCarriers / UpsertDriver / ListDrivers | `logistics:manage` / `logistics:read` | repartidor debe ser usuario del tenant con permiso `logistics:deliver` | `DRIVER_USER_INVALID`, `DRIVER_DOCS_EXPIRED`, `NOT_FOUND` |
+| CreateDelivery | `logistics:manage` / orders | genera `tracking_token` y código de entrega (enviado al cliente por notifications) | `DELIVERY_ALREADY_EXISTS`, `IDEMPOTENCY_KEY_REUSED` |
+| AssignDelivery | `logistics:manage` | manual o `auto=true` → el repartidor activo más cercano (geolocation.FindNearby) | `DRIVER_NOT_AVAILABLE`, `DRIVER_DOCS_EXPIRED`, `INVALID_STATE_TRANSITION`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| RecordCheckpoint | `logistics:deliver` (repartidor asignado) | transiciones §8.11; PICKED_UP exige escanear QR del paquete; DELIVERED exige prueba | `DRIVER_NOT_ASSIGNED`, `INVALID_STATE_TRANSITION`, `PACKAGE_CODE_INVALID`, `PROOF_REQUIRED`, `DELIVERY_CODE_MISMATCH`, `DELIVERY_CODE_BLOCKED`, `AGE_REQUIREMENT`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| CancelDelivery | `logistics:manage` | solo PENDING/ASSIGNED | `INVALID_STATE_TRANSITION`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| GetDelivery / ListDeliveries / ListMyDeliveries | `logistics:read` / `logistics:deliver` | | `NOT_FOUND` |
+| GetPublicTracking | público con token | estado, ETA, ubicación aproximada (redondeada a ~100 m) solo durante IN_TRANSIT; sin nombres completos ni teléfonos | `TRACKING_TOKEN_INVALID`, `RATE_LIMITED` |
+| StreamDelivery | comercio, repartidor, cliente del pedido (vía gateway) | eventos de estado + ubicación | `TRACKING_TOKEN_INVALID`, `NOT_FOUND` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LOG-03, N-LOG-04 y N-LAB-16. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Transiciones de domain-model §8.11; máximo 3 intentos; luego FAILED terminal y retorno a tienda.
 - **R2** DELIVERED requiere prueba: código del cliente (comparado contra hash), foto o firma; código incorrecto 5 veces → bloqueo y aviso al comercio.
 - **R3** Cada checkpoint registra ubicación del repartidor; si está a > 300 m del destino al marcar ARRIVED/DELIVERED → `needs_review` (no bloquea).

@@ -1,0 +1,10 @@
+{
+  "name": "PP_LOGISTICS",
+  "subjects": ["pp.logistics.>", "pp.geo.>"],
+  "retention": "limits",
+  "max_age": 604800000000000,
+  "storage": "file",
+  "discard": "old",
+  "num_replicas": 1,
+  "duplicate_window": 120000000000
+}

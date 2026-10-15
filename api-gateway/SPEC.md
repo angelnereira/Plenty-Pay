@@ -14,7 +14,7 @@
 | Fase | F09 (núcleo), crece con cada fase que expone rutas |
 | Capa de arranque | L5 |
 
-**Estado actual**: implementado `GET /healthz`, `POST /v1/auth/{login,register,refresh}`, `GET /v1/me`, `GET /v1/me/permissions` (devuelve `role`, `enabled_modules`, `permissions`), middleware `RequireAuth`, errores `{"error","reason"}`, cuerpo ≤ 1 MiB con campos desconocidos rechazados. 10 pruebas unitarias + E2E con identity (14 comprobaciones).
+**Estado actual**: implementado `GET /healthz`, `POST /v1/auth/{login,register,refresh}` (register reenvía los consentimientos y propaga el `reason` de identity), `GET /v1/me`, `GET /v1/me/permissions` (devuelve `role`, `enabled_modules`, `permissions`), middleware `RequireAuth`, errores `{"error","reason","request_id"}`, `X-Request-Id` respetado o generado (UUIDv7) y devuelto, propagación de `traceparent` y `x-pp-request-id` a identity, log de acceso JSON por petición, recuperación de pánicos, cuerpo ≤ 1 MiB con campos desconocidos rechazados. 10 pruebas unitarias + E2E con identity (14 comprobaciones).
 
 ## 3. Cadena de middleware (orden obligatorio)
 1. Recuperación de pánico → 500 `INTERNAL` con `request_id`.
@@ -35,7 +35,7 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 ### 4.1 Autenticación y cuenta (F09, F08)
 | Método y ruta | RPC | Permiso |
 |---|---|---|
-| POST `/v1/auth/register` | identity.Register (rol forzado CUSTOMER) | público |
+| POST `/v1/auth/register` | identity.Register (rol forzado CUSTOMER; consents del cuerpo) | público |
 | POST `/v1/auth/login` | identity.Login | público |
 | POST `/v1/auth/refresh` | identity.RefreshToken | público |
 | POST `/v1/auth/logout` | identity.Logout | autenticado |
@@ -205,6 +205,7 @@ Exceso → 429 `RATE_LIMITED` + `Retry-After`. Contadores en NATS KV (ventana de
 ## 7. Reglas
 - **R1** Sin token o token inválido → 401 `TOKEN_INVALID`; identity caída → 503 `IDENTITY_UNAVAILABLE` (nunca 401: no cerrar sesión por una caída).
 - **R2** Registro público ignora cualquier rol enviado y fuerza `CUSTOMER`.
+- **R2b** `POST /v1/auth/register` acepta `consents: [{purpose, text_version, granted}]` (máx. 10) y los reenvía tal cual a identity; `channel` (`app`) y `device` (User-Agent recortado a 200 caracteres) los fija el gateway y se rechazan si vienen en el cuerpo (N-DAT-02). El `reason` que devuelve identity se propaga sin modificar para que la app lo traduzca.
 - **R3** JSON estricto: campos desconocidos → 400 `INVALID_JSON`; cuerpo > límite → 413 `BODY_TOO_LARGE`.
 - **R4** Permiso de la ruta ausente → 403 `PERMISSION_DENIED` sin llamar al servicio.
 - **R5** El tenant/usuario de los metadatos sale **solo** del token validado; cabeceras `x-pp-*` entrantes del cliente se descartan.
@@ -213,13 +214,17 @@ Exceso → 429 `RATE_LIMITED` + `Retry-After`. Contadores en NATS KV (ventana de
 - **R8** Errores del servicio se traducen sin filtrar mensajes internos (`INTERNAL` → mensaje genérico).
 - **R9** Webhooks: cuerpo crudo intacto (sin re-serializar) para la verificación de firma.
 - **R10** Al recibir `SessionRevoked`, cerrar WebSockets de esas sesiones en ≤ 5 s.
-- **R11** Modo mantenimiento (infra-management): mutaciones → 503 `MAINTENANCE` excepto rutas de plataforma; lecturas siguen.
+- **R11** Modo mantenimiento (infra-management): mutaciones → 503 `MAINTENANCE_MODE` excepto rutas de plataforma; lecturas siguen.
 
 ## 8. Configuración
 | Variable | Oblig. | Default |
 |---|---|---|
 | `PORT` | no | `8080` (implementado) |
-| `ADMIN_PORT` | no | `9100` — salud `/healthz/live` y `/healthz/ready` (implementado, F02.1); métricas en F04.6 |
+| `ADMIN_PORT` | no | `9100` — salud `/healthz/live` y `/healthz/ready` (implementado, F02.1) y `/metrics` (contadores, implementado) |
+| `LOG_LEVEL` | no | `info` (`debug`, `info`, `warn`, `error`) |
+| `DEPLOY_ENV` | no | `dev` — valor de `deployment.environment.name` |
+| `OTEL_TRACES_EXPORTER` | no | vacío (no exporta) o `console` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | no | colector OTLP gRPC; si se define, tiene prioridad |
 | `IDENTITY_SERVICE_URL` | sí | `identity:50060` (implementado) |
 | `<SERVICIO>_ADDR` por servicio expuesto | sí al activar su fase | `<servicio>:<puerto>` |
 | `ALLOWED_ORIGINS` | sí en prod | — |
@@ -241,7 +246,7 @@ Cabeceras: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Refe
 6. WebSocket: sin `auth` en 5 s se cierra; `SessionRevoked` cierra la conexión.
 
 ## 12. Plan de implementación
-F09.1 núcleo auth (✅) → F09.2 interceptor de metadatos `x-pp-*` → F09.3 traductor genérico JSON↔proto + tabla de rutas declarativa → F09.4 errores con `ErrorInfo` → F09.5 WebSocket con topic `session`/`inbox` → F09.6 rate limits NATS KV → F09.7 OpenAPI generado → cada fase posterior agrega sus rutas (golden tests).
+F09.1 núcleo auth (✅) → F09.2 interceptor de metadatos `x-pp-*` (✅) → F09.3 traductor genérico JSON↔proto + tabla de rutas declarativa (✅) → F09.4 errores con `ErrorInfo` (✅) → F09.5 WebSocket con topic `session`/`inbox` → F09.6 rate limits NATS KV → F09.7 OpenAPI generado → cada fase posterior agrega sus rutas (golden tests).
 
 ## 13. Riesgos
 Crecimiento de la tabla de rutas: mantenerla **declarativa** (un archivo `internal/routes/routes.go` con ruta, método, RPC, permiso, step-up, idempotencia) para que la tabla de este SPEC, OpenAPI y el código no diverjan.

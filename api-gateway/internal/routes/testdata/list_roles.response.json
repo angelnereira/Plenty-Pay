@@ -1,0 +1,1 @@
+{"roles":[{"name":"cashier","permissions":["pos:sell"],"role_id":"r1","system":true,"tenant_id":"t1"},{"name":"Supervisor","permissions":["pos:sell","payments:read"],"role_id":"r2","system":false,"tenant_id":"t1"}]}

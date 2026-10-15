@@ -1,0 +1,95 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Incidentes y Detección de Amenazas",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Reuso de Refresh Token Detectado",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pp_refresh_reuse_detected_total) or vector(0)", "legendFormat": "Reusos Detectados" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Cuentas / IPs Bloqueadas",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pp_security_blocked_entities_current) or vector(0)", "legendFormat": "Bloqueadas" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Peticiones No Autorizadas (401 / 403)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(rate(pp_http_requests_total{status=~\"401|403\"}[5m])) or vector(0)", "legendFormat": "401/403 req/s" }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 5,
+      "title": "Autenticación e Intentos de Acceso",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 6,
+      "title": "Intentos de Login (Correctos vs Fallidos)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (outcome) (rate(pp_logins_total[1m]))", "legendFormat": "Login: {{outcome}}" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 7,
+      "title": "Webhooks Rechazados por Firma Inválida",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (rail) (rate(pp_security_webhooks_rejected_total[1m])) or vector(0)", "legendFormat": "Rechazados: {{rail}}" }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["plentypay", "security"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "PlentyPay — Seguridad",
+  "uid": "pp-security",
+  "version": 1
+}

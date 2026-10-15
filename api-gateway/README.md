@@ -6,15 +6,19 @@
 |---|---|
 | Tecnología | Go |
 | Puerto | 8080 (público) (admin `:9100` en servicios propios) |
-| Fase del roadmap | F09 |
+| Fase del roadmap | F09 (F09.1–F09.4) |
 
 ## Estado
 | Aspecto | Estado | Evidencia |
 |---|---|---|
-| Código | 📝 parcial: `/healthz`, `/v1/auth/{login,register,refresh}`, `/v1/me`, `/v1/me/permissions`, middleware de autenticación y errores `{error,reason}` | |
-| Pruebas | L1 10 pruebas de handlers; L4 E2E con identity (14 comprobaciones) — ejecutadas 2026-10-10 | |
-| Imagen Docker | Plantilla de `go-standards.md` §6 (`go mod download`, distroless nonroot); construida y `healthy` en Compose — 2026-10-10 | |
+| Código | 📝 parcial: `/healthz`, `/v1/auth/{login,register,refresh}` (register reenvía los consentimientos y propaga el `reason` de identity), `/v1/me`, `/v1/me/permissions`, middleware de autenticación y errores `{error,reason,request_id}` | |
+| Pruebas | L1 14 pruebas de handlers + 9 de observabilidad; L4 E2E con identity (30 comprobaciones) — ejecutadas 2026-10-12 | |
+| Imagen Docker | Plantilla de `go-standards.md` §6 (`go mod download`, distroless nonroot); construida y `healthy` en Compose — 2026-10-10 . **No reconstruida tras F04.6** (2026-10-12: el daemon de Docker no estaba disponible); sí compila con los mismos parámetros del Dockerfile (`CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"`) | |
 | Salud | Puerto admin `:9100` con `/healthz/live` y `/healthz/ready`, subcomando `/app healthcheck`, apagado ordenado con SIGTERM (F02.1). `ready` no depende de identity (matriz de degradación); `/metrics` en F04.6 | L1 `internal/observability` |
+| Observabilidad | 📝 Implementado y probado 2026-10-12: logs JSON de una línea con `request_id`, `trace_id` y `span_id`; modelo de error con pila en el origen y registro único en el borde; recuperación de pánicos con `pp_panics_total`; trazas OpenTelemetry con propagación W3C; `/metrics` con contadores. Métricas obligatorias §2.1 implementadas 2026-10-12: `pp_http_requests_total{route,status}`, `pp_http_duration_seconds{route}` (histograma 5 ms–10 s), `pp_rpc_client_requests_total{target,rpc,code}` y `pp_rpc_client_duration_seconds` en el interceptor de cliente, `pp_build_info{service,version,commit}` y rechazo de etiquetas prohibidas (§2.3) con prueba. **Falta para cerrar F04.6**: métricas de `pp_db_*` cuando haya base de datos, `pp_ws_connections_current` y `pp_rate_limited_total` (F09.5/F09.6), puente de logs a OTLP (hoy solo stdout), exportación verificada contra un colector real (F04.1) y `golangci-lint` (herramienta no instalada: no ejecutado) | L1: pruebas `TestObs_*`; L4: E2E 23/23 con la misma traza en gateway e identity |
+
+## Tabla de rutas (F09.3)
+Las rutas viven en `internal/routes/table.go`: una fila por ruta (método, path, RPC, permiso, auth, idempotencia, step-up). El handler genérico traduce JSON↔proto. Solo login/registro/refresh/me/me-permissions conservan handler propio (moldeado de R2/R2b). Para añadir una ruta: **una fila**, más su golden en `internal/routes/testdata/` (regenerables con `UPDATE_GOLDEN=1 go test ./internal/routes/`).
 
 ## Arranque local
 ```bash

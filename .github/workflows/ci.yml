@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  repo-checks:
+    name: Repo Checks (ADR 0002, ADR 0010, ADR 0004)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: false
+
+      - name: Run repo checks
+        run: ./scripts/ci/repo-checks.sh
+
+  backend-tests:
+    name: Backend Tests (Go & Ledger)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Go & Ledger tests
+        run: |
+          (cd identity && go vet ./... && go test -race ./...)
+          (cd api-gateway && go vet ./... && go test -race ./...)
+          (cd scripts/ledger-tests && npm install && npm test)
+
+      - name: Run E2E Identity <-> Gateway
+        run: ./scripts/e2e-identity-gateway.sh
+
+  contracts:
+    name: Contracts (buf lint + buf breaking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up buf
+        uses: bufbuild/buf-action@v1
+        with:
+          version: 1.73.0
+
+      # Lint de los 18 contratos con las convenciones de docs/standards/grpc-conventions.md.
+      - name: buf lint
+        run: buf lint network-contracts
+
+      # Un PR que renombre, cambie de tipo o renumere un campo sin reservarlo falla aquí
+      # (ADR 0004, grpc-conventions.md §1.1). La retirada ordenada usa `reserved`.
+      - name: buf breaking contra main
+        run: buf breaking network-contracts --against '.git#branch=main,subdir=network-contracts/proto'
+
+  flutter-tests:
+    name: Flutter Client Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: cd flutter_app && flutter pub get
+
+      - name: Analyze Flutter app
+        run: cd flutter_app && flutter analyze
+
+      - name: Run Flutter tests (including goldens)
+        run: cd flutter_app && flutter test
+
+  release-builds:
+    name: Release Builds (F02.7)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: cd flutter_app && flutter pub get
+
+      # Linux, Web y Android (split-per-abi) se construyen en ubuntu.
+      # Windows (necesita Windows), iOS y macOS (runner macOS) van en jobs dedicados.
+      - name: Build Linux, Web and Android release artifacts
+        run: ./scripts/build-release.sh linux web android
+
+      - name: Upload artifacts with checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: plentypay-release-${{ github.sha }}
+          path: output/
+          if-no-files-found: error

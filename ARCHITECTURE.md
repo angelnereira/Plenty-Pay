@@ -31,8 +31,8 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 
 | Contenedor | Tecnología | Puerto | Estado | Fase |
 |---|---|---|---|---|
-| [identity](identity/SPEC.md) | Go | 50060 | 📝 núcleo de autenticación y permisos (memoria) | F08 |
-| [api-gateway](api-gateway/SPEC.md) | Go | 8080 | 📝 rutas de autenticación | F09 |
+| [identity](identity/SPEC.md) | Go | 50060 | ✅ F08.1 núcleo + F08.2 PostgreSQL: migraciones con RLS, store pgx sobre PgBouncer, estructura go-standards §2 y pruebas L2/L4 en verde | F08 |
+| [api-gateway](api-gateway/SPEC.md) | Go | 8080 | 📝 rutas de autenticación (con consentimientos y `reason` estable) | F09 |
 | [ledger](ledger/SPEC.md) | Rust | 50061 | 📋 (invariantes SQL de referencia verificadas: 27/27) | F10 |
 | [payments-core](payments-core/SPEC.md) | Rust | 50062 | 📋 | F11 |
 | [settlement](settlement/SPEC.md) | Rust | 50063 | 📋 | F12 |
@@ -45,16 +45,16 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [payroll](payroll/SPEC.md) | Go | 50070 | 📋 | F19 |
 | [notifications](notifications/SPEC.md) | Go | 50071 | 📋 | F20 |
 | [analytics-bi](analytics-bi/SPEC.md) | Go | 50072 | 📋 | F21 |
-| [security](security/SPEC.md) | Go + OpenBao | 50073 | 📋 | F05 |
-| [infra-management](infra-management/SPEC.md) | Go | 50074 | 📋 | F05 |
+| [security](security/SPEC.md) | Go + OpenBao | 50073 | ✅ secretos con ACL, transit, auditoría encadenada, bloqueos y OpenBao 2.2.0 operando en Docker Compose | F05 |
+| [infra-management](infra-management/SPEC.md) | Go | 50074 | ✅ feature flags, configuración dinámica con JSON Schema, modo mantenimiento y cliente config | F05 |
 | [orders](orders/SPEC.md) | Go | 50075 | 📋 | F15 |
-| [observability](observability/SPEC.md) | OSS | 4317/9090/3000 | 📋 | F04 |
-| [postgres-db](postgres-db/SPEC.md) | PostgreSQL 16 + PostGIS | 5432/6432 | 📋 | F06 |
-| [nosql-db](nosql-db/SPEC.md) | ScyllaDB | 9042 | 📋 | F07 |
-| [event-bus](event-bus/SPEC.md) | NATS JetStream | 4222 | 📋 | F07 |
-| [object-storage](object-storage/SPEC.md) | Garage | 3900 | 📋 | F07 |
-| [web](web/SPEC.md) | Go | 8081 | 📋 | F02 |
-| [flutter_app](flutter_app/README.md) (cliente) | Flutter | — | 📝 base multiplataforma con flavors e i18n (compila web y Android) | F02 |
+| [observability](observability/SPEC.md) | OSS | 4317/9090/3000 | ✅ pila completa operando en Docker (OTel, Prometheus, Loki, Tempo, Alloy, Alertmanager, Grafana con 7 dashboards) | F04 |
+| [postgres-db](postgres-db/SPEC.md) | PostgreSQL 16 + PostGIS | 5432/6432 | ✅ PostgreSQL 16 + PostGIS con 16 esquemas/roles aislados, PgBouncer en transacción, exporter/alertas, respaldos base y PITR demostrado (RPO ≤ 5 min) | F06 |
+| [nosql-db](nosql-db/SPEC.md) | ScyllaDB 6.2 | 9042/9180 | ✅ ScyllaDB 6.2 con keyspaces y roles aislados, TTLs, Prometheus scraping :9180, alertas y backup por snapshots | F07 |
+| [event-bus](event-bus/SPEC.md) | NATS 2.10 + JetStream | 4222/8222 | ✅ NATS 2.10 con JetStream persistente en volumen, 11 streams y 3 buckets KV como código idempotentes, permisos por servicio, exporter y 4 alertas con DLQ | F07 |
+| [object-storage](object-storage/SPEC.md) | Garage v2.4.1 (S3) | 3900 | ✅ Garage v2.4.1 con API S3 respondiendo, 6 buckets y 11 llaves por contenedor (permisos verificados), cuotas por bucket y URLs prefirmadas de referencia | F07 |
+| [web](web/SPEC.md) | Go | 8081 | ✅ servidor estático del bundle Flutter Web verificado en Docker Compose | F02 |
+| [flutter_app](flutter_app/README.md) (cliente) | Flutter | — | 📝 base multiplataforma con flavors e i18n, login y registro (compila web y Android) | F02 |
 | [network-contracts](network-contracts/README.md) | Protobuf | — | ✅ 18 contratos compilan juntos | F03 |
 
 ## 3. Principios que no se negocian

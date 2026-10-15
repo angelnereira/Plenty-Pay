@@ -62,6 +62,7 @@ CREATE TABLE settlement.reconciliation_items (
 | ResolveException | `platform:reconcile` | sí | `→ RESOLVED` con nota y evidencia; puede ordenar asiento de ajuste vía SUSPENSE | `EVIDENCE_REQUIRED` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-AML-11, N-PAG-04 y N-PAG-07. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Un pago se liquida **una sola vez** (`UNIQUE payment_id` en items).
 - **R2** Solo pagos con asiento POSTED y no sandbox entran a un lote.
 - **R3** `net = gross − fees − refunds (+ ajustes)` del periodo; `net` nunca supera el disponible de `MERCHANT_PAYABLE(tenant)` (consulta a ledger en la misma operación; si no alcanza → lote por el disponible y el resto queda para el siguiente).

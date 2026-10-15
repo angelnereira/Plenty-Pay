@@ -20,7 +20,7 @@ func get(t *testing.T, url string) int {
 
 func TestAdmin_LiveIsOKEvenWhenNotReady(t *testing.T) {
 	var ready atomic.Bool
-	srv := httptest.NewServer(NewAdminHandler(&ready))
+	srv := httptest.NewServer(NewAdminHandler(&ready, nil))
 	defer srv.Close()
 	if code := get(t, srv.URL+"/healthz/live"); code != http.StatusOK {
 		t.Fatalf("live = %d, esperaba 200", code)
@@ -29,7 +29,7 @@ func TestAdmin_LiveIsOKEvenWhenNotReady(t *testing.T) {
 
 func TestAdmin_ReadyFollowsFlag(t *testing.T) {
 	var ready atomic.Bool
-	srv := httptest.NewServer(NewAdminHandler(&ready))
+	srv := httptest.NewServer(NewAdminHandler(&ready, nil))
 	defer srv.Close()
 	if code := get(t, srv.URL+"/healthz/ready"); code != http.StatusServiceUnavailable {
 		t.Fatalf("ready antes de arrancar = %d, esperaba 503", code)
@@ -46,7 +46,7 @@ func TestAdmin_ReadyFollowsFlag(t *testing.T) {
 
 func TestHealthcheck_FailsWhenNotReadyOrUnreachable(t *testing.T) {
 	var ready atomic.Bool
-	srv := httptest.NewServer(NewAdminHandler(&ready))
+	srv := httptest.NewServer(NewAdminHandler(&ready, nil))
 	if err := Healthcheck(context.Background(), srv.URL); err == nil {
 		t.Fatal("healthcheck debe fallar si el servicio no está listo")
 	}

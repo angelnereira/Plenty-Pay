@@ -1,0 +1,124 @@
+# Productos e inventario
+
+Módulos `catalog` (paso F15.10) e `inventory` (paso F16.7). Convenciones: [`README.md`](README.md).
+
+## Productos
+
+### S-CAT-01 · `/catalog` · Lista de productos
+`catalog:read` · `/v1/catalog/products`
+
+| Id | Componente | Texto visible | Comportamiento y validación |
+|---|---|---|---|
+| e1 | Buscador | Buscar por nombre, código o SKU | Icono de cámara: escanear código de barras |
+| e2 | Filtros | Categoría · Estado (Activo, Archivado) · Publicado en tiendas · Sin existencias · Datos incompletos | "Datos incompletos" lista lo que impide vender o publicar |
+| e3 | Lista | Foto, nombre, SKU, precio, existencias, etiquetas | Toca → S-CAT-02 |
+| e4 | `PPButton.primary` | Nuevo producto | Requiere `catalog:write` |
+| e5 | Menú | Importar · Exportar · Categorías | → S-CAT-03, C-20, S-CAT-04 |
+
+Vacío: "Aún no tienes productos." con "Nuevo producto" e "Importar desde un archivo".
+
+### S-CAT-02 · `/catalog/new`, `/catalog/:id` · Editor de producto
+`catalog:write` · Reglas: N-FIS-01, N-FIS-02, N-FIS-13, N-CON-02, N-CON-03, N-CON-07, N-LOG-01, N-LOG-04, N-LOG-05, N-LOG-07, N-FMT-08, N-FMT-09
+
+| Sección | Campo | Validación |
+|---|---|---|
+| Básico | Nombre | 2–120 caracteres, obligatorio |
+| | Descripción | ≤ 4 000 caracteres; obligatoria para publicar |
+| | Categoría | Lista; obligatoria. Determina descuentos de ley y restricciones |
+| | Fotos | Hasta 8, JPEG/PNG/WebP ≤ 5 MB; la primera es la principal; texto alternativo por foto |
+| Identificación | SKU | Único en el negocio; se genera si se deja vacío |
+| | Código de barras | GTIN de 8, 12, 13 o 14 dígitos con dígito de control válido (N-STD-23): "El código de barras no es válido." Botón de escanear. Un código que empieza por `02` o `20`–`29` se guarda como **código interno** con el aviso "Este código es de uso interno de tienda; no identifica el producto fuera de tu negocio." (N-STD-24). Sin código del fabricante: botón "Generar código interno" (prefijo `2`, N-STD-26) |
+| Venta | Unidad de medida | Unidad (ud) · kg · g · L · mL · m · cm · m². Obligatoria. No se puede cambiar si hay movimientos |
+| | Se vende a granel | Activa cantidades decimales (milésimas) |
+| | Precio de venta | `MoneyInput`; obligatorio; > $0.00 |
+| | El precio incluye ITBMS | Activo por defecto |
+| | Costo | Opcional; solo visible con `inventory:read` |
+| Impuestos | Tratamiento | Gravado / Exento / No sujeto. Obligatorio |
+| | Tasa de ITBMS | 7 % (por defecto) · 10 % · 15 % · 0 %. Solo si es Gravado. Sugerida por la categoría (alcohol y hospedaje 10 %, tabaco 15 %); el usuario puede cambiarla con aviso |
+| | Lleva impuesto selectivo | Etiqueta informativa |
+| Variantes | Atributos y combinaciones | Cada variante: SKU, código de barras, precio y existencias propias |
+| Precios por sucursal | Tabla sucursal → precio | Opcional |
+| Inventario | Controlar existencias | Activo por defecto |
+| | Controla lote y vencimiento | Obligatorio en alimentos perecederos y medicamentos |
+| | Existencia mínima | Dispara la alerta de quiebre |
+| Garantía y devoluciones | Días de garantía | Entero ≥ 0. 0 solo si la categoría lo permite |
+| | Política de devolución | Lista: 7 / 15 / 30 días, o la de la tienda. Sin opción de negar devolución por defecto |
+| Restricciones | Solo mayores de 18 | Automático y bloqueado en alcohol y tabaco |
+| | Requiere receta | Si está activo, no se puede publicar en tiendas |
+| Oferta | Precio de oferta · desde · hasta | Menor que el precio de venta. El "precio anterior" lo calcula el sistema (más bajo de los últimos 90 días) y se muestra de solo lectura |
+
+Botón primario "Guardar". Acción secundaria "Archivar" (C-05; el producto deja de venderse y no se borra). Al pie, panel "Listo para vender: sí/no" y "Listo para publicar: sí/no" con la lista de lo que falta, enlazada al campo.
+
+### S-CAT-03 · `/catalog/import` · Importar productos
+`catalog:import`. Paso 1: descargar plantilla CSV y subir archivo (UTF-8, ≤ 10 MiB). Paso 2: vista previa de las primeras 50 filas con el mapeo de columnas. Paso 3: validación por fila con las mismas reglas de S-CAT-02; resumen "{n} válidas · {m} con errores" y descarga de las filas con error y su motivo. Paso 4: botón "Importar {n} productos". Nada se importa a medias: las filas válidas entran y las inválidas no.
+
+### S-CAT-04 · `/catalog/categories` · Categorías
+`catalog:write`. Árbol de hasta 3 niveles. Cada categoría: nombre, categoría superior, **tipo de categoría legal** (General, Restaurante, Comida rápida, Medicamentos, Alcohol, Tabaco, Hospedaje, Alimentos perecederos), tasa de ITBMS sugerida. El tipo legal decide descuentos de ley, edad mínima y vencimiento. Una categoría con productos no se elimina.
+
+### S-CAT-05 · `/catalog/storefront` · Mi tienda en línea
+`catalog:listing:manage` · Regla: N-CON-02
+
+| Id | Componente | Texto visible | Comportamiento y validación |
+|---|---|---|---|
+| e1 | Estado | Tu tienda está {visible / oculta} | Solo negocios `ACTIVE` pueden hacerla visible |
+| e2 | Datos | Logo · Portada · Nombre · Descripción · Dirección web `/s/{slug}` | Slug único, minúsculas y guiones |
+| e3 | Horario | Por día | — |
+| e4 | Entrega | Retiro en tienda · Entrega a domicilio: zonas (corregimientos o radio en km) y costo | Al menos una modalidad |
+| e5 | Política de devoluciones | Plazo en días · condiciones | Mínimo el de la plataforma. No admite excluir productos defectuosos |
+| e6 | Lista de productos | Interruptor "Publicar" por producto | Deshabilitado con el motivo si le faltan datos obligatorios |
+| e7 | `PPButton.primary` | Guardar | — |
+
+## Inventario
+
+### S-INV-01 · `/inventory` · Existencias
+`inventory:read` · `/v1/inventory/stock`
+
+| Id | Componente | Texto visible | Comportamiento y validación |
+|---|---|---|---|
+| e1 | Tarjetas de alerta | {n} por agotarse · {n} agotados · {n} lotes por vencer | Filtran la lista |
+| e2 | Selector | Bodega | "Todas" suma |
+| e3 | Buscador y escáner | — | — |
+| e4 | Tabla | Producto · Disponible · Reservado · En camino · Mínimo · Días de cobertura | Cantidades con su unidad SI. Negativo en `error` |
+| e5 | Menú | Ajustar · Transferir · Exportar | Según permiso |
+
+### S-INV-02 · `/inventory/:variant` · Detalle de existencias
+Existencias por bodega; lotes con fecha de vencimiento (vencidos en `error`, próximos en `warning`); movimientos con fecha, tipo (Recepción, Venta, Ajuste, Transferencia, Devolución, Baja), cantidad con signo, saldo, documento de origen enlazado y usuario; cobertura en días según velocidad de venta.
+
+### S-INV-03 · `/inventory/adjust` · Ajuste
+`inventory:adjust`
+
+| Id | Componente | Texto visible | Comportamiento y validación |
+|---|---|---|---|
+| e1 | Selector | Bodega | — |
+| e2 | Líneas | Producto · Sistema {n} · Contado · Diferencia | Se puede escanear para contar |
+| e3 | Selector | Motivo | Conteo físico, Daño, Vencimiento, Robo o pérdida, Error de registro, Otro + texto. Obligatorio |
+| e4 | Adjunto opcional | Evidencia | — |
+| e5 | `PPButton.primary` | Aplicar ajuste | C-05 con el número de líneas y el valor al costo |
+
+Un ajuste no se edita ni se borra: se corrige con otro ajuste.
+
+### S-INV-04 · `/inventory/transfer` · Transferencia
+`inventory:adjust`. Origen, destino (distinto), líneas con cantidad ≤ disponible en origen, lote si aplica (se propone el de vencimiento más próximo). Estados: En tránsito → Recibida. La bodega destino confirma la recepción con cantidades; una diferencia genera un ajuste con motivo "Diferencia de transferencia".
+
+### S-INV-05 · `/inventory/purchases` · Órdenes de compra
+`inventory:purchase:manage`. Lista con `StatusChip` (Borrador, Enviada, Recibida parcial, Recibida, Cancelada). Editor: proveedor, bodega de destino, fecha esperada, líneas (producto, cantidad, costo unitario, ITBMS), totales. Acciones: "Guardar borrador", "Enviar al proveedor" (correo con PDF), "Cancelar" (solo Borrador o Enviada).
+
+### S-INV-06 · `/inventory/receive/:po` · Recepción
+`inventory:receive`
+
+| Id | Componente | Texto visible | Comportamiento y validación |
+|---|---|---|---|
+| e1 | Cabecera | Orden {número} · {proveedor} | — |
+| e2 | Líneas | Producto · Pedido {n} · Recibido antes {m} · Recibido ahora | Escanear suma 1 a la línea. Exceso sobre lo pedido: aviso y confirmación |
+| e3 | Por línea | Lote · Vencimiento | Obligatorios si el producto controla lote. Vencimiento pasado: bloqueado |
+| e4 | Campo | Factura del proveedor (número) | Opcional |
+| e5 | `PPButton.primary` | Registrar recepción | Genera los movimientos y actualiza el estado de la orden |
+
+### S-INV-07 · `/inventory/suppliers` · Proveedores
+Lista y editor: razón social, RUC + DV (validados, N-FMT-06), contacto, teléfono (N-FMT-07), correo, condiciones de pago, productos que suministra.
+
+### S-INV-08 · `/inventory/suggestions` · Sugerencias de reorden
+Tabla: producto, disponible, venta diaria promedio, días de cobertura, cantidad sugerida, proveedor habitual. Casillas de selección y botón primario "Crear orden de compra" que agrupa por proveedor y abre S-INV-05 con las líneas.
+
+### S-INV-09 · `/inventory/warehouses` · Bodegas
+Lista y editor: nombre, sucursal, dirección, tipo (Tienda, Bodega, Tránsito), activa. Una bodega con existencias no se desactiva.

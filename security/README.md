@@ -11,15 +11,23 @@ Secretos, cifrado por propósito, auditoría encadenada, bloqueos y certificados
 ## Estado
 | Aspecto | Estado | Evidencia |
 |---|---|---|
-| Código | 📋 planificado: solo especificación (`SPEC.md`) | |
-| Pruebas | — | |
-| Imagen Docker | — | |
+| Código | ✅ F05.1–F05.6 (secretos, ACL, transit, auditoría encadenada, bloqueos, PKI) | Estructura Go estándar (`internal/{client,config,domain,observability,server,service,store}`) |
+| Pruebas | ✅ 25 pruebas pasando con `-race` | `go test -v -race ./...` (observabilidad, servidor gRPC, reglas de negocio R1–R5, R7 y cliente OpenBao) |
+| Imagen Docker | ✅ Construida y corriendo | Distroless Debian 12 nonroot; OpenBao 2.2.0 fijado por digest criptográfico en `docker-compose.yml` |
 
 ## Arranque local
-Se agrega a `docker-compose.yml` al llegar a su fase (F05). Hasta entonces no forma parte del sistema local.
+Forma parte del sistema local en `docker-compose.yml` (puerto gRPC 50073 en red interna `services`, OpenBao en 8200 en red interna `data`, admin en `:9100`).
+```bash
+docker compose up -d openbao security
+```
 
 ## Desarrollo
-Crear el proyecto siguiendo `docs/standards/go-standards.md` (estructura de carpetas obligatoria), registrar el contenedor en `network-contracts/consumers.txt` (fila ya prevista) y correr `./scripts/sync-protos.sh`.
+Regenerar contratos si cambia `security.proto`:
+```bash
+./scripts/sync-protos.sh
+```
+Ejecutar pruebas locales:
+```bash
+cd security && go vet ./... && go test -v -race ./...
+```
 
-## Limitaciones conocidas
-Todo pendiente; ver plan en `SPEC.md` §12 y la fase en `05-HOJA-DE-RUTA-30-FASES.md`.

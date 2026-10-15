@@ -66,12 +66,24 @@ enum UserRole {
   CUSTOMER = 4;         // usuario final sin negocio
 }
 
+// Aceptación de una finalidad concreta (N-DAT-02): una por finalidad, nunca agrupadas ni premarcadas.
+// `purpose` ∈ {AGE_CONFIRMATION, TERMS, PRIVACY_DATA_PROCESSING, MARKETING} (docs/glossary.md §4).
+// `text_version` es la versión del texto que la persona vio; la fecha la pone el servidor.
+message ConsentGrant {
+  string purpose = 1;
+  string text_version = 2;
+  bool granted = 3;
+}
+
 message RegisterRequest {
   string email = 1;
   string password = 2;
   string full_name = 3;
   UserRole role = 4;
   string tenant_id = 5; // vacío si es CUSTOMER sin negocio
+  repeated ConsentGrant consents = 6; // obligatorio en el registro público (N-DAT-02, N-DAT-14)
+  string channel = 7;                 // lo fija el gateway, nunca el cuerpo del cliente
+  string device = 8;                  // User-Agent recortado; lo fija el gateway
 }
 
 message LoginRequest {
@@ -89,6 +101,7 @@ message AuthResult {
   UserRole role = 7;
   google.protobuf.Timestamp access_expires_at = 8;
   string session_id = 9;
+  string reason = 10; // código estable cuando success=false (docs/glossary.md §7.3); el gateway lo traduce
 }
 
 message ValidateTokenRequest {
@@ -100,7 +113,7 @@ message ValidateTokenResult {
   string user_id = 2;
   string tenant_id = 3;
   UserRole role = 4;
-  repeated string permissions = 5; // p. ej. "pos:sell" — catálogo en docs/standards/security-standards.md §4
+  repeated string permissions = 5; // p. ej. "pos:sell" — catálogo en docs/standards/security-standards.md §3.1
   string session_id = 6;
 }
 
@@ -119,7 +132,8 @@ message RefreshTokenRequest {
   string refresh_token = 1;
 }
 
-message LogoutRequest { string session_id = 1; }
+// all=true revoca todas las sesiones del usuario (SPEC §4); la clave hace reintentable la operación.
+message LogoutRequest { string session_id = 1; bool all = 2; string idempotency_key = 3; }
 message LogoutResult { bool success = 1; }
 
 message Session {
@@ -132,7 +146,7 @@ message Session {
 }
 message ListSessionsRequest { string user_id = 1; }
 message ListSessionsResult { repeated Session sessions = 1; }
-message RevokeSessionRequest { string session_id = 1; }
+message RevokeSessionRequest { string session_id = 1; string idempotency_key = 2; }
 message RevokeSessionResult { bool success = 1; }
 
 message SimpleResult {
@@ -140,9 +154,15 @@ message SimpleResult {
   string error_message = 2;
 }
 
-message ChangePasswordRequest { string user_id = 1; string current_password = 2; string new_password = 3; }
+message ChangePasswordRequest {
+  string user_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+  string idempotency_key = 4;
+  string step_up_token = 5; // R14: obligatorio; token de un uso de VerifyStepUp
+}
 message RequestPasswordResetRequest { string email = 1; }
-message ConfirmPasswordResetRequest { string reset_token = 1; string new_password = 2; }
+message ConfirmPasswordResetRequest { string reset_token = 1; string new_password = 2; string idempotency_key = 3; }
 
 enum TenantStatus {
   TENANT_STATUS_UNSPECIFIED = 0;
@@ -157,6 +177,7 @@ message Tenant {
   string legal_name = 2;
   string trade_name = 3;
   string tax_id = 4;            // RUC
+  string dv = 9;                // dígito verificador del RUC (R17)
   TenantStatus status = 5;
   string country = 6;
   google.protobuf.Timestamp created_at = 7;
@@ -172,26 +193,29 @@ message CreateBusinessRequest {
   string tax_id = 6;
   string country = 7;
   repeated string kyb_document_object_keys = 8; // objetos ya subidos a object-storage
+  string dv = 9;              // dígito verificador del RUC (R17)
+  string idempotency_key = 10;
 }
 message CreateBusinessResult {
   bool success = 1;
   string error_message = 2;
   Tenant tenant = 3;
   AuthResult session = 4;
+  string reason = 5;         // reason estable del rechazo (SPEC §4: ALREADY_HAS_TENANT, RUC_TAKEN, INVALID_RUC)
 }
-message ReviewBusinessRequest { string tenant_id = 1; bool approve = 2; string notes = 3; }
+message ReviewBusinessRequest { string tenant_id = 1; bool approve = 2; string notes = 3; string idempotency_key = 4; }
 message GetTenantRequest { string tenant_id = 1; }
 message ListTenantsRequest { TenantStatus status = 1; string page_token = 2; int32 page_size = 3; }
 message ListTenantsResult { repeated Tenant tenants = 1; string next_page_token = 2; }
 
-message InviteStaffRequest { string email = 1; string role_id = 2; string full_name = 3; }
+message InviteStaffRequest { string email = 1; string role_id = 2; string full_name = 3; string idempotency_key = 4; }
 message Invitation {
   string invitation_id = 1;
   string email = 2;
   string role_id = 3;
   google.protobuf.Timestamp expires_at = 4;
 }
-message AcceptInvitationRequest { string invitation_token = 1; string password = 2; }
+message AcceptInvitationRequest { string invitation_token = 1; string password = 2; string idempotency_key = 3; }
 
 message UserSummary {
   string user_id = 1;
@@ -203,7 +227,7 @@ message UserSummary {
 }
 message ListUsersRequest { string tenant_id = 1; string page_token = 2; int32 page_size = 3; }
 message ListUsersResult { repeated UserSummary users = 1; string next_page_token = 2; }
-message DeactivateUserRequest { string user_id = 1; }
+message DeactivateUserRequest { string user_id = 1; string idempotency_key = 2; }
 
 message UserContact {
   string user_id = 1;
@@ -211,6 +235,10 @@ message UserContact {
   string phone_e164 = 3;
   string full_name = 4;
   string locale = 5;   // "es-PA" | "en"
+  // Preferencias que notifications necesita. El consentimiento de mercadeo se revoca desde
+  // S-GEN-13 (`/v1/me/consents`), nunca desde aquí.
+  bool marketing_consent = 6;
+  string timezone = 7;  // zona horaria declarada por la persona (IANA)
 }
 message GetUserContactsRequest { repeated string user_ids = 1; } // máx. 100
 message GetUserContactsResult { repeated UserContact contacts = 1; }
@@ -222,10 +250,10 @@ message Role {
   repeated string permissions = 4;
   bool system = 5;               // los presets de sistema no se editan
 }
-message UpsertRoleRequest { Role role = 1; }
+message UpsertRoleRequest { Role role = 1; string idempotency_key = 2; }
 message ListRolesRequest { string tenant_id = 1; }
 message ListRolesResult { repeated Role roles = 1; }
-message AssignRoleRequest { string user_id = 1; string role_id = 2; }
+message AssignRoleRequest { string user_id = 1; string role_id = 2; string idempotency_key = 3; }
 
 message PasskeyChallenge {
   string challenge_id = 1;

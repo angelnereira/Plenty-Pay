@@ -1,0 +1,30 @@
+# Reglas de alerta para ScyllaDB NoSQL (F07.3, observability-standards.md §6).
+# Monitorea disponibilidad, métricas de caché y rendimiento de CQL.
+groups:
+  - name: criticas-scylladb
+    interval: 30s
+    rules:
+      # Nodo ScyllaDB caído
+      - alert: ScyllaDBDown
+        expr: up{job="scylladb"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ScyllaDB NoSQL no responde"
+          description: "El nodo ScyllaDB (nosql-db:9180) no responde a los scrapes de Prometheus."
+          runbook_url: https://docs.plentypay.local/runbooks/scylladb-down.md
+
+  - name: advertencias-scylladb
+    interval: 60s
+    rules:
+      # Uso elevado de caché (> 90%)
+      - alert: ScyllaDBHighCacheUsage
+        expr: (sum(scylla_cache_bytes_used) / clamp_min(sum(scylla_cache_bytes_total), 1)) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto uso de memoria de caché en ScyllaDB"
+          description: "La caché de ScyllaDB ha superado el 90% de su capacidad configurada."
+          runbook_url: https://docs.plentypay.local/runbooks/scylladb-cache.md

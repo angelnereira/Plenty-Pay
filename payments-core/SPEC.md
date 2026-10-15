@@ -92,6 +92,7 @@ CREATE TABLE payments.tenant_status (tenant_id uuid PRIMARY KEY, status smallint
 | ResolveUnknownPayment | `platform:reconcile` | sí | resolución manual con evidencia obligatoria (§6.3 domain-model) | `INVALID_STATE_TRANSITION`, `EVIDENCE_REQUIRED` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-AML-01, N-AML-03, N-AML-05, N-AML-06, N-AML-12, N-PAG-01, N-PAG-03, N-PAG-06 y N-CON-01. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Intent idempotente por `(tenant, idempotency_key)` con hash del request (`grpc-conventions.md` §3).
 - **R2** Tenant debe estar `ACTIVE` (proyección local de `TenantStatusChanged`; si no existe proyección → `identity.GetTenant` con caché 60 s).
 - **R3** Comisiones exactamente según `domain-model.md` §4 (vectores A–E, R1–R3 como pruebas literales).

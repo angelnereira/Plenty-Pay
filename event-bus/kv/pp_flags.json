@@ -1,0 +1,7 @@
+{
+  "bucket": "pp_flags",
+  "history": 5,
+  "ttl": 0,
+  "storage": "file",
+  "num_replicas": 1
+}

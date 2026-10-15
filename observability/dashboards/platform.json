@@ -1,0 +1,275 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Infraestructura Base y Bus de Eventos",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Lag de Consumidores NATS (p95)",
+      "type": "stat",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(pp_events_consumer_lag_seconds_bucket[5m]))) or vector(0)", "legendFormat": "p95 Lag" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Eventos en Dead-Letter Queue (DLQ)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pp_events_dlq_total) or vector(0)", "legendFormat": "DLQ Total" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Outbox Más Viejo (Pendiente)",
+      "type": "stat",
+      "targets": [{ "expr": "max(pp_outbox_oldest_seconds) or vector(0)", "legendFormat": "Antigüedad" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+      "id": 5,
+      "title": "Uso de Recursos y Conexiones por Servicio",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(pp_db_connections_active_current) by (service)", "legendFormat": "Conexiones activas: {{service}}" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 6,
+      "title": "PostgreSQL de Producción (F06)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "mappings": [
+            { "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" }
+          ]
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 14 },
+      "id": 7,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "PostgreSQL Status",
+      "type": "stat",
+      "targets": [{ "expr": "pg_up or vector(0)", "legendFormat": "Estado" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.75 }, { "color": "red", "value": 0.90 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 14 },
+      "id": 8,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Uso de Conexiones PostgreSQL",
+      "type": "stat",
+      "targets": [{ "expr": "(sum(pg_stat_database_numbackends) / max(pg_settings_max_connections)) or vector(0)", "legendFormat": "Ratio Conexiones" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 14 },
+      "id": 9,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Tamaño BD plentypay",
+      "type": "stat",
+      "targets": [{ "expr": "pg_database_size_bytes{datname=\"plentypay\"} or vector(0)", "legendFormat": "Tamaño" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 30 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 14 },
+      "id": 10,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Lag de Réplica PostgreSQL",
+      "type": "stat",
+      "targets": [{ "expr": "pg_replication_lag_seconds or vector(0)", "legendFormat": "Lag" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "id": 11,
+      "title": "Conexiones PostgreSQL vs Límite",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(pg_stat_database_numbackends)", "legendFormat": "Conexiones activas totales" },
+        { "expr": "pg_stat_database_numbackends{datname=\"plentypay\"}", "legendFormat": "Conexiones plentypay" },
+        { "expr": "max(pg_settings_max_connections)", "legendFormat": "Límite max_connections" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "id": 12,
+      "title": "Transacciones por Segundo (Commit / Rollback)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "rate(pg_stat_database_xact_commit{datname=\"plentypay\"}[5m])", "legendFormat": "Commits/s" },
+        { "expr": "rate(pg_stat_database_xact_rollback{datname=\"plentypay\"}[5m])", "legendFormat": "Rollbacks/s" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 13,
+      "title": "ScyllaDB NoSQL (F07)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "mappings": [
+            { "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" }
+          ]
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 27 },
+      "id": 14,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "ScyllaDB Status",
+      "type": "stat",
+      "targets": [{ "expr": "up{job=\"scylladb\"} or vector(0)", "legendFormat": "Estado" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "green", "value": 0.8 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 27 },
+      "id": 15,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Cache Hit Ratio ScyllaDB",
+      "type": "stat",
+      "targets": [{ "expr": "(sum(scylla_cache_row_hits) / clamp_min(sum(scylla_cache_row_hits + scylla_cache_row_misses), 1)) or vector(0)", "legendFormat": "Hit Ratio" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 27 },
+      "id": 16,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Memoria de Caché ScyllaDB",
+      "type": "stat",
+      "targets": [{ "expr": "sum(scylla_cache_bytes_used) or vector(0)", "legendFormat": "Bytes Usados" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 31 },
+      "id": 17,
+      "title": "Uso de Memoria y Caché de ScyllaDB",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(scylla_cache_bytes_used)", "legendFormat": "Caché Usada" },
+        { "expr": "sum(scylla_cache_bytes_total)", "legendFormat": "Caché Total" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 39 },
+      "id": 18,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Conexiones Clientes NATS",
+      "type": "stat",
+      "targets": [{ "expr": "gnatsd_connz_num_connections or vector(0)", "legendFormat": "Conexiones" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 39 },
+      "id": 19,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Mensajes en DLQ NATS",
+      "type": "stat",
+      "targets": [{ "expr": "sum(jetstream_stream_total_messages{stream_name=\"PP_DLQ\"}) or vector(0)", "legendFormat": "Mensajes DLQ" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 39 },
+      "id": 20,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Streams Activos JetStream",
+      "type": "stat",
+      "targets": [{ "expr": "count(jetstream_stream_total_messages) or vector(0)", "legendFormat": "Total Streams" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "msgs" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+      "id": 21,
+      "title": "Mensajes Almacenados por Stream JetStream",
+      "type": "timeseries",
+      "targets": [{ "expr": "jetstream_stream_total_messages", "legendFormat": "{{stream_name}}" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+      "id": 22,
+      "title": "Almacenamiento por Stream JetStream",
+      "type": "timeseries",
+      "targets": [{ "expr": "jetstream_stream_total_bytes", "legendFormat": "{{stream_name}}" }]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["plentypay", "platform", "postgres", "scylladb", "nats"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "PlentyPay — Plataforma",
+  "uid": "pp-platform",
+  "version": 4
+}

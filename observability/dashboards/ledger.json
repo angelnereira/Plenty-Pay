@@ -1,0 +1,90 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Invariantes y Seguridad del Libro Contable",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Violaciones de Invariantes (I1–I14)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pp_ledger_invariant_violations_total) or vector(0)", "legendFormat": "Violaciones" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Asientos por Segundo",
+      "type": "stat",
+      "targets": [{ "expr": "sum(rate(pp_ledger_entries_total[1m])) or vector(0)", "legendFormat": "Asientos/s" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Latencia p99 (SLO ≤ 50 ms)",
+      "type": "stat",
+      "targets": [{ "expr": "histogram_quantile(0.99, sum by (le) (rate(pp_ledger_post_duration_seconds_bucket[5m]))) or vector(0)", "legendFormat": "p99 Post" }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 5,
+      "title": "Rendimiento y Retenciones (Holds)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 6,
+      "title": "Tasa de Transacciones Contables",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (type) (rate(pp_ledger_transactions_total[1m]))", "legendFormat": "{{type}}" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 7,
+      "title": "Retenciones Activas (Holds)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(pp_ledger_holds_active_current) or vector(0)", "legendFormat": "Holds Activos" }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["plentypay", "ledger"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "PlentyPay — Ledger",
+  "uid": "pp-ledger",
+  "version": 1
+}

@@ -1,0 +1,83 @@
+# Prometheus — scrape de todos los contenedores (F04.1).
+# Cada servicio publica sus métricas en su puerto de administración :9100/metrics
+# (grpc-conventions.md §8). Los nombres de los objetivos salen de
+# docs/architecture/service-dependencies.md §1; un servicio nuevo se añade aquí en el
+# mismo cambio que se da de alta en el inventario.
+#
+# Retención 15 días local (observability/SPEC.md R2).
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: plentypay-local
+
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+scrape_configs:
+  # Métricas del propio colector (latencia del pipeline de telemetría).
+  - job_name: otel-collector
+    static_configs:
+      - targets: [otel-collector:8889]
+
+  # Los contenedores implementados hoy. Formato: <nombre-en-compose>:9100
+  - job_name: plentypay-services
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - identity:9100
+          - api-gateway:9100
+          - web:9100
+          - security:9100
+          - infra-management:9100
+        labels:
+          stack: plentypay
+
+  # Plantilla para los contenedores de fases siguientes (se descomenta al implementarlos):
+  # - job_name: plentypay-services-fases-8-a-21
+  #   static_configs:
+  #     - targets:
+  #         - ledger:9100
+  #         - payments-core:9100
+  #         - settlement:9100
+  #         - fiscal-invoicing:9100
+  #         - catalog:9100
+  #         - inventory:9100
+  #         - orders:9100
+  #         - pos:9100
+  #         - logistics:9100
+  #         - geolocation:9100
+  #         - payroll:9100
+  #         - notifications:9100
+  #         - analytics-bi:9100
+  #         - security:9100
+  #         - infra-management:9100
+
+  # Infraestructura (F06, F07): postgres-db, nosql-db, event-bus, object-storage.
+  - job_name: postgres
+    static_configs:
+      - targets: [postgres-exporter:9187]
+        labels:
+          service: postgres-db
+          stack: plentypay
+
+  - job_name: scylladb
+    static_configs:
+      - targets: [nosql-db:9180]
+        labels:
+          service: nosql-db
+          stack: plentypay
+
+  - job_name: nats
+    static_configs:
+      - targets: [nats-exporter:7777]
+        labels:
+          service: event-bus
+          stack: plentypay
+
+# Alertmanager (F04.5). La ruta se completa cuando exista el canal de on-call.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]

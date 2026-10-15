@@ -1,0 +1,33 @@
+# Tempo 3.0 — trazabilidad distribuida (F04.3).
+# Recibe las trazas del colector por OTLP (4317) y las guarda 7 días (SPEC R2).
+# La propagación W3C `traceparent` ya funciona de extremo a extremo: el E2E comprueba
+# que gateway e identity comparten trace_id y request_id.
+#
+# Referencias: observability/SPEC.md §3, observability-standards.md §3.
+server:
+  http_listen_port: 3200
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+# §3.3: búsqueda por atributos (service.name, rpc, pp.request_id…). No se indexan montos
+# ni datos personales: las trazas pueden llevarlos, los índices no.
+
+usage_report:
+  reporting_enabled: false
+

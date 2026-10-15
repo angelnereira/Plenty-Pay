@@ -17,6 +17,8 @@ Puertos 3900 (S3 API), 3903 (admin, interno). Red `data` (+ acceso público solo
 | `pp-backups` | postgres-db, nosql-db | privado, cifrado | política de respaldo |
 Una llave de acceso por contenedor con permisos solo sobre sus buckets.
 
+> **Limitación conocida (2026-10-14)**: Garage v2.4 no permite conceder "escritura sin borrado" a nivel de llave (`DeleteObject` es una operación de escritura). La retención *sin borrado* de `pp-fiscal` queda pendiente de resolver en F13 (política en el contenedor dueño o job de retención); documentado en `object-storage/README.md`.
+
 ## 4. Reglas
 - **R1** Claves de objeto generadas por el servidor (`<tenant>/<año>/<uuid>.<ext>`); nunca nombres del usuario.
 - **R2** Subidas solo por URL prefirmada con tipo y tamaño máximo; verificación posterior (magic bytes + antivirus ClamAV como job en el contenedor dueño).

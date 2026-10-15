@@ -70,6 +70,7 @@ Cálculos intermedios en `i128`; el resultado vuelve a `i64` con `try_from`. Los
 ## 5. Errores
 - `thiserror` para errores de dominio (`enum LedgerError { Unbalanced, AccountNotFound, InsufficientFunds { .. }, ... }`).
 - Un único lugar (`grpc/errors.rs`) mapea a `tonic::Status` con `ErrorInfo.reason`.
+- Registro de fallos, trazas de pila (`Backtrace`) y OpenTelemetry según `observability-standards.md` §9–§15: `#[tracing::instrument(err)]` en casos de uso y adaptadores; prohibido `unwrap`/`expect`/`println!` fuera de pruebas.
 - Nunca `unwrap()` en código de producción; propagar con `?`.
 
 ## 6. Máquinas de estado

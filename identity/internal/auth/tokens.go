@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 // Dos secretos DISTINTOS para access y refresh: si uno se compromete, se rota sin invalidar el otro.
@@ -33,27 +34,37 @@ func NewTokenIssuer(accessSecret, refreshSecret string) (*TokenIssuer, error) {
 }
 
 type Claims struct {
-	UserID   string `json:"user_id"`
-	TenantID string `json:"tenant_id"`
-	Role     string `json:"role"`
+	UserID    string `json:"user_id"`
+	TenantID  string `json:"tenant_id"`
+	Role      string `json:"role"`
+	SessionID string `json:"session_id"`
+	// TokenID identifica la emision: dos tokens del mismo segundo serian
+	// identicos byte a byte sin el (claims iguales + misma firma). Impide que
+	// el refresh rotado parezca el anterior (R8).
+	TokenID string `json:"token_id"`
 	jwt.RegisteredClaims
 }
 
-func (t *TokenIssuer) IssueAccessToken(userID, tenantID, role string) (string, error) {
-	return t.sign(userID, tenantID, role, t.accessSecret, t.accessTTL)
+// IssueAccessToken emite el access token de una sesion (R9: lleva session_id).
+func (t *TokenIssuer) IssueAccessToken(sessionID, userID, tenantID, role string) (string, error) {
+	return t.sign(sessionID, userID, tenantID, role, t.accessSecret, t.accessTTL)
 }
 
-func (t *TokenIssuer) IssueRefreshToken(userID, tenantID, role string) (string, error) {
-	return t.sign(userID, tenantID, role, t.refreshSecret, t.refreshTTL)
+// IssueRefreshToken emite el refresh token de una sesion.
+func (t *TokenIssuer) IssueRefreshToken(sessionID, userID, tenantID, role string) (string, error) {
+	return t.sign(sessionID, userID, tenantID, role, t.refreshSecret, t.refreshTTL)
 }
 
-func (t *TokenIssuer) sign(userID, tenantID, role string, secret []byte, ttl time.Duration) (string, error) {
+func (t *TokenIssuer) sign(sessionID, userID, tenantID, role string, secret []byte, ttl time.Duration) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID:   userID,
-		TenantID: tenantID,
-		Role:     role,
+		UserID:    userID,
+		TenantID:  tenantID,
+		Role:      role,
+		SessionID: sessionID,
+		TokenID:   uuid.NewString(),
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        sessionID,
 			Subject:   userID,
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(now),

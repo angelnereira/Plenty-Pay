@@ -35,5 +35,17 @@
   "modulePayroll": "Team",
   "moduleAnalytics": "Analytics",
   "moduleAdmin": "My business",
-  "modulePlatform": "Platform"
+  "modulePlatform": "Platform",
+  "passwordHelperRegister": "Use at least 12 characters.",
+  "passwordHelperRegisterOk": "Valid length.",
+  "consentAge": "I am 18 or older.",
+  "consentTerms": "I accept the Terms and Conditions.",
+  "consentPrivacy": "I have read the Privacy Policy and authorize the processing of my data to create and operate my account.",
+  "consentMarketing": "I want to receive news and offers.",
+  "registerDataNotice": "We process your data according to our Privacy Policy.",
+  "error_EMAIL_TAKEN": "An account with this email already exists.",
+  "error_WEAK_PASSWORD": "Choose a less common password.",
+  "error_INVALID_EMAIL": "Enter a valid email address.",
+  "error_CONSENT_REQUIRED": "You must accept the Terms and Conditions and the Privacy Policy.",
+  "error_AGE_REQUIREMENT": "You must confirm that you are at least 18 years old."
 }

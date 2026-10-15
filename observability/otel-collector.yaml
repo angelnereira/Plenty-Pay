@@ -1,0 +1,86 @@
+# OpenTelemetry Collector (contrib 0.162.0) — configuración como código (F04.1).
+# Recibe OTLP de todos los contenedores (4317 gRPC / 4318 HTTP), aplica *tail sampling*
+# (100 % de trazas con error o latencia alta, 10 % del resto — observability-standards.md §3.4)
+# y exporta métricas a Prometheus y trazas a Tempo. Los logs los recoge Alloy (F04.2):
+# esta versión del colector no trae exportador `loki`.
+#
+# Referencias: docs/standards/observability-standards.md §3, §5; observability/SPEC.md §3.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Lotes acotados: si el exportador se atasca, el buffer crece y se descarta (nunca bloquea el servicio).
+  batch:
+    timeout: 5s
+    send_batch_size: 8192
+
+  # Entorno de despliegue en cada span, para poder separar local/staging/prod en Tempo.
+  resource:
+    attributes:
+      - key: deployment.environment.name
+        value: ${env:DEPLOY_ENV}
+        action: upsert
+
+  # Muestreo de cola (§3.4). `decision_wait` obliga a esperar a que el span termine para decidir.
+  tail_sampling:
+    decision_wait: 5s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      # 100 % de las trazas con error.
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      # 100 % de las trazas lentas (p99 aproximado).
+      - name: slow
+        type: latency
+        latency:
+          threshold_ms: 1000
+      # 10 % del resto.
+      - name: rest
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+exporters:
+  # Trazas → Tempo (F04.3).
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 10s
+      max_elapsed_time: 60s
+
+  # Métricas → Prometheus (F04.1). El colector expone :8889 en la red interna.
+  # SIN `namespace`: las series ya nacen con el prefijo `pp_` (§2) y un namespace las duplicaría.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, tail_sampling]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]

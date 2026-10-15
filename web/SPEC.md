@@ -17,4 +17,4 @@ Go · puerto 8081 (publicado) · admin 9100 · sin base de datos · Fase F22 (es
 `WEB_HTTP_ADDR` (`:8081`), `GATEWAY_PUBLIC_URL`, `GATEWAY_INTERNAL_ADDR`, `ANDROID_APP_FINGERPRINTS`, `APPLE_TEAM_ID`, `MEDIA_BUCKET_URL`.
 
 ## 5. Plan
-F02.8 servidor estático + bundle Flutter Web → F18.6 seguimiento público → F22.3 deep links (`.well-known`) → F23.5 enlaces de pago `/t/<code>`.
+F02.8 servidor estático + bundle Flutter Web (✅ hecho: `internal/server`, `internal/config`, `internal/observability`; verificado en Docker Compose en `:8081` con bundle Flutter Web) → F18.6 seguimiento público → F22.3 deep links (`.well-known`) → F23.5 enlaces de pago `/t/<code>`.

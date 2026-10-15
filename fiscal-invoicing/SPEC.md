@@ -59,6 +59,7 @@ CREATE TABLE fiscal.taxpayers (id uuid PRIMARY KEY, tenant_id uuid NOT NULL, kin
 | UpsertTaxpayer / SearchTaxpayers | `fiscal:issue` | sí / — | contribuyentes frecuentes del tenant | `INVALID_RUC` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-04 a N-FIS-11, N-FIS-14 y N-FIS-15. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Totales: `Σ line.total = subtotal + tax` exacto; cada `tax_minor = half_up(base_línea, tax_rate_bps)`; tasas ITBMS permitidas 0, 700, 1000, 1500 bps (validar contra catálogo DGI vigente — Q-11).
 - **R2** Numeración consecutiva sin huecos por `(tenant, doc_type, punto de facturación)`; un número asignado nunca se reutiliza (un rechazo conserva su número y se reemite con nota según normativa — Q-11).
 - **R3** Envío al PAC fuera de la transacción de BD; reintentos con backoff hasta 24 h; pendiente > 1 h → alerta; el plazo legal de transmisión se respeta (Q-11).

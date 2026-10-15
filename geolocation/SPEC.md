@@ -21,16 +21,17 @@ CREATE TABLE geo.subject_fence_state (subject_id text, geofence_id uuid, inside 
 Scylla: `geo_tracks.points ((tenant_id, subject_id, day), recorded_at) WITH default_time_to_live = 7776000` (90 días).
 
 ## 4. RPCs
-| RPC | Llamador / permiso | Comportamiento |
-|---|---|---|
-| IngestLocations (stream) | gateway (`logistics:deliver` o `payroll:attendance:record`) | lotes ≤ 100 pings; descarta precisión > 100 m y saltos imposibles (> 70 m/s); actualiza última posición; detecta cruces de geocerca |
-| GetLastLocation / GetTrack | logistics, payroll, gateway (`logistics:read`) | track por rango ≤ 24 h |
-| WatchSubject (stream) | gateway / logistics | emite cada nueva ubicación aceptada |
-| FindNearby | logistics | sujetos del tenant dentro de radio, ordenados por distancia, solo activos en últimos 5 min |
-| IsInside | payroll, logistics | punto dentro de geocerca (con tolerancia = precisión reportada) |
-| UpsertGeofence / ListGeofences / DeleteGeofence | `logistics:geofence:manage` | círculo (centro+radio 20 m–50 km) o polígono ≤ 200 vértices |
+| RPC | Llamador / permiso | Comportamiento | Errores (`reason`) |
+|---|---|---|---|
+| IngestLocations (stream) | gateway (`logistics:deliver` o `payroll:attendance:record`) | lotes ≤ 100 pings; descarta precisión > 100 m y saltos imposibles (> 70 m/s); actualiza última posición; detecta cruces de geocerca | `INVALID_SUBJECT`, `SUBJECT_NOT_ACTIVE`, `BATCH_TOO_LARGE`, `IDEMPOTENCY_KEY_REUSED` |
+| GetLastLocation / GetTrack | logistics, payroll, gateway (`logistics:read`) | track por rango ≤ 24 h | `NOT_FOUND`, `RANGE_TOO_LARGE` |
+| WatchSubject (stream) | gateway / logistics | emite cada nueva ubicación aceptada | `NOT_FOUND` |
+| FindNearby | logistics | sujetos del tenant dentro de radio, ordenados por distancia, solo activos en últimos 5 min | — |
+| IsInside | payroll, logistics | punto dentro de geocerca (con tolerancia = precisión reportada) | `NOT_FOUND` |
+| UpsertGeofence / ListGeofences / DeleteGeofence | `logistics:geofence:manage` | círculo (centro+radio 20 m–50 km) o polígono ≤ 200 vértices | `INVALID_RADIUS`, `INVALID_POLYGON`, `GEOFENCE_IN_USE`, `NOT_FOUND` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LOG-06. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** `subject_id` = `user:<uuid>` o `device:<uuid>`; siempre con tenant.
 - **R2** Retención: series 90 días (TTL); última posición se borra 30 días sin actualización.
 - **R3** Cruce de geocerca: cambio de estado inside/outside con histéresis de 2 pings consecutivos → `GeofenceCrossed`.

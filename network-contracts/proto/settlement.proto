@@ -46,7 +46,8 @@ message PayoutSchedule {
   string payout_destination_ref = 6;       // referencia cifrada en `security` (nunca el número en claro)
 }
 message GetPayoutScheduleRequest { string tenant_id = 1; }
-message SetPayoutScheduleRequest { PayoutSchedule schedule = 1; string step_up_token = 2; }
+message SetPayoutScheduleRequest { PayoutSchedule schedule = 1; string step_up_token = 2; 
+  string idempotency_key = 3;}
 
 message SettlementBatch {
   string batch_id = 1;
@@ -74,8 +75,10 @@ message ListBatchesRequest {
   plentypay.common.v1.PageRequest page = 3;
 }
 message ListBatchesResponse { repeated SettlementBatch batches = 1; plentypay.common.v1.PageInfo page = 2; }
-message ConfirmPayoutRequest { string batch_id = 1; string payout_external_ref = 2; }
-message FailPayoutRequest { string batch_id = 1; string reason = 2; }
+message ConfirmPayoutRequest { string batch_id = 1; string payout_external_ref = 2; 
+  string idempotency_key = 3;}
+message FailPayoutRequest { string batch_id = 1; string reason = 2; 
+  string idempotency_key = 3;}
 
 message StatementLine {
   string external_ref = 1;
@@ -118,7 +121,8 @@ message ReconciliationReport {
 message GetReconciliationReportRequest { string report_id = 1; }
 message ListReconciliationExceptionsRequest { plentypay.common.v1.PageRequest page = 1; }
 message ListReconciliationExceptionsResponse { repeated ReconciliationItem items = 1; plentypay.common.v1.PageInfo page = 2; }
-message ResolveExceptionRequest { string item_id = 1; string note = 2; string adjustment_transaction_id = 3; }
+message ResolveExceptionRequest { string item_id = 1; string note = 2; string adjustment_transaction_id = 3; 
+  string idempotency_key = 4;}
 
 // ── Eventos. Subject: pp.settlement.<entidad>.<hecho>.v1 ──
 message BatchPaid { string batch_id = 1; string tenant_id = 2; plentypay.common.v1.Money net_payout = 3; }

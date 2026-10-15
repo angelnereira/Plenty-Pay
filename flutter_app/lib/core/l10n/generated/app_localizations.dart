@@ -314,6 +314,78 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Plataforma'**
   String get modulePlatform;
+
+  /// No description provided for @passwordHelperRegister.
+  ///
+  /// In es, this message translates to:
+  /// **'Usa al menos 12 caracteres.'**
+  String get passwordHelperRegister;
+
+  /// No description provided for @passwordHelperRegisterOk.
+  ///
+  /// In es, this message translates to:
+  /// **'Longitud válida.'**
+  String get passwordHelperRegisterOk;
+
+  /// No description provided for @consentAge.
+  ///
+  /// In es, this message translates to:
+  /// **'Tengo 18 años o más.'**
+  String get consentAge;
+
+  /// No description provided for @consentTerms.
+  ///
+  /// In es, this message translates to:
+  /// **'Acepto los Términos y condiciones.'**
+  String get consentTerms;
+
+  /// No description provided for @consentPrivacy.
+  ///
+  /// In es, this message translates to:
+  /// **'He leído la Política de privacidad y autorizo el tratamiento de mis datos para crear y operar mi cuenta.'**
+  String get consentPrivacy;
+
+  /// No description provided for @consentMarketing.
+  ///
+  /// In es, this message translates to:
+  /// **'Quiero recibir novedades y ofertas.'**
+  String get consentMarketing;
+
+  /// No description provided for @registerDataNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'Tratamos tus datos según nuestra Política de privacidad.'**
+  String get registerDataNotice;
+
+  /// No description provided for @error_EMAIL_TAKEN.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya existe una cuenta con este correo.'**
+  String get error_EMAIL_TAKEN;
+
+  /// No description provided for @error_WEAK_PASSWORD.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige una contraseña menos común.'**
+  String get error_WEAK_PASSWORD;
+
+  /// No description provided for @error_INVALID_EMAIL.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe un correo válido.'**
+  String get error_INVALID_EMAIL;
+
+  /// No description provided for @error_CONSENT_REQUIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Debes aceptar los Términos y condiciones y la Política de privacidad.'**
+  String get error_CONSENT_REQUIRED;
+
+  /// No description provided for @error_AGE_REQUIREMENT.
+  ///
+  /// In es, this message translates to:
+  /// **'Debes confirmar que tienes al menos 18 años.'**
+  String get error_AGE_REQUIREMENT;
 }
 
 class _AppLocalizationsDelegate

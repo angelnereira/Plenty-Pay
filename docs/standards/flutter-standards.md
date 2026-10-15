@@ -70,6 +70,7 @@ Usar `AsyncValue` de Riverpod con un widget común `AsyncView`.
 2. Cabeceras: `Authorization: Bearer`, `X-Request-Id` (UUIDv7 por acción), `Idempotency-Key` en toda mutación de dinero/estado (se genera al **iniciar la acción del usuario** y se reutiliza en reintentos de esa misma acción), `Accept-Language`.
 3. 401 → un solo intento de refresh (con candado para evitar refresh concurrentes) → si falla, cerrar sesión y llevar a login.
 4. Errores del gateway `{"error","reason"}` → `ApiException(reason)`; la UI traduce `reason` con ARB (`error_INSUFFICIENT_FUNDS`). Reason desconocido → mensaje genérico + request_id visible para soporte.
+   Captura global de errores, `AppLogger`, migas y envío de telemetría: `observability-standards.md` §13 (obligatorio en toda pantalla y repositorio).
 5. Timeouts: conexión 10 s, recepción 30 s; pagos esperan resultado por WebSocket o sondeo, no por una petición larga.
 
 ## 6. Sesión, permisos y navegación dinámica

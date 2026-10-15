@@ -65,9 +65,11 @@ message Delivery {
   string package_code = 16;                     // código impreso/QR del paquete que se escanea en cada checkpoint
 }
 message CreateDeliveryRequest { string idempotency_key = 1; plentypay.common.v1.Reference source = 2; plentypay.common.v1.Address pickup = 3; plentypay.common.v1.Address dropoff = 4; string recipient_name = 5; string recipient_phone = 6; }
-message AssignDeliveryRequest { string delivery_id = 1; string driver_id = 2; string carrier_id = 3; }
+message AssignDeliveryRequest { string delivery_id = 1; string driver_id = 2; string carrier_id = 3; 
+  string idempotency_key = 4;}
 message RecordCheckpointRequest { string delivery_id = 1; DeliveryStatus status = 2; plentypay.common.v1.GeoPoint point = 3; string scanned_code = 4; string note = 5; string proof_object_key = 6; string idempotency_key = 7; }
-message CancelDeliveryRequest { string delivery_id = 1; string reason = 2; }
+message CancelDeliveryRequest { string delivery_id = 1; string reason = 2; 
+  string idempotency_key = 3;}
 message GetDeliveryRequest { string delivery_id = 1; }
 message ListDeliveriesRequest { DeliveryStatus status = 1; string driver_id = 2; plentypay.common.v1.TimeRange range = 3; plentypay.common.v1.PageRequest page = 4; }
 message ListMyDeliveriesRequest { DeliveryStatus status = 1; }

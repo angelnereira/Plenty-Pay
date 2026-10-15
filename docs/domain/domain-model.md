@@ -15,7 +15,7 @@ Fuente de verdad de **las reglas de negocio transversales**: quién es quién, c
 | Inventario | inventory | Warehouse, StockLevel, StockMovement, Lot, Reservation, PurchaseOrder, Supplier |
 | Pedidos | orders | Cart, Order, SubOrder |
 | Punto de venta | pos | Register, CashSession, Sale (+Lines, Tenders), CashMovement, CustomerAccount (crédito de la casa: detalle) |
-| Logística | logistics | Delivery, Courier, DeliveryAttempt, TrackingLink |
+| Logística | logistics | Delivery, Carrier (transportista), Driver (repartidor), DeliveryAttempt, TrackingLink |
 | Geolocalización | geolocation | Subject location, Geofence |
 | Nómina | payroll | Employee, Shift, AttendanceRecord, PayrollRun, Payslip |
 | Notificaciones | notifications | Template, Message, InboxItem, ChannelPreference |
@@ -26,6 +26,8 @@ Fuente de verdad de **las reglas de negocio transversales**: quién es quién, c
 Un agregado tiene **un** dueño. Otros contenedores guardan como mucho una **instantánea** (copia con fecha) o una referencia por id.
 
 ## 2. Glosario
+Términos de negocio esenciales. El glosario completo del proyecto (tipos, enums, permisos, `reason`, eventos, variables y constantes) está en [`../glossary.md`](../glossary.md).
+
 - **Party**: quien puede tener cuentas en el ledger. `user_id` (persona), `tenant_id` (comercio) o **PLATFORM** = `00000000-0000-0000-0000-000000000001` (PlentyPay).
 - **Tenant**: comercio (negocio). Puede tener varias sucursales (`branch_id`) y bodegas.
 - **Riel (rail)**: medio de pago externo o interno (`common.PaymentRail`): WALLET, YAPPY, TELERED_CLAVE, CARD, APPLE_PAY, GOOGLE_PAY, QR_INTEROP, CASH.
@@ -250,8 +252,14 @@ PENDING_REVIEW → ACTIVE | REJECTED; ACTIVE ↔ SUSPENDED; REJECTED → PENDING
 `payment`, `payment_intent`, `refund`, `sale`, `order`, `sub_order`, `invoice`, `settlement_batch`, `payroll_run`, `payslip`, `delivery`, `purchase_order`, `transfer`, `topup`, `terminal`, `cash_session`, `stock_movement`. Ningún otro valor sin actualizar esta lista.
 
 ## 10. Reglas transversales
-1. Moneda base **USD** (el Balboa B/. es paritario 1:1; se muestra "$" o "B/." según preferencia del tenant). Multimoneda real fuera del MVP; el modelo ya la soporta (cuenta por moneda, I1 por moneda).
+1. Moneda base **USD** (el Balboa B/. es paritario 1:1; se muestra "$" o "B/." según preferencia del tenant). Multimoneda real fuera del MVP; el modelo ya la soporta (cuenta por moneda, I1 por moneda). El número de decimales de cada moneda sale de la tabla ISO 4217 (USD y PAB: 2), nunca se asume (`docs/compliance/international-standards.md` N-STD-02).
 2. Fechas de negocio y cortes (cierre de caja, liquidación diaria, quincenas) en `America/Panama` (UTC−5, sin horario de verano).
 3. Montos máximos por defecto: cobro único ≤ 10 000.00 USD; wallet de persona ≤ 5 000.00 USD de saldo (límites regulatorios a confirmar con SBP, Q-01); configurables en infra-management.
 4. Precios en catálogo **incluyen** ITBMS por defecto (`tax_included=true`); el detalle de impuesto por línea lo calcula pos/orders con `half_up` por línea y lo envía a fiscal.
 5. Cantidades de inventario en milésimas (`*_milli`) para productos a granel.
+
+## 11. Reglas normativas
+Las leyes de Panamá y los estándares internacionales que modelan estas reglas están en `docs/compliance/regulatory-framework.md`: cada norma produce reglas `N-<área>-<nn>` con contenedor responsable. Tres consecuencias para el dominio:
+1. **Valores legales con vigencia**: tasas, topes y plazos legales son parámetros `legal.pa.*` de infra-management con `effective_from`; el cálculo usa el vigente en la fecha del hecho (fecha de la venta, período de nómina).
+2. **Nivel de verificación del usuario** (`KYC_0`, `KYC_1`, `KYC_2`): sin `KYC_1` no hay billetera con dinero real; cada nivel tiene sus límites (N-AML-02, N-AML-03).
+3. **Descuento legal** (jubilados, tercera edad, personas con discapacidad): es un tipo de descuento distinto del comercial, no requiere permiso de descuento, exige documento del beneficiario y no se acumula con promociones (N-CON-04 a N-CON-06).

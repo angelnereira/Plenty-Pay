@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -14,21 +14,39 @@ import (
 
 	"plentypay/api-gateway/internal/client"
 	"plentypay/api-gateway/internal/handlers"
+	"plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/middleware"
 	"plentypay/api-gateway/internal/observability"
+	"plentypay/api-gateway/internal/routes"
 )
 
 // version se inyecta en el build (-ldflags "-X main.version=...").
-var version = "dev"
+var (
+	version = "dev"
+	commit  = "none"
+)
 
 // Tope del apagado ordenado (go-standards.md §3.10).
 const shutdownTimeout = 25 * time.Second
+
+const serviceName = "api-gateway"
 
 func envOr(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return def
+}
+
+// rutasConHandlerPropio son las que necesitan moldeado especial del request o de
+// la respuesta (R2: el registro fuerza CUSTOMER; R2b: fija channel/device). El
+// resto de la tabla se sirve con el handler genérico (F09.3).
+var rutasConHandlerPropio = map[string]bool{
+	"POST /v1/auth/login":    true,
+	"POST /v1/auth/register": true,
+	"POST /v1/auth/refresh":  true,
+	"GET /v1/me":             true,
+	"GET /v1/me/permissions": true,
 }
 
 func newMux(identity *client.IdentityClient) *http.ServeMux {
@@ -39,22 +57,45 @@ func newMux(identity *client.IdentityClient) *http.ServeMux {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	// Públicas
+	// Públicas con moldeado propio
 	mux.HandleFunc("POST /v1/auth/login", h.Login)
 	mux.HandleFunc("POST /v1/auth/register", h.Register)
 	mux.HandleFunc("POST /v1/auth/refresh", h.Refresh)
-	// Protegidas: toda ruta nueva se envuelve con `auth` (catálogo completo en api-gateway/SPEC.md §4)
+	// Protegidas con moldeado propio
 	mux.Handle("GET /v1/me", auth(http.HandlerFunc(h.Me)))
 	mux.Handle("GET /v1/me/permissions", auth(http.HandlerFunc(h.Permissions)))
+
+	// Resto de la tabla declarativa: una fila = una ruta, sin código por endpoint.
+	for _, r := range routes.Table {
+		if rutasConHandlerPropio[r.Method+" "+r.Path] {
+			continue
+		}
+		var handler http.Handler = routes.Handler(identity.Conn(), r)
+		if r.RequireAuth {
+			handler = auth(handler)
+		}
+		mux.Handle(r.Method+" "+r.Path, handler)
+	}
 	return mux
 }
 
 func main() {
+	logger := observability.NewLogger(os.Stdout, serviceName, version, observability.ParseLevel(os.Getenv("LOG_LEVEL")))
+	slog.SetDefault(logger)
+	metrics := observability.NewMetrics(serviceName, version, commit)
+	reporter := observability.NewReporter(logger, serviceName, metrics)
+	ctx := context.Background()
+	// fatal registra el fallo de arranque con su pila y termina: sin esto el proceso no puede servir.
+	fatal := func(msg string, err error) {
+		reporter.Defect(ctx, msg, observability.Wrap(err, "startup"))
+		os.Exit(1)
+	}
+
 	adminPort := envOr("ADMIN_PORT", "9100")
 	// Subcomando para el healthcheck de Compose/Kubernetes (imagen distroless, sin shell ni curl).
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		if err := observability.Healthcheck(context.Background(), "http://127.0.0.1:"+adminPort); err != nil {
-			log.Printf("healthcheck: %v", err)
+			logger.Warn("healthcheck failed", "err", err.Error())
 			os.Exit(1)
 		}
 		return
@@ -62,9 +103,13 @@ func main() {
 
 	port := envOr("PORT", "8080")
 	identityTarget := envOr("IDENTITY_SERVICE_URL", "identity:50060")
-	identity, err := client.NewIdentityClient(identityTarget)
+	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
 	if err != nil {
-		log.Fatalf("no se pudo configurar el cliente de identity (%s): %v", identityTarget, err)
+		fatal("tracing setup failed", err)
+	}
+	identity, err := client.NewIdentityClient(identityTarget, reporter)
+	if err != nil {
+		fatal("identity client setup failed", err)
 	}
 	defer identity.Close()
 
@@ -73,21 +118,22 @@ func main() {
 	var ready atomic.Bool
 	adminLis, err := net.Listen("tcp", ":"+adminPort)
 	if err != nil {
-		log.Fatalf("no se pudo escuchar en el puerto admin :%s: %v", adminPort, err)
+		fatal("admin port listen failed", err)
 	}
-	adminSrv := observability.NewAdminServer(adminPort, &ready)
+	adminSrv := observability.NewAdminServer(adminPort, &ready, metrics)
 	go func() {
 		if err := adminSrv.Serve(adminLis); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("fallo del servidor admin: %v", err)
+			fatal("admin server failed", err)
 		}
 	}()
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("no se pudo escuchar en :%s: %v", port, err)
+		fatal("http port listen failed", err)
 	}
 	srv := &http.Server{
-		Handler:           newMux(identity),
+		// R5: las x-pp-* del cliente se descartan en el borde, antes de cualquier handler.
+		Handler:           metadata.StripInboundMiddleware(observability.HTTPMiddleware(logger, reporter, metrics)(newMux(identity))),
 		ReadHeaderTimeout: 5 * time.Second, // protege contra conexiones lentas (slowloris)
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -101,18 +147,19 @@ func main() {
 	go func() {
 		defer close(done)
 		<-stop
-		log.Print("api-gateway: apagado ordenado")
+		logger.Info("graceful shutdown started")
 		ready.Store(false)
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		sctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
-		_ = srv.Shutdown(ctx)
-		_ = adminSrv.Shutdown(ctx)
+		_ = srv.Shutdown(sctx)
+		_ = adminSrv.Shutdown(sctx)
+		_ = shutdownTracing(sctx) // vacía los spans pendientes antes de salir
 	}()
 
 	ready.Store(true)
-	log.Printf("api-gateway %s escuchando en :%s (admin :%s, identity en %s)", version, port, adminPort, identityTarget)
+	logger.Info("service started", "port", port, "admin_port", adminPort, "identity_target", identityTarget)
 	if err := srv.Serve(lis); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("fallo del servidor HTTP: %v", err)
+		fatal("http server failed", err)
 	}
 	<-done
 }

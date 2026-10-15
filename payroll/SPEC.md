@@ -35,25 +35,26 @@ CREATE TABLE payroll.payslips (id uuid PRIMARY KEY, run_id uuid NOT NULL, employ
 ```
 
 ## 4. RPCs
-| RPC | Permiso | Comportamiento clave |
-|---|---|---|
-| UpsertEmployee / GetEmployee / ListEmployees | `payroll:employee:manage` / `:read` | cédula → `security.Encrypt(national_id)`; nunca se devuelve completa |
-| UpsertShift / AssignSchedule / ListSchedule | `payroll:employee:manage` / `:read` | |
-| ClockEvent | `payroll:attendance:record` (propio) o sesión de quiosco | §5 R1–R4 |
-| ListAttendance | `payroll:attendance:read` o propio | |
-| EnrollBiometric | `payroll:employee:manage` + consentimiento del empleado | guarda embedding cifrado |
-| CreateKioskSession | `payroll:employee:manage` | token de dispositivo de 12 h renovable; solo permite ClockEvent |
-| CreatePayrollRun / GetPayrollRun / ListPayrollRuns | `payroll:run:create` / `:read` | calcula borrador §5 R5 |
-| ApprovePayrollRun | `payroll:run:approve` + step-up | DRAFT → APPROVED (inmutable) |
-| PayPayrollRun | `payroll:run:pay` + step-up | APPROVED → PAYING; un pago T10 por empleado vía payments-core (`payroll:<run>:<employee>`) |
-| GetPayslip | `payroll:payslip:read:self` o `payroll:employee:read` | PDF |
+| RPC | Permiso | Comportamiento clave | Errores (`reason`) |
+|---|---|---|---|
+| UpsertEmployee / GetEmployee / ListEmployees | `payroll:employee:manage` / `:read` | cédula → `security.Encrypt(national_id)`; nunca se devuelve completa | `BELOW_MINIMUM_WAGE`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| UpsertShift / AssignSchedule / ListSchedule | `payroll:employee:manage` / `:read` | | `NOT_FOUND` |
+| ClockEvent | `payroll:attendance:record` (propio) o sesión de quiosco | §5 R1–R4 | `INVALID_CLOCK_SEQUENCE`, `INVALID_PIN`, `OVERRIDE_REASON_REQUIRED`, `LOW_LIVENESS`, `BIOMETRIC_NOT_ENROLLED`, `KIOSK_SESSION_INVALID`, `CONSENT_REQUIRED`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED`, `RATE_LIMITED` |
+| ListAttendance | `payroll:attendance:read` o propio | | `NOT_FOUND` |
+| EnrollBiometric | `payroll:employee:manage` + consentimiento del empleado | guarda embedding cifrado | `CONSENT_REQUIRED`, `NOT_FOUND` |
+| CreateKioskSession | `payroll:employee:manage` | token de dispositivo de 12 h renovable; solo permite ClockEvent | `IDEMPOTENCY_KEY_REUSED` |
+| CreatePayrollRun / GetPayrollRun / ListPayrollRuns | `payroll:run:create` / `:read` | calcula borrador §5 R5 | `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| ApprovePayrollRun | `payroll:run:approve` + step-up | DRAFT → APPROVED (inmutable) | `CANNOT_APPROVE_OWN_RUN`, `PROFESSIONAL_RISK_RATE_MISSING`, `ATTENDANCE_NEEDS_REVIEW`, `STEP_UP_REQUIRED`, `INVALID_STATE_TRANSITION` |
+| PayPayrollRun | `payroll:run:pay` + step-up | APPROVED → PAYING; un pago T10 por empleado vía payments-core (`payroll:<run>:<employee>`) | `INVALID_STATE_TRANSITION`, `STEP_UP_REQUIRED`, `INSUFFICIENT_FUNDS`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| GetPayslip | `payroll:payslip:read:self` o `payroll:employee:read` | PDF | `NOT_FOUND` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LAB-01 a N-LAB-16 y N-DAT-04. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Marcaje biométrico: la comparación facial se hace **en el dispositivo** contra el embedding descargado cifrado para ese quiosco/usuario; el servidor recibe método + resultado + prueba de vida firmada por la app; nunca la foto (salvo disputa, 30 días).
 - **R2** QR dinámico: código rotativo cada 30 s (TOTP con secreto del quiosco) que el empleado escanea con su app; NFC: tag NDEF del quiosco con el mismo contenido firmado.
 - **R3** Si el empleado tiene geocerca, `IsInside` debe ser verdadero; si no → marcaje aceptado con `needs_review=true`.
 - **R4** Secuencia válida IN → (BREAK_START → BREAK_END)* → OUT; duplicados en < 60 s se ignoran (idempotentes por `client_txn_id`); anulación de gerente exige motivo y queda auditada.
-- **R5** Cálculo (MVP, configurable por tenant): horas trabajadas por día según marcajes y turno; horas extra > 8 h/día o > 48 h/semana con recargo configurable (por defecto 25 %); salario fijo prorrateado por frecuencia; deducciones parametrizables (CSS, Seguro Educativo, ISR) con tasas en bps configurables — **valores legales vigentes por confirmar (Q-13)**; redondeo half-up por concepto; `net ≥ 0`.
+- **R5** Cálculo: horas trabajadas por día según marcajes y turno; cada turno se clasifica como diurno, nocturno o mixto (N-LAB-01) y las horas sobre la jornada máxima de su tipo son extraordinarias con recargo de 25 %, 50 % o 75 % (N-LAB-02); sobre 3 h extra al día o 9 a la semana el excedente lleva 75 % (N-LAB-03); décimo tercer mes y vacaciones como tipos de corrida (N-LAB-05, N-LAB-06); salario fijo prorrateado por frecuencia; deducciones y aportes (CSS, Seguro Educativo, riesgos profesionales, ISR) con las tasas `legal.pa.*` vigentes en el período (N-LAB-07 a N-LAB-11) — **valores marcados ◐ o ⚠ por confirmar (Q-13)**; redondeo half-up por concepto; `net ≥ 0`.
 - **R6** Pago: saldo de wallet del tenant ≥ Σ netos (si no → `INSUFFICIENT_FUNDS` antes de empezar); fallos individuales → PARTIALLY_FAILED con reintento solo de los fallidos.
 - **R7** Comprobante PDF por empleado y notificación.
 - **R8** Modo offline del quiosco: marcajes guardados localmente y sincronizados con `client_txn_id`.

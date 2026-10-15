@@ -1,0 +1,23 @@
+# PlentyPay — configuración de Garage (F07.8)
+# SPEC: object-storage/SPEC.md
+#
+# Sin secretos: rpc_secret y admin_token se inyectan por entorno desde Docker Compose
+# (variables GARAGE_RPC_SECRET / GARAGE_ADMIN_TOKEN, que Garage prioriza sobre el toml).
+
+# Datos y metadatos persistentes (volumen garage-data en Compose).
+data_dir = "/var/lib/garage/data"
+metadata_dir = "/var/lib/garage/meta"
+
+# Compose: 1 nodo, 1 réplica, 1 zona. Producción (F27): 3 nodos, RF=3, 3 zonas (SPEC §4 R3).
+replication_factor = 1
+
+# RPC entre nodos del clúster (no publicado al host).
+rpc_bind_addr = "0.0.0.0:3901"
+
+[s3_api]
+api_bind_addr = "0.0.0.0:3900"
+# Región reportada a los clientes S3 (aws-sdk exige una región cualquiera).
+s3_region = "garage"
+
+[admin]
+api_bind_addr = "0.0.0.0:3903"

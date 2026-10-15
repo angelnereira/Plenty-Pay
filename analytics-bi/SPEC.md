@@ -13,18 +13,19 @@ Go · 50072 · `analytics.proto` · PostgreSQL esquema `analytics` (agregados) +
 Agregados particionados por mes; todo con `tenant_id` + RLS.
 
 ## 4. RPCs
-| RPC | Permiso | Comportamiento |
-|---|---|---|
-| ListMetrics / QueryMetric | `analytics:read` | métricas del catálogo (§5 R2) por rango, granularidad (día/semana/mes), dimensiones (sucursal, canal, categoría) |
-| GetForecast | `analytics:read` | §5 R4 |
-| ListSegments | `analytics:read` | §5 R5 |
-| GetProductAbc | `analytics:read` | clasificación ABC por ingresos (80/15/5) |
-| UpsertDashboard / ListDashboards / GetDashboard | `analytics:dashboard:manage` / `analytics:read` | widgets = consultas del catálogo |
-| UpsertAlertRule / ListAlertRules / ListAlertEvents | `analytics:alert:manage` / `analytics:read` | umbral fijo o anomalía (§5 R3) |
-| CreateExport / GetExport | `analytics:export` | CSV/XLSX asíncrono a object-storage, enlace 24 h |
-| **AskQuestion** *(agregar al .proto en F21.8)* | `analytics:read` | §5 R6 |
+| RPC | Permiso | Comportamiento | Errores (`reason`) |
+|---|---|---|---|
+| ListMetrics / QueryMetric | `analytics:read` | métricas del catálogo (§5 R2) por rango, granularidad (día/semana/mes), dimensiones (sucursal, canal, categoría) | `METRIC_NOT_FOUND` |
+| GetForecast | `analytics:read` | §5 R4 | `METRIC_NOT_FOUND` |
+| ListSegments | `analytics:read` | §5 R5 | — |
+| GetProductAbc | `analytics:read` | clasificación ABC por ingresos (80/15/5) | — |
+| UpsertDashboard / ListDashboards / GetDashboard | `analytics:dashboard:manage` / `analytics:read` | widgets = consultas del catálogo | `METRIC_NOT_FOUND`, `NOT_FOUND` |
+| UpsertAlertRule / ListAlertRules / ListAlertEvents | `analytics:alert:manage` / `analytics:read` | umbral fijo o anomalía (§5 R3) | `METRIC_NOT_FOUND` |
+| CreateExport / GetExport | `analytics:export` | CSV/XLSX asíncrono a object-storage, enlace 24 h | `IDEMPOTENCY_KEY_REUSED`, `NOT_FOUND` |
+| **AskQuestion** | `analytics:read` | §5 R6 | `QUESTION_NOT_UNDERSTOOD` |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-11, N-FIS-12 y N-COM-03. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Consumidores idempotentes de todos los eventos de negocio (`events-and-messaging.md` §7); los agregados se recalculan desde eventos crudos si cambia una definición (`backfill` por tenant/rango).
 - **R2** Catálogo de métricas (definición exacta en `analytics/metrics.yaml`, versionado): `gross_sales`, `net_sales` (tras reembolsos), `orders_count`, `avg_ticket`, `items_sold`, `refund_rate`, `top_products`, `gross_margin` (si hay costo), `new_vs_returning_customers`, `payment_mix_by_rail`, `settlement_paid`, `fees_paid`.
 - **R3** Anomalías: por métrica diaria, z-score robusto (mediana y MAD de 28 días, estacionalidad semanal); |z| > 3.5 → `alert_event`; máximo 1 alerta/métrica/día; notificación vía notifications (evento a definir `pp.analytics.alert.triggered.v1` en F21.6).

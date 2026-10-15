@@ -70,7 +70,8 @@ message Taxpayer {
   string email = 6;
   plentypay.common.v1.Address address = 7;
 }
-message UpsertTaxpayerRequest { Taxpayer taxpayer = 1; }
+message UpsertTaxpayerRequest { Taxpayer taxpayer = 1; 
+  string idempotency_key = 2;}
 message SearchTaxpayersRequest { string query = 1; plentypay.common.v1.PageRequest page = 2; }
 message SearchTaxpayersResponse { repeated Taxpayer taxpayers = 1; plentypay.common.v1.PageInfo page = 2; }
 
@@ -90,6 +91,8 @@ message IssueInvoiceRequest {
   plentypay.common.v1.Reference source = 4;
   string currency = 5;
   map<string, string> metadata = 6;
+  // Forma(s) de pago DGI por tender, una por medio aplicado (SPEC §3 payment_methods).
+  repeated string payment_methods = 7;
 }
 message IssueNoteRequest {
   string idempotency_key = 1;
@@ -134,8 +137,10 @@ message FiscalProfile {
   int64 auto_threshold_minor = 6;
   string branch_code = 7;
   string point_of_sale_code = 8;
+  string pac_provider = 9; // adaptador PAC elegido (R10: un trait por proveedor)
 }
-message ConfigureFiscalProfileRequest { FiscalProfile profile = 1; bytes pac_credentials = 2; bytes certificate_p12 = 3; string certificate_password = 4; string step_up_token = 5; } // los secretos se reenvían a `security` y no se persisten aquí
+message ConfigureFiscalProfileRequest { FiscalProfile profile = 1; bytes pac_credentials = 2; bytes certificate_p12 = 3; string certificate_password = 4; string step_up_token = 5; 
+  string idempotency_key = 6;} // los secretos se reenvían a `security` y no se persisten aquí
 message GetFiscalProfileRequest {}
 message GetFolioStatusRequest {}
 message FolioStatus { int64 remaining = 1; int64 low_watermark = 2; string current_range = 3; }

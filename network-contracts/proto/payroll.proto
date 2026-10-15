@@ -53,7 +53,8 @@ message Employee {
   plentypay.common.v1.Money hourly_rate = 10; // si el pago es por hora
   string geofence_id = 11;          // geocerca de marcaje (opcional)
 }
-message UpsertEmployeeRequest { Employee employee = 1; string national_id_plain = 2; } // la cédula en claro solo viaja para cifrarse; nunca se persiste ni se devuelve
+message UpsertEmployeeRequest { Employee employee = 1; string national_id_plain = 2; 
+  string idempotency_key = 3;} // la cédula en claro solo viaja para cifrarse; nunca se persiste ni se devuelve
 message GetEmployeeRequest { string employee_id = 1; }
 message ListEmployeesRequest { bool only_active = 1; plentypay.common.v1.PageRequest page = 2; }
 message ListEmployeesResponse { repeated Employee employees = 1; plentypay.common.v1.PageInfo page = 2; }
@@ -92,7 +93,8 @@ message ListAttendanceRequest { string employee_id = 1; plentypay.common.v1.Time
 message ListAttendanceResponse { repeated AttendanceRecord records = 1; plentypay.common.v1.PageInfo page = 2; }
 message EnrollBiometricRequest { string employee_id = 1; ClockMethod method = 2; bytes template = 3; bool consent_given = 4; }
 message EnrollBiometricResponse { bool enrolled = 1; }
-message CreateKioskSessionRequest { string label = 1; }
+message CreateKioskSessionRequest { string label = 1; 
+  string idempotency_key = 2;}
 message KioskSession { string kiosk_session_id = 1; string label = 2; string pairing_code = 3; google.protobuf.Timestamp expires_at = 4; }
 
 enum PayrollRunStatus {
@@ -125,10 +127,17 @@ message CreatePayrollRunRequest { plentypay.common.v1.TimeRange period = 1; stri
 message GetPayrollRunRequest { string payroll_run_id = 1; }
 message ListPayrollRunsRequest { PayrollRunStatus status = 1; plentypay.common.v1.PageRequest page = 2; }
 message ListPayrollRunsResponse { repeated PayrollRun runs = 1; plentypay.common.v1.PageInfo page = 2; }
-message ApprovePayrollRunRequest { string payroll_run_id = 1; string step_up_token = 2; }
+message ApprovePayrollRunRequest { string payroll_run_id = 1; string step_up_token = 2; 
+  string idempotency_key = 3;}
 message PayPayrollRunRequest { string payroll_run_id = 1; string idempotency_key = 2; string step_up_token = 3; }
 message GetPayslipRequest { string payroll_run_id = 1; string employee_id = 2; }
-message Payslip { PayrollItem item = 1; plentypay.common.v1.TimeRange period = 2; string employer_name = 3; }
+message Payslip {
+  PayrollItem item = 1;
+  plentypay.common.v1.TimeRange period = 2;
+  string employer_name = 3;
+  string pdf_object_key = 4;    // comprobante en object-storage (URL prefirmada la emite el gateway)
+  string pdf_url = 5;           // presente solo cuando el comprobante ya está generado
+}
 
 // ── Eventos. Subject: pp.payroll.<entidad>.<hecho>.v1 ──
 message PayrollRunPaid { string payroll_run_id = 1; string tenant_id = 2; plentypay.common.v1.Money total_net = 3; }

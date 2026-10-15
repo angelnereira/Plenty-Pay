@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/widgets/app_shell.dart';
 import '../modules/module_registry.dart';
 
 /// Shell con navegación dinámica (flutter-standards.md §6–§7, design-system.md §6 AppShell).
@@ -57,47 +58,20 @@ class _AppShellState extends State<AppShell> {
           );
         }
         final modules = visibleModules(snap.data!.modules);
-        final destinations = <({String label, IconData icon})>[
-          (label: l10n.navHome, icon: Icons.home_outlined),
-          for (final m in modules) (label: moduleLabel(l10n, m), icon: m.icon),
+        final destinations = <ShellDestination>[
+          ShellDestination(label: l10n.navHome, icon: Icons.home_outlined),
+          for (final m in modules) ShellDestination(label: moduleLabel(l10n, m), icon: m.icon),
         ];
         if (_index >= destinations.length) _index = 0;
         final body = _index == 0
             ? _HomePlaceholder(modules: modules, onSignOut: _signOut)
             : _ModulePlaceholder(module: modules[_index - 1]);
 
-        final width = MediaQuery.sizeOf(context).width;
-        if (width < 600) {
-          // Barra inferior: máximo 5 destinos; el resto se alcanza desde Inicio (F02.6 agrega "Más").
-          final visible = destinations.take(5).toList();
-          final selected = _index < visible.length ? _index : 0;
-          return Scaffold(
-            body: SafeArea(child: body),
-            bottomNavigationBar: visible.length < 2
-                ? null
-                : NavigationBar(
-                    selectedIndex: selected,
-                    onDestinationSelected: (i) => setState(() => _index = i),
-                    destinations: [
-                      for (final d in visible) NavigationDestination(icon: Icon(d.icon), label: d.label),
-                    ],
-                  ),
-          );
-        }
-        return Scaffold(
-          body: Row(children: [
-            NavigationRail(
-              extended: width > 1024,
-              selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
-              labelType: width > 1024 ? NavigationRailLabelType.none : NavigationRailLabelType.all,
-              destinations: [
-                for (final d in destinations) NavigationRailDestination(icon: Icon(d.icon), label: Text(d.label)),
-              ],
-            ),
-            VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
-            Expanded(child: body),
-          ]),
+        return AppShellScaffold(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: destinations,
+          body: body,
         );
       },
     );

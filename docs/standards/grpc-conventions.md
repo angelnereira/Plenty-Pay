@@ -61,7 +61,25 @@ Códigos gRPC estándar; detalle estructurado en `google.rpc.Status` con `ErrorI
 Los errores de **negocio esperables** (saldo insuficiente, sin stock) son `FAILED_PRECONDITION` con `reason` estable, nunca `INTERNAL`.
 *(Conformidad: `identity` hoy devuelve `success=false`+mensaje dentro de `AuthResult` en `Register/Login/RefreshToken` — contrato ya publicado que se mantiene; **todo RPC nuevo usa códigos gRPC**.)*
 
-Catálogo de `reason` transversales: `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID`, `INSUFFICIENT_FUNDS`, `OUT_OF_STOCK`, `INVALID_STATE_TRANSITION`, `FEES_EXCEED_AMOUNT`, `CURRENCY_MISMATCH`, `UNBALANCED_TRANSACTION`, `RAIL_UNAVAILABLE`, `RATE_LIMITED`, `MAINTENANCE_MODE`. Cada SPEC lista los suyos.
+Catálogo de `reason` transversales: `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID`, `INSUFFICIENT_FUNDS`, `OUT_OF_STOCK`, `INVALID_STATE_TRANSITION`, `AMOUNT_BELOW_FEES`, `CURRENCY_MISMATCH`, `UNBALANCED_TRANSACTION`, `RAIL_UNAVAILABLE`, `RATE_LIMITED`, `MAINTENANCE_MODE`. Cada SPEC lista los suyos; el catálogo completo, con dueño, está en `docs/glossary.md` §7.3.
+
+## 4.1 Anexo — `reason` por RPC (F03.5)
+
+Dónde buscar el detalle de cada RPC, para no duplicarlo aquí:
+
+| Dueño | Dónde están sus `reason` por RPC |
+|---|---|
+| identity, payments-core, settlement, fiscal-invoicing, orders, pos, ledger | columna *Errores (`reason`)* de la tabla §4 de su `SPEC.md` |
+| api-gateway | `api-gateway/SPEC.md` §3.11 y la tabla de rutas §4 |
+| catalog, inventory, logistics, geolocation, payroll, notifications, analytics-bi, security, infra-management | ídem (columna añadida el 2026-10-12, F03.5) |
+| **todos** | catálogo completo con dueño: `docs/glossary.md` §7.3 |
+
+Reglas para añadir uno:
+1. El nombre se decide con el SPEC abierto: si §5 ya nombra el fallo, se usa esa palabra.
+2. Se declara en la columna *Errores (`reason`)* de la fila del RPC **y** en la fila del contenedor de `docs/glossary.md` §7.3, en el mismo cambio (`scripts/check-docs.sh` comprueba las dos cosas).
+3. Si el fallo es transversal (recurso inexistente, estado inválido, clave de idempotencia reutilizada), **no** se declara como propio: se reutiliza el transversal.
+4. Un `reason` normativo (los de la fila *normativos* de §7.3) no se copia al contenedor: se cita desde la regla `N-…` que lo fija.
+5. Un fallo interno del servidor **nunca** lleva `reason` de negocio: es `INTERNAL` sin detalle al cliente.
 
 ## 5. Plazos, reintentos y resiliencia
 - Todo llamador fija **deadline** (3 s lecturas, 10 s escrituras, 30 s cuando cruza a un riel externo). Los servicios propagan el deadline restante, nunca lo amplían.
@@ -77,4 +95,4 @@ Catálogo de `reason` transversales: `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIV
 `network-contracts/consumers.txt` declara qué consume cada contenedor; `scripts/sync-protos.sh` genera (Go, un paquete `pb` por contenedor) o copia (Rust, `<contenedor>/proto/` + `tonic-build` en `build.rs`). El código generado **se commitea** y nunca se edita a mano.
 
 ## 8. Salud y administración
-Cada contenedor expone `grpc.health.v1.Health` en su puerto de servicio **y** un puerto de administración HTTP `:9100` (no publicado al host) con `/healthz` (vivo), `/readyz` (dependencias críticas OK) y `/metrics` (Prometheus) — `observability-standards.md`. Reflexión gRPC solo si `ENV != production`.
+Cada contenedor expone `grpc.health.v1.Health` en su puerto de servicio **y** un puerto de administración HTTP `:9100` (no publicado al host) con `/healthz/live` (vivo), `/healthz/ready` (dependencias críticas OK) y `/metrics` (Prometheus) — `observability-standards.md`. Reflexión gRPC solo si `ENV != production`.

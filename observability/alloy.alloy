@@ -1,0 +1,50 @@
+// Alloy — recolector de logs de los contenedores Docker (F04.2).
+// Lee el stdout de los contenedores de Compose y lo envía a Loki con las mismas
+// etiquetas que el colector (service, env, level), para que una búsqueda por
+// `request_id` devuelva los registros de gateway e identity juntos.
+//
+// Referencias: observability/SPEC.md §3, observability-standards.md §5.
+// El socket de Docker va montado en solo lectura; Alloy nunca escribe en él.
+
+
+logging {
+  level = "warn"
+}
+
+// Descubrimiento de los contenedores del proyecto Compose (label com.docker.compose.project).
+discovery.docker "plentypay" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Solo los contenedores del proyecto; se descarta el ruido de otros stacks.
+discovery.relabel "plentypay" {
+  targets = discovery.docker.plentypay.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "plentypay"
+    action        = "keep"
+  }
+
+  // El nombre del servicio sale de la etiqueta de Compose (identity, api-gateway…).
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "plentypay" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.plentypay.output
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

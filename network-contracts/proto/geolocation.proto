@@ -28,6 +28,8 @@ message LocationPing {
   float speed_mps = 4;
   float heading_degrees = 5;
   google.protobuf.Timestamp recorded_at = 6;
+
+  string idempotency_key = 7; // reintentar el stream no duplica posición ni cruce
 }
 message IngestSummary { int64 accepted = 1; int64 rejected = 2; }
 message SubjectLocation { SubjectRef subject = 1; plentypay.common.v1.GeoPoint point = 2; float accuracy_meters = 3; google.protobuf.Timestamp recorded_at = 4; }

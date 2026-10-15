@@ -5,11 +5,12 @@ Una sola app para Android, iOS, Linux, Windows, macOS y Web (ADR 0009). Habla **
 ## Estado
 | Aspecto | Estado | Evidencia |
 |---|---|---|
-| Código | 📝 base multiplataforma: proyectos nativos de las 6 plataformas, flavors dev/staging/prod, i18n `es_PA`/`en`, tema claro/oscuro con tokens, sesión segura, ApiClient con refresh único, login/registro, shell con navegación dinámica por `enabled_modules`, registro de 12 módulos | F02.3 |
-| Pruebas | L1: `flutter analyze` sin issues y `flutter test` 19/19 (flavors, i18n, registro de módulos) con Flutter 3.47.6 | 2026-10-10 |
+| Código | 📝 base multiplataforma: proyectos nativos de las 6 plataformas, flavors dev/staging/prod, i18n `es_PA`/`en`, tema claro/oscuro con tokens, sesión segura, ApiClient con refresh único, login (S-GEN-02) y registro (S-GEN-03) con los consentimientos de N-DAT-02/N-DAT-14, shell con navegación dinámica por `enabled_modules`, registro de 12 módulos | F02.3, F02.6 |
+| Pruebas | L1: `flutter analyze` sin issues y `flutter test` 71/71 (flavors, i18n, registro de módulos, observabilidad, pantalla de registro y consentimientos) con Flutter 3.47.6 | 2026-10-12 |
 | Compila | Web (`flutter build web`), Android (`flutter build apk --debug`) y Linux (`flutter build linux --release`, la app arranca) | 2026-10-10 |
 | No verificado | iOS/macOS requieren un Mac; Windows requiere Windows | — |
-| Builds en `output/` | 📋 | F02.7 |
+| Builds en `output/` | 📝 web, linux y android (split-per-abi + aab) generados y con checksum el 2026-10-12 (`scripts/build-release.sh`, APK ≤ 20,3 MB por ABI). Falta Windows, iOS/macOS y la firma | F02.7 |
+| Observabilidad | 📝 Implementado y probado 2026-10-12 (`core/observability/app_logger.dart`): las tres capturas globales, registro de error con pantalla, widget, pila y últimas 20 migas, enmascarado de datos sensibles, `X-Request-Id` (UUIDv7) y `traceparent` en cada petición, `ApiException.requestId`, cola acotada de 500 registros, lints `empty_catches` y `unawaited_futures` como error. **Falta**: envío al gateway (`POST /v1/telemetry` no existe), persistencia de la cola al cerrar la app, estado de red, métricas de rendimiento, símbolos de des-ofuscación y `ErrorState` por sección (depende de F02.4) | `flutter test` 30/30; F22.6 |
 
 Versión de Flutter fijada: **3.47.6** (estable), Dart ≥ 3.6.
 
@@ -52,6 +53,9 @@ ARB con `app_es.arb` como plantilla, `app_es_PA.arb` (variante de Panamá, hered
 
 ## Estructura
 `lib/core/` (config, api, l10n, session, theme) · `lib/features/<módulo>/` (data, domain, application, presentation — §3 del estándar). Hoy solo `auth`, `shell`, `modules`.
+
+## Consentimientos del registro (N-DAT-02, N-DAT-14)
+`lib/features/auth/legal_texts.dart` declara la **versión de cada texto legal** que la app envía al registrar una cuenta: la versión debe ser la del texto que la persona vio. Los textos aún no se publican (su pantalla S-PUB-03 es F25.4 y su contenido es un entregable legal, Q-08), por lo que hoy no se muestran enlaces a ellos (Q-27) y las versiones son las de los documentos que se publicarán en esa fase. Cuando exista `client-config` (F05.9) la versión la enviará el servidor y esta clase se reduce a leerla. Las finalidades viven en `lib/core/api/consents.dart`, espejo del `ConsentGrant` del contrato.
 
 ## Builds de release
 Ver `../output/README.md`.

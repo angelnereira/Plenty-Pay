@@ -195,7 +195,8 @@ message CaptureHoldResponse {
   Hold hold = 1;
   Transaction transaction = 2;
 }
-message ReleaseHoldRequest { string hold_id = 1; }
+message ReleaseHoldRequest { string hold_id = 1; 
+  string idempotency_key = 2;}
 message GetHoldRequest { string hold_id = 1; }
 
 // ── Eventos (outbox → bus). Subject: pp.ledger.<entidad>.<hecho>.v1 ──

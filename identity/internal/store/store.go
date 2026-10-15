@@ -2,24 +2,25 @@ package store
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/google/uuid"
+
+	"plentypay/identity/internal/domain"
 )
 
-// User tal como lo guarda identity. La contraseña SIEMPRE llega ya hasheada; este paquete nunca ve texto plano.
-type User struct {
-	ID           string
-	Email        string
-	PasswordHash string
-	FullName     string
-	Role         string // valor del enum UserRole del .proto, como string
-	TenantID     string
-}
+// Los tipos y errores del dominio viven en internal/domain (go-standards.md
+// seccion 2: el dominio no importa SQL ni gRPC). Estos alias mantienen la
+// superficie del paquete estable para el resto del codigo.
+type (
+	User          = domain.User
+	ConsentRecord = domain.ConsentRecord
+)
 
-var ErrUserNotFound = errors.New("usuario no encontrado")
-var ErrEmailTaken = errors.New("el correo ya está registrado")
+var (
+	ErrUserNotFound = domain.ErrUserNotFound
+	ErrEmailTaken   = domain.ErrEmailTaken
+)
 
 // UserStore es la interfaz que usa el servidor gRPC — nunca una base de datos concreta.
 // Hoy: implementación en memoria (desarrollo/pruebas). Fase 8 (identity/SPEC.md §12): implementación

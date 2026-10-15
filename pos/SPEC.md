@@ -70,6 +70,7 @@ CREATE TABLE pos.settings (tenant_id uuid PRIMARY KEY, receipt_footer text, tax_
 | GetPosSettings / UpdatePosSettings | `pos:sell` / `pos:settings:manage` | sí | | |
 
 ## 5. Reglas
+- **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-01, N-FIS-03, N-FIS-04, N-FIS-07, N-CON-01, N-CON-04, N-CON-05, N-CON-06, N-CON-11 y N-LOG-07. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Una sola sesión OPEN por caja; ventas solo dentro de una sesión abierta del cajero.
 - **R2** Totales: `total = Σ líneas (precio×qty − descuento) `; impuesto por línea `half_up`; con `tax_included` el impuesto se extrae: `tax = total_línea − round_half_up(total_línea × 10000 / (10000 + rate))`.
 - **R3** Descuento > `max_discount_bps` requiere `pos:discount:apply` de un supervisor (PIN de supervisor = step-up local auditado).
