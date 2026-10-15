@@ -55,6 +55,10 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_INSECURE: "true"
+      # Consumidor de SessionRevoked para el WebSocket (F09.5). Vacio = sin cierre remoto.
+      PP_NATS_URL: "${GATEWAY_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${GATEWAY_NATS_USER:-identity_svc}"
+      PP_NATS_PASS: "${GATEWAY_NATS_PASS:-identity_nats_secret}"
     ports:
       - "8080:8080"
     depends_on:

@@ -17,6 +17,7 @@ import (
 	"plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/middleware"
 	"plentypay/api-gateway/internal/observability"
+	"plentypay/api-gateway/internal/realtime"
 	"plentypay/api-gateway/internal/routes"
 )
 
@@ -49,7 +50,7 @@ var rutasConHandlerPropio = map[string]bool{
 	"GET /v1/me/permissions": true,
 }
 
-func newMux(identity *client.IdentityClient) *http.ServeMux {
+func newMux(identity *client.IdentityClient, hub *realtime.Hub) *http.ServeMux {
 	h := handlers.NewAuthHandlers(identity)
 	auth := middleware.RequireAuth(identity)
 	mux := http.NewServeMux()
@@ -65,6 +66,9 @@ func newMux(identity *client.IdentityClient) *http.ServeMux {
 	mux.Handle("GET /v1/me", auth(http.HandlerFunc(h.Me)))
 	mux.Handle("GET /v1/me/permissions", auth(http.HandlerFunc(h.Permissions)))
 
+	// Tiempo real (F09.5): WebSocket con auth por primer mensaje.
+	mux.Handle("GET /v1/realtime", realtime.Handler(hub, wsAuth(identity)))
+
 	// Resto de la tabla declarativa: una fila = una ruta, sin código por endpoint.
 	for _, r := range routes.Table {
 		if rutasConHandlerPropio[r.Method+" "+r.Path] {
@@ -78,6 +82,20 @@ func newMux(identity *client.IdentityClient) *http.ServeMux {
 	}
 	return mux
 }
+
+// wsAuth es la funcion de autenticacion del WebSocket (SPEC §5): el token llega
+// en el primer mensaje, nunca en la URL.
+func wsAuth(identity *client.IdentityClient) realtime.AuthFunc {
+	return func(token string) (string, string, string, error) {
+		session, err := identity.ValidateToken(context.Background(), token)
+		if err != nil || !session.Valid {
+			return "", "", "", errTokenInvalid
+		}
+		return session.SessionID, session.UserID, session.TenantID, nil
+	}
+}
+
+var errTokenInvalid = errors.New("token invalido")
 
 func main() {
 	logger := observability.NewLogger(os.Stdout, serviceName, version, observability.ParseLevel(os.Getenv("LOG_LEVEL")))
@@ -131,9 +149,24 @@ func main() {
 	if err != nil {
 		fatal("http port listen failed", err)
 	}
+	// Tiempo real (F09.5): hub de conexiones WebSocket.
+	hub := realtime.NewHub()
+
+	// Consumidor de SessionRevoked (R10): cierra los WebSockets de esas sesiones.
+	if natsURL := envOr("PP_NATS_URL", ""); natsURL != "" {
+		c, err := realtime.NewSessionRevokedConsumer(ctx, hub, natsURL,
+			envOr("PP_NATS_USER", ""), envOr("PP_NATS_PASS", ""))
+		if err != nil {
+			logger.Warn("realtime consumer disabled", "err", err.Error())
+		} else {
+			defer c.Close()
+			logger.Info("realtime consumer enabled", "url", natsURL)
+		}
+	}
+
 	srv := &http.Server{
 		// R5: las x-pp-* del cliente se descartan en el borde, antes de cualquier handler.
-		Handler:           metadata.StripInboundMiddleware(observability.HTTPMiddleware(logger, reporter, metrics)(newMux(identity))),
+		Handler:           metadata.StripInboundMiddleware(observability.HTTPMiddleware(logger, reporter, metrics)(newMux(identity, hub))),
 		ReadHeaderTimeout: 5 * time.Second, // protege contra conexiones lentas (slowloris)
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

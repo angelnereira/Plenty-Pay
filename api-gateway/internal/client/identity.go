@@ -58,10 +58,11 @@ func (c *IdentityClient) Conn() *grpc.ClientConn { return c.conn }
 func (c *IdentityClient) Close() error { return c.conn.Close() }
 
 type ValidatedSession struct {
-	Valid    bool
-	UserID   string
-	TenantID string
-	Role     string
+	Valid     bool
+	UserID    string
+	TenantID  string
+	Role      string
+	SessionID string
 }
 
 type AuthResult struct {
@@ -100,7 +101,8 @@ func (c *IdentityClient) ValidateToken(ctx context.Context, accessToken string) 
 	if err != nil {
 		return nil, c.fail(ctx, "identity.ValidateToken", err)
 	}
-	return &ValidatedSession{Valid: res.Valid, UserID: res.UserId, TenantID: res.TenantId, Role: res.Role.String()}, nil
+	return &ValidatedSession{Valid: res.Valid, UserID: res.UserId, TenantID: res.TenantId,
+		Role: res.Role.String(), SessionID: res.SessionId}, nil
 }
 
 func toAuthResult(res *pb.AuthResult) *AuthResult {

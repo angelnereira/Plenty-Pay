@@ -146,10 +146,11 @@ func (s *IdentityServer) ValidateToken(ctx context.Context, req *pb.ValidateToke
 		return &pb.ValidateTokenResult{Valid: false}, nil
 	}
 	return &pb.ValidateTokenResult{
-		Valid:    true,
-		UserId:   claims.UserID,
-		TenantId: claims.TenantID,
-		Role:     pb.UserRole(pb.UserRole_value[claims.Role]),
+		Valid:     true,
+		UserId:    claims.UserID,
+		TenantId:  claims.TenantID,
+		Role:      pb.UserRole(pb.UserRole_value[claims.Role]),
+		SessionId: claims.SessionID,
 	}, nil
 }
 

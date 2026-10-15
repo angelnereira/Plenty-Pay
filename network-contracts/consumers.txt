@@ -6,7 +6,7 @@
 #
 # --- implementados hoy ---
 identity|go|internal/pb|identity.proto,events.proto,security.proto,common.proto
-api-gateway|go|internal/pb|identity.proto,common.proto
+api-gateway|go|internal/pb|identity.proto,events.proto,common.proto
 # --- objetivo (se activan al llegar a su fase) ---
 ledger|rust|proto|ledger.proto,common.proto,events.proto
 payments-core|rust|proto|payments.proto,ledger.proto,identity.proto,common.proto,events.proto
