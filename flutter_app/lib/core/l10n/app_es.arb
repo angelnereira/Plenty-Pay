@@ -205,5 +205,22 @@
   "actionUpdate": "Actualizar",
   "actionExit": "Salir",
   "maintenanceTitle": "Estamos Actualizando",
-  "maintenanceGeneric": "Estamos haciendo mantenimiento. Volvemos pronto."
+  "maintenanceGeneric": "Estamos haciendo mantenimiento. Volvemos pronto.",
+  "confirmingPaymentTitle": "Tu pago",
+  "confirmingPaymentBody": "Estamos confirmando tu pago",
+  "confirmingPaymentHint": "Esto puede tardar unos minutos. No cierres la aplicación: te avisamos en cuanto termine.",
+  "paymentFailedTitle": "No se pudo completar el pago",
+  "paymentStatusPending": "Pendiente",
+  "paymentStatusConfirming": "Confirmando",
+  "paymentStatusCaptured": "Confirmado",
+  "paymentStatusFailed": "No completado",
+  "paymentStatusRefunded": "Devuelto",
+  "actionCheckStatus": "Consultar estado",
+  "actionDone": "Listo",
+  "actionClose": "Cerrar",
+  "qrScannedTitle": "Código escaneado",
+  "receiptTotal": "Total",
+  "receiptPaidWith": "Pagado con",
+  "receiptOperationCode": "Operación {code}",
+  "actionShareReceipt": "Compartir recibo"
 }

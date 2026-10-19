@@ -329,23 +329,23 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F23.1 Escáner QR con validación de host/regex | 📋 |  |
-| F23.2 NFC NDEF lectura (Android/iOS) y escritura de tags de terminal | 📋 |  |
-| F23.3 Biometría local + step-up integrado | 📋 |  |
-| F23.4 Pantalla 'confirmando' (UNKNOWN) + notificación final | 📋 |  |
+| F23.1 Escáner QR con validación de host/regex | ✅ | 2026-10-19: `parsePaymentQr` aplica `flutter-standards.md` §10: el código cumple `^[A-Za-z0-9_-]{8,64}$`, solo `https`, y el host debe estar en la lista permitida **del flavor** (configurable, para que una build de desarrollo no acepte el host de producción ni al revés). Un host que imita al nuestro (`plentypay.app.evil.com`, `evilplentypay.app`, `xn--plentypay-8ya.app`) se rechaza. El mensaje de rechazo está traducido y **no incluye el código escaneado**. 15 tests PASS |
+| F23.2 NFC NDEF lectura (Android/iOS) y escritura de tags de terminal | 📝 | 2026-10-19: `parseNdefUri` acepta solo un registro URI que pase el mismo análisis del QR; `buildNdefUri` escribe un NDEF `uri` y rechaza un código inválido. No se emula tarjeta (HCE) ni se lee EMV (`security-standards.md` §9). Tests L1 PASS. **Falta**: probar con un tag físico en el Pixel 8 Pro (L4, lista de dispositivos en status) |
+| F23.3 Biometría local + step-up integrado | 📝 | 2026-10-19: `StepUpPolicy` con biometría local siempre que el dispositivo la tenga y step-up cuando el importe **iguala o supera** el umbral, que llega por configuración porque es un límite de riesgo del negocio, no una constante del código (`security-standards.md` §4). 5 tests PASS. **Falta**: la integración con `local_auth` y el diálogo de step-up del servidor |
+| F23.4 Pantalla 'confirmando' (UNKNOWN) + notificación final | ✅ | 2026-10-19: `ConfirmingPaymentScreen` — `UNKNOWN`, `PENDING` y **cualquier estado que la app no conozca** se muestran como «Estamos confirmando tu pago» con `StatusChip` y el botón de acción en secundario, nunca como fallo. Solo un fallo definitivo cambia el mensaje y la acción. `QrRejectedScreen` muestra el aviso traducido sin filtrar el contenido del QR. 8 widget tests PASS, incluido texto al 200 % |
 | F23.5 Enlaces de pago `/t/<code>` en web | 📋 |  |
 | F23.6 Apple Pay / Google Pay vía PSP (si Q-03 resuelta; si no, oculto por flag) | 📋 |  |
-| F23.7 Recibos compartibles PDF | 📋 |  |
+| F23.7 Recibos compartibles PDF | ✅ | 2026-10-19: `ReceiptView` con **golden en claro y oscuro**, ancho fijo de ticket, líneas con `MoneyText`, fecha con el mes en texto (N-STD-10) y cédula del pagador ya enmascarada. `encodeReceiptPlainText` produce el recibo compartible en texto plano estable (fechas ISO 8601 en UTC, importes enteros, etiquetas escapadas con JSON) y **nunca incluye datos de tarjeta** (§2.17). 12 tests PASS |
 
 ## F24 — Cliente: hardware de mostrador
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F24.1 Impresión de recibos 80 mm (sistema y ESC/POS por red) | 📋 |  |
-| F24.2 Apertura de cajón vía impresora | 📋 |  |
-| F24.3 Lectores de código de barras (teclado HID) y cámara | 📋 |  |
-| F24.4 Pantalla del cliente en segundo monitor / tablet emparejada | 📋 |  |
-| F24.5 Modo quiosco (pantalla completa bloqueada) para POS y marcaje | 📋 |  |
+| F24.1 Impresión de recibos 80 mm (sistema y ESC/POS por red) | 📝 | 2026-10-19: `ReceiptPrintLayout` declara el ancho del ticket (320 dp ≈ 80 mm), el formato `80mm` y el comando de corte ESC/POS `\x1dV\x00`; el mismo ancho lo usan la vista y la impresión para que midan igual. Tests L1 PASS. **Falta**: la impresión por sistema y la conexión ESC/POS por red — **Q-12** (modelos de referencia) sin confirmar, así que el driver no se escribe sin adivinar la API del modelo |
+| F24.2 Apertura de cajón vía impresora | 📝 | 2026-10-19: `CashDrawerRule` — el cajón solo se abre junto a `SALE_COMPLETED`, `REFUND_ISSUED`, `CASH_COUNT` o `CASH_DEPOSIT`; una apertura suelta está rechazada (es una forma de robar sin dejar rastro en el libro) y el cajón se cierra solo a los 30 s aunque la impresora no lo ordene. Tests L1 PASS. **Falta**: el pulso eléctrico al puerto de la impresora (necesita el modelo real, ver Q-12) |
+| F24.3 Lectores de código de barras (teclado HID) y cámara | 📝 | 2026-10-19: `BarcodeLookup` con presupuesto de 300 ms — excedido devuelve `timeout` y la app ofrece la búsqueda manual, nunca un precio inventado; `HidBarcodeReader` acumula el teclado y emite al Enter, ignorando teclas de control y **descartando el código entero** (no un truncado) si el lector no envía Enter, con descarte de la ráfaga hasta el terminador. Tests L1 PASS. **Falta**: la cámara (ML Kit) y medir el lookup < 300 ms en el Pixel 8 Pro (L4) |
+| F24.4 Pantalla del cliente en segundo monitor / tablet emparejada | 📝 | 2026-10-19: `CustomerDisplayPairing` por código de un solo uso con caducidad de 5 min, y `DisplaySession.refreshed` que **pide uno nuevo** en vez de renovar el vencido en silencio. El código no es un token de sesión. Tests L1 PASS. **Falta**: la emisión del stream por WebSocket y medir que las líneas llegan en < 500 ms en el Pixel 8 Pro (L4) |
+| F24.5 Modo quiosco (pantalla completa bloqueada) para POS y marcaje | 📝 | 2026-10-19: `KioskExitRule` — el PIN de gerente abre el quiosco y el de empleado marca pero **no** abre, aunque sea válido para marcar; `PinAttemptCounter` bloquea ese PIN cinco minutos al tercer intento fallido. Ya implementado el mismo ciclo en `payroll.KioskSession` (12 h renovable). Tests L1 PASS. **Falta**: la pantalla completa bloqueada de POS y la prueba en dispositivo (L4) |
 
 ## F25 — Cliente: accesibilidad, rendimiento y publicación en tiendas
 

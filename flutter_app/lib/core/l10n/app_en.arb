@@ -176,5 +176,22 @@
   "actionUpdate": "Update",
   "actionExit": "Exit",
   "maintenanceTitle": "We're updating",
-  "maintenanceGeneric": "We're doing maintenance. We'll be back soon."
+  "maintenanceGeneric": "We're doing maintenance. We'll be back soon.",
+  "confirmingPaymentTitle": "Your payment",
+  "confirmingPaymentBody": "We're confirming your payment",
+  "confirmingPaymentHint": "This can take a few minutes. Don't close the app; we'll let you know when it's done.",
+  "paymentFailedTitle": "The payment could not be completed",
+  "paymentStatusPending": "Pending",
+  "paymentStatusConfirming": "Confirming",
+  "paymentStatusCaptured": "Confirmed",
+  "paymentStatusFailed": "Not completed",
+  "paymentStatusRefunded": "Refunded",
+  "actionCheckStatus": "Check status",
+  "actionDone": "Done",
+  "actionClose": "Close",
+  "qrScannedTitle": "Scanned code",
+  "receiptTotal": "Total",
+  "receiptPaidWith": "Paid with",
+  "receiptOperationCode": "Operation {code}",
+  "actionShareReceipt": "Share receipt"
 }

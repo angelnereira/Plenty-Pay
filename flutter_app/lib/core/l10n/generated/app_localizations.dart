@@ -1160,6 +1160,108 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Estamos haciendo mantenimiento. Volvemos pronto.'**
   String get maintenanceGeneric;
+
+  /// No description provided for @confirmingPaymentTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu pago'**
+  String get confirmingPaymentTitle;
+
+  /// No description provided for @confirmingPaymentBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Estamos confirmando tu pago'**
+  String get confirmingPaymentBody;
+
+  /// No description provided for @confirmingPaymentHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Esto puede tardar unos minutos. No cierres la aplicación: te avisamos en cuanto termine.'**
+  String get confirmingPaymentHint;
+
+  /// No description provided for @paymentFailedTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo completar el pago'**
+  String get paymentFailedTitle;
+
+  /// No description provided for @paymentStatusPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Pendiente'**
+  String get paymentStatusPending;
+
+  /// No description provided for @paymentStatusConfirming.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmando'**
+  String get paymentStatusConfirming;
+
+  /// No description provided for @paymentStatusCaptured.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmado'**
+  String get paymentStatusCaptured;
+
+  /// No description provided for @paymentStatusFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No completado'**
+  String get paymentStatusFailed;
+
+  /// No description provided for @paymentStatusRefunded.
+  ///
+  /// In es, this message translates to:
+  /// **'Devuelto'**
+  String get paymentStatusRefunded;
+
+  /// No description provided for @actionCheckStatus.
+  ///
+  /// In es, this message translates to:
+  /// **'Consultar estado'**
+  String get actionCheckStatus;
+
+  /// No description provided for @actionDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Listo'**
+  String get actionDone;
+
+  /// No description provided for @actionClose.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar'**
+  String get actionClose;
+
+  /// No description provided for @qrScannedTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Código escaneado'**
+  String get qrScannedTitle;
+
+  /// No description provided for @receiptTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Total'**
+  String get receiptTotal;
+
+  /// No description provided for @receiptPaidWith.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagado con'**
+  String get receiptPaidWith;
+
+  /// No description provided for @receiptOperationCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Operación {code}'**
+  String receiptOperationCode(Object code);
+
+  /// No description provided for @actionShareReceipt.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir recibo'**
+  String get actionShareReceipt;
 }
 
 class _AppLocalizationsDelegate

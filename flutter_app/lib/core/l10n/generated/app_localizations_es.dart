@@ -575,6 +575,60 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get maintenanceGeneric =>
       'Estamos haciendo mantenimiento. Volvemos pronto.';
+
+  @override
+  String get confirmingPaymentTitle => 'Tu pago';
+
+  @override
+  String get confirmingPaymentBody => 'Estamos confirmando tu pago';
+
+  @override
+  String get confirmingPaymentHint =>
+      'Esto puede tardar unos minutos. No cierres la aplicación: te avisamos en cuanto termine.';
+
+  @override
+  String get paymentFailedTitle => 'No se pudo completar el pago';
+
+  @override
+  String get paymentStatusPending => 'Pendiente';
+
+  @override
+  String get paymentStatusConfirming => 'Confirmando';
+
+  @override
+  String get paymentStatusCaptured => 'Confirmado';
+
+  @override
+  String get paymentStatusFailed => 'No completado';
+
+  @override
+  String get paymentStatusRefunded => 'Devuelto';
+
+  @override
+  String get actionCheckStatus => 'Consultar estado';
+
+  @override
+  String get actionDone => 'Listo';
+
+  @override
+  String get actionClose => 'Cerrar';
+
+  @override
+  String get qrScannedTitle => 'Código escaneado';
+
+  @override
+  String get receiptTotal => 'Total';
+
+  @override
+  String get receiptPaidWith => 'Pagado con';
+
+  @override
+  String receiptOperationCode(Object code) {
+    return 'Operación $code';
+  }
+
+  @override
+  String get actionShareReceipt => 'Compartir recibo';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).
@@ -982,4 +1036,58 @@ class AppLocalizationsEsPa extends AppLocalizationsEs {
   @override
   String get maintenanceGeneric =>
       'Estamos haciendo mantenimiento. Volvemos pronto.';
+
+  @override
+  String get confirmingPaymentTitle => 'Tu pago';
+
+  @override
+  String get confirmingPaymentBody => 'Estamos confirmando tu pago';
+
+  @override
+  String get confirmingPaymentHint =>
+      'Esto puede tardar unos minutos. No cierres la aplicación: te avisamos en cuanto termine.';
+
+  @override
+  String get paymentFailedTitle => 'No se pudo completar el pago';
+
+  @override
+  String get paymentStatusPending => 'Pendiente';
+
+  @override
+  String get paymentStatusConfirming => 'Confirmando';
+
+  @override
+  String get paymentStatusCaptured => 'Confirmado';
+
+  @override
+  String get paymentStatusFailed => 'No completado';
+
+  @override
+  String get paymentStatusRefunded => 'Devuelto';
+
+  @override
+  String get actionCheckStatus => 'Consultar estado';
+
+  @override
+  String get actionDone => 'Listo';
+
+  @override
+  String get actionClose => 'Cerrar';
+
+  @override
+  String get qrScannedTitle => 'Código escaneado';
+
+  @override
+  String get receiptTotal => 'Total';
+
+  @override
+  String get receiptPaidWith => 'Pagado con';
+
+  @override
+  String receiptOperationCode(Object code) {
+    return 'Operación $code';
+  }
+
+  @override
+  String get actionShareReceipt => 'Compartir recibo';
 }

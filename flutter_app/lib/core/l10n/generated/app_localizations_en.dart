@@ -575,4 +575,58 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get maintenanceGeneric =>
       'We\'re doing maintenance. We\'ll be back soon.';
+
+  @override
+  String get confirmingPaymentTitle => 'Your payment';
+
+  @override
+  String get confirmingPaymentBody => 'We\'re confirming your payment';
+
+  @override
+  String get confirmingPaymentHint =>
+      'This can take a few minutes. Don\'t close the app; we\'ll let you know when it\'s done.';
+
+  @override
+  String get paymentFailedTitle => 'The payment could not be completed';
+
+  @override
+  String get paymentStatusPending => 'Pending';
+
+  @override
+  String get paymentStatusConfirming => 'Confirming';
+
+  @override
+  String get paymentStatusCaptured => 'Confirmed';
+
+  @override
+  String get paymentStatusFailed => 'Not completed';
+
+  @override
+  String get paymentStatusRefunded => 'Refunded';
+
+  @override
+  String get actionCheckStatus => 'Check status';
+
+  @override
+  String get actionDone => 'Done';
+
+  @override
+  String get actionClose => 'Close';
+
+  @override
+  String get qrScannedTitle => 'Scanned code';
+
+  @override
+  String get receiptTotal => 'Total';
+
+  @override
+  String get receiptPaidWith => 'Paid with';
+
+  @override
+  String receiptOperationCode(Object code) {
+    return 'Operation $code';
+  }
+
+  @override
+  String get actionShareReceipt => 'Share receipt';
 }
