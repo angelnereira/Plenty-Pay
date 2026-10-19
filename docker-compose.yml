@@ -59,10 +59,13 @@ services:
       PP_NATS_URL: "${GATEWAY_NATS_URL:-nats://event-bus:4222}"
       PP_NATS_USER: "${GATEWAY_NATS_USER:-gateway_svc}"
       PP_NATS_PASS: "${GATEWAY_NATS_PASS:-gateway_nats_secret}"
+      WEB_SERVICE_URL: "http://web:8081"
     ports:
       - "8080:8080"
     depends_on:
       identity:
+        condition: service_healthy
+      web:
         condition: service_healthy
     networks: [edge, services]
     healthcheck: *healthcheck

@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -86,6 +88,17 @@ func newMux(identity *client.IdentityClient, hub *realtime.Hub) *http.ServeMux {
 		}
 		mux.Handle(r.Method+" "+r.Path, handler)
 	}
+
+	// Delegación al contenedor `web` para servir la app Flutter Web (bundle estático)
+	// en cualquier ruta que no sea de la API (/v1/*) ni de sondas (/healthz).
+	webURL := envOr("WEB_SERVICE_URL", "http://web:8081")
+	if webURL != "" {
+		if u, err := url.Parse(webURL); err == nil {
+			proxy := httputil.NewSingleHostReverseProxy(u)
+			mux.Handle("/", proxy)
+		}
+	}
+
 	return mux
 }
 

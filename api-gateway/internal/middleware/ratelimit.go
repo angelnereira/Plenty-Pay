@@ -58,6 +58,8 @@ func classify(r *http.Request) (string, int) {
 		return "webhook", 1200
 	case isMoneyMutation(method, p):
 		return "money", 30
+	case !strings.HasPrefix(p, "/v1/"):
+		return "static", 5000
 	default:
 		if isAuthed(r) {
 			return "default_auth", 600
