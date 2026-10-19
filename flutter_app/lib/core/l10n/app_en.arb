@@ -193,5 +193,11 @@
   "receiptTotal": "Total",
   "receiptPaidWith": "Paid with",
   "receiptOperationCode": "Operation {code}",
-  "actionShareReceipt": "Share receipt"
+  "actionShareReceipt": "Share receipt",
+  "legalUnavailableTitle": "Legal document",
+  "legalUnavailableNotConfigured": "This document isn't published yet. Come back soon or contact us for a copy.",
+  "legalUnavailableFetchFailed": "We couldn't load the document. Check your connection and try again.",
+  "legalUnavailableGeneric": "This document isn't available right now.",
+  "legalVersionAndDate": "Version {version} · published on {date}",
+  "actionAcceptTerms": "Accept"
 }

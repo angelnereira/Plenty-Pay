@@ -1262,6 +1262,42 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Compartir recibo'**
   String get actionShareReceipt;
+
+  /// No description provided for @legalUnavailableTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Documento legal'**
+  String get legalUnavailableTitle;
+
+  /// No description provided for @legalUnavailableNotConfigured.
+  ///
+  /// In es, this message translates to:
+  /// **'Este texto todavía no está publicado. Vuelve pronto o escríbenos si necesitas una copia.'**
+  String get legalUnavailableNotConfigured;
+
+  /// No description provided for @legalUnavailableFetchFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No pudimos cargar el texto. Revisa tu conexión e inténtalo de nuevo.'**
+  String get legalUnavailableFetchFailed;
+
+  /// No description provided for @legalUnavailableGeneric.
+  ///
+  /// In es, this message translates to:
+  /// **'Este texto no está disponible ahora mismo.'**
+  String get legalUnavailableGeneric;
+
+  /// No description provided for @legalVersionAndDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Versión {version} · publicada el {date}'**
+  String legalVersionAndDate(Object date, Object version);
+
+  /// No description provided for @actionAcceptTerms.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar'**
+  String get actionAcceptTerms;
 }
 
 class _AppLocalizationsDelegate

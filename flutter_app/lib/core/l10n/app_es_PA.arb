@@ -145,5 +145,11 @@
   "receiptTotal": "Total",
   "receiptPaidWith": "Pagado con",
   "receiptOperationCode": "Operación {code}",
-  "actionShareReceipt": "Compartir recibo"
+  "actionShareReceipt": "Compartir recibo",
+  "legalUnavailableTitle": "Documento legal",
+  "legalUnavailableNotConfigured": "Este texto todavía no está publicado. Vuelve pronto o escríbenos si necesitas una copia.",
+  "legalUnavailableFetchFailed": "No pudimos cargar el texto. Revisa tu conexión e inténtalo de nuevo.",
+  "legalUnavailableGeneric": "Este texto no está disponible ahora mismo.",
+  "legalVersionAndDate": "Versión {version} · publicada el {date}",
+  "actionAcceptTerms": "Aceptar"
 }

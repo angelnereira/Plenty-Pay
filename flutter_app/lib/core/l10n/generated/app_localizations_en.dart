@@ -629,4 +629,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actionShareReceipt => 'Share receipt';
+
+  @override
+  String get legalUnavailableTitle => 'Legal document';
+
+  @override
+  String get legalUnavailableNotConfigured =>
+      'This document isn\'t published yet. Come back soon or contact us for a copy.';
+
+  @override
+  String get legalUnavailableFetchFailed =>
+      'We couldn\'t load the document. Check your connection and try again.';
+
+  @override
+  String get legalUnavailableGeneric =>
+      'This document isn\'t available right now.';
+
+  @override
+  String legalVersionAndDate(Object date, Object version) {
+    return 'Version $version · published on $date';
+  }
+
+  @override
+  String get actionAcceptTerms => 'Accept';
 }

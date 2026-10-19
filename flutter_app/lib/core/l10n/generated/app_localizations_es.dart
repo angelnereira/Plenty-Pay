@@ -629,6 +629,29 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get actionShareReceipt => 'Compartir recibo';
+
+  @override
+  String get legalUnavailableTitle => 'Documento legal';
+
+  @override
+  String get legalUnavailableNotConfigured =>
+      'Este texto todavía no está publicado. Vuelve pronto o escríbenos si necesitas una copia.';
+
+  @override
+  String get legalUnavailableFetchFailed =>
+      'No pudimos cargar el texto. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get legalUnavailableGeneric =>
+      'Este texto no está disponible ahora mismo.';
+
+  @override
+  String legalVersionAndDate(Object date, Object version) {
+    return 'Versión $version · publicada el $date';
+  }
+
+  @override
+  String get actionAcceptTerms => 'Aceptar';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).
@@ -1090,4 +1113,27 @@ class AppLocalizationsEsPa extends AppLocalizationsEs {
 
   @override
   String get actionShareReceipt => 'Compartir recibo';
+
+  @override
+  String get legalUnavailableTitle => 'Documento legal';
+
+  @override
+  String get legalUnavailableNotConfigured =>
+      'Este texto todavía no está publicado. Vuelve pronto o escríbenos si necesitas una copia.';
+
+  @override
+  String get legalUnavailableFetchFailed =>
+      'No pudimos cargar el texto. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get legalUnavailableGeneric =>
+      'Este texto no está disponible ahora mismo.';
+
+  @override
+  String legalVersionAndDate(Object date, Object version) {
+    return 'Versión $version · publicada el $date';
+  }
+
+  @override
+  String get actionAcceptTerms => 'Aceptar';
 }
