@@ -77,17 +77,6 @@ class ApiClient {
   /// URL base del gateway según el flavor (AppConfig.apiBaseUrl).
   String baseUrl;
 
-  /// Modo demostración offline para explorar todas las pantallas y módulos sin backend activo.
-  bool isDemoMode = false;
-
-  void enableDemoMode() {
-    isDemoMode = true;
-  }
-
-  void disableDemoMode() {
-    isDemoMode = false;
-  }
-
   void updateBaseUrl(String newUrl) {
     final normalized = newUrl.endsWith('/') ? newUrl.substring(0, newUrl.length - 1) : newUrl;
     baseUrl = normalized;
@@ -198,7 +187,6 @@ class ApiClient {
   }
 
   Future<void> login(String email, String password) async {
-    isDemoMode = false;
     final body = await _post(
       '/v1/auth/login',
       data: {'email': email, 'password': password},
@@ -211,11 +199,10 @@ class ApiClient {
     );
   }
 
-  /// El registro público siempre crea CUSTOMER (el gateway lo fuerza: api-gateway R2).
+  /// El registro público crea la cuenta del usuario (api-gateway).
   /// `consents` son las aceptaciones de S-GEN-03 (N-DAT-02, N-DAT-14): cada una lleva la versión
   /// del texto que la persona vio; el canal y el dispositivo los fija el gateway.
   Future<void> registerCustomer(String fullName, String email, String password, List<ConsentGrant> consents) async {
-    isDemoMode = false;
     final body = await _post(
       '/v1/auth/register',
       data: {
@@ -234,9 +221,6 @@ class ApiClient {
   }
 
   Future<Me> me() async {
-    if (isDemoMode) {
-      return Me(userId: 'demo-user-id', role: 'BUSINESS_OWNER', tenantId: 'demo-tenant-id');
-    }
     final body = await _get('/v1/me');
     return Me(
       userId: body['user_id'] as String? ?? '',
@@ -246,42 +230,6 @@ class ApiClient {
   }
 
   Future<Permissions> permissions() async {
-    if (isDemoMode) {
-      return Permissions(
-        role: 'BUSINESS_OWNER',
-        modules: const [
-          'wallet',
-          'marketplace',
-          'pos',
-          'catalog',
-          'inventory',
-          'orders',
-          'logistics',
-          'finance',
-          'payroll',
-          'analytics',
-          'admin',
-          'platform',
-        ],
-        permissions: const [
-          'wallet:read', 'wallet:pay', 'wallet:topup', 'wallet:transfer',
-          'catalog:read', 'catalog:write', 'catalog:import', 'catalog:listing:manage',
-          'pos:sell', 'pos:void', 'pos:refund', 'pos:discount:apply', 'pos:session:manage', 'pos:settings:manage',
-          'inventory:read', 'inventory:adjust', 'inventory:receive', 'inventory:purchase:manage',
-          'orders:read', 'orders:read:self', 'orders:create:self', 'orders:manage',
-          'logistics:read', 'logistics:manage', 'logistics:deliver', 'logistics:geofence:manage',
-          'finance:read', 'fiscal:read', 'fiscal:issue', 'fiscal:note:issue', 'fiscal:profile:manage',
-          'settlement:read', 'settlement:reconcile', 'settlement:schedule:manage',
-          'payroll:employee:read', 'payroll:employee:manage', 'payroll:attendance:read', 'payroll:attendance:record',
-          'payroll:run:create', 'payroll:run:approve', 'payroll:run:pay', 'payroll:payslip:read:self',
-          'analytics:read', 'analytics:dashboard:manage', 'analytics:alert:manage', 'analytics:export',
-          'admin:business:manage', 'admin:users:manage', 'admin:roles:manage', 'admin:integrations:manage', 'admin:audit:read',
-          'platform:tenants:review', 'platform:users:manage', 'platform:security:read', 'platform:support', 'platform:flags:manage', 'platform:reconcile',
-          'payments:charge', 'payments:refund', 'payments:fees:read', 'payments:fees:manage', 'payments:terminal:manage', 'payments:read',
-          'notifications:read:self', 'notifications:template:manage',
-        ],
-      );
-    }
     final body = await _get('/v1/me/permissions');
     List<String> strings(Object? v) => (v as List<dynamic>? ?? const []).whereType<String>().toList();
     return Permissions(
@@ -291,10 +239,7 @@ class ApiClient {
     );
   }
 
-  Future<void> logout() async {
-    isDemoMode = false;
-    await _session.clear();
-  }
+  Future<void> logout() => _session.clear();
   Future<void> logoutAll() async {}
 
   Future<void> forgotPassword(String email) async {
@@ -328,28 +273,10 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> getTenant(String tenantId) async {
-    if (isDemoMode) {
-      return {
-        'id': tenantId,
-        'legal_name': 'Plenty Store Demo S.A.',
-        'trade_name': 'Plenty Store Demo',
-        'tax_id': '155678234-2-2021',
-        'status': 'ACTIVE',
-      };
-    }
     return _get('/v1/business/$tenantId');
   }
 
   Future<Map<String, dynamic>> listUsers(String tenantId, {int pageSize = 50, String? pageToken}) async {
-    if (isDemoMode) {
-      return {
-        'users': [
-          {'id': 'u-1', 'full_name': 'Carlos Mendoza (Dueño)', 'email': 'carlos@tiendademo.test', 'role': 'BUSINESS_OWNER', 'status': 'ACTIVE'},
-          {'id': 'u-2', 'full_name': 'María Gómez (Cajera)', 'email': 'maria@tiendademo.test', 'role': 'CASHIER', 'status': 'ACTIVE'},
-          {'id': 'u-3', 'full_name': 'Jorge Ríos (Inventario)', 'email': 'jorge@tiendademo.test', 'role': 'INVENTORY_MANAGER', 'status': 'ACTIVE'},
-        ],
-      };
-    }
     return _get('/v1/business/staff/$tenantId', queryParameters: {
       'page_size': pageSize,
       if (pageToken != null) 'page_token': pageToken,
@@ -362,7 +289,6 @@ class ApiClient {
     required String role,
     int expiresInDays = 7,
   }) async {
-    if (isDemoMode) return {'success': true, 'email': email};
     return _post('/v1/business/staff', data: {
       'tenant_id': tenantId,
       'email': email,
@@ -372,7 +298,6 @@ class ApiClient {
   }
 
   Future<void> deactivateUser(String userId) async {
-    if (isDemoMode) return;
     try {
       await _dio.delete('/v1/business/staff/$userId');
     } on DioException catch (e) {
@@ -381,15 +306,6 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> listRoles(String tenantId) async {
-    if (isDemoMode) {
-      return {
-        'roles': [
-          {'id': 'role-owner', 'name': 'Dueño / Administrador', 'permissions': ['*']},
-          {'id': 'role-cashier', 'name': 'Cajero POS', 'permissions': ['pos:sell', 'pos:void']},
-          {'id': 'role-inv', 'name': 'Encargado de Inventario', 'permissions': ['inventory:read', 'inventory:adjust']},
-        ],
-      };
-    }
     return _get('/v1/business/roles/$tenantId');
   }
 
@@ -400,7 +316,6 @@ class ApiClient {
     required List<String> permissions,
     String? stepUpToken,
   }) async {
-    if (isDemoMode) return {'role_id': roleId, 'name': name};
     return _post('/v1/business/roles', data: {
       'tenant_id': tenantId,
       'role_id': roleId,
@@ -411,7 +326,6 @@ class ApiClient {
   }
 
   Future<void> assignRole({required String userId, required String roleId, String? stepUpToken}) async {
-    if (isDemoMode) return;
     await _post('/v1/business/roles/$userId/assign', data: {
       'user_id': userId,
       'role_id': roleId,
@@ -420,18 +334,10 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> listSessions(String userId) async {
-    if (isDemoMode) {
-      return {
-        'sessions': [
-          {'id': 'sess-current', 'device': 'Este dispositivo (Android)', 'created_at': DateTime.now().toIso8601String(), 'current': true},
-        ],
-      };
-    }
     return _get('/v1/sessions', queryParameters: {'user_id': userId});
   }
 
   Future<void> revokeSession(String sessionId) async {
-    if (isDemoMode) return;
     try {
       await _dio.delete('/v1/sessions/$sessionId');
     } on DioException catch (e) {
@@ -440,14 +346,6 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> listTenants({String? status, int pageSize = 50, String? pageToken}) async {
-    if (isDemoMode) {
-      return {
-        'tenants': [
-          {'id': 'demo-t1', 'legal_name': 'CAFETERÍA EL FARO S.A.', 'trade_name': 'Café El Faro', 'tax_id': '155123456-1-2022', 'status': 'PENDING_REVIEW'},
-          {'id': 'demo-t2', 'legal_name': 'PANADERÍA ARTESANAL S.A.', 'trade_name': 'Pan Gourmet', 'tax_id': '155789012-2-2023', 'status': 'ACTIVE'},
-        ],
-      };
-    }
     return _get('/v1/platform/tenants', queryParameters: {
       if (status != null) 'status': status,
       'page_size': pageSize,

@@ -178,59 +178,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error))),
                   ]),
                 ],
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    ActionChip(
-                      avatar: const Icon(Icons.storefront, size: 14),
-                      label: const Text('Dueño'),
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () {
-                        _email.text = 'testowner@plentypay.test';
-                        _password.text = 'PasswordSegura123456';
-                        setState(() => _error = null);
-                      },
-                    ),
-                    ActionChip(
-                      avatar: const Icon(Icons.shield_outlined, size: 14),
-                      label: const Text('Admin'),
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () {
-                        _email.text = 'admin@plentypay.test';
-                        _password.text = 'PasswordSegura123456';
-                        setState(() => _error = null);
-                      },
-                    ),
-                    ActionChip(
-                      avatar: const Icon(Icons.person_outline, size: 14),
-                      label: const Text('Cliente'),
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () {
-                        _email.text = 'cliente@plentypay.test';
-                        _password.text = 'PasswordSegura123456';
-                        setState(() => _error = null);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 PPButton.primary(
                   label: l10n.actionSignIn,
                   onPressed: _busy ? null : _submit,
                   loading: _busy,
-                ),
-                const SizedBox(height: 6),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.auto_awesome, size: 16),
-                  label: const Text('Modo Demo (sin conexión)'),
-                  onPressed: _busy
-                      ? null
-                      : () {
-                          widget.api.enableDemoMode();
-                          widget.onSignedIn();
-                        },
                 ),
                 PPButton.text(
                   label: l10n.actionWantAccount,

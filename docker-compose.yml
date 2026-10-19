@@ -57,8 +57,8 @@ services:
       OTEL_EXPORTER_OTLP_INSECURE: "true"
       # Consumidor de SessionRevoked para el WebSocket (F09.5). Vacio = sin cierre remoto.
       PP_NATS_URL: "${GATEWAY_NATS_URL:-nats://event-bus:4222}"
-      PP_NATS_USER: "${GATEWAY_NATS_USER:-identity_svc}"
-      PP_NATS_PASS: "${GATEWAY_NATS_PASS:-identity_nats_secret}"
+      PP_NATS_USER: "${GATEWAY_NATS_USER:-gateway_svc}"
+      PP_NATS_PASS: "${GATEWAY_NATS_PASS:-gateway_nats_secret}"
     ports:
       - "8080:8080"
     depends_on:
@@ -88,6 +88,16 @@ services:
     # scrapear su :9100 (SPEC §2: "puerto admin en todos los servicios propios").
     networks: [edge, services]
     healthcheck: *healthcheck
+
+  # Exposición a internet mediante Cloudflare Tunnel para pruebas móviles remotas
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://api-gateway:8080
+    restart: unless-stopped
+    networks: [edge]
+    depends_on:
+      api-gateway:
+        condition: service_healthy
 
   # ── Seguridad base (F05) ──────────────────────────────────────────────────────
   openbao:

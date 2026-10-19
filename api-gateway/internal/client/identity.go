@@ -137,7 +137,7 @@ func (c *IdentityClient) RegisterCustomer(ctx context.Context, email, password, 
 		})
 	}
 	res, err := c.client.Register(ctx, &pb.RegisterRequest{
-		Email: email, Password: password, FullName: fullName, Role: pb.UserRole_CUSTOMER,
+		Email: email, Password: password, FullName: fullName, Role: pb.UserRole_BUSINESS_OWNER,
 		Consents: pbConsents, Channel: channel, Device: device,
 	})
 	if err != nil {
