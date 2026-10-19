@@ -205,7 +205,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | F13.6 PDF/XML a object-storage con QR | ✅ | 2026-10-19: `GetInvoiceDocument` implementado (object key + download URL). Go tests (4 tests) PASS. `go build ./...` + `go test ./...` OK |
 | F13.7 Notas de crédito/débito | ✅ | 2026-10-19: `IssueCreditNote`/`IssueDebitNote` implementados (requieren related_invoice_id). Go tests OK. `go build ./...` + `go test ./...` OK |
 | F13.8 Facturación de comisiones de PlentyPay a comercios | ✅ | 2026-10-19: `IssueInvoice` acepta cualquier `tenant_id` (incluido PLATFORM) y asigna folio por tenant+doc_type; `UNIQUE (tenant_id, source_type, source_id, doc_type)` garantiza un documento por tipo. Go tests OK. `go build ./...` + `go test ./...` OK |
-| F13.9 Pantallas Flutter: perfil fiscal, facturas, notas, contribuyentes | 📋 |  |
+| F13.9 Pantallas Flutter: perfil fiscal, facturas, notas, contribuyentes | 📝 | 2026-10-19: el dominio `fiscal-invoicing` ya está implementado (F13.1–F13.8); `FiscalScreen` en `flutter_app/lib/features/fiscal/` es un placeholder. **Falta**: las pantallas y el `integration_test` contra el simulador PAC (L4) |
 
 ## F14 — Geolocalización
 
@@ -213,11 +213,11 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 |---|---|---|
 | F14.1 Geocercas (delegado a GeoStream) | ✅ | 2026-10-19: cliente Go `internal/geostream` (CreateSession, GetSnapshot) + tests L1 (2 tests) PASS. Geolocalización se delega a GeoStream (https://github.com/angelnereira/GeoStream) vía SDK/API REST. `go test ./...` OK |
 | F14.2 Ingesta + última posición con filtros de calidad | ✅ | 2026-10-19: cliente GeoStream `IngestLocations` + tests L1 (3 tests en geostream). `go test ./...` OK |
-| F14.3 Trayectorias en Scylla con TTL | 📋 |  |
-| F14.4 FindNearby / IsInside | 📋 |  |
-| F14.5 Cruces de geocerca + eventos | 📋 |  |
-| F14.6 WatchSubject | 📋 |  |
-| F14.7 Pantalla Flutter: editor de geocercas sobre mapa (flutter_map) | 📋 |  |
+| F14.3 Trayectorias en Scylla con TTL | 📝 | 2026-10-19: el cliente `internal/geostream` ya cubre `CreateSession`/`GetSnapshot`/`IngestLocations` (F14.1–F14.2). **Falta**: el keyspace Scylla `geostream` con TTL y el consumidor de snapshots (L2) — el contenedor `geolocation` delega en GeoStream (https://github.com/angelnereira/GeoStream) |
+| F14.4 FindNearby / IsInside | 📝 | 2026-10-19: la lógica de `IsInside` la implementa GeoStream; el cliente Go ya la consume. **Falta**: probar el endpoint contra el servicio real (L4) |
+| F14.5 Cruces de geocerca + eventos | 📝 | 2026-10-19: el evento `GeofenceCrossed` ya está declarado en el contrato (`events.proto`). **Falta**: el consumidor que lo publica y el que lo consume (F19.3 lo usa para recordatorio de marcaje) |
+| F14.6 WatchSubject | 📝 | 2026-10-19: **bloqueante**: requiere el stream de GeoStream (L4) |
+| F14.7 Pantalla Flutter: editor de geocercas sobre mapa (flutter_map) | 📝 | 2026-10-19: **bloqueante**: requiere `flutter_map` y la integración con GeoStream (L4) |
 
 ## F15 — Catálogo, marketplace y pedidos multi-comercio
 
@@ -281,7 +281,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | F19.2 Turnos y horarios | ✅ | 2026-10-19: dominio `Shift` (Validate, WorkedMinutes con descanso), `ClassifyShift` diurno/nocturno/mixto (N-LAB-01). Tests L1 PASS |
 | F19.3 Marcaje PIN/QR dinámico/NFC + geocerca | ✅ | 2026-10-19: `ApplyClock` valida R1–R4 (biometría solo en dispositivo con consentimiento y prueba de vida, QR/NFC firmados, secuencia IN→(BREAK_START→BREAK_END)*→OUT, duplicados en 60 s ignorados) y R3 (fuera de geocerca → `needs_review`). Reasons `LOW_LIVENESS`, `BIOMETRIC_NOT_ENROLLED`, `CONSENT_REQUIRED`, `INVALID_CLOCK_SEQUENCE`, `OVERRIDE_REASON_REQUIRED`. Tests L1 PASS |
 | F19.4 Biometría en dispositivo + modo quiosco | ✅ | 2026-10-19: `KioskSession.ValidAt` (12 h renovable + revocable) y pantalla Flutter S-PAY-09 (quiosco sin navegación, QR rotativo, indicador sin conexión con marcajes pendientes). Tests Go L1 + widget tests PASS |
-| F19.5 Cálculo de nómina | 📋 | 2026-10-19: `ComputePayslip` con R5 completo (recargo por clase de turno 25/50/75 %, ISR progresivo por tramos, CSS + Seguro Educativo, `net ≥ 0`, redondeo half-up, `legal_param_version` registrado) — **mecanismo** implementado y probado (tests L1), pero los valores legales son ◐/⚠ (Q-13) y **no se puede marcar hasta su validación legal**. Falta la corrida real contra la hoja de referencia |
+| F19.5 Cálculo de nómina | 📝 | 2026-10-19: `ComputePayslip` con R5 completo (recargo por clase de turno 25/50/75 %, ISR progresivo por tramos, CSS + Seguro Educativo, `net ≥ 0`, redondeo half-up, `legal_param_version` registrado) — **mecanismo** implementado y probado (tests L1), pero los valores legales son ◐/⚠ (Q-13) y **no se puede marcar hasta su validación legal**. Falta la corrida real contra la hoja de referencia |
 | F19.6 Aprobación y pago (T10) | 📝 | 2026-10-19: `Run.Approve` (no aprobar la propia corrida, step-up, tasa de riesgo, asistencia sin revisión) y `Run.Pay`/`SettlePayments` (saldo insuficiente antes de empezar, PARTIALLY_FAILED con reintento solo de los fallidos) + `PaymentIdempotencyKey` T10 estable por corrida+empleado. Tests L1 PASS. **Falta**: RPC contra payments-core (L4) |
 | F19.7 Comprobantes PDF | ✅ | 2026-10-19: `RenderPayslipPDF` genera PDF 1.4 válido con el bruto, cada deducción, el neto, la versión de parámetros legales y la fecha de emisión (empaquetado en enteros minor, sin float). Tests L1 PASS (cabecera, EOF, contenido, escapado) |
 | F19.8 Pantallas Flutter: empleados, horarios, marcaje, quiosco, corridas de nómina, mis comprobantes | 📝 | 2026-10-19: S-PAY-01 (marcaje), S-PAY-05 (asistencia), S-PAY-06 (corridas), S-PAY-07 (detalle), S-PAY-08 (comprobante) y S-PAY-09 (quiosco) construidas con `gravital-experience-ui` (un solo filled, `MoneyText`, `StatusChip`, mes en texto). 11 widget tests + 82 del resto PASS; `StatusChip` corregido para texto al 200 % (goldens actualizados). Módulo `payroll` enrutado en el shell. **Falta**: S-PAY-02/03/04 completas y `integration_test` en el Pixel 8 Pro (L4) |
@@ -297,7 +297,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | F20.5 Reglas de suscripción (consumidores) | 📝 | 2026-10-19: tabla R2 del SPEC §5 codificada y revisable (`AllSubscriptionRules`, `RoutesFor`), con un test que verifica la cobertura de los 13 eventos del SPEC y otro que fija los canales de `PaymentCaptured`. **Falta**: consumidores NATS reales |
 | F20.6 Preferencias y supresiones | ✅ | 2026-10-19: `Preferences.Allowed` (una categoría transaccional conserva in-app aunque se apague el canal) y `ValidatePreferencesSettings` (`TRANSACTIONAL_IN_APP_REQUIRED`); `Suppression.Matches` con `HashAddress` (SHA-256, R5: la dirección nunca en claro). `Decide` aplica en orden duplicado → supresión → datos sensibles → horario silencioso. Tests PASS |
 | F20.7 WhatsApp (Jelou) y SMS | 📝 | 2026-10-19: interfaces `WhatsAppSender`/`SmsSender`, validación E.164, SMS como canal alterno de correo y WhatsApp (R3) y guarda de datos sensibles en canales cortos (R6). **Falta**: adaptadores Jelou y del proveedor de SMS — **Q-14 bloqueante**: el contrato privado de Jelou no está confirmado, así que el adaptador no puede escribirse sin adivinar |
-| F20.8 Pantallas Flutter: bandeja, preferencias, plantillas del comercio | 📋 |  |
+| F20.8 Pantallas Flutter: bandeja, preferencias, plantillas del comercio | 📝 | 2026-10-19: el dominio `notifications` ya cubre bandeja (`ListInbox`/`MarkRead`), preferencias (`Preferences.Allowed`/`ValidatePreferencesSettings`) y plantillas (`TemplateStore.Upsert`/`Preview`). **Falta**: las pantallas Flutter y el stream de bandeja (L4) |
 
 ## F21 — Inteligencia de negocio
 
@@ -322,7 +322,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | F22.2 Caché de catálogo/precios versionada | ✅ | 2026-10-19: `VersionedCache` con descarte por antigüedad (**regla de 24 h**, exacta a las 24 h) y por **versión del servidor**: una versión mayor invalida la entrada aunque sea reciente, y una versión igual o anterior se ignora para que una respuesta de caché que llega tarde no degrade el dato. `peek` permite a la UI mostrar el último valor conocido marcándolo viejo. Round-trip de serialización con `stored_at` en UTC. 7 tests L1 PASS |
 | F22.3 Deep links (App Links/Universal Links) + `.well-known` en web | ✅ | 2026-10-19: `parseDeepLink` (**cliente**) reconoce `/t/`, `/track/`, `/invite/` y `/reset/`, rechaza host ajeno (`evil.com`, `plentypay.app.evil.com`), rechaza `http://` salvo hosts de desarrollo, y no abre una pantalla sin código. `web/internal/server/wellknown.go` sirve `/.well-known/assetlinks.json` (Android) y `/.well-known/apple-app-site-association` (iOS, objeto con las 4 rutas), con las huellas desde `ANDROID_APP_FINGERPRINTS`/`APPLE_TEAM_ID`; una huella mal formada se descarta y, si no hay ninguna, responde **404**, nunca un archivo vacío que haría fallar la verificación del dominio en el dispositivo. 11 tests web + 8 de deep links PASS |
 | F22.4 Actualización forzada por versión mínima | 📝 | 2026-10-19: `UpdateGate` + `isOlderThan` (comparación **numérica** por segmento: `1.9.9` < `1.10.0`), `ClientConfig.fromJson` y las pantallas `ForcedUpdateScreen` (sin «continuar»: solo actualizar y salir) y `MaintenanceScreen` (se lee, no se escribe). 8 tests PASS. **Falta**: conectar `GetClientConfig` en el arranque de la app y probar el flujo en el Pixel 8 Pro (L4) |
-| F22.5 Firma de builds y canales (interno/beta) por plataforma | 📋 |  |
+| F22.5 Firma de builds y canales (interno/beta) por plataforma | 📝 | 2026-10-19: **bloqueante**: requiere certificados de firma y las cuentas de desarrollador (fuera del repositorio) |
 | F22.6 Telemetría de errores del cliente sin PII (a observability vía gateway) | 📝 | 2026-10-12, adelantado: captura global de errores, `AppLogger` con migas y enmascarado, `X-Request-Id` y `traceparent` por petición, cola acotada. `flutter analyze` sin issues; `flutter test` 30/30. Falta: `POST /v1/telemetry` en el gateway y el envío, persistencia de la cola, métricas de rendimiento y símbolos |
 
 ## F23 — Cliente: pagos presenciales QR/NFC y billeteras del dispositivo
@@ -333,8 +333,8 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | F23.2 NFC NDEF lectura (Android/iOS) y escritura de tags de terminal | 📝 | 2026-10-19: `parseNdefUri` acepta solo un registro URI que pase el mismo análisis del QR; `buildNdefUri` escribe un NDEF `uri` y rechaza un código inválido. No se emula tarjeta (HCE) ni se lee EMV (`security-standards.md` §9). Tests L1 PASS. **Falta**: probar con un tag físico en el Pixel 8 Pro (L4, lista de dispositivos en status) |
 | F23.3 Biometría local + step-up integrado | 📝 | 2026-10-19: `StepUpPolicy` con biometría local siempre que el dispositivo la tenga y step-up cuando el importe **iguala o supera** el umbral, que llega por configuración porque es un límite de riesgo del negocio, no una constante del código (`security-standards.md` §4). 5 tests PASS. **Falta**: la integración con `local_auth` y el diálogo de step-up del servidor |
 | F23.4 Pantalla 'confirmando' (UNKNOWN) + notificación final | ✅ | 2026-10-19: `ConfirmingPaymentScreen` — `UNKNOWN`, `PENDING` y **cualquier estado que la app no conozca** se muestran como «Estamos confirmando tu pago» con `StatusChip` y el botón de acción en secundario, nunca como fallo. Solo un fallo definitivo cambia el mensaje y la acción. `QrRejectedScreen` muestra el aviso traducido sin filtrar el contenido del QR. 8 widget tests PASS, incluido texto al 200 % |
-| F23.5 Enlaces de pago `/t/<code>` en web | 📋 |  |
-| F23.6 Apple Pay / Google Pay vía PSP (si Q-03 resuelta; si no, oculto por flag) | 📋 |  |
+| F23.5 Enlaces de pago `/t/<code>` en web | 📝 | 2026-10-19: `web/internal/server/wellknown.go` ya sirve `.well-known` y el contenedor `web` ya tiene el handler de la SPA. **Falta**: el handler `/t/<code>` que valida el regex del código y consulta `api-gateway` (L4) |
+| F23.6 Apple Pay / Google Pay vía PSP (si Q-03 resuelta; si no, oculto por flag) | 📝 | 2026-10-19: **bloqueante**: Q-03 sin resolver; el adaptador se oculta por flag hasta que haya credenciales del PSP (AGENTS.md §2.12) |
 | F23.7 Recibos compartibles PDF | ✅ | 2026-10-19: `ReceiptView` con **golden en claro y oscuro**, ancho fijo de ticket, líneas con `MoneyText`, fecha con el mes en texto (N-STD-10) y cédula del pagador ya enmascarada. `encodeReceiptPlainText` produce el recibo compartible en texto plano estable (fechas ISO 8601 en UTC, importes enteros, etiquetas escapadas con JSON) y **nunca incluye datos de tarjeta** (§2.17). 12 tests PASS |
 
 ## F24 — Cliente: hardware de mostrador
@@ -352,66 +352,66 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
 | F25.1 Auditoría de accesibilidad WCAG AA (lectores de pantalla, escala 200 %) | ✅ | 2026-10-19: auditoría con `meetsGuideline(textContrastGuideline)` y `androidTapTargetGuideline` en claro y oscuro, texto al 200 %, vertical y horizontal, compact (360 dp) y expanded (1400 dp), y anuncio por lector de pantalla de importes y del botón. **Encontró y corrigió dos incumplimientos reales**: (1) la etiqueta de `StatusChip` quedaba en **3.81:1** sobre su propio fondo — se añadieron los tokens `successInk`/`warningInk`/`errorInk`; (2) el texto blanco sobre `primary` quedaba en **4.23:1** — `primary` pasó a un rojo más oscuro (5.01:1) y `primaryPressed` también (8.18:1). El documento **`docs/design-system.md` §2 afirmaba que el contraste estaba verificado y era falso**, así que se corrigió primero el documento y después el código (AGENTS.md §1), con la tabla de cocientes reales. `contrast_test.dart` fija cada cociente con la fórmula de WCAG para que no vuelva a regresionar. 23 tests PASS |
-| F25.2 Rendimiento: arranque < 2.5 s, listas 60 fps, tamaños de bundle | 📋 |  |
-| F25.3 Carga diferida por módulo en web | 📋 |  |
+| F25.2 Rendimiento: arranque < 2.5 s, listas 60 fps, tamaños de bundle | 📝 | 2026-10-19: los patrones que lo permiten ya están en el código (lazy carga por módulo en el shell, `Wrap`/`ListView.builder` en las pantallas, `const` donde corresponde, `flutter analyze` sin incidencias). **Falta**: medición real en dispositivos de referencia y en el Pixel 8 Pro (L5) — no se puede marcar ✅ sin evidencia (AGENTS.md §2.11) |
+| F25.3 Carga diferida por módulo en web | 📝 | 2026-10-19: el bundle web se sirve desde `web/static/app/` con CSP estricta y caché inmutable para assets con hash (`web/internal/server/static.go`). **Falta**: verificar que el bundle inicial sea ≤ 3 MB y medirlo en el navegador (L4) |
 | F25.4 Textos legales, privacidad y consentimientos en la app | 📝 | 2026-10-19: S-PUB-03 construida con el **mecanismo**, sin inventar el texto: `LegalDocument`/`LegalDocuments` consumen lo que envía `client-config` con su versión y fecha, y un `LegalUnavailable` explica con claridad que el texto aún no está publicado — **Q-08 sigue BLOQUEANTE**: los textos de Términos, Privacidad y Consentimiento de biometría son un entregable legal y PlentyPay no los redacta (AGENTS.md §7). Un test verifica que la versión que se muestra es la misma que `LegalTexts` registra en el consentimiento (N-DAT-02), y otro que el aviso al usuario nunca muestra un código técnico. «Aceptar» solo aparece cuando hay un texto que aceptar. 11 tests PASS |
-| F25.5 Fichas y envío a tiendas; paquetes Linux (deb/AppImage) y Windows (MSIX) | 📋 |  |
+| F25.5 Fichas y envío a tiendas; paquetes Linux (deb/AppImage) y Windows (MSIX) | 📝 | 2026-10-19: los builds se producen con el pipeline de CI (`docs/standards/delivery-pipeline.md`); el contenedor `web` ya entrega el bundle Flutter Web. **Falta**: las fichas de las tiendas, los artefactos firmados y la aceptación de las tiendas (L4, requiere cuentas de desarrollador) |
 
 ## F26 — Infraestructura como código multi-proveedor
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F26.1 Estructura `infra/opentofu` + backend de estado S3 con bloqueo | 📋 |  |
-| F26.2 Módulo `cluster-self-hosted` (k3s HA) | 📋 |  |
-| F26.3 Módulo `cluster-gcp` (o el proveedor de DR elegido primero) | 📋 |  |
-| F26.4 Módulos `cluster-aws` y `cluster-azure` | 📋 |  |
-| F26.5 Módulo `cluster-railway` con limitaciones documentadas | 📋 |  |
-| F26.6 Módulo `platform` (operadores, Argo CD, cert-manager, ingress, External Secrets) | 📋 |  |
-| F26.7 DNS, certificados y entornos staging/prod-primary/prod-dr | 📋 |  |
+| F26.1 Estructura `infra/opentofu` + backend de estado S3 con bloqueo | 📝 | 2026-10-19: **bloqueante**: `tofu` no está instalado en este entorno y el contenedor `infra/` no existe todavía. El mecanismo está definido en `docs/standards/` y el plan de `05-HOJA-DE-RUTA`; se crea cuando haya credenciales de nube (Q-04). No se marca ✅ sin evidencia (AGENTS.md §2.11) |
+| F26.2 Módulo `cluster-self-hosted` (k3s HA) | 📝 | 2026-10-19: **bloqueante**: requiere VMs de prueba y `tofu` (F26.1). No se ejecutó |
+| F26.3 Módulo `cluster-gcp` (o el proveedor de DR elegido primero) | 📝 | 2026-10-19: **bloqueante**: requiere credenciales de nube (Q-04) y F26.1 |
+| F26.4 Módulos `cluster-aws` y `cluster-azure` | 📝 | 2026-10-19: **bloqueante**: requiere credenciales de nube (Q-04) y F26.1 |
+| F26.5 Módulo `cluster-railway` con limitaciones documentadas | 📝 | 2026-10-19: **bloqueante**: requiere credenciales y F26.1 |
+| F26.6 Módulo `platform` (operadores, Argo CD, cert-manager, ingress, External Secrets) | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
+| F26.7 DNS, certificados y entornos staging/prod-primary/prod-dr | 📝 | 2026-10-19: **bloqueante**: requiere clúster y DNS real (Q-04) |
 
 ## F27 — Kubernetes
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F27.1 Kustomize base por contenedor desde el bloque Compose | 📋 |  |
-| F27.2 Seguridad de pods, ServiceAccounts, NetworkPolicy desde la matriz de llamadas | 📋 |  |
-| F27.3 CloudNativePG, Scylla Operator, NATS, Garage en clúster | 📋 |  |
-| F27.4 HPA, PDB, topology spread | 📋 |  |
-| F27.5 Argo CD + overlays staging/prod + jobs de migración PreSync | 📋 |  |
-| F27.6 Argo Rollouts canary para ledger y payments-core | 📋 |  |
-| F27.7 infra-management.ListServices sobre Kubernetes | 📋 |  |
+| F27.1 Kustomize base por contenedor desde el bloque Compose | 📝 | 2026-10-19: **bloqueante**: `kustomize` no está instalado y el clúster no existe (F26.2) |
+| F27.2 Seguridad de pods, ServiceAccounts, NetworkPolicy desde la matriz de llamadas | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
+| F27.3 CloudNativePG, Scylla Operator, NATS, Garage en clúster | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
+| F27.4 HPA, PDB, topology spread | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
+| F27.5 Argo CD + overlays staging/prod + jobs de migración PreSync | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
+| F27.6 Argo Rollouts canary para ledger y payments-core | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
+| F27.7 infra-management.ListServices sobre Kubernetes | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
 
 ## F28 — Seguridad avanzada y cumplimiento
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F28.1 EdDSA + JWKS y validación local en gateway | 📋 |  |
-| F28.2 Passkeys | 📋 |  |
-| F28.3 Pinning en prod, detección root/jailbreak, FLAG_SECURE | 📋 |  |
-| F28.4 Unseal productivo de OpenBao, rotaciones automáticas | 📋 |  |
-| F28.5 Escaneos SAST/DAST (gosec, cargo-audit, ZAP) en CI y corrección | 📋 |  |
-| F28.6 Pentest externo y remediación | 📋 |  |
-| F28.7 Cumplimiento SBP/DGI/PCI SAQ A/Ley 81 (matriz de controles) | 📋 |  |
-| F28.8 SSO de Grafana y consolas internas con identity | 📋 |  |
+| F28.1 EdDSA + JWKS y validación local en gateway | 📝 | 2026-10-19: **bloqueante**: requiere el trabajo de identidad (F05) y un cambio de contrato que no se hizo en este ciclo |
+| F28.2 Passkeys | 📝 | 2026-10-19: **bloqueante**: requiere F28.1 (JWKS) y WebAuthn en el cliente |
+| F28.3 Pinning en prod, detección root/jailbreak, FLAG_SECURE | 📝 | 2026-10-19: el mecanismo de step-up y biometría local ya existe (`flutter_app/lib/core/pay/qr_scanner.dart`, `security/SPEC.md` §4); los certificados de pinning y la detección de root requieren un build de producción firmado (F22.5) |
+| F28.4 Unseal productivo de OpenBao, rotaciones automáticas | 📝 | 2026-10-19: el runbook `openbao-unseal.md` ya existe. **Falta**: ejecutarlo en producción con unseal keys reales |
+| F28.5 Escaneos SAST/DAST (gosec, cargo-audit, ZAP) en CI y corrección | 📝 | 2026-10-19: se verificó que los contenedores Go compilan con `go vet`/`go test -race` y Rust con `cargo test`+`clippy`, y que `check-isolation.sh`/`check-docs.sh`/`sync-protos.sh` pasan. **Falta**: `gosec`, `cargo-audit` y ZAP no están instalados en este entorno (AGENTS.md §2.11): no se marca ✅ sin evidencia |
+| F28.6 Pentest externo y remediación | 📝 | 2026-10-19: **bloqueante**: requiere un proveedor externo y presupuesto (fuera del repositorio) |
+| F28.7 Cumplimiento SBP/DGI/PCI SAQ A/Ley 81 (matriz de controles) | 📝 | 2026-10-19: la matriz de controles está en `docs/compliance/regulatory-framework.md` y `docs/compliance/international-standards.md`, con las reglas `N-…` aplicadas por contenedor (SPEC §5 «Cumplimiento normativo»). **Falta**: el mapeo formal a los requisitos de la SBP (superintendente de bancos de Panamá) y la evidencia de auditoría externa (Q-01, Q-04, Q-08) |
+| F28.8 SSO de Grafana y consolas internas con identity | 📝 | 2026-10-19: **bloqueante**: requiere identidad (F05) y el despliegue de Grafana en el clúster (F26.6) |
 
 ## F29 — Carga, resiliencia y caos
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F29.1 Escenarios k6 (login, pago wallet, venta POS, checkout, consultas) | 📋 |  |
-| F29.2 Datos sintéticos a escala (1 M usuarios, 10 k comercios) | 📋 |  |
-| F29.3 Pruebas de carga y ajuste (pools, índices, réplicas) | 📋 |  |
-| F29.4 Caos: caída de cada contenedor según matriz de degradación | 📋 |  |
-| F29.5 Fallos de red y latencia con toxiproxy/chaos-mesh en sagas | 📋 |  |
-| F29.6 Recuperación ante desastre: failover a nube DR | 📋 |  |
+| F29.1 Escenarios k6 (login, pago wallet, venta POS, checkout, consultas) | 📝 | 2026-10-19: existe `scripts/load/ledger-posttransaction.js` y se ejecutó contra el ledger (50 VUs, ~6262 iteraciones, 99.84 % OK, 621 req/s, p99 ~83 ms). **Falta**: escenarios de login, pago wallet, venta POS, checkout y consultas, y la medición de los SLOs (`observability-standards.md` §5) |
+| F29.2 Datos sintéticos a escala (1 M usuarios, 10 k comercios) | 📝 | 2026-10-19: **bloqueante**: requiere el generador y la infraestructura de carga (F29.1) |
+| F29.3 Pruebas de carga y ajuste (pools, índices, réplicas) | 📝 | 2026-10-19: **bloqueante**: requiere F29.1 y un clúster (F26.2) |
+| F29.4 Caos: caída de cada contenedor según matriz de degradación | 📝 | 2026-10-19: **bloqueante**: requiere clúster y la matriz de degradación de `service-dependencies.md` §6 |
+| F29.5 Fallos de red y latencia con toxiproxy/chaos-mesh en sagas | 📝 | 2026-10-19: **bloqueante**: requiere F29.1 y `toxiproxy`/`chaos-mesh` |
+| F29.6 Recuperación ante desastre: failover a nube DR | 📝 | 2026-10-19: **bloqueante**: requiere F26.3 y un clúster DR |
 
 ## F30 — Lanzamiento a producción
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F30.1 Runbooks completos (`delivery-pipeline.md` §9) y simulacro de incidentes | 📋 |  |
-| F30.2 On-call, escalamiento y canales de soporte (mesa de ayuda) | 📋 |  |
-| F30.3 Credenciales reales de rieles y PAC (Q-02, Q-03, Q-11) y pruebas en vivo controladas | 📋 |  |
-| F30.4 Piloto con comercios seleccionados y feature flags | 📋 |  |
-| F30.5 Migración/alta asistida de comercios y materiales de entrenamiento | 📋 |  |
-| F30.6 Apertura general y revisión post-lanzamiento | 📋 |  |
+| F30.1 Runbooks completos (`delivery-pipeline.md` §9) y simulacro de incidentes | 📝 | 2026-10-19: se añadieron `docs/runbooks/system-start-stop.md` (arranque/parada en el orden de `service-dependencies.md` §2) y `docs/runbooks/payment-unknown.md` (diagnóstico y resolución de pagos `UNKNOWN`, incluida la verificación del runbook). Ya existían `postgres-pitr.md`, `openbao-unseal.md` y `scylladb-backup.md`. **Falta**: pausa de un riel, discrepancia de conciliación, incidente de seguridad, escalado manual, recuperación ante desastre (RPO ≤ 5 min, RTO ≤ 1 h) y el simulacro documentado (F30.1 exige evidencia, no solo los textos) |
+| F30.2 On-call, escalamiento y canales de soporte (mesa de ayuda) | 📝 | 2026-10-19: definido en `docs/runbooks/system-start-stop.md` §3 (solo se para por ventana anunciada, actualización o incidente de seguridad; reiniciar el sistema completo por un fallo de un servicio causa más daño que el fallo original) y en `payment-unknown.md` §5 (comunicación al comercio). **Falta**: la rotación on-call con nombres y el canal de soporte publicado (L0, decisión de operación fuera del repositorio) |
+| F30.3 Credenciales reales de rieles y PAC (Q-02, Q-03, Q-11) y pruebas en vivo controladas | 📝 | 2026-10-19: **bloqueante**: los adaptadores responden en `sandbox:true` mientras no haya credenciales reales (AGENTS.md §2.12); las transacciones reales requieren Q-02/Q-03/Q-11 resueltas (L5) |
+| F30.4 Piloto con comercios seleccionados y feature flags | 📝 | 2026-10-19: **bloqueante**: requiere despliegue en staging (F26.7) y la matriz de controles (F28.7) |
+| F30.5 Migración/alta asistida de comercios y materiales de entrenamiento | 📝 | 2026-10-19: la alta asistida usa el flujo ya implementado (`business_create_screen.dart`, `TeamScreen`, `RolesScreen`); los textos de ayuda viven en las fichas S-*. **Falta**: guía publicada y materiales de entrenamiento (L0, fuera del repositorio) |
+| F30.6 Apertura general y revisión post-lanzamiento | 📝 | 2026-10-19: **bloqueante**: requiere F30.4 (piloto sin incidentes críticos) |
