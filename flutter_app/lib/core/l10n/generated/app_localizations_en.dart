@@ -764,4 +764,127 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get emptyInvoices => 'No invoices issued.';
+
+  @override
+  String get newProduct => 'New product';
+
+  @override
+  String get editProduct => 'Edit product';
+
+  @override
+  String get archiveProduct => 'Archive';
+
+  @override
+  String get sectionBasic => 'Basic';
+
+  @override
+  String get sectionIdentification => 'Identification';
+
+  @override
+  String get sectionSale => 'Sale';
+
+  @override
+  String get sectionTaxes => 'Taxes';
+
+  @override
+  String get sectionInventory => 'Inventory';
+
+  @override
+  String get sectionRestrictions => 'Restrictions';
+
+  @override
+  String get sectionWarranty => 'Warranty and returns';
+
+  @override
+  String get fieldProductName => 'Name';
+
+  @override
+  String get fieldDescription => 'Description';
+
+  @override
+  String get fieldCategory => 'Category';
+
+  @override
+  String get fieldSku => 'SKU';
+
+  @override
+  String get fieldBarcode => 'Barcode';
+
+  @override
+  String get fieldUnit => 'Unit of measure';
+
+  @override
+  String get sellByWeight => 'Sold by weight';
+
+  @override
+  String get fieldPrice => 'Sale price';
+
+  @override
+  String get priceIncludesTax => 'Price includes tax';
+
+  @override
+  String get fieldCost => 'Cost';
+
+  @override
+  String get fieldTaxTreatment => 'Treatment';
+
+  @override
+  String get fieldTaxRate => 'Tax rate';
+
+  @override
+  String get trackStock => 'Track stock';
+
+  @override
+  String get trackLot => 'Track lot and expiry';
+
+  @override
+  String get fieldMinStock => 'Minimum stock';
+
+  @override
+  String get onlyAdults => 'Adults only';
+
+  @override
+  String get requiresPrescription => 'Requires prescription';
+
+  @override
+  String get fieldWarrantyDays => 'Warranty days';
+
+  @override
+  String get readinessTitle => 'Ready to sell / publish';
+
+  @override
+  String get readinessReadyToSell => 'Ready to sell: yes';
+
+  @override
+  String get readinessReadyToPublish => 'Ready to publish: yes';
+
+  @override
+  String get cartTitle => 'Cart';
+
+  @override
+  String get emptyCart => 'Your cart is empty.';
+
+  @override
+  String get actionCheckout => 'Checkout';
+
+  @override
+  String get checkoutTitle => 'Checkout';
+
+  @override
+  String get deliveryMethod => 'Delivery method';
+
+  @override
+  String get paymentMethod => 'Payment method';
+
+  @override
+  String get orderSummary => 'Order summary';
+
+  @override
+  String get actionPlaceOrder => 'Place order';
+
+  @override
+  String get ordersTitle => 'My orders';
+
+  @override
+  String get emptyOrders => 'You have no orders yet.';
 }

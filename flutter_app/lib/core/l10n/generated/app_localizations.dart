@@ -1520,6 +1520,252 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No hay facturas emitidas.'**
   String get emptyInvoices;
+
+  /// No description provided for @newProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Nuevo producto'**
+  String get newProduct;
+
+  /// No description provided for @editProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar producto'**
+  String get editProduct;
+
+  /// No description provided for @archiveProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Archivar'**
+  String get archiveProduct;
+
+  /// No description provided for @sectionBasic.
+  ///
+  /// In es, this message translates to:
+  /// **'Básico'**
+  String get sectionBasic;
+
+  /// No description provided for @sectionIdentification.
+  ///
+  /// In es, this message translates to:
+  /// **'Identificación'**
+  String get sectionIdentification;
+
+  /// No description provided for @sectionSale.
+  ///
+  /// In es, this message translates to:
+  /// **'Venta'**
+  String get sectionSale;
+
+  /// No description provided for @sectionTaxes.
+  ///
+  /// In es, this message translates to:
+  /// **'Impuestos'**
+  String get sectionTaxes;
+
+  /// No description provided for @sectionInventory.
+  ///
+  /// In es, this message translates to:
+  /// **'Inventario'**
+  String get sectionInventory;
+
+  /// No description provided for @sectionRestrictions.
+  ///
+  /// In es, this message translates to:
+  /// **'Restricciones'**
+  String get sectionRestrictions;
+
+  /// No description provided for @sectionWarranty.
+  ///
+  /// In es, this message translates to:
+  /// **'Garantía y devoluciones'**
+  String get sectionWarranty;
+
+  /// No description provided for @fieldProductName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre'**
+  String get fieldProductName;
+
+  /// No description provided for @fieldDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Descripción'**
+  String get fieldDescription;
+
+  /// No description provided for @fieldCategory.
+  ///
+  /// In es, this message translates to:
+  /// **'Categoría'**
+  String get fieldCategory;
+
+  /// No description provided for @fieldSku.
+  ///
+  /// In es, this message translates to:
+  /// **'SKU'**
+  String get fieldSku;
+
+  /// No description provided for @fieldBarcode.
+  ///
+  /// In es, this message translates to:
+  /// **'Código de barras'**
+  String get fieldBarcode;
+
+  /// No description provided for @fieldUnit.
+  ///
+  /// In es, this message translates to:
+  /// **'Unidad de medida'**
+  String get fieldUnit;
+
+  /// No description provided for @sellByWeight.
+  ///
+  /// In es, this message translates to:
+  /// **'Se vende a granel'**
+  String get sellByWeight;
+
+  /// No description provided for @fieldPrice.
+  ///
+  /// In es, this message translates to:
+  /// **'Precio de venta'**
+  String get fieldPrice;
+
+  /// No description provided for @priceIncludesTax.
+  ///
+  /// In es, this message translates to:
+  /// **'El precio incluye ITBMS'**
+  String get priceIncludesTax;
+
+  /// No description provided for @fieldCost.
+  ///
+  /// In es, this message translates to:
+  /// **'Costo'**
+  String get fieldCost;
+
+  /// No description provided for @fieldTaxTreatment.
+  ///
+  /// In es, this message translates to:
+  /// **'Tratamiento'**
+  String get fieldTaxTreatment;
+
+  /// No description provided for @fieldTaxRate.
+  ///
+  /// In es, this message translates to:
+  /// **'Tasa de ITBMS'**
+  String get fieldTaxRate;
+
+  /// No description provided for @trackStock.
+  ///
+  /// In es, this message translates to:
+  /// **'Controlar existencias'**
+  String get trackStock;
+
+  /// No description provided for @trackLot.
+  ///
+  /// In es, this message translates to:
+  /// **'Controla lote y vencimiento'**
+  String get trackLot;
+
+  /// No description provided for @fieldMinStock.
+  ///
+  /// In es, this message translates to:
+  /// **'Existencia mínima'**
+  String get fieldMinStock;
+
+  /// No description provided for @onlyAdults.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo mayores de 18'**
+  String get onlyAdults;
+
+  /// No description provided for @requiresPrescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Requiere receta'**
+  String get requiresPrescription;
+
+  /// No description provided for @fieldWarrantyDays.
+  ///
+  /// In es, this message translates to:
+  /// **'Días de garantía'**
+  String get fieldWarrantyDays;
+
+  /// No description provided for @readinessTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Listo para vender / publicar'**
+  String get readinessTitle;
+
+  /// No description provided for @readinessReadyToSell.
+  ///
+  /// In es, this message translates to:
+  /// **'Listo para vender: sí'**
+  String get readinessReadyToSell;
+
+  /// No description provided for @readinessReadyToPublish.
+  ///
+  /// In es, this message translates to:
+  /// **'Listo para publicar: sí'**
+  String get readinessReadyToPublish;
+
+  /// No description provided for @cartTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Carrito'**
+  String get cartTitle;
+
+  /// No description provided for @emptyCart.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu carrito está vacío.'**
+  String get emptyCart;
+
+  /// No description provided for @actionCheckout.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar'**
+  String get actionCheckout;
+
+  /// No description provided for @checkoutTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar'**
+  String get checkoutTitle;
+
+  /// No description provided for @deliveryMethod.
+  ///
+  /// In es, this message translates to:
+  /// **'Método de entrega'**
+  String get deliveryMethod;
+
+  /// No description provided for @paymentMethod.
+  ///
+  /// In es, this message translates to:
+  /// **'Método de pago'**
+  String get paymentMethod;
+
+  /// No description provided for @orderSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'Resumen del pedido'**
+  String get orderSummary;
+
+  /// No description provided for @actionPlaceOrder.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar pedido'**
+  String get actionPlaceOrder;
+
+  /// No description provided for @ordersTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mis pedidos'**
+  String get ordersTitle;
+
+  /// No description provided for @emptyOrders.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes pedidos todavía.'**
+  String get emptyOrders;
 }
 
 class _AppLocalizationsDelegate

@@ -764,6 +764,129 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get emptyInvoices => 'No hay facturas emitidas.';
+
+  @override
+  String get newProduct => 'Nuevo producto';
+
+  @override
+  String get editProduct => 'Editar producto';
+
+  @override
+  String get archiveProduct => 'Archivar';
+
+  @override
+  String get sectionBasic => 'Básico';
+
+  @override
+  String get sectionIdentification => 'Identificación';
+
+  @override
+  String get sectionSale => 'Venta';
+
+  @override
+  String get sectionTaxes => 'Impuestos';
+
+  @override
+  String get sectionInventory => 'Inventario';
+
+  @override
+  String get sectionRestrictions => 'Restricciones';
+
+  @override
+  String get sectionWarranty => 'Garantía y devoluciones';
+
+  @override
+  String get fieldProductName => 'Nombre';
+
+  @override
+  String get fieldDescription => 'Descripción';
+
+  @override
+  String get fieldCategory => 'Categoría';
+
+  @override
+  String get fieldSku => 'SKU';
+
+  @override
+  String get fieldBarcode => 'Código de barras';
+
+  @override
+  String get fieldUnit => 'Unidad de medida';
+
+  @override
+  String get sellByWeight => 'Se vende a granel';
+
+  @override
+  String get fieldPrice => 'Precio de venta';
+
+  @override
+  String get priceIncludesTax => 'El precio incluye ITBMS';
+
+  @override
+  String get fieldCost => 'Costo';
+
+  @override
+  String get fieldTaxTreatment => 'Tratamiento';
+
+  @override
+  String get fieldTaxRate => 'Tasa de ITBMS';
+
+  @override
+  String get trackStock => 'Controlar existencias';
+
+  @override
+  String get trackLot => 'Controla lote y vencimiento';
+
+  @override
+  String get fieldMinStock => 'Existencia mínima';
+
+  @override
+  String get onlyAdults => 'Solo mayores de 18';
+
+  @override
+  String get requiresPrescription => 'Requiere receta';
+
+  @override
+  String get fieldWarrantyDays => 'Días de garantía';
+
+  @override
+  String get readinessTitle => 'Listo para vender / publicar';
+
+  @override
+  String get readinessReadyToSell => 'Listo para vender: sí';
+
+  @override
+  String get readinessReadyToPublish => 'Listo para publicar: sí';
+
+  @override
+  String get cartTitle => 'Carrito';
+
+  @override
+  String get emptyCart => 'Tu carrito está vacío.';
+
+  @override
+  String get actionCheckout => 'Pagar';
+
+  @override
+  String get checkoutTitle => 'Pagar';
+
+  @override
+  String get deliveryMethod => 'Método de entrega';
+
+  @override
+  String get paymentMethod => 'Método de pago';
+
+  @override
+  String get orderSummary => 'Resumen del pedido';
+
+  @override
+  String get actionPlaceOrder => 'Confirmar pedido';
+
+  @override
+  String get ordersTitle => 'Mis pedidos';
+
+  @override
+  String get emptyOrders => 'No tienes pedidos todavía.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).
@@ -1360,4 +1483,127 @@ class AppLocalizationsEsPa extends AppLocalizationsEs {
 
   @override
   String get emptyInvoices => 'No hay facturas emitidas.';
+
+  @override
+  String get newProduct => 'Nuevo producto';
+
+  @override
+  String get editProduct => 'Editar producto';
+
+  @override
+  String get archiveProduct => 'Archivar';
+
+  @override
+  String get sectionBasic => 'Básico';
+
+  @override
+  String get sectionIdentification => 'Identificación';
+
+  @override
+  String get sectionSale => 'Venta';
+
+  @override
+  String get sectionTaxes => 'Impuestos';
+
+  @override
+  String get sectionInventory => 'Inventario';
+
+  @override
+  String get sectionRestrictions => 'Restricciones';
+
+  @override
+  String get sectionWarranty => 'Garantía y devoluciones';
+
+  @override
+  String get fieldProductName => 'Nombre';
+
+  @override
+  String get fieldDescription => 'Descripción';
+
+  @override
+  String get fieldCategory => 'Categoría';
+
+  @override
+  String get fieldSku => 'SKU';
+
+  @override
+  String get fieldBarcode => 'Código de barras';
+
+  @override
+  String get fieldUnit => 'Unidad de medida';
+
+  @override
+  String get sellByWeight => 'Se vende a granel';
+
+  @override
+  String get fieldPrice => 'Precio de venta';
+
+  @override
+  String get priceIncludesTax => 'El precio incluye ITBMS';
+
+  @override
+  String get fieldCost => 'Costo';
+
+  @override
+  String get fieldTaxTreatment => 'Tratamiento';
+
+  @override
+  String get fieldTaxRate => 'Tasa de ITBMS';
+
+  @override
+  String get trackStock => 'Controlar existencias';
+
+  @override
+  String get trackLot => 'Controla lote y vencimiento';
+
+  @override
+  String get fieldMinStock => 'Existencia mínima';
+
+  @override
+  String get onlyAdults => 'Solo mayores de 18';
+
+  @override
+  String get requiresPrescription => 'Requiere receta';
+
+  @override
+  String get fieldWarrantyDays => 'Días de garantía';
+
+  @override
+  String get readinessTitle => 'Listo para vender / publicar';
+
+  @override
+  String get readinessReadyToSell => 'Listo para vender: sí';
+
+  @override
+  String get readinessReadyToPublish => 'Listo para publicar: sí';
+
+  @override
+  String get cartTitle => 'Carrito';
+
+  @override
+  String get emptyCart => 'Tu carrito está vacío.';
+
+  @override
+  String get actionCheckout => 'Pagar';
+
+  @override
+  String get checkoutTitle => 'Pagar';
+
+  @override
+  String get deliveryMethod => 'Método de entrega';
+
+  @override
+  String get paymentMethod => 'Método de pago';
+
+  @override
+  String get orderSummary => 'Resumen del pedido';
+
+  @override
+  String get actionPlaceOrder => 'Confirmar pedido';
+
+  @override
+  String get ordersTitle => 'Mis pedidos';
+
+  @override
+  String get emptyOrders => 'No tienes pedidos todavía.';
 }
