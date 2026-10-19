@@ -20,42 +20,42 @@ class LegalParametersScreen extends StatefulWidget {
 class _LegalParametersScreenState extends State<LegalParametersScreen> {
   final List<Map<String, dynamic>> _params = [
     {
-      'key': 'legal.pa.tax.itbms_standard_pct',
+      'param_name': 'legal.pa.tax.itbms_standard_pct',
       'label': 'ITBMS Alícuota General',
       'value': '7.00 %',
       'source': 'Ley 8 de 2010 (Art. 1057-V Código Fiscal)',
       'effective_from': '01 de julio de 2010',
     },
     {
-      'key': 'legal.pa.tax.itbms_alcohol_pct',
+      'param_name': 'legal.pa.tax.itbms_alcohol_pct',
       'label': 'ITBMS Bebidas Alcohólicas y Hospedaje',
       'value': '10.00 %',
       'source': 'Ley 8 de 2010 (Art. 1057-V Código Fiscal)',
       'effective_from': '01 de julio de 2010',
     },
     {
-      'key': 'legal.pa.payroll.css_employee_pct',
+      'param_name': 'legal.pa.payroll.css_employee_pct',
       'label': 'Cuota Obrero Seguro Social (CSS)',
       'value': '9.75 %',
       'source': 'Ley 51 de 2005 Orgánica de la CSS',
       'effective_from': '01 de enero de 2013',
     },
     {
-      'key': 'legal.pa.payroll.se_employee_pct',
+      'param_name': 'legal.pa.payroll.se_employee_pct',
       'label': 'Seguro Educativo Obrero',
       'value': '1.25 %',
       'source': 'Ley 49 de 1979',
       'effective_from': '01 de octubre de 1979',
     },
     {
-      'key': 'legal.pa.labor.max_hours_day_weekly',
+      'param_name': 'legal.pa.labor.max_hours_day_weekly',
       'label': 'Jornada Ordinaria Diurna Máxima',
       'value': '48 horas semanales',
       'source': 'Código de Trabajo de Panamá (Art. 30)',
       'effective_from': '02 de abril de 1972',
     },
     {
-      'key': 'legal.pa.wallet.tier1_max_balance_cents',
+      'param_name': 'legal.pa.wallet.tier1_max_balance_cents',
       'label': 'Tope Saldo Billetera Nivel 1 (Simplificada)',
       'value': '\$1,000.00 (100,000 centavos)',
       'source': 'Acuerdo Bancario SBP N-AML-03',
@@ -101,7 +101,7 @@ class _LegalParametersScreenState extends State<LegalParametersScreen> {
                     ),
                     const SizedBox(height: 4),
                     SelectableText(
-                      p['key'] as String,
+                      p['param_name'] as String,
                       style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(height: 6),
