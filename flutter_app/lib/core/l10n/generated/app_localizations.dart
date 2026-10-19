@@ -1298,6 +1298,228 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Aceptar'**
   String get actionAcceptTerms;
+
+  /// No description provided for @catalogTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Productos'**
+  String get catalogTitle;
+
+  /// No description provided for @searchProductsHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar por nombre, código o SKU'**
+  String get searchProductsHint;
+
+  /// No description provided for @scanBarcode.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear código de barras'**
+  String get scanBarcode;
+
+  /// No description provided for @actionNewProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Nuevo producto'**
+  String get actionNewProduct;
+
+  /// No description provided for @actionImport.
+  ///
+  /// In es, this message translates to:
+  /// **'Importar'**
+  String get actionImport;
+
+  /// No description provided for @emptyCatalogTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes productos'**
+  String get emptyCatalogTitle;
+
+  /// No description provided for @emptyCatalogBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Crea tu primer producto o impórtalos desde un archivo.'**
+  String get emptyCatalogBody;
+
+  /// No description provided for @statusArchived.
+  ///
+  /// In es, this message translates to:
+  /// **'Archivado'**
+  String get statusArchived;
+
+  /// No description provided for @statusOutOfStock.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin existencias'**
+  String get statusOutOfStock;
+
+  /// No description provided for @inventoryTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Existencias'**
+  String get inventoryTitle;
+
+  /// No description provided for @adjustStock.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajustar'**
+  String get adjustStock;
+
+  /// No description provided for @transferStock.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferir'**
+  String get transferStock;
+
+  /// No description provided for @warehouse.
+  ///
+  /// In es, this message translates to:
+  /// **'Bodega'**
+  String get warehouse;
+
+  /// No description provided for @lowStock.
+  ///
+  /// In es, this message translates to:
+  /// **'Por agotarse'**
+  String get lowStock;
+
+  /// No description provided for @outOfStock.
+  ///
+  /// In es, this message translates to:
+  /// **'Agotados'**
+  String get outOfStock;
+
+  /// No description provided for @expiringSoon.
+  ///
+  /// In es, this message translates to:
+  /// **'Por vencer'**
+  String get expiringSoon;
+
+  /// No description provided for @posTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Caja'**
+  String get posTitle;
+
+  /// No description provided for @parkSale.
+  ///
+  /// In es, this message translates to:
+  /// **'Estacionar'**
+  String get parkSale;
+
+  /// No description provided for @voidSale.
+  ///
+  /// In es, this message translates to:
+  /// **'Anular'**
+  String get voidSale;
+
+  /// No description provided for @searchProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar producto'**
+  String get searchProduct;
+
+  /// No description provided for @emptySale.
+  ///
+  /// In es, this message translates to:
+  /// **'Agrega productos para empezar la venta.'**
+  String get emptySale;
+
+  /// No description provided for @subtotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Subtotal'**
+  String get subtotal;
+
+  /// No description provided for @tax.
+  ///
+  /// In es, this message translates to:
+  /// **'ITBMS'**
+  String get tax;
+
+  /// No description provided for @total.
+  ///
+  /// In es, this message translates to:
+  /// **'Total'**
+  String get total;
+
+  /// No description provided for @logisticsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Entregas'**
+  String get logisticsTitle;
+
+  /// No description provided for @mapView.
+  ///
+  /// In es, this message translates to:
+  /// **'Mapa'**
+  String get mapView;
+
+  /// No description provided for @emptyDeliveries.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay entregas para este filtro.'**
+  String get emptyDeliveries;
+
+  /// No description provided for @newDelivery.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva entrega'**
+  String get newDelivery;
+
+  /// No description provided for @fiscalProfileTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Perfil fiscal'**
+  String get fiscalProfileTitle;
+
+  /// No description provided for @fieldRuc.
+  ///
+  /// In es, this message translates to:
+  /// **'RUC'**
+  String get fieldRuc;
+
+  /// No description provided for @fieldPac.
+  ///
+  /// In es, this message translates to:
+  /// **'PAC'**
+  String get fieldPac;
+
+  /// No description provided for @fieldEnvironment.
+  ///
+  /// In es, this message translates to:
+  /// **'Ambiente'**
+  String get fieldEnvironment;
+
+  /// No description provided for @folioStatus.
+  ///
+  /// In es, this message translates to:
+  /// **'Folios disponibles'**
+  String get folioStatus;
+
+  /// No description provided for @folioOk.
+  ///
+  /// In es, this message translates to:
+  /// **'OK'**
+  String get folioOk;
+
+  /// No description provided for @invoicesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Facturas'**
+  String get invoicesTitle;
+
+  /// No description provided for @issueInvoice.
+  ///
+  /// In es, this message translates to:
+  /// **'Emitir factura'**
+  String get issueInvoice;
+
+  /// No description provided for @emptyInvoices.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay facturas emitidas.'**
+  String get emptyInvoices;
 }
 
 class _AppLocalizationsDelegate

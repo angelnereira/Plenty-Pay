@@ -214,7 +214,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fieldTaxId => 'Tax ID';
 
   @override
-  String get fieldDv => 'DV';
+  String get fieldDv => 'Check digit';
 
   @override
   String get actionCreate => 'Create';
@@ -652,4 +652,116 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actionAcceptTerms => 'Accept';
+
+  @override
+  String get catalogTitle => 'Products';
+
+  @override
+  String get searchProductsHint => 'Search by name, code or SKU';
+
+  @override
+  String get scanBarcode => 'Scan barcode';
+
+  @override
+  String get actionNewProduct => 'New product';
+
+  @override
+  String get actionImport => 'Import';
+
+  @override
+  String get emptyCatalogTitle => 'You have no products yet';
+
+  @override
+  String get emptyCatalogBody =>
+      'Create your first product or import them from a file.';
+
+  @override
+  String get statusArchived => 'Archived';
+
+  @override
+  String get statusOutOfStock => 'Out of stock';
+
+  @override
+  String get inventoryTitle => 'Stock';
+
+  @override
+  String get adjustStock => 'Adjust';
+
+  @override
+  String get transferStock => 'Transfer';
+
+  @override
+  String get warehouse => 'Warehouse';
+
+  @override
+  String get lowStock => 'Low stock';
+
+  @override
+  String get outOfStock => 'Out of stock';
+
+  @override
+  String get expiringSoon => 'Expiring soon';
+
+  @override
+  String get posTitle => 'Point of sale';
+
+  @override
+  String get parkSale => 'Park sale';
+
+  @override
+  String get voidSale => 'Void';
+
+  @override
+  String get searchProduct => 'Search product';
+
+  @override
+  String get emptySale => 'Add products to start the sale.';
+
+  @override
+  String get subtotal => 'Subtotal';
+
+  @override
+  String get tax => 'Tax';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get logisticsTitle => 'Deliveries';
+
+  @override
+  String get mapView => 'Map';
+
+  @override
+  String get emptyDeliveries => 'No deliveries for this filter.';
+
+  @override
+  String get newDelivery => 'New delivery';
+
+  @override
+  String get fiscalProfileTitle => 'Fiscal profile';
+
+  @override
+  String get fieldRuc => 'Tax ID';
+
+  @override
+  String get fieldPac => 'PAC provider';
+
+  @override
+  String get fieldEnvironment => 'Environment';
+
+  @override
+  String get folioStatus => 'Available folios';
+
+  @override
+  String get folioOk => 'OK';
+
+  @override
+  String get invoicesTitle => 'Invoices';
+
+  @override
+  String get issueInvoice => 'Issue invoice';
+
+  @override
+  String get emptyInvoices => 'No invoices issued.';
 }

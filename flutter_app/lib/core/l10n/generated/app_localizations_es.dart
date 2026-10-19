@@ -652,6 +652,118 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get actionAcceptTerms => 'Aceptar';
+
+  @override
+  String get catalogTitle => 'Productos';
+
+  @override
+  String get searchProductsHint => 'Buscar por nombre, código o SKU';
+
+  @override
+  String get scanBarcode => 'Escanear código de barras';
+
+  @override
+  String get actionNewProduct => 'Nuevo producto';
+
+  @override
+  String get actionImport => 'Importar';
+
+  @override
+  String get emptyCatalogTitle => 'Aún no tienes productos';
+
+  @override
+  String get emptyCatalogBody =>
+      'Crea tu primer producto o impórtalos desde un archivo.';
+
+  @override
+  String get statusArchived => 'Archivado';
+
+  @override
+  String get statusOutOfStock => 'Sin existencias';
+
+  @override
+  String get inventoryTitle => 'Existencias';
+
+  @override
+  String get adjustStock => 'Ajustar';
+
+  @override
+  String get transferStock => 'Transferir';
+
+  @override
+  String get warehouse => 'Bodega';
+
+  @override
+  String get lowStock => 'Por agotarse';
+
+  @override
+  String get outOfStock => 'Agotados';
+
+  @override
+  String get expiringSoon => 'Por vencer';
+
+  @override
+  String get posTitle => 'Caja';
+
+  @override
+  String get parkSale => 'Estacionar';
+
+  @override
+  String get voidSale => 'Anular';
+
+  @override
+  String get searchProduct => 'Buscar producto';
+
+  @override
+  String get emptySale => 'Agrega productos para empezar la venta.';
+
+  @override
+  String get subtotal => 'Subtotal';
+
+  @override
+  String get tax => 'ITBMS';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get logisticsTitle => 'Entregas';
+
+  @override
+  String get mapView => 'Mapa';
+
+  @override
+  String get emptyDeliveries => 'No hay entregas para este filtro.';
+
+  @override
+  String get newDelivery => 'Nueva entrega';
+
+  @override
+  String get fiscalProfileTitle => 'Perfil fiscal';
+
+  @override
+  String get fieldRuc => 'RUC';
+
+  @override
+  String get fieldPac => 'PAC';
+
+  @override
+  String get fieldEnvironment => 'Ambiente';
+
+  @override
+  String get folioStatus => 'Folios disponibles';
+
+  @override
+  String get folioOk => 'OK';
+
+  @override
+  String get invoicesTitle => 'Facturas';
+
+  @override
+  String get issueInvoice => 'Emitir factura';
+
+  @override
+  String get emptyInvoices => 'No hay facturas emitidas.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).
@@ -1136,4 +1248,116 @@ class AppLocalizationsEsPa extends AppLocalizationsEs {
 
   @override
   String get actionAcceptTerms => 'Aceptar';
+
+  @override
+  String get catalogTitle => 'Productos';
+
+  @override
+  String get searchProductsHint => 'Buscar por nombre, código o SKU';
+
+  @override
+  String get scanBarcode => 'Escanear código de barras';
+
+  @override
+  String get actionNewProduct => 'Nuevo producto';
+
+  @override
+  String get actionImport => 'Importar';
+
+  @override
+  String get emptyCatalogTitle => 'Aún no tienes productos';
+
+  @override
+  String get emptyCatalogBody =>
+      'Crea tu primer producto o impórtalos desde un archivo.';
+
+  @override
+  String get statusArchived => 'Archivado';
+
+  @override
+  String get statusOutOfStock => 'Sin existencias';
+
+  @override
+  String get inventoryTitle => 'Existencias';
+
+  @override
+  String get adjustStock => 'Ajustar';
+
+  @override
+  String get transferStock => 'Transferir';
+
+  @override
+  String get warehouse => 'Bodega';
+
+  @override
+  String get lowStock => 'Por agotarse';
+
+  @override
+  String get outOfStock => 'Agotados';
+
+  @override
+  String get expiringSoon => 'Por vencer';
+
+  @override
+  String get posTitle => 'Caja';
+
+  @override
+  String get parkSale => 'Estacionar';
+
+  @override
+  String get voidSale => 'Anular';
+
+  @override
+  String get searchProduct => 'Buscar producto';
+
+  @override
+  String get emptySale => 'Agrega productos para empezar la venta.';
+
+  @override
+  String get subtotal => 'Subtotal';
+
+  @override
+  String get tax => 'ITBMS';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get logisticsTitle => 'Entregas';
+
+  @override
+  String get mapView => 'Mapa';
+
+  @override
+  String get emptyDeliveries => 'No hay entregas para este filtro.';
+
+  @override
+  String get newDelivery => 'Nueva entrega';
+
+  @override
+  String get fiscalProfileTitle => 'Perfil fiscal';
+
+  @override
+  String get fieldRuc => 'RUC';
+
+  @override
+  String get fieldPac => 'PAC';
+
+  @override
+  String get fieldEnvironment => 'Ambiente';
+
+  @override
+  String get folioStatus => 'Folios disponibles';
+
+  @override
+  String get folioOk => 'OK';
+
+  @override
+  String get invoicesTitle => 'Facturas';
+
+  @override
+  String get issueInvoice => 'Emitir factura';
+
+  @override
+  String get emptyInvoices => 'No hay facturas emitidas.';
 }
