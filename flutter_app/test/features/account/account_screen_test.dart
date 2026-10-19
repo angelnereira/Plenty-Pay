@@ -27,13 +27,15 @@ void main() {
     expect(find.text('Moneda de visualización'), findsOneWidget);
     expect(find.text('Conexión al servidor'), findsOneWidget);
 
+    expect(find.text('Permisos de la aplicación'), findsOneWidget);
+
     // Cambiar selector de idioma a EN
     await tester.tap(find.text('EN'));
     await tester.pumpAndSettle();
     expect(find.text('English (US)'), findsOneWidget);
 
     // Desplazar hacia abajo para verificar secciones inferiores
-    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.drag(find.byType(ListView), const Offset(0, -800));
     await tester.pumpAndSettle();
 
     expect(find.text('Seguridad y Dispositivos'), findsOneWidget);

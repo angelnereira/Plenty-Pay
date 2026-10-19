@@ -11,6 +11,7 @@ import 'privacy_screen.dart';
 import 'profile_screen.dart';
 import 'security_screen.dart';
 import 'sessions_screen.dart';
+import 'app_permissions_screen.dart';
 import '../../core/theme/theme_controller.dart';
 
 /// S-GEN-08 · `/account` · Mi cuenta y Configuración.
@@ -270,6 +271,18 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                     trailing: const StatusChip(label: 'En línea', tone: StatusTone.success),
                     onTap: _showServerInfoDialog,
+                  ),
+                  const Divider(height: 1, indent: 56),
+                  ListTile(
+                    leading: const Icon(Icons.security_outlined),
+                    title: const Text('Permisos de la aplicación'),
+                    subtitle: const Text('Cámara, fotos, notificaciones y sensores'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => AppPermissionsScreen(api: widget.api),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
@@ -40,6 +43,81 @@ class _ProductScreenState extends State<ProductScreen> {
   bool _requiresPrescription = false;
   String? _productImageUrl;
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final photo = await picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+      if (!mounted) return;
+      if (photo != null) {
+        setState(() => _productImageUrl = photo.path);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              source == ImageSource.camera
+                  ? '✓ Foto capturada con éxito.'
+                  : '✓ Imagen seleccionada con éxito.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No fue posible abrir la cámara o galería: $e')),
+      );
+    }
+  }
+
+  Widget _buildProductImagePreview(BuildContext context, String pathOrUrl) {
+    final cs = Theme.of(context).colorScheme;
+    final isRemote = pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
+
+    Widget img;
+    if (isRemote) {
+      img = Image.network(
+        pathOrUrl,
+        height: 160,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _imageErrorPlaceholder(cs),
+      );
+    } else if (!kIsWeb) {
+      img = Image.file(
+        File(pathOrUrl),
+        height: 160,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _imageErrorPlaceholder(cs),
+      );
+    } else {
+      img = Image.network(
+        pathOrUrl,
+        height: 160,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _imageErrorPlaceholder(cs),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: img,
+    );
+  }
+
+  Widget _imageErrorPlaceholder(ColorScheme cs) {
+    return Container(
+      height: 160,
+      color: cs.surfaceContainerHighest,
+      child: const Center(child: Icon(Icons.broken_image, size: 48)),
+    );
+  }
+
   void _showImageSourceDialog() {
     showModalBottomSheet<void>(
       context: context,
@@ -67,29 +145,19 @@ class _ProductScreenState extends State<ProductScreen> {
               ListTile(
                 leading: const Icon(Icons.camera_alt_outlined),
                 title: const Text('Tomar foto con la cámara'),
-                subtitle: const Text('Captura el producto directamente'),
+                subtitle: const Text('Abre la cámara del dispositivo para capturar el producto'),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  setState(() {
-                    _productImageUrl = 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&q=80';
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✓ Foto capturada con éxito.')),
-                  );
+                  _pickImage(ImageSource.camera);
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
                 title: const Text('Seleccionar de galería o archivo'),
-                subtitle: const Text('Carga una imagen JPG / PNG'),
+                subtitle: const Text('Carga una imagen JPG / PNG desde tus fotos'),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  setState(() {
-                    _productImageUrl = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&q=80';
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✓ Imagen cargada desde galería.')),
-                  );
+                  _pickImage(ImageSource.gallery);
                 },
               ),
               ListTile(
@@ -188,20 +256,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 child: _productImageUrl != null
                     ? Column(
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              _productImageUrl!,
-                              height: 160,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 160,
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                child: const Center(child: Icon(Icons.broken_image, size: 48)),
-                              ),
-                            ),
-                          ),
+                          _buildProductImagePreview(context, _productImageUrl!),
                           const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,

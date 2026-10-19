@@ -45,7 +45,7 @@ Se eligen con `--dart-define` (estándar §15), sin flavors nativos:
 ARB con `app_es.arb` como plantilla, `app_es_PA.arb` (variante de Panamá, hereda de `es`) y `app_en.arb`. Por defecto `es_PA`: un idioma de dispositivo no soportado cae a español. Para agregar un texto: clave en `app_es.arb` y en `app_en.arb` (una prueba exige que tengan las mismas claves) → `flutter gen-l10n` → commitear `generated/`. Los `reason` de error del gateway usan claves `error_<REASON>`.
 
 ## Permisos nativos
-- Android (`AndroidManifest.xml`): `INTERNET`, `CAMERA`, `NFC`, `USE_BIOMETRIC`, `ACCESS_FINE_LOCATION`; cámara, NFC y GPS declarados como hardware opcional.
+- Android (`AndroidManifest.xml`): `INTERNET`, `CAMERA`, `READ_MEDIA_IMAGES`, `READ_EXTERNAL_STORAGE`, `NFC`, `USE_BIOMETRIC`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `POST_NOTIFICATIONS`, `VIBRATE`, `FLASHLIGHT`; cámara, NFC y GPS declarados como hardware opcional. Gestión visual en `AppPermissionsScreen` (`/account/permissions`).
 - iOS (`Info.plist`): `NSCameraUsageDescription`, `NFCReaderUsageDescription`, `NSFaceIDUsageDescription`, `NSLocationWhenInUseUsageDescription`.
 - macOS: entitlement `com.apple.security.network.client`.
 - **Pendiente**: entitlement NDEF de iOS (`com.apple.developer.nfc.readersession.formats`); requiere Xcode y el perfil de aprovisionamiento, se agrega con el lector NFC en F23.2.
@@ -61,4 +61,4 @@ ARB con `app_es.arb` como plantilla, `app_es_PA.arb` (variante de Panamá, hered
 Ver `../output/README.md`.
 
 ## Dependencias
-Hoy: `http`, `flutter_secure_storage`, `flutter_localizations`, `intl`. Las aprobadas para el resto están en el estándar §2; F02.5 migra `http` → `dio`.
+`dio`, `http`, `flutter_secure_storage`, `flutter_localizations`, `intl`, `mobile_scanner` (cámara física y lectura óptica de barras/QR), `image_picker` (captura de fotos y galería) y `permission_handler` (gestión de permisos nativos). Las aprobadas para el resto están en el estándar §2.

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import '../sound/beep_sound.dart';
 
-/// Diálogo interactivo de escáner óptico de código de barra y QR con visor,
-/// animación de láser, presets de prueba y emisión de sonido Beep confirmatorio.
+/// Diálogo interactivo de escáner óptico de código de barra y QR con visor de cámara real,
+/// animación de láser sobrepuesto, presets de prueba y emisión de sonido Beep confirmatorio.
 class BarcodeScannerDialog extends StatefulWidget {
   const BarcodeScannerDialog({
     super.key,
@@ -33,7 +36,9 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
   late final AnimationController _animCtrl;
   late final Animation<double> _laserAnim;
   final _manualCtrl = TextEditingController();
+  MobileScannerController? _scannerController;
   bool _torch = false;
+  bool _hasDetected = false;
 
   @override
   void initState() {
@@ -42,12 +47,26 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
     _laserAnim = Tween<double>(begin: 0.1, end: 0.9).animate(
       CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut),
     );
+
+    // Inicializar controlador de cámara física si no estamos en entorno headless de pruebas
+    try {
+      _scannerController = MobileScannerController(
+        detectionSpeed: DetectionSpeed.normal,
+        facing: CameraFacing.back,
+        torchEnabled: false,
+      );
+    } catch (_) {
+      _scannerController = null;
+    }
   }
 
   @override
   void dispose() {
     _animCtrl.dispose();
     _manualCtrl.dispose();
+    try {
+      _scannerController?.dispose();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -89,7 +108,14 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                   IconButton(
                     icon: Icon(_torch ? Icons.flash_on : Icons.flash_off, color: _torch ? Colors.amber : cs.onSurfaceVariant),
                     tooltip: 'Linterna',
-                    onPressed: () => setState(() => _torch = !_torch),
+                    onPressed: () async {
+                      try {
+                        await _scannerController?.toggleTorch();
+                        setState(() => _torch = !_torch);
+                      } catch (_) {
+                        setState(() => _torch = !_torch);
+                      }
+                    },
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -104,69 +130,120 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
               ),
               const SizedBox(height: 16),
 
-              // Visor óptico animado
+              // Visor óptico con vista previa de cámara real y láser animado
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  height: 200,
+                  height: 220,
                   color: Colors.black,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Fondo de visor de cámara simulado
-                      Center(
-                        child: Icon(
-                          Icons.qr_code_2,
-                          size: 110,
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
-                      ),
-                      // Marco de apuntado
-                      Container(
-                        width: 200,
-                        height: 130,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: cs.primary.withValues(alpha: 0.8), width: 2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      // Láser animado
-                      AnimatedBuilder(
-                        animation: _laserAnim,
-                        builder: (context, _) => Positioned(
-                          top: 35 + (130 * _laserAnim.value),
-                          child: Container(
-                            width: 220,
-                            height: 2.5,
-                            decoration: BoxDecoration(
-                              color: cs.primary,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: cs.primary.withValues(alpha: 0.8),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
+                      // Cámara nativa física con MobileScanner
+                      if (_scannerController != null)
+                        MobileScanner(
+                          controller: _scannerController!,
+                          onDetect: (capture) {
+                            if (_hasDetected) return;
+                            for (final barcode in capture.barcodes) {
+                              final val = barcode.rawValue ?? barcode.displayValue;
+                              if (val != null && val.isNotEmpty) {
+                                _hasDetected = true;
+                                _handleScan(val);
+                                break;
+                              }
+                            }
+                          },
+                          errorBuilder: (context, error) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.videocam_off_outlined, color: Colors.white70, size: 36),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Cámara no disponible o permiso denegado',
+                                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextButton.icon(
+                                      style: TextButton.styleFrom(foregroundColor: Colors.white),
+                                      onPressed: () => openAppSettings(),
+                                      icon: const Icon(Icons.settings, size: 16),
+                                      label: const Text('Abrir Ajustes de Permisos'),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
+                            );
+                          },
+                        )
+                      else
+                        Center(
+                          child: Icon(
+                            Icons.qr_code_2,
+                            size: 110,
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                        ),
+
+                      // Marco de apuntado (miras de enfoque)
+                      IgnorePointer(
+                        child: Container(
+                          width: 200,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: cs.primary.withValues(alpha: 0.8), width: 2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+
+                      // Láser animado
+                      IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _laserAnim,
+                          builder: (context, _) => Positioned(
+                            top: 40 + (140 * _laserAnim.value),
+                            child: Container(
+                              width: 220,
+                              height: 2.5,
+                              decoration: BoxDecoration(
+                                color: cs.primary,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: cs.primary.withValues(alpha: 0.8),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                      // Indicador de modo
+
+                      // Indicador de estado de cámara
                       Positioned(
                         bottom: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.barcode_reader, size: 14, color: Colors.white70),
-                              SizedBox(width: 6),
-                              Text('Buscando código...', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                            ],
+                        child: IgnorePointer(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.camera_alt, size: 14, color: Colors.white70),
+                                SizedBox(width: 6),
+                                Text('Cámara activa · Escaneando...', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                              ],
+                            ),
                           ),
                         ),
                       ),
