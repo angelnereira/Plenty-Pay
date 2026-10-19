@@ -4,7 +4,7 @@ import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/widgets/app_shell.dart';
 import '../modules/module_registry.dart';
-import '../account/account_screen.dart';
+import '../home/home_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../marketplace/market_discover_screen.dart';
 import '../pos/pos_screen.dart';
@@ -15,10 +15,7 @@ import '../logistics/logistics_screen.dart';
 import '../finance/finance_screen.dart';
 import '../payroll/payroll_runs_screen.dart';
 import '../analytics/analytics_screens.dart';
-import '../business/business_create_screen.dart';
 import '../business/business_dashboard_screen.dart';
-import '../business/team_screen.dart';
-import '../business/roles_screen.dart';
 import '../platform/business_review_screen.dart';
 
 /// Shell con navegación dinámica (flutter-standards.md §6–§7, design-system.md §6 AppShell).
@@ -80,8 +77,32 @@ class _AppShellState extends State<AppShell> {
         ];
         if (_index >= destinations.length) _index = 0;
         final selectedModule = _index == 0 ? null : modules[_index - 1];
+        void onSelectModule(ModuleDef m) {
+          final idx = modules.indexOf(m);
+          if (idx != -1) {
+            final destIndex = idx + 1;
+            final width = MediaQuery.sizeOf(context).width;
+            if (width >= 600 || destIndex < 5) {
+              setState(() => _index = destIndex);
+            } else {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => Scaffold(
+                    body: _ModuleBody(module: m, api: widget.api, onSignOut: _signOut),
+                  ),
+                ),
+              );
+            }
+          }
+        }
+
         final body = _index == 0
-            ? _HomePlaceholder(api: widget.api, modules: modules, onSignOut: _signOut)
+            ? HomeScreen(
+                api: widget.api,
+                modules: modules,
+                onSelectModule: onSelectModule,
+                onSignOut: _signOut,
+              )
             : _ModuleBody(module: selectedModule!, api: widget.api, onSignOut: _signOut);
 
         return AppShellScaffold(
@@ -120,39 +141,6 @@ class _ModuleBody extends StatelessWidget {
         'platform' => BusinessReviewScreen(api: api),
         _ => _ModulePlaceholder(module: module),
       };
-}
-
-class _HomePlaceholder extends StatelessWidget {
-  const _HomePlaceholder({required this.api, required this.modules, required this.onSignOut});
-  final ApiClient api;
-  final List<ModuleDef> modules;
-  final VoidCallback onSignOut;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return ListView(padding: const EdgeInsets.all(24), children: [
-      Text(l10n.navHome, style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 8),
-      Text(l10n.homeModuleCount(modules.length)),
-      const SizedBox(height: 16),
-      for (final m in modules)
-        Card(
-          child: ListTile(
-            leading: Icon(m.icon),
-            title: Text(moduleLabel(l10n, m)),
-            subtitle: Text(l10n.moduleScreensIn(m.phase)),
-          ),
-        ),
-      const SizedBox(height: 16),
-      Card(child: ListTile(leading: const Icon(Icons.person_outline), title: Text(l10n.accountTitle), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AccountScreen(api: api))))),
-      Card(child: ListTile(leading: const Icon(Icons.business_outlined), title: Text(l10n.businessTitle), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BusinessCreateScreen(api: api))))),
-      Card(child: ListTile(leading: const Icon(Icons.group_outlined), title: Text(l10n.teamTitle), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TeamScreen(api: api))))),
-      Card(child: ListTile(leading: const Icon(Icons.badge_outlined), title: Text(l10n.rolesTitle), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => RolesScreen(api: api))))),
-      const SizedBox(height: 24),
-      OutlinedButton.icon(onPressed: onSignOut, icon: const Icon(Icons.logout), label: Text(l10n.actionSignOut)),
-    ]);
-  }
 }
 
 class _ModulePlaceholder extends StatelessWidget {
