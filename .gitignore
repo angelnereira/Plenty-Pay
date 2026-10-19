@@ -27,6 +27,7 @@ output/*
 **/.terraform/
 *.tfstate
 *.tfstate.*
+infra/opentofu/.terraform.lock.hcl
 
 # Editores / SO
 .idea/
@@ -36,3 +37,6 @@ output/*
 object-storage/test/s3cli/s3clibin
 identity/test/bin/
 api-gateway/test/bin/
+
+# Herramientas instaladas en este entorno de desarrollo (no se commitean)
+/.local/bin/

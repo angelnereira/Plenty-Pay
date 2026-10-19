@@ -361,7 +361,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F26.1 Estructura `infra/opentofu` + backend de estado S3 con bloqueo | 📝 | 2026-10-19: **bloqueante**: `tofu` no está instalado en este entorno y el contenedor `infra/` no existe todavía. El mecanismo está definido en `docs/standards/` y el plan de `05-HOJA-DE-RUTA`; se crea cuando haya credenciales de nube (Q-04). No se marca ✅ sin evidencia (AGENTS.md §2.11) |
+| F26.1 Estructura `infra/opentofu` + backend de estado S3 con bloqueo | 📝 | 2026-10-19: se instaló OpenTofu 1.13.1 y se creó `infra/opentofu/main.tf` con `tofu init` + `tofu validate` en verde. **Falta**: el backend remoto con bloqueo (requiere credenciales S3/Garage, Q-04) y el módulo por contenedor |
 | F26.2 Módulo `cluster-self-hosted` (k3s HA) | 📝 | 2026-10-19: **bloqueante**: requiere VMs de prueba y `tofu` (F26.1). No se ejecutó |
 | F26.3 Módulo `cluster-gcp` (o el proveedor de DR elegido primero) | 📝 | 2026-10-19: **bloqueante**: requiere credenciales de nube (Q-04) y F26.1 |
 | F26.4 Módulos `cluster-aws` y `cluster-azure` | 📝 | 2026-10-19: **bloqueante**: requiere credenciales de nube (Q-04) y F26.1 |
@@ -373,7 +373,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F27.1 Kustomize base por contenedor desde el bloque Compose | 📝 | 2026-10-19: **bloqueante**: `kustomize` no está instalado y el clúster no existe (F26.2) |
+| F27.1 Kustomize base por contenedor desde el bloque Compose | 📝 | 2026-10-19: se instaló `kustomize` 5.5.0 y se validó `kustomize build` sobre un `k8s/base` de prueba (Deployment + Service) en verde. **Falta**: el Kustomize por contenedor (23) derivado de `docker-compose.yml` y la validación contra un clúster (F26.2) |
 | F27.2 Seguridad de pods, ServiceAccounts, NetworkPolicy desde la matriz de llamadas | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
 | F27.3 CloudNativePG, Scylla Operator, NATS, Garage en clúster | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
 | F27.4 HPA, PDB, topology spread | 📝 | 2026-10-19: **bloqueante**: requiere clúster (F26.2) |
@@ -389,7 +389,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | F28.2 Passkeys | 📝 | 2026-10-19: **bloqueante**: requiere F28.1 (JWKS) y WebAuthn en el cliente |
 | F28.3 Pinning en prod, detección root/jailbreak, FLAG_SECURE | 📝 | 2026-10-19: el mecanismo de step-up y biometría local ya existe (`flutter_app/lib/core/pay/qr_scanner.dart`, `security/SPEC.md` §4); los certificados de pinning y la detección de root requieren un build de producción firmado (F22.5) |
 | F28.4 Unseal productivo de OpenBao, rotaciones automáticas | 📝 | 2026-10-19: el runbook `openbao-unseal.md` ya existe. **Falta**: ejecutarlo en producción con unseal keys reales |
-| F28.5 Escaneos SAST/DAST (gosec, cargo-audit, ZAP) en CI y corrección | 📝 | 2026-10-19: se verificó que los contenedores Go compilan con `go vet`/`go test -race` y Rust con `cargo test`+`clippy`, y que `check-isolation.sh`/`check-docs.sh`/`sync-protos.sh` pasan. **Falta**: `gosec`, `cargo-audit` y ZAP no están instalados en este entorno (AGENTS.md §2.11): no se marca ✅ sin evidencia |
+| F28.5 Escaneos SAST/DAST (gosec, cargo-audit, ZAP) en CI y corrección | 📝 | 2026-10-19: se instalaron `gosec` 2.21.4 y `cargo-audit`. **gosec no es usable con el Go 1.26 de este entorno** (el binario está compilado contra Go 1.23 y falla en `go list` para los módulos nuevos), así que el escaneo no aporta evidencia válida y no se marca ✅ (AGENTS.md §2.11). `cargo-audit` reportó **2 vulnerabilidades medium (RUSTSEC-2023-0071) en `ledger`** sin upgrade disponible: el advisary es transitivo y se documenta para remediación en el siguiente ciclo. ZAP no está instalado (requiere Java + la app corriendo). **Falta**: actualizar gosec a una versión compatible con Go 1.26 y resolver el advisory de Rust |
 | F28.6 Pentest externo y remediación | 📝 | 2026-10-19: **bloqueante**: requiere un proveedor externo y presupuesto (fuera del repositorio) |
 | F28.7 Cumplimiento SBP/DGI/PCI SAQ A/Ley 81 (matriz de controles) | 📝 | 2026-10-19: la matriz de controles está en `docs/compliance/regulatory-framework.md` y `docs/compliance/international-standards.md`, con las reglas `N-…` aplicadas por contenedor (SPEC §5 «Cumplimiento normativo»). **Falta**: el mapeo formal a los requisitos de la SBP (superintendente de bancos de Panamá) y la evidencia de auditoría externa (Q-01, Q-04, Q-08) |
 | F28.8 SSO de Grafana y consolas internas con identity | 📝 | 2026-10-19: **bloqueante**: requiere identidad (F05) y el despliegue de Grafana en el clúster (F26.6) |

@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plentypay-placeholder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plentypay-placeholder
+  template:
+    metadata:
+      labels:
+        app: plentypay-placeholder
+    spec:
+      containers:
+        - name: placeholder
+          image: alpine:3
+          command: ["sh", "-c", "echo starting; sleep 3600"]
