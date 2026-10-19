@@ -29,10 +29,10 @@ void main() {
     expect(dev.apiBaseUrl, 'http://localhost:8080');
   });
 
-  test('sin dart-define arranca en dev contra localhost', () {
+  test('sin dart-define arranca en dev con la url por defecto', () {
     final config = AppConfig.fromEnvironment();
     expect(config.flavor, Flavor.dev);
-    expect(config.apiBaseUrl, 'http://localhost:8080');
+    expect(config.apiBaseUrl, 'https://undo-guards-roots-lectures.trycloudflare.com');
   });
 
   test('flavor desconocido falla al arrancar', () {

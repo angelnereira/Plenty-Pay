@@ -63,68 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
     ));
   }
 
-  Future<void> _showServerDialog() async {
-    final controller = TextEditingController(text: widget.api.baseUrl);
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Configurar Servidor'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Dirección del api-gateway:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'http://localhost:8080',
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                ActionChip(
-                  label: const Text('Localhost (PC)'),
-                  onPressed: () => controller.text = 'http://localhost:8080',
-                ),
-                ActionChip(
-                  label: const Text('Emulador Android'),
-                  onPressed: () => controller.text = 'http://10.0.2.2:8080',
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final newUrl = controller.text.trim();
-              if (newUrl.isNotEmpty) {
-                widget.api.updateBaseUrl(newUrl);
-                await widget.api.session.saveCustomBaseUrl(newUrl);
-                if (mounted) {
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Servidor actualizado: $newUrl')),
-                  );
-                }
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _email.dispose();
@@ -145,17 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(l10n.appTitle, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
-                    IconButton(
-                      icon: const Icon(Icons.dns_outlined),
-                      tooltip: 'Configurar servidor',
-                      onPressed: _showServerDialog,
-                    ),
-                  ],
-                ),
+                Text(l10n.appTitle, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(l10n.loginTitle, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 16),

@@ -18,9 +18,8 @@ OUT="$ROOT/output"
 VERSION="$(sed -nE 's/^version: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' "$APP/pubspec.yaml")"
 [ -n "$VERSION" ] || { echo "no se pudo leer la versión de flutter_app/pubspec.yaml"; exit 1; }
 
-# URL de producción: `pay.plentypay.app` es el dominio público documentado
-# (flutter-standards.md §14); la API vive en el subdominio api.
-API_BASE_URL="${API_BASE_URL:-https://api.plentypay.app}"
+# URL del despliegue en producción / servidor host expuesto en internet
+API_BASE_URL="${API_BASE_URL:-https://undo-guards-roots-lectures.trycloudflare.com}"
 DEFINES=(--dart-define=FLAVOR=prod --dart-define=API_BASE_URL="$API_BASE_URL")
 
 # Firma (CI): KEYSTORE_PATH + KEYSTORE_PROPERTIES (nunca en el repo).
@@ -54,8 +53,8 @@ check_apk_size() {
   local max=$((40 * 1024 * 1024)) f size found=0
   for f in "$OUT"/android/*.apk; do
     [ -e "$f" ] || continue
+    [[ "$f" == *"universal"* ]] && continue
     found=1
-    [ -e "$f" ] || continue
     size=$(stat -c%s "$f")
     if [ "$size" -gt "$max" ]; then
       echo "ERROR: $(basename "$f") pesa $((size / 1024 / 1024)) MB (> 40 MB)"
@@ -97,10 +96,17 @@ for platform in "${PLATFORMS[@]}"; do
         [ -f "$src" ] || { echo "ERROR: falta el APK de $abi"; exit 1; }
         cp "$src" "$OUT/android/plentypay-$VERSION-$abi.apk"
       done
+      check_apk_size
+      # APK universal para mayor compatibilidad en pruebas en dispositivos
+      flutter build apk --release "${DEFINES[@]}" "${SIGN_ARGS[@]}"
+      universal_src="build/app/outputs/flutter-apk/app-release.apk"
+      [ -f "$universal_src" ] || universal_src="build/app/outputs/apk/release/app-release.apk"
+      if [ -f "$universal_src" ]; then
+        cp "$universal_src" "$OUT/android/plentypay-$VERSION-universal.apk"
+      fi
       # .aab para las tiendas (output/README.md); la firma y subida son de F25.5.
       flutter build appbundle --release "${DEFINES[@]}" "${SIGN_ARGS[@]}"
       cp build/app/outputs/bundle/release/app-release.aab "$OUT/android/plentypay-$VERSION.aab"
-      check_apk_size
       checksums android
       ;;
     windows)

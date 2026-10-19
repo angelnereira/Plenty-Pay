@@ -28,48 +28,30 @@ class _AccountScreenState extends State<AccountScreen> {
   String _selectedTheme = 'dark';
   String _selectedCurrency = 'B/.';
 
-  void _showServerDialog() {
-    final ctrl = TextEditingController(text: widget.api.baseUrl);
+  void _showServerInfoDialog() {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Servidor Backend'),
+        title: const Text('Servidor PlentyPay'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Endpoint del API Gateway al que se conecta esta app:',
+              'Esta aplicación está conectada al servidor de despliegue PlentyPay mediante conexión segura cifrada.',
               style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              decoration: const InputDecoration(
-                labelText: 'URL del Gateway',
-                hintText: 'https://...',
-                prefixIcon: Icon(Icons.link),
-              ),
+            Text(
+              'Endpoint: ${widget.api.baseUrl}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              ctrl.text = 'https://undo-guards-roots-lectures.trycloudflare.com';
-            },
-            child: const Text('Restaurar Túnel'),
-          ),
           FilledButton(
-            onPressed: () {
-              widget.api.setBaseUrl(ctrl.text.trim());
-              Navigator.of(ctx).pop();
-              setState(() {});
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Servidor actualizado correctamente.')),
-              );
-            },
-            child: const Text('Guardar'),
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Aceptar'),
           ),
         ],
       ),
@@ -286,7 +268,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
                     ),
                     trailing: const StatusChip(label: 'En línea', tone: StatusTone.success),
-                    onTap: _showServerDialog,
+                    onTap: _showServerInfoDialog,
                   ),
                 ],
               ),

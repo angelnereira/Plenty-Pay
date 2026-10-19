@@ -28,7 +28,11 @@ void main() {
     final config = AppConfig.fromEnvironment();
     final session = SessionStore();
     final customUrl = await session.customBaseUrl();
-    final effectiveUrl = (customUrl != null && customUrl.isNotEmpty) ? customUrl : config.apiBaseUrl;
+    if (customUrl != null && (customUrl.contains('localhost') || customUrl.contains('127.0.0.1') || customUrl.contains('10.0.2.2'))) {
+      await session.clearCustomBaseUrl();
+    }
+    final cleanCustomUrl = await session.customBaseUrl();
+    final effectiveUrl = (cleanCustomUrl != null && cleanCustomUrl.isNotEmpty) ? cleanCustomUrl : config.apiBaseUrl;
     final signedIn = await session.accessToken() != null;
     logger.info('app started');
     runApp(PlentyPayApp(

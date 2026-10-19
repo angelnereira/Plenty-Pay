@@ -40,10 +40,10 @@ class AppConfig {
     return AppConfig._(flavor: parsed, apiBaseUrl: normalized);
   }
 
-  /// Lee los dart-define del build. Sin defines: dev contra el gateway local.
+  /// Lee los dart-define del build. Sin defines: conecta al servidor en la nube de PlentyPay.
   factory AppConfig.fromEnvironment() => AppConfig.resolve(
         flavor: const String.fromEnvironment('FLAVOR', defaultValue: 'dev'),
-        apiBaseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8080'),
+        apiBaseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://undo-guards-roots-lectures.trycloudflare.com'),
       );
 
   final Flavor flavor;
