@@ -83,6 +83,8 @@ class ApiClient {
     _dio.options.baseUrl = normalized;
   }
 
+  void setBaseUrl(String newUrl) => updateBaseUrl(newUrl);
+
   Future<bool>? _refreshing; // un solo refresh concurrente
 
   InterceptorsWrapper _buildInterceptor() {

@@ -77,18 +77,38 @@ class AppTheme {
     required Color muted,
     required Color error,
   }) {
+    final isDark = brightness == Brightness.dark;
+    final primaryContainer = isDark ? const Color(0xFF4A1012) : const Color(0xFFFFDAD6);
+    final onPrimaryContainer = isDark ? const Color(0xFFFFDAD6) : const Color(0xFF410006);
+    final secondaryContainer = isDark ? const Color(0xFF2C1517) : const Color(0xFFFFDADA);
+    final onSecondaryContainer = isDark ? const Color(0xFFFFD9DA) : const Color(0xFF2C1517);
+    final surfaceContainerLowest = isDark ? const Color(0xFF0A0B0C) : const Color(0xFFFFFFFF);
+    final surfaceContainerLow = isDark ? const Color(0xFF121416) : const Color(0xFFF6F7F9);
+    final surfaceContainer = isDark ? surface : const Color(0xFFEFF1F4);
+    final surfaceContainerHigh = isDark ? const Color(0xFF1E2125) : const Color(0xFFE8EAEF);
+    final outlineVariant = isDark ? const Color(0xFF363B42) : const Color(0xFFD0D3D8);
+
     final scheme = ColorScheme(
       brightness: brightness,
       primary: Tokens.primary,
       onPrimary: Tokens.onPrimary,
+      primaryContainer: primaryContainer,
+      onPrimaryContainer: onPrimaryContainer,
       secondary: muted,
       onSecondary: background,
+      secondaryContainer: secondaryContainer,
+      onSecondaryContainer: onSecondaryContainer,
       error: error,
       onError: Tokens.onPrimary,
       surface: surface,
       onSurface: text,
+      surfaceContainerLowest: surfaceContainerLowest,
+      surfaceContainerLow: surfaceContainerLow,
+      surfaceContainer: surfaceContainer,
+      surfaceContainerHigh: surfaceContainerHigh,
       surfaceContainerHighest: surfaceHigh,
       outline: outline,
+      outlineVariant: outlineVariant,
     );
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(Tokens.radius),
