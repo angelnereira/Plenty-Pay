@@ -148,7 +148,7 @@ func s3Request(method, endpoint, path, query, region, keyID, secret string, body
 	if query != "" {
 		url += "?" + query
 	}
-	req, err := http.NewRequest(method, url, bytes.NewReader(body))
+	req, err := http.NewRequest(method, url, bytes.NewReader(body)) // #nosec G704 -- test CLI, URL comes from argv
 	if err != nil {
 		return 0, fmt.Errorf("build request: %w", err)
 	}
@@ -157,7 +157,7 @@ func s3Request(method, endpoint, path, query, region, keyID, secret string, body
 	}
 	req.Host = headers["host"]
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G704 -- test CLI, URL comes from argv
 	if err != nil {
 		return 0, fmt.Errorf("do request: %w", err)
 	}

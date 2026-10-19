@@ -114,7 +114,7 @@ func (s *Server) serveApp(w http.ResponseWriter, r *http.Request) {
 	}
 	// La política de caché es por ruta, así que se fija también en los 404.
 	w.Header().Set("Cache-Control", cachePolicy(clean))
-	info, err := os.Stat(file)
+	info, err := os.Stat(file) // #nosec G703 -- file is constrained to root by the prefix check above
 	if err != nil || info.IsDir() {
 		// Ruta sin extensión: es una ruta de la SPA. **Solo para GET/HEAD**: responder HTML a un
 		// POST (p. ej. un /v1/auth/* que la app envió al contenedor equivocado) ocultaría el fallo.
@@ -125,7 +125,7 @@ func (s *Server) serveApp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.ServeFile(w, r, file)
+	http.ServeFile(w, r, file) // #nosec G703 -- file is constrained to root by the prefix check above
 }
 
 // maintenance responde R4: una página clara, sin datos personales ni detalles internos.
