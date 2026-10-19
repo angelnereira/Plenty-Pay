@@ -63,12 +63,12 @@ func (s *Server) withSecurityHeaders(next http.Handler) http.Handler {
 		h := w.Header()
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; "+
-				"script-src 'self'; "+
-				"style-src 'self' 'unsafe-inline'; "+
-				"img-src 'self' data:; "+
-				"font-src 'self' data:; "+
-				"connect-src 'self' "+s.cfg.GatewayPublicURL+"; "+
-				"worker-src 'self'; manifest-src 'self'; "+
+				"script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://www.gstatic.com blob:; "+
+				"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "+
+				"img-src 'self' data: https:; "+
+				"font-src 'self' data: https://fonts.gstatic.com; "+
+				"connect-src 'self' "+s.cfg.GatewayPublicURL+" https://www.gstatic.com https://fonts.googleapis.com https://fonts.gstatic.com; "+
+				"worker-src 'self' blob:; manifest-src 'self'; "+
 				"base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
 		h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		h.Set("X-Content-Type-Options", "nosniff")
