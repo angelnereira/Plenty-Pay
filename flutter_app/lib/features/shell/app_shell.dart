@@ -6,11 +6,17 @@ import '../../core/widgets/app_shell.dart';
 import '../modules/module_registry.dart';
 import '../account/account_screen.dart';
 import '../wallet/wallet_screen.dart';
-import '../finance/finance_screen.dart';
+import '../marketplace/market_discover_screen.dart';
+import '../pos/pos_screen.dart';
+import '../catalog/catalog_screen.dart';
 import '../inventory/inventory_screen.dart';
+import '../orders/orders_manage_screen.dart';
+import '../logistics/logistics_screen.dart';
+import '../finance/finance_screen.dart';
 import '../payroll/payroll_runs_screen.dart';
 import '../analytics/analytics_screens.dart';
 import '../business/business_create_screen.dart';
+import '../business/business_dashboard_screen.dart';
 import '../business/team_screen.dart';
 import '../business/roles_screen.dart';
 import '../platform/business_review_screen.dart';
@@ -100,13 +106,18 @@ class _ModuleBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => switch (module.id) {
-        'admin' => AccountScreen(api: api),
-        'platform' => BusinessReviewScreen(api: api),
         'wallet' => WalletScreen(api: api),
-        'finance' => FinanceScreen(api: api),
+        'marketplace' => MarketDiscoverScreen(api: api),
+        'pos' => PosScreen(api: api),
+        'catalog' => CatalogScreen(api: api),
         'inventory' => InventoryScreen(api: api),
+        'orders' => OrdersManageScreen(api: api),
+        'logistics' => LogisticsScreen(api: api),
+        'finance' => FinanceScreen(api: api),
         'payroll' => PayrollRunsScreen(api: api),
         'analytics' => KpiHomeScreen(api: api, kpis: const []),
+        'admin' => BusinessDashboardScreen(api: api),
+        'platform' => BusinessReviewScreen(api: api),
         _ => _ModulePlaceholder(module: module),
       };
 }

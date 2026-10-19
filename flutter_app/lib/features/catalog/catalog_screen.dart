@@ -6,6 +6,11 @@ import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
 import '../../core/widgets/status_chip.dart';
 
+import 'catalog_import_screen.dart';
+import 'categories_screen.dart';
+import 'product_screen.dart';
+import 'storefront_settings_screen.dart';
+
 /// S-CAT-01 · `/catalog` · Lista de productos.
 ///
 /// `catalog:read` · `/v1/catalog/products`. Buscador + filtros + lista con foto,
@@ -51,12 +56,29 @@ class _CatalogScreenState extends State<CatalogScreen> {
         title: Text(l10n.catalogTitle),
         actions: [
           IconButton(
+            tooltip: 'Categorías',
+            icon: const Icon(Icons.category_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => CategoriesScreen(api: widget.api),
+            )),
+          ),
+          IconButton(
+            tooltip: 'Mi vitrina',
+            icon: const Icon(Icons.storefront_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => StorefrontSettingsScreen(api: widget.api),
+            )),
+          ),
+          IconButton(
             tooltip: l10n.actionImport,
             icon: const Icon(Icons.file_upload_outlined),
-            onPressed: () {},
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => CatalogImportScreen(api: widget.api),
+            )),
           ),
         ],
       ),
+
       body: SafeArea(
         child: Column(
           children: [
@@ -121,9 +143,15 @@ class _CatalogScreenState extends State<CatalogScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: PPButton.primary(label: l10n.actionNewProduct, onPressed: () {}),
+          child: PPButton.primary(
+            label: l10n.actionNewProduct,
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => ProductScreen(api: widget.api),
+            )),
+          ),
         ),
       ),
+
     );
   }
 }

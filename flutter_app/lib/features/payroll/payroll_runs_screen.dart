@@ -5,6 +5,11 @@ import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
 import '../../core/widgets/status_chip.dart';
+import 'attendance_screen.dart';
+import 'employees_screen.dart';
+import 'kiosk_screen.dart';
+import 'my_payslips_screen.dart';
+import 'schedule_screen.dart';
 
 /// S-PAY-06 · `/team/runs` · Corridas de nómina.
 ///
@@ -24,7 +29,36 @@ class PayrollRunsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.payrollRunsTitle)),
+      appBar: AppBar(
+        title: Text(l10n.payrollRunsTitle),
+        actions: [
+          IconButton(
+            tooltip: 'Colaboradores',
+            icon: const Icon(Icons.badge_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EmployeesScreen(api: api))),
+          ),
+          IconButton(
+            tooltip: 'Turnos y horarios',
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ScheduleScreen(api: api))),
+          ),
+          IconButton(
+            tooltip: 'Asistencia',
+            icon: const Icon(Icons.fact_check_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(api: api))),
+          ),
+          IconButton(
+            tooltip: 'Mis comprobantes',
+            icon: const Icon(Icons.receipt_long_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MyPayslipsScreen(api: api))),
+          ),
+          IconButton(
+            tooltip: 'Modo quiosco',
+            icon: const Icon(Icons.screen_rotation_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => KioskScreen(api: api))),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: LayoutBuilder(builder: (context, constraints) {
           final wide = constraints.maxWidth >= 600;

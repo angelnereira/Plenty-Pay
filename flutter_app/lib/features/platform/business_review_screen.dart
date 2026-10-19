@@ -2,7 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
+import 'compliance_queue_screen.dart';
+import 'data_requests_screen.dart';
+import 'flags_console_screen.dart';
+import 'legal_parameters_screen.dart';
+import 'platform_reconciliation_screen.dart';
+import 'services_status_screen.dart';
+import 'unknown_payments_screen.dart';
+import 'users_review_screen.dart';
 
+/// S-PLT-01 · `/platform/tenants` · Revisión KYB de comercios y consola de plataforma.
+///
+/// Permiso: `platform:tenants:review`.
+/// Supervisión de comercios registrados pendientes de aprobación y acceso a herramientas de plataforma.
 class BusinessReviewScreen extends StatefulWidget {
   const BusinessReviewScreen({super.key, required this.api});
   final ApiClient api;
@@ -29,7 +41,51 @@ class _BusinessReviewScreenState extends State<BusinessReviewScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.businessReviewTitle)),
+      appBar: AppBar(
+        title: Text(l10n.businessReviewTitle),
+        actions: [
+          IconButton(
+            tooltip: 'Revisión KYC Usuarios',
+            icon: const Icon(Icons.badge_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UsersReviewScreen(api: widget.api))),
+          ),
+          IconButton(
+            tooltip: 'Feature Flags y Kill Switches',
+            icon: const Icon(Icons.toggle_on_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FlagsConsoleScreen(api: widget.api))),
+          ),
+          IconButton(
+            tooltip: 'Parámetros legales',
+            icon: const Icon(Icons.gavel_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalParametersScreen(api: widget.api))),
+          ),
+          IconButton(
+            tooltip: 'Pagos UNKNOWN',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UnknownPaymentsScreen(api: widget.api))),
+          ),
+          IconButton(
+            tooltip: 'Conciliación',
+            icon: const Icon(Icons.compare_arrows),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PlatformReconciliationScreen(api: widget.api))),
+          ),
+          IconButton(
+            tooltip: 'Cumplimiento AML',
+            icon: const Icon(Icons.policy_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ComplianceQueueScreen(api: widget.api))),
+          ),
+          IconButton(
+            tooltip: 'Estado de servicios',
+            icon: const Icon(Icons.dns_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ServicesStatusScreen(api: widget.api))),
+          ),
+          IconButton(
+            tooltip: 'Solicitudes Ley 81',
+            icon: const Icon(Icons.privacy_tip_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DataRequestsScreen(api: widget.api))),
+          ),
+        ],
+      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _future,
         builder: (context, snap) {

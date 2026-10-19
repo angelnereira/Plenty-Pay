@@ -6,24 +6,36 @@ import '../theme/app_theme.dart';
 class PPTextField extends StatelessWidget {
   const PPTextField({
     super.key,
-    required this.label,
+    this.label,
+    this.labelText,
     this.controller,
     this.hint,
     this.error,
+    this.helperText,
     this.keyboardType,
     this.obscureText = false,
+    this.maxLines = 1,
+    this.prefixIcon,
+    this.prefixText,
+    this.suffixIcon,
     this.onChanged,
   });
 
-  final String label;
+  final String? label;
+  final String? labelText;
   final TextEditingController? controller;
   final String? hint;
-
-  /// Mensaje de error. Si es null, el campo no muestra estado de error.
   final String? error;
+  final String? helperText;
   final TextInputType? keyboardType;
   final bool obscureText;
+  final int? maxLines;
+  final Widget? prefixIcon;
+  final String? prefixText;
+  final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
+
+  String get effectiveLabel => label ?? labelText ?? '';
 
   @override
   Widget build(BuildContext context) {
@@ -40,23 +52,29 @@ class PPTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            height: 18 / 13,
-            fontWeight: FontWeight.w500,
-            color: scheme.onSurface.withValues(alpha: 0.7),
+        if (effectiveLabel.isNotEmpty) ...[
+          Text(
+            effectiveLabel,
+            style: TextStyle(
+              fontSize: 13,
+              height: 18 / 13,
+              fontWeight: FontWeight.w500,
+              color: scheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 8),
+        ],
         TextField(
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          maxLines: maxLines,
           onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint,
+            prefixIcon: prefixIcon,
+            prefixText: prefixText,
+            suffixIcon: suffixIcon,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             enabledBorder: border,
             border: border,
@@ -77,6 +95,14 @@ class PPTextField extends StatelessWidget {
                   child: Text(error!, style: TextStyle(fontSize: 12, height: 16 / 12, color: scheme.error)),
                 ),
               ],
+            ),
+          )
+        else if (helperText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              helperText!,
+              style: TextStyle(fontSize: 12, height: 16 / 12, color: scheme.onSurface.withValues(alpha: 0.6)),
             ),
           ),
       ],

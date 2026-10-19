@@ -5,6 +5,10 @@ import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
 import '../../core/widgets/status_chip.dart';
+import 'dashboards_screen.dart';
+import 'exports_screen.dart';
+import 'forecast_screen.dart';
+import 'top_products_screen.dart';
 
 /// S-ANA-01 · inicio con KPIs.
 ///
@@ -21,7 +25,31 @@ class KpiHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.navHome)),
+      appBar: AppBar(
+        title: Text(l10n.navHome),
+        actions: [
+          IconButton(
+            tooltip: 'Tableros',
+            icon: const Icon(Icons.dashboard_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DashboardsScreen(api: api))),
+          ),
+          IconButton(
+            tooltip: 'Top productos ABC',
+            icon: const Icon(Icons.leaderboard_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TopProductsScreen(api: api))),
+          ),
+          IconButton(
+            tooltip: 'Pronóstico de ventas',
+            icon: const Icon(Icons.auto_graph_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ForecastScreen(api: api))),
+          ),
+          IconButton(
+            tooltip: 'Exportar datos',
+            icon: const Icon(Icons.download_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExportsScreen(api: api))),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: onRefresh ?? () async {},
@@ -51,7 +79,12 @@ class KpiHomeScreen extends StatelessWidget {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: PPButton.primary(label: l10n.actionAsk, onPressed: () {}),
+          child: PPButton.primary(
+            label: l10n.actionAsk,
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => AskQuestionScreen(api: api)));
+            },
+          ),
         ),
       ),
     );

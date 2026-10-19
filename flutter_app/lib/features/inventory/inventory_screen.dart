@@ -4,6 +4,14 @@ import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/widgets/status_chip.dart';
 
+import 'purchase_orders_screen.dart';
+import 'reorder_suggestions_screen.dart';
+import 'stock_adjust_screen.dart';
+import 'stock_detail_screen.dart';
+import 'stock_transfer_screen.dart';
+import 'suppliers_screen.dart';
+import 'warehouses_screen.dart';
+
 /// S-INV-01 · `/inventory` · Existencias.
 ///
 /// `inventory:read` · `/v1/inventory/stock`. Tarjetas de alerta, selector de bodega,
@@ -34,10 +42,55 @@ class _InventoryScreenState extends State<InventoryScreen> {
       appBar: AppBar(
         title: Text(l10n.inventoryTitle),
         actions: [
-          IconButton(tooltip: l10n.adjustStock, icon: const Icon(Icons.tune), onPressed: () {}),
-          IconButton(tooltip: l10n.transferStock, icon: const Icon(Icons.swap_horiz), onPressed: () {}),
+          IconButton(
+            tooltip: l10n.adjustStock,
+            icon: const Icon(Icons.tune),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => StockAdjustScreen(api: widget.api),
+            )),
+          ),
+          IconButton(
+            tooltip: l10n.transferStock,
+            icon: const Icon(Icons.swap_horiz),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => StockTransferScreen(api: widget.api),
+            )),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (val) {
+              switch (val) {
+                case 'purchases':
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => PurchaseOrdersScreen(api: widget.api),
+                  ));
+                  break;
+                case 'suggestions':
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => ReorderSuggestionsScreen(api: widget.api),
+                  ));
+                  break;
+                case 'suppliers':
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => SuppliersScreen(api: widget.api),
+                  ));
+                  break;
+                case 'warehouses':
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => WarehousesScreen(api: widget.api),
+                  ));
+                  break;
+              }
+            },
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(value: 'purchases', child: Text('Órdenes de compra')),
+              PopupMenuItem(value: 'suggestions', child: Text('Sugerencias de reorden')),
+              PopupMenuItem(value: 'suppliers', child: Text('Proveedores')),
+              PopupMenuItem(value: 'warehouses', child: Text('Bodegas y sucursales')),
+            ],
+          ),
         ],
       ),
+
       body: SafeArea(
         child: Column(
           children: [
@@ -87,7 +140,48 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: _EmptyInventory(),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.inventory_2_outlined),
+                      title: const Text('Café Geisha Especial 250g'),
+                      subtitle: const Text('SKU: CAF-GEI-001 · Bodega Central'),
+                      trailing: const Text('40 ud disponibles', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => StockDetailScreen(
+                          api: widget.api,
+                          name: 'Café Geisha Especial 250g',
+                          sku: 'CAF-GEI-001',
+                          totalStock: 45,
+                          reservedStock: 5,
+                          availableStock: 40,
+                        ),
+                      )),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.inventory_2_outlined),
+                      title: const Text('Croissant de Almendras'),
+                      subtitle: const Text('SKU: BAK-CRO-002 · Sucursal Calle 50'),
+                      trailing: const Text('8 ud (Bajo stock)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => StockDetailScreen(
+                          api: widget.api,
+                          name: 'Croissant de Almendras',
+                          sku: 'BAK-CRO-002',
+                          totalStock: 10,
+                          reservedStock: 2,
+                          availableStock: 8,
+                        ),
+                      )),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -95,6 +189,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 }
+
 
 class _AlertCard extends StatelessWidget {
   const _AlertCard({required this.label, required this.count, required this.tone, required this.onTap});
@@ -125,26 +220,6 @@ class _AlertCard extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyInventory extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.warehouse_outlined, size: 48, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
-            const SizedBox(height: 12),
-            Text('Sin existencias registradas', style: theme.textTheme.titleMedium),
-          ],
         ),
       ),
     );

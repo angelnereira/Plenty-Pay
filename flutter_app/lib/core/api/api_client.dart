@@ -232,6 +232,15 @@ class ApiClient {
   }
 
   Future<void> logout() => _session.clear();
+  Future<void> logoutAll() async {}
+
+  Future<void> forgotPassword(String email) async {
+    await _post('/v1/auth/password/forgot', data: {'email': email});
+  }
+
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    await _post('/v1/auth/password/reset', data: {'token': token, 'new_password': newPassword});
+  }
 
   // ── Identidad / negocio (F08.8) ────────────────────────────────────────────
 

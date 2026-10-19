@@ -5,4 +5,5 @@ useDefault = true
 [allowlist]
 description = "Valores de ejemplo evidentes en .env.example y documentación"
 paths = ['''(^|/)\.env\.example$''', '''^_legacy-typescript-reference/''']
-regexes = ['''CAMBIAR''', '''changeme''', '''example\.com''', '''lo-que-sea-123456''', '''incorrecta-123456''']
+regexes = ['''CAMBIAR''', '''changeme''', '''example\.com''', '''lo-que-sea-123456''', '''incorrecta-123456''', '''clave-de-idempotencia-16''']
+

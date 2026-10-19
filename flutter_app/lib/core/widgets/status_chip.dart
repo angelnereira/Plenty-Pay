@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// Tono semántico de un estado. El color nunca va solo: siempre acompaña icono y texto.
-enum StatusTone { success, warning, error, neutral }
+enum StatusTone { success, warning, error, neutral, info }
+
+typedef StatusChipTone = StatusTone;
 
 /// Chip de estado (design-system.md §6): CAPTURED, PENDING, UNKNOWN ("Confirmando"), FAILED.
 class StatusChip extends StatelessWidget {
@@ -24,18 +26,21 @@ class StatusChip extends StatelessWidget {
       StatusTone.warning => dark ? Tokens.darkWarning : Tokens.lightWarning,
       StatusTone.error => scheme.error,
       StatusTone.neutral => scheme.onSurface,
+      StatusTone.info => scheme.primary,
     };
     final ink = switch (tone) {
       StatusTone.success => dark ? Tokens.darkSuccess : Tokens.lightSuccessInk,
       StatusTone.warning => dark ? Tokens.darkWarning : Tokens.lightWarningInk,
       StatusTone.error => dark ? scheme.error : Tokens.lightErrorInk,
       StatusTone.neutral => scheme.onSurface,
+      StatusTone.info => scheme.primary,
     };
     final icon = switch (tone) {
       StatusTone.success => Icons.check_circle_outline,
       StatusTone.warning => Icons.schedule,
       StatusTone.error => Icons.cancel_outlined,
       StatusTone.neutral => Icons.info_outline,
+      StatusTone.info => Icons.info_outline,
     };
 
     // Texto al 200 % sin cortes: la etiqueta se ajusta en varias líneas dentro del chip
