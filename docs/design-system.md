@@ -15,8 +15,8 @@ Estilo: **moderno, sobrio, de banca**: grises oscuros y claros con **rojo** como
 
 | Token | Oscuro | Claro | Uso |
 |---|---|---|---|
-| `primary` | `#E5383B` | `#E5383B` | botón primario, indicador activo, foco |
-| `primaryPressed` | `#BA1F23` | `#BA1F23` | estado presionado/hover |
+| `primary` | `#D32D2F` | `#D32D2F` | botón primario, indicador activo, foco |
+| `primaryPressed` | `#9C191C` | `#9C191C` | estado presionado/hover |
 | `onPrimary` | `#FFFFFF` | `#FFFFFF` | texto sobre primario |
 | `background` | `#0E0F11` | `#F4F5F6` | fondo de la app |
 | `surface` | `#16181B` | `#FFFFFF` | tarjetas, paneles |
@@ -28,8 +28,25 @@ Estilo: **moderno, sobrio, de banca**: grises oscuros y claros con **rojo** como
 | `success` | `#4CC38A` | `#1E7F4F` | confirmaciones (uso discreto: icono + texto) |
 | `warning` | `#F2B84B` | `#8A5A00` | pendiente/UNKNOWN ("confirmando") |
 | `info` | `#9AA0A6` | `#5F6670` | informativo (neutro, sin azul) |
+| `successInk` | `#4CC38A` | `#0F5C33` | etiqueta del chip de éxito en claro |
+| `warningInk` | `#F2B84B` | `#7A5000` | etiqueta del chip de advertencia en claro |
+| `errorInk` | `#FF6B6B` | `#A01B14` | etiqueta del chip de error en claro |
 
-Reglas: el rojo nunca se usa para estados de éxito ni para fondos grandes; los errores usan `error` (distinto del rojo de marca) **con icono y texto**. Contraste verificado: `textPrimary` sobre `background` ≥ 12:1; `onPrimary` sobre `primary` ≥ 4.5:1 en texto ≥ 16 sp semibold (botones usan 16 sp semibold).
+Reglas: el rojo nunca se usa para estados de éxito ni para fondos grandes; los errores usan `error` (distinto del rojo de marca) **con icono y texto**.
+
+Contraste verificado con la fórmula de WCAG 2.x sobre el fondo real de cada componente (`StatusChip` usa el color semántico al 14 % sobre `surface`), comprobado en `flutter_app/test/accessibility/contrast_test.dart`:
+
+| Par | Cociente | Mínimo |
+|---|---|---|
+| `textPrimary` sobre `background` | ≥ 12:1 | 4.5:1 |
+| `onPrimary` sobre `primary` | 5.01:1 | 4.5:1 |
+| `onPrimary` sobre `primaryPressed` | 8.18:1 | 4.5:1 |
+| `successInk` sobre el fondo del chip de éxito | 5.9:1 | 4.5:1 |
+| `warningInk` sobre el fondo del chip de advertencia | 5.2:1 | 4.5:1 |
+| `errorInk` sobre el fondo del chip de error | 6.1:1 | 4.5:1 |
+| icono del chip sobre su fondo | ≥ 3:1 | 3:1 (WCAG 1.4.11) |
+
+`primary` era un rojo un punto más claro hasta la auditoría F25.1: con ese tono el texto blanco quedaba en **4.23:1** y no cumplía AA, por más que el documento afirmara lo contrario. `successInk`, `warningInk` y `errorInk` existen por lo mismo: la etiqueta del chip se pinta sobre el color semántico al 14 %, y el tono base no llegaba a 4.5:1 (3.81:1 en el caso de éxito).
 
 ## 3. Tipografía
 Familia: **Inter** (OFL) empaquetada en la app; respaldo del sistema. Cifras **tabulares** (`FontFeature.tabularFigures()`) en todo monto, tabla y contador.

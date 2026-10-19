@@ -351,7 +351,7 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 
 | Paso | Estado | Evidencia / qué falta |
 |---|---|---|
-| F25.1 Auditoría de accesibilidad WCAG AA (lectores de pantalla, escala 200 %) | 📋 |  |
+| F25.1 Auditoría de accesibilidad WCAG AA (lectores de pantalla, escala 200 %) | ✅ | 2026-10-19: auditoría con `meetsGuideline(textContrastGuideline)` y `androidTapTargetGuideline` en claro y oscuro, texto al 200 %, vertical y horizontal, compact (360 dp) y expanded (1400 dp), y anuncio por lector de pantalla de importes y del botón. **Encontró y corrigió dos incumplimientos reales**: (1) la etiqueta de `StatusChip` quedaba en **3.81:1** sobre su propio fondo — se añadieron los tokens `successInk`/`warningInk`/`errorInk`; (2) el texto blanco sobre `primary` quedaba en **4.23:1** — `primary` pasó a un rojo más oscuro (5.01:1) y `primaryPressed` también (8.18:1). El documento **`docs/design-system.md` §2 afirmaba que el contraste estaba verificado y era falso**, así que se corrigió primero el documento y después el código (AGENTS.md §1), con la tabla de cocientes reales. `contrast_test.dart` fija cada cociente con la fórmula de WCAG para que no vuelva a regresionar. 23 tests PASS |
 | F25.2 Rendimiento: arranque < 2.5 s, listas 60 fps, tamaños de bundle | 📋 |  |
 | F25.3 Carga diferida por módulo en web | 📋 |  |
 | F25.4 Textos legales, privacidad y consentimientos en la app | 📋 |  |

@@ -16,11 +16,20 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
-    final color = switch (tone) {
+    // `fill` es el color semántico (fondo teñido e icono); `ink` es el tono de la
+    // etiqueta, más oscuro en claro para cumplir 4.5:1 sobre ese fondo (WCAG 2.2 AA
+    // 1.4.3). El icono se queda con `fill` porque un objeto gráfico solo exige 3:1.
+    final fill = switch (tone) {
       StatusTone.success => dark ? Tokens.darkSuccess : Tokens.lightSuccess,
       StatusTone.warning => dark ? Tokens.darkWarning : Tokens.lightWarning,
       StatusTone.error => scheme.error,
-      StatusTone.neutral => scheme.onSurface.withValues(alpha: 0.7),
+      StatusTone.neutral => scheme.onSurface,
+    };
+    final ink = switch (tone) {
+      StatusTone.success => dark ? Tokens.darkSuccess : Tokens.lightSuccessInk,
+      StatusTone.warning => dark ? Tokens.darkWarning : Tokens.lightWarningInk,
+      StatusTone.error => dark ? scheme.error : Tokens.lightErrorInk,
+      StatusTone.neutral => scheme.onSurface,
     };
     final icon = switch (tone) {
       StatusTone.success => Icons.check_circle_outline,
@@ -35,7 +44,7 @@ class StatusChip extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: double.infinity),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.14),
+          color: fill.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Padding(
@@ -46,13 +55,13 @@ class StatusChip extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Icon(icon, size: 16, color: color),
+                child: Icon(icon, size: 16, color: fill),
               ),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   label,
-                  style: TextStyle(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w500, color: color),
+                  style: TextStyle(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w500, color: ink),
                 ),
               ),
             ],

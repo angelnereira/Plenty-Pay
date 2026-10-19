@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 
 /// Tokens de docs/design-system.md §2. scripts/check-docs.sh compara estos hex con el documento.
 class Tokens {
-  static const primary = Color(0xFFE5383B);
-  static const primaryPressed = Color(0xFFBA1F23);
+  // #E5383B quedaba en 4.23:1 con texto blanco; este tono da 5.01:1 (WCAG AA).
+  // El cambio está documentado en design-system.md §2.
+  // #E5383B quedaba en 4.23:1 con texto blanco; este tono da 5.01:1 (WCAG AA).
+  // El cambio está documentado en design-system.md §2.
+  static const primary = Color(0xFFD32D2F);
+  // El estado presionado se oscurece para que el texto blanco siga cumpliendo
+  // 4.5:1 (WCAG 2.2 AA 1.4.3): con #BA1F23 quedaba en 4.23:1.
+  static const primaryPressed = Color(0xFF9C191C);
   static const onPrimary = Color(0xFFFFFFFF);
 
   static const darkBackground = Color(0xFF0E0F11);
@@ -25,6 +31,14 @@ class Tokens {
   static const lightError = Color(0xFFB3261E);
   static const lightSuccess = Color(0xFF1E7F4F);
   static const lightWarning = Color(0xFF8A5A00);
+
+  // Tinta de las etiquetas de `StatusChip` en claro. El fondo del chip es el color
+  // semántico al 14 % sobre la superficie, así que la etiqueta necesita un tono más
+  // oscuro que el color base para alcanzar 4.5:1 (WCAG 2.2 AA 1.4.3). El icono se
+  // queda con el tono brillante porque un graphical object solo exige 3:1.
+  static const lightSuccessInk = Color(0xFF0F5C33);
+  static const lightWarningInk = Color(0xFF7A5000);
+  static const lightErrorInk = Color(0xFFA01B14);
 
   static const radius = 16.0;
   static const radiusLarge = 24.0;
