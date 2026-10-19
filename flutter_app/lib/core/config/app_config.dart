@@ -27,7 +27,13 @@ class AppConfig {
     if (uri == null || uri.host.isEmpty || (uri.scheme != 'http' && uri.scheme != 'https')) {
       throw StateError('API_BASE_URL inválida: "$apiBaseUrl"');
     }
-    if (parsed.requiresHttps && uri.scheme != 'https') {
+    final isLocal = uri.host == 'localhost' ||
+        uri.host == '127.0.0.1' ||
+        uri.host == '10.0.2.2' ||
+        uri.host.startsWith('192.168.') ||
+        uri.host.startsWith('10.') ||
+        uri.host.startsWith('172.');
+    if (parsed.requiresHttps && uri.scheme != 'https' && !isLocal) {
       throw StateError('API_BASE_URL debe ser https en ${parsed.name}');
     }
     final normalized = apiBaseUrl.endsWith('/') ? apiBaseUrl.substring(0, apiBaseUrl.length - 1) : apiBaseUrl;

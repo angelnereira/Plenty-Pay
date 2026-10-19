@@ -27,10 +27,12 @@ void main() {
     // Falla al arrancar si el flavor exige https y la URL no lo es (flutter-standards.md §5.1).
     final config = AppConfig.fromEnvironment();
     final session = SessionStore();
+    final customUrl = await session.customBaseUrl();
+    final effectiveUrl = (customUrl != null && customUrl.isNotEmpty) ? customUrl : config.apiBaseUrl;
     final signedIn = await session.accessToken() != null;
     logger.info('app started');
     runApp(PlentyPayApp(
-      api: ApiClient(baseUrl: config.apiBaseUrl, session: session, logger: logger),
+      api: ApiClient(baseUrl: effectiveUrl, session: session, logger: logger),
       startSignedIn: signedIn,
     ));
   });

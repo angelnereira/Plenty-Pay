@@ -68,6 +68,15 @@ class _AppShellState extends State<AppShell> {
                   onPressed: () => setState(() => _perms = widget.api.permissions()),
                   child: Text(l10n.actionRetry),
                 ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    widget.api.enableDemoMode();
+                    setState(() => _perms = widget.api.permissions());
+                  },
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Explorar en Modo Demo'),
+                ),
                 TextButton(onPressed: _signOut, child: Text(l10n.actionSignOut)),
               ]),
             ),

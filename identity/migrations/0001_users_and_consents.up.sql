@@ -50,7 +50,7 @@ CREATE POLICY users_tenencia ON users
   USING (
     coalesce(current_setting('app.actor_role', true), '') = 'PLATFORM_ADMIN'
     OR tenant_id::text = coalesce(nullif(current_setting('app.tenant_id', true), ''), '__sin_tenant__')
-    OR (tenant_id IS NULL AND id::text = current_setting('app.user_id', true))
+    OR id::text = current_setting('app.user_id', true)
   );
 
 DROP POLICY IF EXISTS consents_tenencia ON consents;

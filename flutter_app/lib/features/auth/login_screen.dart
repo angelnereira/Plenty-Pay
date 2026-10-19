@@ -63,6 +63,68 @@ class _LoginScreenState extends State<LoginScreen> {
     ));
   }
 
+  Future<void> _showServerDialog() async {
+    final controller = TextEditingController(text: widget.api.baseUrl);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Configurar Servidor'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Dirección del api-gateway:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'http://localhost:8080',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                ActionChip(
+                  label: const Text('Localhost (PC)'),
+                  onPressed: () => controller.text = 'http://localhost:8080',
+                ),
+                ActionChip(
+                  label: const Text('Emulador Android'),
+                  onPressed: () => controller.text = 'http://10.0.2.2:8080',
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newUrl = controller.text.trim();
+              if (newUrl.isNotEmpty) {
+                widget.api.updateBaseUrl(newUrl);
+                await widget.api.session.saveCustomBaseUrl(newUrl);
+                if (mounted) {
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Servidor actualizado: $newUrl')),
+                  );
+                }
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _email.dispose();
@@ -77,16 +139,26 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(l10n.appTitle, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(l10n.appTitle, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    IconButton(
+                      icon: const Icon(Icons.dns_outlined),
+                      tooltip: 'Configurar servidor',
+                      onPressed: _showServerDialog,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Text(l10n.loginTitle, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 PPTextField(
                   controller: _email,
                   label: l10n.fieldEmail,
@@ -99,18 +171,66 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                 ),
                 if (_error != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(children: [
                     Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
                     const SizedBox(width: 8),
                     Expanded(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error))),
                   ]),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ActionChip(
+                      avatar: const Icon(Icons.storefront, size: 14),
+                      label: const Text('Dueño'),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        _email.text = 'testowner@plentypay.test';
+                        _password.text = 'PasswordSegura123456';
+                        setState(() => _error = null);
+                      },
+                    ),
+                    ActionChip(
+                      avatar: const Icon(Icons.shield_outlined, size: 14),
+                      label: const Text('Admin'),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        _email.text = 'admin@plentypay.test';
+                        _password.text = 'PasswordSegura123456';
+                        setState(() => _error = null);
+                      },
+                    ),
+                    ActionChip(
+                      avatar: const Icon(Icons.person_outline, size: 14),
+                      label: const Text('Cliente'),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        _email.text = 'cliente@plentypay.test';
+                        _password.text = 'PasswordSegura123456';
+                        setState(() => _error = null);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 PPButton.primary(
                   label: l10n.actionSignIn,
                   onPressed: _busy ? null : _submit,
                   loading: _busy,
+                ),
+                const SizedBox(height: 6),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.auto_awesome, size: 16),
+                  label: const Text('Modo Demo (sin conexión)'),
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          widget.api.enableDemoMode();
+                          widget.onSignedIn();
+                        },
                 ),
                 PPButton.text(
                   label: l10n.actionWantAccount,

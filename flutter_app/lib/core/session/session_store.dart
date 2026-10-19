@@ -7,6 +7,7 @@ class SessionStore {
 
   static const _accessKey = 'pp_access_token';
   static const _refreshKey = 'pp_refresh_token';
+  static const _customBaseUrlKey = 'pp_custom_base_url';
 
   Future<void> save({required String accessToken, required String refreshToken}) async {
     await _storage.write(key: _accessKey, value: accessToken);
@@ -15,6 +16,10 @@ class SessionStore {
 
   Future<String?> accessToken() => _storage.read(key: _accessKey);
   Future<String?> refreshToken() => _storage.read(key: _refreshKey);
+
+  Future<void> saveCustomBaseUrl(String url) => _storage.write(key: _customBaseUrlKey, value: url);
+  Future<String?> customBaseUrl() => _storage.read(key: _customBaseUrlKey);
+  Future<void> clearCustomBaseUrl() => _storage.delete(key: _customBaseUrlKey);
 
   Future<void> clear() async {
     await _storage.delete(key: _accessKey);
