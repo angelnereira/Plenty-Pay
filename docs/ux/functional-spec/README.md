@@ -1,6 +1,6 @@
 # Especificación funcional y de pantallas
 
-Define **qué hace PlentyPay y cómo se ve cada pantalla**: elementos, textos, validaciones, acciones, estados y conexiones entre módulos. Complementa a [`../screen-catalog.md`](../screen-catalog.md) (qué pantallas existen y con qué permiso) y a [`../../design-system.md`](../../design-system.md) (cómo se ven los componentes). Las reglas normativas `N-…` vienen de [`../../compliance/regulatory-framework.md`](../../compliance/regulatory-framework.md) (Panamá) y de [`../../compliance/international-standards.md`](../../compliance/international-standards.md) (estándares internacionales, `N-STD-…`).
+Define **qué hace PlentyPay y cómo se ve cada pantalla**: elementos, textos, validaciones, acciones, estados y conexiones entre módulos. Complementa a [`../screen-catalog.md`](../screen-catalog.md) (qué pantallas existen y con qué permiso), a [`../../gravital-experience-ui.md`](../../gravital-experience-ui.md) (regla de diseño estricta `gravital-experience-ui` para todas las interfaces Flutter previas y futuras) y a [`../../design-system.md`](../../design-system.md) (cómo se ven los componentes). Las reglas normativas `N-…` vienen de [`../../compliance/regulatory-framework.md`](../../compliance/regulatory-framework.md) (Panamá) y de [`../../compliance/international-standards.md`](../../compliance/international-standards.md) (estándares internacionales, `N-STD-…`).
 
 Precedencia si hay conflicto: ADR → `domain-model.md` → SPEC del contenedor → este documento → `screen-catalog.md`. Una pantalla que necesite una ruta o un dato que el gateway aún no expone lo declara en §7 (contratos pendientes) y no se construye hasta que exista.
 
@@ -13,7 +13,7 @@ Precedencia si hay conflicto: ADR → `domain-model.md` → SPEC del contenedor 
 | [`02-marketplace-orders.md`](02-marketplace-orders.md) | Comprar y pedidos del comercio | S-MKT-01 a S-MKT-08, S-ORD-01 a S-ORD-02 |
 | [`03-pos.md`](03-pos.md) | Caja | S-POS-01 a S-POS-12 |
 | [`04-catalog-inventory.md`](04-catalog-inventory.md) | Productos e inventario | S-CAT-01 a S-CAT-05, S-INV-01 a S-INV-09 |
-| [`05-logistics.md`](05-logistics.md) | Entregas y app del repartidor | S-LOG-01 a S-LOG-06 |
+| [`05-logistics.md`](05-logistics.md) | Entregas: tienda, repartidor y cliente | S-LOG-01 a S-LOG-07 |
 | [`06-finance.md`](06-finance.md) | Cobros, liquidación y fiscal | S-FIN-01 a S-FIN-10 |
 | [`07-payroll.md`](07-payroll.md) | Equipo, asistencia y nómina | S-PAY-01 a S-PAY-09 |
 | [`08-analytics.md`](08-analytics.md) | Análisis | S-ANA-01 a S-ANA-08 |
@@ -85,6 +85,7 @@ Estas reglas no se repiten en cada ficha.
 | `ACCOUNT_UNDER_REVIEW` | Tu cuenta está en revisión. Te avisaremos cuando termine. |
 | `CONSENT_REQUIRED` | Necesitamos tu autorización para continuar. |
 | `OUT_OF_STOCK` | No hay existencias suficientes. |
+| `OUT_OF_DELIVERY_ZONE` | Esta tienda no entrega en esa zona. |
 | `PRICE_CHANGED` | El precio cambió. Revisa el nuevo total. |
 | `INVALID_STATE_TRANSITION` | Esta acción ya no está disponible. Actualiza la pantalla. |
 | `RAIL_UNAVAILABLE` | Este método de pago no está disponible ahora. Prueba con otro. |
@@ -120,7 +121,7 @@ Cada requisito es verificable y cita las pantallas que lo cumplen.
 | **RF-CAT-02** | Publicar en el marketplace solo productos con la información obligatoria | S-CAT-05 |
 | **RF-INV-01** | Conocer existencias por bodega y lote, y todo movimiento con su motivo | S-INV-01 a S-INV-04 |
 | **RF-INV-02** | Comprar a proveedores y recibir mercancía | S-INV-05 a S-INV-07 |
-| **RF-LOG-01** | Asignar entregas, seguirlas en vivo y registrar la prueba de entrega | S-LOG-01 a S-LOG-06 |
+| **RF-LOG-01** | El comercio gestiona zonas, flota y despacho; el repartidor controla su turno, navega y registra la prueba de entrega; el cliente sigue sus entregas en vivo y confirma recepción con su código | S-LOG-01 a S-LOG-07, S-MKT-07, S-PUB-02 |
 | **RF-FIN-01** | Ver cada cobro con su desglose de comisiones y reembolsarlo | S-FIN-02, S-FIN-03 |
 | **RF-FIN-02** | Recibir liquidaciones en la cuenta del negocio según calendario | S-FIN-05, S-FIN-06 |
 | **RF-FIN-03** | Emitir, consultar y corregir documentos fiscales; obtener el reporte mensual de ITBMS | S-FIN-07 a S-FIN-10 |
@@ -142,20 +143,22 @@ Lectura: el módulo de la fila **origina**; la celda dice qué pide al de la col
 | Billetera | Bandeja | Recibo y avisos de pago (⇢) |
 | Comprar | Productos | Lee publicaciones, precio y garantía (→ catalog) |
 | Comprar | Inventario | Reserva existencias al pagar (→ `ReserveStock`) |
+| Comprar | Entregas | Cotiza tarifa y cobertura de envío por tienda antes de pagar (→ `QuoteDelivery`) |
 | Comprar | Billetera | Un solo pago con reparto por comercio (→ payments, splits) |
 | Comprar | Pedidos | Crea un sub-pedido por comercio (⇢ `OrderPaid`) |
 | Pedidos | Entregas | Al marcar "listo" con envío, crea la entrega (→ `CreateDelivery`) |
-| Pedidos | Finanzas | Rechazo o cancelación genera reembolso de su parte (→ `RefundPayment`) |
+| Pedidos | Finanzas | Rechazo o cancelación (o 3.er intento de entrega fallido) genera reembolso de su parte (→ `RefundPayment`) |
 | Pedidos | Fiscal | Sub-pedido aceptado emite factura (→ `IssueInvoice`) |
 | Caja | Productos | Precios y tratamiento fiscal (→ catalog, con caché sin conexión) |
 | Caja | Inventario | Descuenta existencias al pagar (⇢ `SalePaid`) |
+| Caja | Entregas | Venta con envío a domicilio cotiza tarifa y crea la entrega al pagarse (→ `QuoteDelivery`, `CreateDelivery`) |
 | Caja | Billetera | Cada medio electrónico es un cobro (→ payments) |
 | Caja | Fiscal | Emite factura o recibo interno (→ `IssueInvoice`) |
 | Caja | Equipo | El cajero debe tener turno abierto si el comercio lo exige (→ payroll) |
 | Inventario | Productos | Marca "agotado" en la publicación (⇢ `StockChanged`) |
 | Inventario | Análisis | Sugerencias de reorden usan la velocidad de venta |
-| Entregas | Geolocalización | Posición del repartidor y geocercas (→ geolocation) |
-| Entregas | Pedidos | Cambia el estado del sub-pedido (⇢ `DeliveryStatusChanged`) |
+| Entregas | Geolocalización | Posición del repartidor en turno, geocercas y repartidor más cercano (→ geolocation) |
+| Entregas | Pedidos / Caja | Cambia el estado del sub-pedido o venta con envío (⇢ `DeliveryStatusChanged`) |
 | Equipo | Geolocalización | Marcaje dentro de la geocerca (→ `IsInside`) |
 | Equipo | Billetera | Pago de nómina desde la billetera del negocio (→ payments, T10) |
 | Finanzas | Billetera | Liquidación a la billetera del negocio (T6b) o a banco (T6) |
@@ -171,7 +174,7 @@ Regla de composición en la app: una feature no importa otra feature (`flutter-s
 Rutas y RPC que hoy no existen. Se agregan de forma aditiva en F03.2 (contratos) y en el paso de cada módulo; hasta entonces su pantalla no se construye.
 
 | Necesidad | Ruta propuesta | Dueño | Regla |
-|---|---|---|---|
+|---|---|---|
 | Verificación de identidad del usuario | `POST /v1/me/kyc`, `GET /v1/me/kyc` | identity | N-AML-02, N-AML-03 |
 | Consentimientos | `GET/PUT /v1/me/consents` | identity | N-DAT-02 |
 | Solicitudes de derechos sobre datos | `GET/POST /v1/me/data-requests` | identity, security | N-DAT-05, N-DAT-07 |
@@ -185,4 +188,3 @@ Rutas y RPC que hoy no existen. Se agregan de forma aditiva en F03.2 (contratos)
 | Solicitudes de datos (operador) | `GET /v1/platform/data-requests`, `POST /{id}/resolve` | security | N-DAT-05 |
 | Reporte mensual de ITBMS | `GET /v1/fiscal/reports/itbms?period=` | fiscal-invoicing | N-FIS-11 |
 | Décimo tercer mes y vacaciones | `POST /v1/payroll/runs` con `kind` | payroll | N-LAB-05, N-LAB-06 |
-| Documentos del repartidor | campos en `UpsertDriver` | logistics | N-LOG-03 |

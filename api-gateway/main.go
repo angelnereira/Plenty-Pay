@@ -12,10 +12,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"plentypay/api-gateway/internal/client"
+	"plentypay/api-gateway/internal/middleware"
+	"plentypay/api-gateway/internal/ratelimit"
 	"plentypay/api-gateway/internal/handlers"
 	"plentypay/api-gateway/internal/metadata"
-	"plentypay/api-gateway/internal/middleware"
+	"plentypay/api-gateway/internal/openapi"
 	"plentypay/api-gateway/internal/observability"
 	"plentypay/api-gateway/internal/realtime"
 	"plentypay/api-gateway/internal/routes"
@@ -68,6 +71,9 @@ func newMux(identity *client.IdentityClient, hub *realtime.Hub) *http.ServeMux {
 
 	// Tiempo real (F09.5): WebSocket con auth por primer mensaje.
 	mux.Handle("GET /v1/realtime", realtime.Handler(hub, wsAuth(identity)))
+
+	// OpenAPI generado de la tabla de rutas (F09.7).
+	mux.HandleFunc("GET /v1/openapi.json", openapi.Handler())
 
 	// Resto de la tabla declarativa: una fila = una ruta, sin código por endpoint.
 	for _, r := range routes.Table {
@@ -131,6 +137,28 @@ func main() {
 	}
 	defer identity.Close()
 
+	// Rate limiter (F09.6): NATS KV compartido entre réplicas; si no hay NATS, memoria (fail-open a nivel de réplica).
+	var rl ratelimit.Limiter = ratelimit.NewMemory()
+	if natsURL := envOr("PP_NATS_URL", ""); natsURL != "" {
+		nc, err := nats.Connect(natsURL, nats.UserInfo(envOr("PP_NATS_USER", ""), envOr("PP_NATS_PASS", "")), nats.Name("api-gateway-ratelimit"))
+		if err == nil {
+			js, jerr := nc.JetStream()
+			if jerr == nil {
+				kv, kerr := js.KeyValue("pp_ratelimit")
+				if kerr == nil {
+					rl = ratelimit.NewNatsKV(kv)
+					logger.Info("rate limiter enabled (nats kv)", "bucket", "pp_ratelimit")
+				} else {
+					logger.Warn("rate limiter: kv bucket unavailable, using memory", "err", kerr.Error())
+				}
+			} else {
+				logger.Warn("rate limiter: jetstream unavailable, using memory", "err", jerr.Error())
+			}
+		} else {
+			logger.Warn("rate limiter: nats unavailable, using memory", "err", err.Error())
+		}
+	}
+
 	// ready = el gateway atiende. No depende de identity: si identity cae, el gateway sigue arriba
 	// y responde según la matriz de degradación (service-dependencies.md §6).
 	var ready atomic.Bool
@@ -166,7 +194,7 @@ func main() {
 
 	srv := &http.Server{
 		// R5: las x-pp-* del cliente se descartan en el borde, antes de cualquier handler.
-		Handler:           metadata.StripInboundMiddleware(observability.HTTPMiddleware(logger, reporter, metrics)(newMux(identity, hub))),
+		Handler:           metadata.StripInboundMiddleware(observability.HTTPMiddleware(logger, reporter, metrics)(middleware.RateLimitMiddleware(rl)(newMux(identity, hub)))),
 		ReadHeaderTimeout: 5 * time.Second, // protege contra conexiones lentas (slowloris)
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

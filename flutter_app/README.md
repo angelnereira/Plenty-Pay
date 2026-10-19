@@ -1,6 +1,6 @@
 # flutter_app — cliente único PlentyPay
 
-Una sola app para Android, iOS, Linux, Windows, macOS y Web (ADR 0009). Habla **solo** con `api-gateway` (ADR 0015). Estándar: `docs/standards/flutter-standards.md`; pantallas: `docs/ux/screen-catalog.md`; tokens: `docs/design-system.md`.
+Una sola app para Android, iOS, Linux, Windows, macOS y Web (ADR 0009). Habla **solo** con `api-gateway` (ADR 0015). Estándar: `docs/standards/flutter-standards.md`; regla de diseño estricta (`gravital-experience-ui`): `docs/gravital-experience-ui.md`; pantallas: `docs/ux/screen-catalog.md`; tokens: `docs/design-system.md`.
 
 ## Estado
 | Aspecto | Estado | Evidencia |

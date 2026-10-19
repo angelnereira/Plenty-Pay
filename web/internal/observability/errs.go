@@ -52,6 +52,12 @@ func stackOf(err error) []uintptr {
 }
 
 func rootCause(err error) error {
+	// Un `Dependency` puede reportarse sin un error concreto (por ejemplo, una
+	// respuesta inválida de un proveedor). Sin esta guarda, la cadena de causas entra
+	// en pánico y el registro del fallo se pierde: exactamente lo que no debe pasar.
+	if err == nil {
+		return nil
+	}
 	for {
 		next := errors.Unwrap(err)
 		if next == nil {
@@ -62,7 +68,13 @@ func rootCause(err error) error {
 }
 
 // ErrorType es el valor de `error.type`: el tipo de la causa raíz. Baja cardinalidad, nunca el mensaje.
-func ErrorType(err error) string { return fmt.Sprintf("%T", rootCause(err)) }
+func ErrorType(err error) string {
+	cause := rootCause(err)
+	if cause == nil {
+		return "unspecified"
+	}
+	return fmt.Sprintf("%T", cause)
+}
 
 func formatStack(pcs []uintptr) (text string, own []runtime.Frame) {
 	if len(pcs) == 0 {
@@ -109,12 +121,22 @@ func fingerprint(service, errType string, own []runtime.Frame) string {
 // errorAttrs arma los campos que responden qué, dónde, cómo y por qué falló (§9).
 func errorAttrs(service string, err error, stack string, own []runtime.Frame) []slog.Attr {
 	errType := ErrorType(err)
+	// Sin error concreto, el mensaje dice que no lo hay en vez de inventar uno.
+	message := errType
+	if err != nil {
+		message = err.Error()
+	}
+	cause := rootCause(err)
+	causeText := message
+	if cause != nil {
+		causeText = cause.Error()
+	}
 	attrs := []slog.Attr{
-		slog.String("err", err.Error()),
+		slog.String("err", message),
 		slog.String("error.type", errType),
 		slog.String("exception.type", errType),
-		slog.String("exception.message", err.Error()),
-		slog.String("pp.error.cause", rootCause(err).Error()),
+		slog.String("exception.message", message),
+		slog.String("pp.error.cause", causeText),
 		slog.String("pp.error.fingerprint", fingerprint(service, errType, own)),
 	}
 	if stack != "" {
@@ -131,6 +153,16 @@ func errorAttrs(service string, err error, stack string, own []runtime.Frame) []
 
 func markSpanFailed(ctx context.Context, err error) {
 	span := trace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+	// `Dependency` puede llamarse sin un error concreto (por ejemplo, una respuesta
+	// inválida de una dependencia): sin esta guarda, `err.Error()` entra en pánico y
+	// el registro del fallo se pierde, que es justo lo contrario de lo que se pide.
+	if err == nil {
+		span.SetStatus(codes.Error, "unspecified")
+		return
+	}
 	span.SetStatus(codes.Error, err.Error())
 	span.SetAttributes(attribute.String("error.type", ErrorType(err)))
 }

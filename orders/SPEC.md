@@ -45,8 +45,8 @@ RLS: `orders` por `buyer_user_id` (políticas por usuario) y `sub_orders` por `t
 | RPC | Permiso | Idemp. | Comportamiento | Errores |
 |---|---|---|---|---|
 | GetCart / SetCartItem / ClearCart | `orders:create:self` | — | máximo 50 líneas, 10 comercios; `qty=0` elimina | `LISTING_UNAVAILABLE`, `CART_LIMIT` |
-| QuoteCheckout | `orders:create:self` | — | precios actuales (catalog), disponibilidad (inventory), envío por comercio (logistics tarifa), comisiones si el portador es CUSTOMER | `LISTING_UNAVAILABLE`, `OUT_OF_STOCK` |
-| Checkout | `orders:create:self` + step-up si ≥ umbral | sí | §5 R3 | `PRICE_CHANGED`, `OUT_OF_STOCK`, `TENANT_NOT_ACTIVE`, errores de pago |
+| QuoteCheckout | `orders:create:self` | — | precios actuales (catalog), disponibilidad (inventory), envío por comercio (`logistics.QuoteDelivery`), comisiones si el portador es CUSTOMER | `LISTING_UNAVAILABLE`, `OUT_OF_STOCK`, `OUT_OF_DELIVERY_ZONE` |
+| Checkout | `orders:create:self` + step-up si ≥ umbral | sí | §5 R3 | `PRICE_CHANGED`, `OUT_OF_STOCK`, `OUT_OF_DELIVERY_ZONE`, `TENANT_NOT_ACTIVE`, errores de pago |
 | GetOrder / ListMyOrders | `orders:read:self` | — | | `NOT_FOUND` |
 | CancelOrder | comprador | sí | solo si todos los sub-pedidos están ≤ AWAITING_ACCEPTANCE | `INVALID_STATE_TRANSITION` |
 | ListMerchantOrders | `orders:read` | — | sub-pedidos del tenant | |
@@ -57,7 +57,7 @@ RLS: `orders` por `buyer_user_id` (políticas por usuario) y `sub_orders` por `t
 - **R1** Un sub-pedido por comercio; cada línea guarda **instantánea** de nombre, precio, impuesto y variante.
 - **R2** Solo listados publicados de tenants ACTIVE.
 - **R3** Checkout (saga, en este orden; compensaciones entre paréntesis):
-  1. Recotizar; si el total difiere del cotizado por el cliente → `PRICE_CHANGED` (sin efectos).
+  1. Recotizar (incluyendo `logistics.QuoteDelivery` por cada comercio con `DELIVERY`; si la dirección está fuera de cobertura → `OUT_OF_DELIVERY_ZONE`); si el total difiere del cotizado por el cliente → `PRICE_CHANGED` (sin efectos).
   2. Crear Order `PENDING_PAYMENT` + sub-pedidos (transacción local).
   3. `inventory.ReserveStock` por comercio con TTL = expiración del intent + 5 min (si falla → liberar reservas previas, Order CANCELLED).
   4. `payments.CreatePaymentIntent` con splits = total por comercio, `reference=order` (si falla → liberar reservas, CANCELLED).
@@ -66,11 +66,14 @@ RLS: `orders` por `buyer_user_id` (políticas por usuario) y `sub_orders` por `t
   7. `PaymentFailed`/`EXPIRED` → liberar reservas, Order CANCELLED. `PaymentUnknown` → mantener reservas hasta resolución (máx. 24 h).
 - **R4** SLA de aceptación 15 min (configurable por tenant 5–60): vencido → REJECTED automático (`reason=ACCEPTANCE_TIMEOUT`) → reembolso del split (`payments.RefundPayment` con key `suborder-reject:<id>`, sin step-up: lo origina el sistema y queda auditado).
 - **R5** Rechazo por comercio → reembolso del split + devolución de stock (movimiento RETURN si ya se comprometió).
-- **R6** Aceptado + fulfillment DELIVERY → `logistics.CreateDelivery`; PICKUP → READY notifica al cliente con código de retiro.
+- **R6** Al pasar a `READY` con `fulfillment = DELIVERY` → llama `logistics.CreateDelivery` (`source={type:"sub_order", id:sub_order_id}`, `recipient_user_id=buyer_user_id`, `age_restricted` si alguna línea lo exige según `catalog`, `warehouse_id` de la reserva y `delivery_fee=shipping_minor`) y guarda `delivery_id`; con `PICKUP` → `READY` notifica al cliente con su código de retiro de 6 dígitos.
 - **R7** Facturación: al ACCEPTED, `fiscal.EvaluateDocumentPolicy` del comercio → `IssueInvoice` con `source=sub_order`.
 - **R8** Estado del Order se **deriva** de sus sub-pedidos (domain-model §8.10) en cada cambio.
 - **R9** Cancelación del comprador: solo antes de ACCEPTED; reembolso total de los splits no aceptados.
-- **R10** Consumidores idempotentes; `logistics.DeliveryStatusChanged` DELIVERED → sub-pedido COMPLETED.
+- **R10** Consumidores idempotentes de `logistics.DeliveryStatusChanged`:
+  - `PICKED_UP` / `IN_TRANSIT` → sub-pedido pasa de `READY` a `IN_DELIVERY`.
+  - `DELIVERED` → sub-pedido pasa a `COMPLETED`.
+  - `FAILED` terminal (`failed_attempts = 3`) → sub-pedido pasa a `CANCELLED`, solicita movimiento `RETURN` en `inventory` y reembolso automático del split en `payments-core`.
 
 ## 6. Eventos
 Publica: `OrderPaid`, `SubOrderStatusChanged`, `AuditRecorded`. Consume: `PaymentCaptured/Failed/Unknown`, `RefundSucceeded`, `DeliveryStatusChanged`, `InvoiceAccepted/Rejected`, `catalog.ProductChanged` (invalida carritos con precio viejo).

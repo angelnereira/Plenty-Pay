@@ -29,23 +29,34 @@ class StatusChip extends StatelessWidget {
       StatusTone.neutral => Icons.info_outline,
     };
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w500, color: color),
-            ),
-          ],
+    // Texto al 200 % sin cortes: la etiqueta se ajusta en varias líneas dentro del chip
+    // y el chip nunca se sale de la pantalla (gravital-experience-ui §15.3).
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: double.infinity),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w500, color: color),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

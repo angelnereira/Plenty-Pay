@@ -1,6 +1,6 @@
 # Catálogo de pantallas (app Flutter única)
 
-Fuente de verdad de **qué pantallas existen, para quién, con qué permiso y de qué datos se alimentan**. Cada pantalla implementa los 4 estados (`flutter-standards.md` §4), usa componentes de `docs/design-system.md` y llama solo a rutas de `api-gateway/SPEC.md` §4. La columna *Paso* indica en qué paso del roadmap se construye.
+Fuente de verdad de **qué pantallas existen, para quién, con qué permiso y de qué datos se alimentan**. Cada pantalla implementa los 4 estados (`flutter-standards.md` §4), cumple estrictamente la regla de diseño [`docs/gravital-experience-ui.md`](../gravital-experience-ui.md) (`gravital-experience-ui`), usa componentes de `docs/design-system.md` y llama solo a rutas de `api-gateway/SPEC.md` §4. La columna *Paso* indica en qué paso del roadmap se construye.
 
 El detalle de cada pantalla (elementos, textos, validaciones, flujos y estados) está en [`functional-spec/`](functional-spec/README.md), con un identificador `S-<módulo>-<nn>` por pantalla.
 
@@ -113,11 +113,12 @@ Fuera de los módulos (siempre disponibles con sesión): Inicio (`/`), Bandeja (
 ## 9. Entregas (`logistics`)
 | Ruta | Pantalla | Permiso | Paso |
 |---|---|---|---|
-| `/logistics` | Despacho: mapa + lista, asignar (manual/cercano) | `logistics:manage` | F18.7 |
-| `/logistics/:id` | Detalle con línea de tiempo y ubicación en vivo | `logistics:read` | F18.7 |
-| `/logistics/drivers`, `/carriers` | Repartidores y transportistas | `logistics:manage` | F18.7 |
-| `/logistics/geofences` | Editor de geocercas | `logistics:geofence:manage` | F14.7 |
-| `/courier` | App de repartidor: mis entregas, navegación externa, escanear paquete, prueba de entrega (código/foto/firma), envío de ubicación en turno | `logistics:deliver` | F18.7 |
+| `/logistics` | Despacho (tienda): mapa + lista, cotizar y crear entrega, asignar (manual / más cercano) | `logistics:manage` | F18.7 |
+| `/logistics/:id` | Detalle de entrega (tienda) con línea de tiempo, prueba de entrega y ubicación en vivo | `logistics:read` | F18.7 |
+| `/logistics/drivers`, `/carriers` | Repartidores (licencia, póliza, vehículo, vínculo laboral) y transportistas | `logistics:manage` | F18.7 |
+| `/logistics/geofences` | Editor de geocercas y tarifas por zona de entrega | `logistics:geofence:manage` | F14.7, F18.7 |
+| `/courier`, `/courier/:id` | App de repartidor: turno (`En turno`/`Fuera de turno`), mis entregas, navegación externa, escanear paquete, prueba de entrega (código/foto/firma + mayoría de edad) | `logistics:deliver` | F18.7 |
+| `/deliveries`, `/deliveries/:id` | Mis entregas y seguimiento en vivo (cliente): mapa en vivo, ETA, repartidor y código de recepción de 6 dígitos | `orders:read:self` | F18.7 |
 
 ## 10. Finanzas (`finance`)
 | Ruta | Pantalla | Permiso | Paso |

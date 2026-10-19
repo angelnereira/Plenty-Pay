@@ -80,7 +80,7 @@ message ConfirmPayoutRequest { string batch_id = 1; string payout_external_ref =
 message FailPayoutRequest { string batch_id = 1; string reason = 2; 
   string idempotency_key = 3;}
 
-message StatementLine {
+message RailStatementLine {
   string external_ref = 1;
   plentypay.common.v1.Money amount = 2;
   plentypay.common.v1.Money fee = 3;
@@ -89,7 +89,7 @@ message StatementLine {
 message ImportRailStatementRequest {
   plentypay.common.v1.PaymentRail rail = 1;
   string statement_date = 2;                 // YYYY-MM-DD en America/Panama
-  repeated StatementLine lines = 3;
+  repeated RailStatementLine lines = 3;
   string source_file_object_key = 4;
   string idempotency_key = 5;
 }

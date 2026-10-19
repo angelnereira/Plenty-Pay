@@ -1,0 +1,129 @@
+syntax = "proto3";
+package plentypay.settlement.v1;
+
+option go_package = "plentypay/settlement/pb";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// settlement: liquida a los comercios lo que el ledger les debe (MERCHANT_PAYABLE) y concilia contra
+// extractos de rieles/bancos. Spec: settlement/SPEC.md
+service Settlement {
+  rpc GetPayoutSchedule(GetPayoutScheduleRequest) returns (PayoutSchedule);
+  rpc SetPayoutSchedule(SetPayoutScheduleRequest) returns (PayoutSchedule);
+
+  rpc CreateBatch(CreateBatchRequest) returns (SettlementBatch);
+  rpc GetBatch(GetBatchRequest) returns (SettlementBatch);
+  rpc ListBatches(ListBatchesRequest) returns (ListBatchesResponse);
+  rpc ConfirmPayout(ConfirmPayoutRequest) returns (SettlementBatch);
+  rpc FailPayout(FailPayoutRequest) returns (SettlementBatch);
+
+  rpc ImportRailStatement(ImportRailStatementRequest) returns (ReconciliationReport);
+  rpc GetReconciliationReport(GetReconciliationReportRequest) returns (ReconciliationReport);
+  rpc ListReconciliationExceptions(ListReconciliationExceptionsRequest) returns (ListReconciliationExceptionsResponse);
+  rpc ResolveException(ResolveExceptionRequest) returns (ReconciliationItem);
+}
+
+enum BatchStatus {
+  BATCH_STATUS_UNSPECIFIED = 0;
+  BATCH_STATUS_OPEN = 1;
+  BATCH_STATUS_PROCESSING = 2;
+  BATCH_STATUS_PAID = 3;
+  BATCH_STATUS_FAILED = 4;
+}
+enum PayoutFrequency {
+  PAYOUT_FREQUENCY_UNSPECIFIED = 0;
+  PAYOUT_FREQUENCY_DAILY = 1;
+  PAYOUT_FREQUENCY_WEEKLY = 2;
+  PAYOUT_FREQUENCY_MANUAL = 3;
+}
+message PayoutSchedule {
+  string tenant_id = 1;
+  PayoutFrequency frequency = 2;
+  int32 weekday = 3;                       // 1=lunes..7=domingo si WEEKLY
+  int64 minimum_payout_minor = 4;
+  plentypay.common.v1.PaymentRail payout_rail = 5;
+  string payout_destination_ref = 6;       // referencia cifrada en `security` (nunca el número en claro)
+}
+message GetPayoutScheduleRequest { string tenant_id = 1; }
+message SetPayoutScheduleRequest { PayoutSchedule schedule = 1; string step_up_token = 2; 
+  string idempotency_key = 3;}
+
+message SettlementBatch {
+  string batch_id = 1;
+  string tenant_id = 2;
+  BatchStatus status = 3;
+  plentypay.common.v1.Money gross = 4;
+  plentypay.common.v1.Money commission = 5;
+  plentypay.common.v1.Money tax = 6;
+  plentypay.common.v1.Money net_payout = 7;
+  plentypay.common.v1.TimeRange period = 8;
+  string payout_external_ref = 9;
+  string ledger_transaction_id = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp paid_at = 12;
+}
+message CreateBatchRequest {
+  string tenant_id = 1;
+  plentypay.common.v1.TimeRange period = 2;
+  string idempotency_key = 3;
+}
+message GetBatchRequest { string batch_id = 1; }
+message ListBatchesRequest {
+  string tenant_id = 1;
+  BatchStatus status = 2;
+  plentypay.common.v1.PageRequest page = 3;
+}
+message ListBatchesResponse { repeated SettlementBatch batches = 1; plentypay.common.v1.PageInfo page = 2; }
+message ConfirmPayoutRequest { string batch_id = 1; string payout_external_ref = 2; 
+  string idempotency_key = 3;}
+message FailPayoutRequest { string batch_id = 1; string reason = 2; 
+  string idempotency_key = 3;}
+
+message RailStatementLine {
+  string external_ref = 1;
+  plentypay.common.v1.Money amount = 2;
+  plentypay.common.v1.Money fee = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+}
+message ImportRailStatementRequest {
+  plentypay.common.v1.PaymentRail rail = 1;
+  string statement_date = 2;                 // YYYY-MM-DD en America/Panama
+  repeated RailStatementLine lines = 3;
+  string source_file_object_key = 4;
+  string idempotency_key = 5;
+}
+enum ReconciliationState {
+  RECONCILIATION_STATE_UNSPECIFIED = 0;
+  RECONCILIATION_STATE_MATCHED = 1;
+  RECONCILIATION_STATE_UNMATCHED_INTERNAL = 2; // existe en PlentyPay, no en el extracto
+  RECONCILIATION_STATE_UNMATCHED_EXTERNAL = 3; // existe en el extracto, no en PlentyPay
+  RECONCILIATION_STATE_AMOUNT_MISMATCH = 4;
+  RECONCILIATION_STATE_RESOLVED = 5;
+}
+message ReconciliationItem {
+  string item_id = 1;
+  string external_ref = 2;
+  string payment_id = 3;
+  ReconciliationState state = 4;
+  plentypay.common.v1.Money expected = 5;
+  plentypay.common.v1.Money actual = 6;
+  string resolution_note = 7;
+}
+message ReconciliationReport {
+  string report_id = 1;
+  plentypay.common.v1.PaymentRail rail = 2;
+  string statement_date = 3;
+  int32 matched = 4;
+  int32 exceptions = 5;
+  repeated ReconciliationItem items = 6;
+}
+message GetReconciliationReportRequest { string report_id = 1; }
+message ListReconciliationExceptionsRequest { plentypay.common.v1.PageRequest page = 1; }
+message ListReconciliationExceptionsResponse { repeated ReconciliationItem items = 1; plentypay.common.v1.PageInfo page = 2; }
+message ResolveExceptionRequest { string item_id = 1; string note = 2; string adjustment_transaction_id = 3; 
+  string idempotency_key = 4;}
+
+// ── Eventos. Subject: pp.settlement.<entidad>.<hecho>.v1 ──
+message BatchPaid { string batch_id = 1; string tenant_id = 2; plentypay.common.v1.Money net_payout = 3; }
+message ReconciliationExceptionRaised { string item_id = 1; plentypay.common.v1.PaymentRail rail = 2; ReconciliationState state = 3; }

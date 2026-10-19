@@ -15,7 +15,7 @@
 | Fase | F11 (wallet + sandbox), F23 (rieles reales según credenciales), F28 (certificaciones) |
 | Capa | L3 |
 
-**Estado**: 📋. Referencia de reglas en `_legacy-typescript-reference/services/payments-orchestrator` (no portar código, solo comportamiento).
+**Estado**: 📝 F11.1 en curso — proyecto Rust `plentypay-payments-core` creado, dominio `FeeBreakdown::compute` (vectores A–E, CUSTOMER/PLATFORM bearers) y `refund` (R1–R3) + `allocate`, `PaymentIntentStatus`/`PaymentStatus`/`PaymentAttemptStatus`. `cargo test` 10/10, `cargo clippy -- -D warnings` limpio. Pendiente: migraciones, intents, holds, reembolsos, terminales, webhooks. Marcado 📝 por AGENTS.md §2.11.
 
 ## 3. Modelo de datos
 ```sql

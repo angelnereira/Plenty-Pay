@@ -2,6 +2,8 @@
 
 Una sola app, `flutter_app/`, para **Android, iOS, Linux, Windows, macOS y Web**. Muestra módulos según los permisos del usuario. Habla **solo** con `api-gateway` (HTTPS/JSON + WebSocket `/v1/realtime`, ADR 0015). Los binarios compilados se copian a `output/` (ver `output/README.md`).
 
+> **Regla de diseño estricta (`gravital-experience-ui`)**: Todas las interfaces Flutter previas y futuras se diseñan y construyen siguiendo obligatoriamente el plano [`docs/gravital-experience-ui.md`](../gravital-experience-ui.md) (**gravital-experience-ui** — M3 Expressive) junto con [`docs/design-system.md`](../design-system.md). Ninguna pantalla se da por terminada sin cumplir su checklist de revisión (`docs/gravital-experience-ui.md` §15.3).
+
 ## 1. Plataformas y versiones
 | Plataforma | Mínimo | Notas |
 |---|---|---|
@@ -12,7 +14,7 @@ Una sola app, `flutter_app/`, para **Android, iOS, Linux, Windows, macOS y Web**
 | macOS | 12 | mismo código; firma/notarización en Fase 30 |
 | Web | Chrome/Edge/Firefox/Safari últimas 2 | servida por contenedor `web`; sin NFC/biometría nativa (passkeys sí) |
 
-Flutter estable fijado en `flutter_app/.fvmrc` (o `README`) — **3.27+**; Dart ≥ 3.6.
+Flutter estable fijado en `flutter_app/.fvmrc` (o `README`) — **3.47+**; Dart ≥ 3.6.
 
 ## 2. Paquetes aprobados
 | Uso | Paquete |
@@ -47,7 +49,7 @@ flutter_app/lib/
 │   ├── session/                  # tokens, permisos, módulos visibles
 │   ├── storage/                  # drift, secure storage
 │   ├── money/                    # Money (int minor), formateo es_PA
-│   ├── theme/                    # tokens del design system (docs/design-system.md)
+│   ├── theme/                    # tokens y tema gravital-experience-ui (docs/gravital-experience-ui.md, docs/design-system.md)
 │   ├── widgets/                  # componentes del design system (PPButton, MoneyText...)
 │   └── l10n/                     # ARB
 └── features/<modulo>/

@@ -19,7 +19,7 @@ service Pos {
   rpc UpdateSale(UpdateSaleRequest) returns (Sale);
   rpc ParkSale(ParkSaleRequest) returns (Sale);
   rpc ResumeSale(ResumeSaleRequest) returns (Sale);
-  rpc Checkout(CheckoutRequest) returns (Sale);                   // multi-tender; idempotente
+  rpc Checkout(PosCheckoutRequest) returns (Sale);                   // multi-tender; idempotente
   rpc VoidSale(VoidSaleRequest) returns (Sale);                   // solo antes del pago
   rpc RefundSale(RefundSaleRequest) returns (Sale);
   rpc GetSale(GetSaleRequest) returns (Sale);
@@ -83,9 +83,8 @@ message Tender {
   string payment_intent_id = 3;              // lo llena el servidor para tenders electrónicos
   string status = 4;                         // "PENDING" | "CAPTURED" | "FAILED" | "UNKNOWN"
   plentypay.common.v1.Money cash_tendered = 5; // solo CASH
-  NextActionInfo next_action = 6;            // QR/URL que el cliente debe aprobar
+  plentypay.common.v1.NextActionInfo next_action = 6; // QR/URL que el cliente debe aprobar
 }
-message NextActionInfo { string type = 1; string url = 2; string qr_payload = 3; }
 message Sale {
   string sale_id = 1;
   string session_id = 2;
@@ -106,14 +105,28 @@ message Sale {
   plentypay.common.v1.Money refunded = 17;
   string reservation_id = 18;
   int32 version = 19;
+  string delivery_id = 20;                     // entrega vinculada en logistics cuando la venta incluye envío a domicilio
+  plentypay.common.v1.Address delivery_address = 21;
+  string recipient_name = 22;
+  string recipient_phone = 23;
+  plentypay.common.v1.Money delivery_fee = 24;
 }
 message CreateSaleRequest { string session_id = 1; string client_sale_id = 2; 
   string idempotency_key = 3;}
-message UpdateSaleRequest { string sale_id = 1; repeated SaleLine lines = 2; plentypay.fiscal.v1.Taxpayer customer = 3; int32 expected_version = 4; 
-  string idempotency_key = 5;}
+message UpdateSaleRequest {
+  string sale_id = 1;
+  repeated SaleLine lines = 2;
+  plentypay.fiscal.v1.Taxpayer customer = 3;
+  int32 expected_version = 4;
+  string idempotency_key = 5;
+  plentypay.common.v1.Address delivery_address = 6;
+  string recipient_name = 7;
+  string recipient_phone = 8;
+  plentypay.common.v1.Money delivery_fee = 9;
+}
 message ParkSaleRequest { string sale_id = 1; string label = 2; }
 message ResumeSaleRequest { string sale_id = 1; }
-message CheckoutRequest {
+message PosCheckoutRequest {
   string sale_id = 1;
   string idempotency_key = 2;
   repeated Tender tenders = 3;

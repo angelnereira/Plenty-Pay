@@ -53,7 +53,7 @@ Mismo régimen que `.proto` (solo aditivo). Cambio incompatible = nuevo `schema_
 | `pp.inventory.stock.changed.v1` | `inventory.StockChanged` | inventory | catalog (`in_stock`), analytics-bi |
 | `pp.pos.sale.paid.v1` | `pos.SalePaid` | pos | analytics-bi, notifications |
 | `pp.pos.sale.refunded.v1` | `pos.SaleRefunded` | pos | analytics-bi |
-| `pp.logistics.delivery.status_changed.v1` | `logistics.DeliveryStatusChanged` | logistics | orders, notifications, analytics-bi |
+| `pp.logistics.delivery.status_changed.v1` | `logistics.DeliveryStatusChanged` | logistics | orders, pos, notifications, analytics-bi |
 | `pp.geo.geofence.crossed.v1` | `geo.GeofenceCrossed` | geolocation | logistics, notifications |
 | `pp.payroll.run.paid.v1` | `payroll.PayrollRunPaid` | payroll | notifications, analytics-bi |
 

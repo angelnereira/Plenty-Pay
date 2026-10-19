@@ -21,9 +21,23 @@ type Config struct {
 	StaticDir string
 	// GatewayPublicURL es la URL pública del gateway: la CSP permite conectarse solo a ella (R1).
 	GatewayPublicURL string
+	// DeepLinks agrupa lo que el servidor publica en `/.well-known` para que Android
+	// e iOS abran la app y no el navegador (F22.3).
+	DeepLinks DeepLinkConfig
 	// DeployEnv y Version alimentan el recurso de trazas y los logs.
 	DeployEnv string
 	Version   string
+}
+
+// DeepLinkConfig es la configuración de verificación de enlaces.
+//
+// `AndroidFingerprints` son las huellas SHA-256 de los certificados de firma, una
+// por canal y versión, separadas por coma. Es un identificador público, pero no se
+// fija en el código: depende de qué certificado se firmó cada build.
+type DeepLinkConfig struct {
+	AndroidFingerprints string
+	AppleTeamID         string
+	AppleBundleID       string
 }
 
 // FromEnv lee la configuración del entorno. Devuelve error si un valor obligatorio no es usable.
@@ -35,8 +49,13 @@ func FromEnv(version string) (Config, error) {
 		AppDir:           envOr("WEB_APP_DIR", "static/app"),
 		StaticDir:        envOr("WEB_STATIC_DIR", "static"),
 		GatewayPublicURL: envOr("GATEWAY_PUBLIC_URL", ""),
-		DeployEnv:        envOr("DEPLOY_ENV", "dev"),
-		Version:          version,
+		DeepLinks: DeepLinkConfig{
+			AndroidFingerprints: os.Getenv("ANDROID_APP_FINGERPRINTS"),
+			AppleTeamID:         os.Getenv("APPLE_TEAM_ID"),
+			AppleBundleID:       envOr("APPLE_BUNDLE_ID", "app.plentypay.mobile"),
+		},
+		DeployEnv: envOr("DEPLOY_ENV", "dev"),
+		Version:   version,
 	}
 	if c.GatewayPublicURL == "" {
 		// La CSP necesita un origen concreto para `connect-src`; sin él la app no podría

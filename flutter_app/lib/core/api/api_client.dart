@@ -233,6 +233,154 @@ class ApiClient {
 
   Future<void> logout() => _session.clear();
 
+  // ── Identidad / negocio (F08.8) ────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> createBusiness({
+    required String legalName,
+    required String tradeName,
+    required String taxId,
+    String? dv,
+    String? address,
+    String? phone,
+    String? email,
+  }) async {
+    return _post('/v1/business', data: {
+      'legal_name': legalName,
+      'trade_name': tradeName,
+      'tax_id': taxId,
+      if (dv != null) 'dv': dv,
+      if (address != null) 'address': address,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+    });
+  }
+
+  Future<Map<String, dynamic>> getTenant(String tenantId) async {
+    return _get('/v1/business/$tenantId');
+  }
+
+  Future<Map<String, dynamic>> listUsers(String tenantId, {int pageSize = 50, String? pageToken}) async {
+    return _get('/v1/business/staff/$tenantId', queryParameters: {
+      'page_size': pageSize,
+      if (pageToken != null) 'page_token': pageToken,
+    });
+  }
+
+  Future<Map<String, dynamic>> inviteStaff({
+    required String tenantId,
+    required String email,
+    required String role,
+    int expiresInDays = 7,
+  }) async {
+    return _post('/v1/business/staff', data: {
+      'tenant_id': tenantId,
+      'email': email,
+      'role': role,
+      'expires_in_days': expiresInDays,
+    });
+  }
+
+  Future<void> deactivateUser(String userId) async {
+    try {
+      await _dio.delete('/v1/business/staff/$userId');
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> listRoles(String tenantId) async {
+    return _get('/v1/business/roles/$tenantId');
+  }
+
+  Future<Map<String, dynamic>> upsertRole({
+    required String tenantId,
+    required String roleId,
+    required String name,
+    required List<String> permissions,
+    String? stepUpToken,
+  }) async {
+    return _post('/v1/business/roles', data: {
+      'tenant_id': tenantId,
+      'role_id': roleId,
+      'name': name,
+      'permissions': permissions,
+      if (stepUpToken != null) 'step_up_token': stepUpToken,
+    });
+  }
+
+  Future<void> assignRole({required String userId, required String roleId, String? stepUpToken}) async {
+    await _post('/v1/business/roles/$userId/assign', data: {
+      'user_id': userId,
+      'role_id': roleId,
+      if (stepUpToken != null) 'step_up_token': stepUpToken,
+    });
+  }
+
+  Future<Map<String, dynamic>> listSessions(String userId) async {
+    return _get('/v1/sessions', queryParameters: {'user_id': userId});
+  }
+
+  Future<void> revokeSession(String sessionId) async {
+    try {
+      await _dio.delete('/v1/sessions/$sessionId');
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> listTenants({String? status, int pageSize = 50, String? pageToken}) async {
+    return _get('/v1/platform/tenants', queryParameters: {
+      if (status != null) 'status': status,
+      'page_size': pageSize,
+      if (pageToken != null) 'page_token': pageToken,
+    });
+  }
+
+  Future<Map<String, dynamic>> reviewBusiness({
+    required String tenantId,
+    required bool approve,
+    String? notes,
+  }) async {
+    return _post('/v1/platform/tenants/$tenantId/review', data: {
+      'tenant_id': tenantId,
+      'approve': approve,
+      if (notes != null) 'notes': notes,
+    });
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    String? stepUpToken,
+  }) async {
+    await _post('/v1/me/password', data: {
+      'current_password': currentPassword,
+      'new_password': newPassword,
+      if (stepUpToken != null) 'step_up_token': stepUpToken,
+    });
+  }
+
+  Future<Map<String, dynamic>> acceptInvitation({
+    required String token,
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    final body = await _post('/v1/invitations/accept', data: {
+      'token': token,
+      'full_name': fullName,
+      'email': email,
+      'password': password,
+    }, skipAuth: true, skipIdempotency: false);
+    if (body['access_token'] != null) {
+      await _session.save(
+        accessToken: body['access_token'] as String,
+        refreshToken: body['refresh_token'] as String,
+      );
+    }
+    return body;
+  }
+
   Future<bool> _refreshOnce() {
     return _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
   }

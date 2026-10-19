@@ -386,6 +386,780 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Debes confirmar que tienes al menos 18 años.'**
   String get error_AGE_REQUIREMENT;
+
+  /// No description provided for @accountTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi cuenta'**
+  String get accountTitle;
+
+  /// No description provided for @profileTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Datos personales'**
+  String get profileTitle;
+
+  /// No description provided for @sessionsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Sesiones activas'**
+  String get sessionsTitle;
+
+  /// No description provided for @businessTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi negocio'**
+  String get businessTitle;
+
+  /// No description provided for @createBusinessTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear negocio'**
+  String get createBusinessTitle;
+
+  /// No description provided for @teamTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Equipo'**
+  String get teamTitle;
+
+  /// No description provided for @rolesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Roles'**
+  String get rolesTitle;
+
+  /// No description provided for @platformTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Plataforma'**
+  String get platformTitle;
+
+  /// No description provided for @businessReviewTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisión de negocios'**
+  String get businessReviewTitle;
+
+  /// No description provided for @invitationAcceptTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar invitación'**
+  String get invitationAcceptTitle;
+
+  /// No description provided for @fieldLegalName.
+  ///
+  /// In es, this message translates to:
+  /// **'Razón social'**
+  String get fieldLegalName;
+
+  /// No description provided for @fieldTradeName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre comercial'**
+  String get fieldTradeName;
+
+  /// No description provided for @fieldTaxId.
+  ///
+  /// In es, this message translates to:
+  /// **'RUC'**
+  String get fieldTaxId;
+
+  /// No description provided for @fieldDv.
+  ///
+  /// In es, this message translates to:
+  /// **'DV'**
+  String get fieldDv;
+
+  /// No description provided for @actionCreate.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear'**
+  String get actionCreate;
+
+  /// No description provided for @actionInvite.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitar'**
+  String get actionInvite;
+
+  /// No description provided for @actionDeactivate.
+  ///
+  /// In es, this message translates to:
+  /// **'Desactivar'**
+  String get actionDeactivate;
+
+  /// No description provided for @actionRevoke.
+  ///
+  /// In es, this message translates to:
+  /// **'Revocar'**
+  String get actionRevoke;
+
+  /// No description provided for @actionApprove.
+  ///
+  /// In es, this message translates to:
+  /// **'Aprobar'**
+  String get actionApprove;
+
+  /// No description provided for @actionReject.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazar'**
+  String get actionReject;
+
+  /// No description provided for @actionSave.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar'**
+  String get actionSave;
+
+  /// No description provided for @labelCurrentSession.
+  ///
+  /// In es, this message translates to:
+  /// **'Sesión actual'**
+  String get labelCurrentSession;
+
+  /// No description provided for @emptySessions.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes otras sesiones.'**
+  String get emptySessions;
+
+  /// No description provided for @emptyTeam.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no hay miembros del equipo.'**
+  String get emptyTeam;
+
+  /// No description provided for @emptyRoles.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no hay roles personalizados.'**
+  String get emptyRoles;
+
+  /// No description provided for @emptyTenants.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay negocios pendientes de revisión.'**
+  String get emptyTenants;
+
+  /// No description provided for @labelStatus.
+  ///
+  /// In es, this message translates to:
+  /// **'Estado'**
+  String get labelStatus;
+
+  /// No description provided for @statusPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Pendiente'**
+  String get statusPending;
+
+  /// No description provided for @statusActive.
+  ///
+  /// In es, this message translates to:
+  /// **'Activo'**
+  String get statusActive;
+
+  /// No description provided for @statusRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazado'**
+  String get statusRejected;
+
+  /// No description provided for @statusSuspended.
+  ///
+  /// In es, this message translates to:
+  /// **'Suspendido'**
+  String get statusSuspended;
+
+  /// No description provided for @msgBusinessCreated.
+  ///
+  /// In es, this message translates to:
+  /// **'Negocio creado. En revisión.'**
+  String get msgBusinessCreated;
+
+  /// No description provided for @msgInvitationSent.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitación enviada.'**
+  String get msgInvitationSent;
+
+  /// No description provided for @msgApproved.
+  ///
+  /// In es, this message translates to:
+  /// **'Negocio aprobado.'**
+  String get msgApproved;
+
+  /// No description provided for @msgRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'Negocio rechazado.'**
+  String get msgRejected;
+
+  /// No description provided for @fieldNotes.
+  ///
+  /// In es, this message translates to:
+  /// **'Notas'**
+  String get fieldNotes;
+
+  /// No description provided for @fieldEmailInvite.
+  ///
+  /// In es, this message translates to:
+  /// **'Correo del invitado'**
+  String get fieldEmailInvite;
+
+  /// No description provided for @fieldRole.
+  ///
+  /// In es, this message translates to:
+  /// **'Rol'**
+  String get fieldRole;
+
+  /// No description provided for @fieldCurrentPassword.
+  ///
+  /// In es, this message translates to:
+  /// **'Contraseña actual'**
+  String get fieldCurrentPassword;
+
+  /// No description provided for @fieldNewPassword.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva contraseña'**
+  String get fieldNewPassword;
+
+  /// No description provided for @actionChangePassword.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar contraseña'**
+  String get actionChangePassword;
+
+  /// No description provided for @msgPasswordChanged.
+  ///
+  /// In es, this message translates to:
+  /// **'Contraseña actualizada.'**
+  String get msgPasswordChanged;
+
+  /// No description provided for @labelMembers.
+  ///
+  /// In es, this message translates to:
+  /// **'Miembros'**
+  String get labelMembers;
+
+  /// No description provided for @labelPermissions.
+  ///
+  /// In es, this message translates to:
+  /// **'Permisos'**
+  String get labelPermissions;
+
+  /// No description provided for @labelRoleName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre del rol'**
+  String get labelRoleName;
+
+  /// No description provided for @labelRoleId.
+  ///
+  /// In es, this message translates to:
+  /// **'Identificador del rol'**
+  String get labelRoleId;
+
+  /// No description provided for @walletTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Billetera'**
+  String get walletTitle;
+
+  /// No description provided for @topupTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Recargar'**
+  String get topupTitle;
+
+  /// No description provided for @sendTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar'**
+  String get sendTitle;
+
+  /// No description provided for @payQrTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar con QR'**
+  String get payQrTitle;
+
+  /// No description provided for @terminalsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Terminales'**
+  String get terminalsTitle;
+
+  /// No description provided for @fieldAmount.
+  ///
+  /// In es, this message translates to:
+  /// **'Monto'**
+  String get fieldAmount;
+
+  /// No description provided for @actionTopup.
+  ///
+  /// In es, this message translates to:
+  /// **'Recargar'**
+  String get actionTopup;
+
+  /// No description provided for @actionSend.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar'**
+  String get actionSend;
+
+  /// No description provided for @actionPay.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar'**
+  String get actionPay;
+
+  /// No description provided for @msgPaymentCreated.
+  ///
+  /// In es, this message translates to:
+  /// **'Pago creado.'**
+  String get msgPaymentCreated;
+
+  /// No description provided for @clockTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcar asistencia'**
+  String get clockTitle;
+
+  /// No description provided for @payrollMyTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi nómina'**
+  String get payrollMyTitle;
+
+  /// No description provided for @payrollEmployeesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Empleados'**
+  String get payrollEmployeesTitle;
+
+  /// No description provided for @payrollScheduleTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Turnos y calendario'**
+  String get payrollScheduleTitle;
+
+  /// No description provided for @payrollAttendanceTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Asistencia'**
+  String get payrollAttendanceTitle;
+
+  /// No description provided for @payrollRunsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Corridas de nómina'**
+  String get payrollRunsTitle;
+
+  /// No description provided for @payrollRunDetailTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalle de la corrida'**
+  String get payrollRunDetailTitle;
+
+  /// No description provided for @payslipTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Comprobante de pago'**
+  String get payslipTitle;
+
+  /// No description provided for @kioskTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Quiosco de marcaje'**
+  String get kioskTitle;
+
+  /// No description provided for @tabClockings.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcajes'**
+  String get tabClockings;
+
+  /// No description provided for @tabPayslips.
+  ///
+  /// In es, this message translates to:
+  /// **'Comprobantes'**
+  String get tabPayslips;
+
+  /// No description provided for @tabVacations.
+  ///
+  /// In es, this message translates to:
+  /// **'Vacaciones'**
+  String get tabVacations;
+
+  /// No description provided for @actionClockIn.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcar entrada'**
+  String get actionClockIn;
+
+  /// No description provided for @actionStartBreak.
+  ///
+  /// In es, this message translates to:
+  /// **'Iniciar descanso'**
+  String get actionStartBreak;
+
+  /// No description provided for @actionEndBreak.
+  ///
+  /// In es, this message translates to:
+  /// **'Terminar descanso'**
+  String get actionEndBreak;
+
+  /// No description provided for @actionClockOut.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcar salida'**
+  String get actionClockOut;
+
+  /// No description provided for @methodQr.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear QR del quiosco'**
+  String get methodQr;
+
+  /// No description provided for @methodNfc.
+  ///
+  /// In es, this message translates to:
+  /// **'Acercar a la etiqueta NFC'**
+  String get methodNfc;
+
+  /// No description provided for @methodFace.
+  ///
+  /// In es, this message translates to:
+  /// **'Rostro'**
+  String get methodFace;
+
+  /// No description provided for @methodPin.
+  ///
+  /// In es, this message translates to:
+  /// **'PIN'**
+  String get methodPin;
+
+  /// No description provided for @labelInsideZone.
+  ///
+  /// In es, this message translates to:
+  /// **'Estás en {branch}'**
+  String labelInsideZone(Object branch);
+
+  /// No description provided for @labelOutsideZone.
+  ///
+  /// In es, this message translates to:
+  /// **'Estás fuera de la zona'**
+  String get labelOutsideZone;
+
+  /// No description provided for @msgOutsideZoneReview.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu marcaje quedará en revisión.'**
+  String get msgOutsideZoneReview;
+
+  /// No description provided for @msgClockSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcaje registrado.'**
+  String get msgClockSaved;
+
+  /// No description provided for @labelTodayHours.
+  ///
+  /// In es, this message translates to:
+  /// **'Hoy: {hours} · Semana: {week}'**
+  String labelTodayHours(Object hours, Object week);
+
+  /// No description provided for @runStatusDraft.
+  ///
+  /// In es, this message translates to:
+  /// **'Borrador'**
+  String get runStatusDraft;
+
+  /// No description provided for @runStatusApproved.
+  ///
+  /// In es, this message translates to:
+  /// **'Aprobada'**
+  String get runStatusApproved;
+
+  /// No description provided for @runStatusPaying.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagando'**
+  String get runStatusPaying;
+
+  /// No description provided for @runStatusPaid.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagada'**
+  String get runStatusPaid;
+
+  /// No description provided for @runStatusPartiallyFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'Con pagos fallidos'**
+  String get runStatusPartiallyFailed;
+
+  /// No description provided for @actionNewRun.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva corrida'**
+  String get actionNewRun;
+
+  /// No description provided for @actionRecalculate.
+  ///
+  /// In es, this message translates to:
+  /// **'Recalcular'**
+  String get actionRecalculate;
+
+  /// No description provided for @labelNetToPay.
+  ///
+  /// In es, this message translates to:
+  /// **'Neto a pagar'**
+  String get labelNetToPay;
+
+  /// No description provided for @labelGross.
+  ///
+  /// In es, this message translates to:
+  /// **'Bruto'**
+  String get labelGross;
+
+  /// No description provided for @labelNet.
+  ///
+  /// In es, this message translates to:
+  /// **'Neto'**
+  String get labelNet;
+
+  /// No description provided for @labelEmployee.
+  ///
+  /// In es, this message translates to:
+  /// **'Empleado'**
+  String get labelEmployee;
+
+  /// No description provided for @labelPeriod.
+  ///
+  /// In es, this message translates to:
+  /// **'Período'**
+  String get labelPeriod;
+
+  /// No description provided for @msgRetryFailedPayments.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagos fallidos: {count}'**
+  String msgRetryFailedPayments(Object count);
+
+  /// No description provided for @actionRetryFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'Reintentar fallidos'**
+  String get actionRetryFailed;
+
+  /// No description provided for @labelRatesApplied.
+  ///
+  /// In es, this message translates to:
+  /// **'Tasas aplicadas'**
+  String get labelRatesApplied;
+
+  /// No description provided for @msgRatesAsOf.
+  ///
+  /// In es, this message translates to:
+  /// **'Vigentes al {date}'**
+  String msgRatesAsOf(Object date);
+
+  /// No description provided for @labelReviewsPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcajes en revisión'**
+  String get labelReviewsPending;
+
+  /// No description provided for @labelOnlyUnderReview.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo en revisión'**
+  String get labelOnlyUnderReview;
+
+  /// No description provided for @actionAccept.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar'**
+  String get actionAccept;
+
+  /// No description provided for @actionCorrect.
+  ///
+  /// In es, this message translates to:
+  /// **'Corregir'**
+  String get actionCorrect;
+
+  /// No description provided for @fieldCorrectTime.
+  ///
+  /// In es, this message translates to:
+  /// **'Hora correcta'**
+  String get fieldCorrectTime;
+
+  /// No description provided for @fieldReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo'**
+  String get fieldReason;
+
+  /// No description provided for @msgCorrectionNeedsReason.
+  ///
+  /// In es, this message translates to:
+  /// **'El motivo es obligatorio.'**
+  String get msgCorrectionNeedsReason;
+
+  /// No description provided for @msgNoConnectionPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin conexión: {count} marcajes guardados'**
+  String msgNoConnectionPending(Object count);
+
+  /// No description provided for @kioskScanHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanea con tu app'**
+  String get kioskScanHint;
+
+  /// No description provided for @msgLeaveKioskNeedsManagerPin.
+  ///
+  /// In es, this message translates to:
+  /// **'Salir del quiosco exige el PIN de un gerente.'**
+  String get msgLeaveKioskNeedsManagerPin;
+
+  /// No description provided for @actionAsk.
+  ///
+  /// In es, this message translates to:
+  /// **'Preguntar'**
+  String get actionAsk;
+
+  /// No description provided for @askQuestionTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Preguntar sobre tus datos'**
+  String get askQuestionTitle;
+
+  /// No description provided for @askQuestionHint.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cuánto vendí en octubre?'**
+  String get askQuestionHint;
+
+  /// No description provided for @error_QUESTION_NOT_UNDERSTOOD.
+  ///
+  /// In es, this message translates to:
+  /// **'No entendí la pregunta. Prueba con «cuánto vendí en octubre» o «cuántos pedidos hubo».'**
+  String get error_QUESTION_NOT_UNDERSTOOD;
+
+  /// No description provided for @alertsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas'**
+  String get alertsTitle;
+
+  /// No description provided for @alertsEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay alertas activas.'**
+  String get alertsEmpty;
+
+  /// No description provided for @segmentsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Segmentos de clientes'**
+  String get segmentsTitle;
+
+  /// No description provided for @labelCustomers.
+  ///
+  /// In es, this message translates to:
+  /// **'Clientes'**
+  String get labelCustomers;
+
+  /// No description provided for @trendUp.
+  ///
+  /// In es, this message translates to:
+  /// **'Sube'**
+  String get trendUp;
+
+  /// No description provided for @trendDown.
+  ///
+  /// In es, this message translates to:
+  /// **'Baja'**
+  String get trendDown;
+
+  /// No description provided for @dashboardsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Paneles'**
+  String get dashboardsTitle;
+
+  /// No description provided for @exportsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Exportes'**
+  String get exportsTitle;
+
+  /// No description provided for @actionCreateExport.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear exporte'**
+  String get actionCreateExport;
+
+  /// No description provided for @msgExportReady.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu exporte está listo.'**
+  String get msgExportReady;
+
+  /// No description provided for @msgExportPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Estamos preparando el exporte.'**
+  String get msgExportPending;
+
+  /// No description provided for @askInterpretationTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Así lo entendí'**
+  String get askInterpretationTitle;
+
+  /// No description provided for @updateRequiredTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Necesitas actualizar PlentyPay'**
+  String get updateRequiredTitle;
+
+  /// No description provided for @updateRequiredBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta versión ({current}) ya no es compatible con el sistema. Necesitas la versión {minimum} o posterior para seguir usándolo.'**
+  String updateRequiredBody(Object current, Object minimum);
+
+  /// No description provided for @actionUpdate.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualizar'**
+  String get actionUpdate;
+
+  /// No description provided for @actionExit.
+  ///
+  /// In es, this message translates to:
+  /// **'Salir'**
+  String get actionExit;
+
+  /// No description provided for @maintenanceTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Estamos Actualizando'**
+  String get maintenanceTitle;
+
+  /// No description provided for @maintenanceGeneric.
+  ///
+  /// In es, this message translates to:
+  /// **'Estamos haciendo mantenimiento. Volvemos pronto.'**
+  String get maintenanceGeneric;
 }
 
 class _AppLocalizationsDelegate

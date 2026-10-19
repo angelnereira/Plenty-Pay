@@ -34,6 +34,7 @@ CREATE TABLE pos.sales (
   subtotal_minor bigint NOT NULL, discount_minor bigint NOT NULL, tax_minor bigint NOT NULL, total_minor bigint NOT NULL,
   paid_minor bigint NOT NULL DEFAULT 0, refunded_minor bigint NOT NULL DEFAULT 0, currency char(3) NOT NULL,
   receipt_number bigint, invoice_id uuid, document_kind text,       -- FISCAL | INTERNAL
+  delivery_id uuid, delivery_address jsonb, recipient_name text, recipient_phone text, delivery_fee_minor bigint NOT NULL DEFAULT 0,
   client_txn_id uuid UNIQUE,                                         -- idempotencia de ventas offline
   offline_created_at timestamptz, needs_review boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL, updated_at timestamptz NOT NULL, version int NOT NULL DEFAULT 1
@@ -59,9 +60,9 @@ CREATE TABLE pos.settings (tenant_id uuid PRIMARY KEY, receipt_footer text, tax_
 |---|---|---|---|---|
 | OpenCashSession / CloseCashSession / GetCashSession | `pos:session:manage` | sí | apertura con fondo; cierre con conteo → diferencia y reporte Z | `SESSION_ALREADY_OPEN`, `SALES_PENDING` |
 | RecordCashMovement | `pos:session:manage` | sí | entradas/salidas de efectivo con motivo | `SESSION_CLOSED` |
-| CreateSale / UpdateSale | `pos:sell` (+`pos:discount:apply`) | sí | líneas con precio de catalog (o caché del cliente validada), impuestos por línea `half_up` | `PRICE_STALE`, `DISCOUNT_EXCEEDS_LIMIT` |
+| CreateSale / UpdateSale | `pos:sell` (+`pos:discount:apply`) | sí | líneas con precio de catalog (o caché del cliente validada), impuestos por línea `half_up`; si incluye `delivery_address`, cotiza cobertura/tarifa con `logistics.QuoteDelivery` | `PRICE_STALE`, `DISCOUNT_EXCEEDS_LIMIT`, `OUT_OF_DELIVERY_ZONE` |
 | ParkSale / ResumeSale | `pos:sell` | — | OPEN ↔ PARKED | `INVALID_STATE_TRANSITION` |
-| Checkout | `pos:sell` | sí | §5 R4 | `TENDERS_MISMATCH`, `CREDIT_LIMIT_EXCEEDED`, `INSUFFICIENT_POINTS` |
+| Checkout | `pos:sell` | sí | §5 R4 y R12 | `TENDERS_MISMATCH`, `CREDIT_LIMIT_EXCEEDED`, `INSUFFICIENT_POINTS`, `OUT_OF_DELIVERY_ZONE` |
 | VoidSale | `pos:void` (+ supervisor si `require_manager_for_void`) | sí | solo sin tenders electrónicos capturados | `HAS_CAPTURED_PAYMENTS` |
 | RefundSale | `pos:refund` + step-up | sí | por líneas/cantidades; reembolso por el mismo medio (electrónico → payments.RefundPayment; efectivo → salida de caja); stock RETURN; nota de crédito si hubo factura | `EXCEEDS_SOLD_QTY` |
 | GetSale / ListSales / GetReceipt | `pos:sell` | — | recibo como datos estructurados + URL PDF | |
@@ -72,9 +73,9 @@ CREATE TABLE pos.settings (tenant_id uuid PRIMARY KEY, receipt_footer text, tax_
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-01, N-FIS-03, N-FIS-04, N-FIS-07, N-CON-01, N-CON-04, N-CON-05, N-CON-06, N-CON-11 y N-LOG-07. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Una sola sesión OPEN por caja; ventas solo dentro de una sesión abierta del cajero.
-- **R2** Totales: `total = Σ líneas (precio×qty − descuento) `; impuesto por línea `half_up`; con `tax_included` el impuesto se extrae: `tax = total_línea − round_half_up(total_línea × 10000 / (10000 + rate))`.
+- **R2** Totales: `total = Σ líneas (precio×qty − descuento) + delivery_fee_minor`; impuesto por línea `half_up`; con `tax_included` el impuesto se extrae: `tax = total_línea − round_half_up(total_línea × 10000 / (10000 + rate))`.
 - **R3** Descuento > `max_discount_bps` requiere `pos:discount:apply` de un supervisor (PIN de supervisor = step-up local auditado).
-- **R4** Checkout: Σ tenders = total (efectivo puede exceder: calcula vuelto). Cada tender electrónico es un `payments.CreatePaymentIntent` con `reference=sale`; la venta queda AWAITING_PAYMENT hasta que todos estén CAPTURED; un tender UNKNOWN deja la venta en AWAITING_PAYMENT con aviso "confirmando". Al PAID: `inventory` movimiento SALE (bodega del register), fiscal según preferencia, puntos (T8) si aplica, evento `SalePaid`, recibo.
+- **R4** Checkout: Σ tenders = total (efectivo puede exceder: calcula vuelto). Cada tender electrónico es un `payments.CreatePaymentIntent` con `reference=sale`; la venta queda AWAITING_PAYMENT hasta que todos estén CAPTURED; un tender UNKNOWN deja la venta en AWAITING_PAYMENT con aviso "confirmando". Al PAID: `inventory` movimiento SALE (bodega del register), fiscal según preferencia, puntos (T8) si aplica, si tiene `delivery_address` crea la entrega en `logistics` (R12), evento `SalePaid`, recibo.
 - **R5** Crédito de la casa: requiere cliente identificado con `credit_limit`; saldo deudor + venta ≤ límite; asiento T9 vía payments-core (`PostTransaction` delegado — payments-core es el único escritor de dinero hacia ledger; para memo-libros se expone RPC interno `payments.PostMemoEntry` *a agregar en F17.6*).
 - **R6** Efectivo: suma al esperado de caja; vuelto calculado en centavos; el cajón no se abre por software sin venta o movimiento registrado.
 - **R7** Offline: el cliente envía ventas con `client_txn_id`; el servidor las procesa en orden; si un precio difiere de la versión vigente al momento offline (> 24 h) o el stock queda negativo → `needs_review=true` (la venta se acepta; el gerente revisa). Solo efectivo/crédito de la casa offline.
@@ -82,15 +83,16 @@ CREATE TABLE pos.settings (tenant_id uuid PRIMARY KEY, receipt_footer text, tax_
 - **R9** Devolución: cantidades ≤ vendidas − devueltas; reembolso proporcional por medio en orden inverso al pago (último medio primero) salvo que el cajero elija.
 - **R10** Número de recibo interno consecutivo por tenant (independiente del folio fiscal).
 - **R11** Customer display: solo datos de la venta activa (líneas, total, QR de pago); nunca datos de otros clientes.
+- **R12** Venta con envío a domicilio: cuando el cajero registra `delivery_address` y datos del destinatario en la venta, se valida cobertura y tarifa con `logistics.QuoteDelivery`. Al pasar la venta a `PAID`, `pos` invoca `logistics.CreateDelivery` con `source={type:"sale", id:sale_id}`, `recipient_user_id=customer_user_id` (si el cliente está identificado en PlentyPay), `branch_id` y `warehouse_id` del register, y guarda `delivery_id` en la venta. Si la entrega termina en `FAILED` definitivo (3 intentos fallidos, evento `DeliveryStatusChanged`), la venta se marca `needs_review=true` para gestionar el reintegro al cliente y el retorno de mercancía a la bodega.
 
 ## 6. Eventos
-Publica: `SalePaid`, `SaleRefunded`, `AuditRecorded` (anulaciones, descuentos, diferencias de caja). Consume: `PaymentCaptured/Failed/Unknown`, `RefundSucceeded`, `InvoiceAccepted/Rejected`.
+Publica: `SalePaid`, `SaleRefunded`, `AuditRecorded` (anulaciones, descuentos, diferencias de caja). Consume: `PaymentCaptured/Failed/Unknown`, `RefundSucceeded`, `InvoiceAccepted/Rejected`, `DeliveryStatusChanged` (entregas originadas en ventas POS).
 
 ## 7. Dependencias
-catalog (precios/lookup; 500 ms), inventory (movimiento SALE/RETURN; 1 s; si cae → movimiento diferido en outbox propio), payments-core (3 s), fiscal-invoicing (asíncrono).
+catalog (precios/lookup; 500 ms), inventory (movimiento SALE/RETURN; 1 s; si cae → movimiento diferido en outbox propio), payments-core (3 s), logistics (QuoteDelivery, CreateDelivery; 2 s), fiscal-invoicing (asíncrono).
 
 ## 8. Configuración
-`POS_GRPC_ADDR`, `DATABASE_URL`, `NATS_URL`, `CATALOG_ADDR`, `INVENTORY_ADDR`, `PAYMENTS_ADDR`, `FISCAL_ADDR`, `OBJECT_STORAGE_*`.
+`POS_GRPC_ADDR`, `DATABASE_URL`, `NATS_URL`, `CATALOG_ADDR`, `INVENTORY_ADDR`, `PAYMENTS_ADDR`, `LOGISTICS_ADDR`, `FISCAL_ADDR`, `OBJECT_STORAGE_*`.
 
 ## 9. Observabilidad
 `pp_pos_sales_total{status}`, `pp_pos_checkout_duration_seconds`, `pp_pos_offline_sales_synced_total{result}`, `pp_pos_cash_difference_minor` (histograma). Alerta: diferencias de caja > umbral del tenant (notificación al dueño, no página).

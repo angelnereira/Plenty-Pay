@@ -33,10 +33,12 @@ Panel de ticket:
 | e5 | Líneas | Nombre · cantidad ± · precio unitario · total de línea | Deslizar para quitar. Toca: editar cantidad, nota, descuento de línea |
 | e6 | `PPButton.text` | Descuento | Ver "Descuentos" abajo |
 | e7 | `PPButton.text` | Descuento de ley | Ver "Descuento legal" abajo |
-| e8 | Totales | Subtotal · Descuentos · ITBMS 7 % {x} · ITBMS 10 % {y} · ITBMS 15 % {z} · Exento {w} · **Total** | Una fila por tasa presente. Total en `displayMoney` |
+| e8 | Totales | Subtotal · Descuentos · Envío (si aplica) · ITBMS 7 % {x} · ITBMS 10 % {y} · ITBMS 15 % {z} · Exento {w} · **Total** | Una fila por tasa presente. Total en `displayMoney` |
 | e9 | `PPButton.primary` | Cobrar {total} | Deshabilitado con ticket vacío → S-POS-03 |
-| e10 | Acciones secundarias | Estacionar · Nota · Vaciar | "Vaciar" con C-05 |
+| e10 | Acciones secundarias | Entrega a domicilio · Estacionar · Nota · Vaciar | "Vaciar" con C-05. Ver "Entrega a domicilio" abajo |
 | e11 | Indicador | En línea / Sin conexión ({n} ventas por sincronizar) | Sin conexión solo se cobra en efectivo o crédito de la casa |
+
+**Entrega a domicilio (en e10).** Hoja opcional para ventas con despacho desde la sucursal: pide dirección y punto en el mapa, nombre de quien recibe y teléfono (precargados si se seleccionó cliente en e4). Cotiza tarifa y cobertura con `POST /v1/logistics/quote`; si está fuera de cobertura devuelve `OUT_OF_DELIVERY_ZONE` "Esta sucursal no entrega en esa zona." Al pagarse la venta en S-POS-03, `pos` crea automáticamente la entrega en `logistics` (`CreateDelivery`) y el recibo incluye el enlace de seguimiento.
 
 **Descuentos (e6).** Porcentaje o monto, sobre línea o ticket, con motivo. Sin `pos:discount:apply`, o por encima del tope configurado, pide PIN de supervisor. `DISCOUNT_EXCEEDS_LIMIT`: "El descuento supera el máximo permitido ({n} %)."
 
@@ -79,9 +81,9 @@ Diálogo tras finalizar, solo con preferencia fiscal `ASK_ALWAYS`: "¿Qué docum
 | e1 | `ReceiptView` | Ver contenido abajo | 80 mm |
 | e2 | `StatusChip` fiscal | Factura autorizada / Factura pendiente de autorización / Recibo interno | — |
 | e3 | `PPButton.primary` | Nueva venta | → S-POS-02 |
-| e4 | Acciones | Imprimir · Enviar por correo · Enviar por WhatsApp · Abrir cajón | Según equipos y canales configurados |
+| e4 | Acciones | Imprimir · Enviar por correo · Enviar por WhatsApp · Abrir cajón · Ver entrega (si aplica) | Según equipos y canales configurados; "Ver entrega" abre S-LOG-02 |
 
-Contenido del recibo, en orden: nombre comercial, razón social, RUC y DV, dirección de la sucursal; tipo y número de documento; fecha y hora; caja y cajero; cliente y su RUC si aplica; líneas (cantidad con unidad, descripción, precio unitario, total); descuentos con su tipo ("Descuento Ley 6: 25 %"); subtotal; ITBMS por tasa; exento; **total**; pagos por medio y vuelto; propina; CUFE y QR de la DGI (solo factura autorizada); puntos ganados; política de devolución. Un recibo interno lleva al pie "Este documento no es una factura fiscal." Una factura pendiente lleva "Comprobante en proceso de autorización."
+Contenido del recibo, en orden: nombre comercial, razón social, RUC y DV, dirección de la sucursal; tipo y número de documento; fecha y hora; caja y cajero; cliente y su RUC si aplica; líneas (cantidad con unidad, descripción, precio unitario, total); descuentos con su tipo ("Descuento Ley 6: 25 %"); subtotal; envío a domicilio (si aplica, con enlace `/track/{token}`); ITBMS por tasa; exento; **total**; pagos por medio y vuelto; propina; CUFE y QR de la DGI (solo factura autorizada); puntos ganados; política de devolución. Un recibo interno lleva al pie "Este documento no es una factura fiscal." Una factura pendiente lleva "Comprobante en proceso de autorización."
 
 ### S-POS-06 · `/pos/parked` · Ventas estacionadas
 Lista: nota o cliente, hora, total, cajero. Acciones: "Retomar" (→ S-POS-02) y "Anular" (`pos:void`, motivo obligatorio). Las ventas estacionadas se cierran o anulan antes del cierre de caja.

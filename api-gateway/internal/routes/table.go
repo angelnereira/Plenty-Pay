@@ -133,6 +133,36 @@ var Table = []Route{
 		NewRequest:  func() proto.Message { return &pb.AssignRoleRequest{} },
 		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
 	},
+
+	// ── Sesiones (F08.8) ───────────────────────────────────────────────────────
+	{
+		Method: "GET", Path: "/v1/sessions", RPC: "/plentypay.identity.v1.Identity/ListSessions", RequireAuth: true,
+		QueryParams: map[string]string{"user_id": "user_id"},
+		NewRequest:  func() proto.Message { return &pb.ListSessionsRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListSessionsResult{} },
+	},
+	{
+		Method: "DELETE", Path: "/v1/sessions/{session_id}", RPC: "/plentypay.identity.v1.Identity/RevokeSession",
+		RequireAuth: true, Idempotency: true,
+		PathParams:  map[string]string{"session_id": "session_id"},
+		NewRequest:  func() proto.Message { return &pb.RevokeSessionRequest{} },
+		NewResponse: func() proto.Message { return &pb.RevokeSessionResult{} },
+	},
+
+	// ── Plataforma: revisión de negocios (F08.8) ──────────────────────────────
+	{
+		Method: "GET", Path: "/v1/platform/tenants", RPC: "/plentypay.identity.v1.Identity/ListTenants", RequireAuth: true,
+		QueryParams: map[string]string{"status": "status", "page_size": "page_size", "page_token": "page_token"},
+		NewRequest:  func() proto.Message { return &pb.ListTenantsRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListTenantsResult{} },
+	},
+	{
+		Method: "POST", Path: "/v1/platform/tenants/{tenant_id}/review", RPC: "/plentypay.identity.v1.Identity/ReviewBusiness",
+		RequireAuth: true, Idempotency: true,
+		PathParams:  map[string]string{"tenant_id": "tenant_id"},
+		NewRequest:  func() proto.Message { return &pb.ReviewBusinessRequest{} },
+		NewResponse: func() proto.Message { return &pb.Tenant{} },
+	},
 }
 
 // Find busca una ruta por método y path exacto (`{param}` comodín).

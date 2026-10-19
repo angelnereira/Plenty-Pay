@@ -17,10 +17,11 @@ import (
 
 // Server es el servidor estático del contenedor web.
 type Server struct {
-	cfg      config.Config
-	reporter *observability.Reporter
-	page     *template.Template
-	hasIndex bool
+	cfg          config.Config
+	reporter     *observability.Reporter
+	page         *template.Template
+	hasIndex     bool
+	fingerprints config.DeepLinkConfig
 }
 
 // New arma el servidor. Si el bundle no está presente, `hasIndex` queda en false y todas las
@@ -28,10 +29,11 @@ type Server struct {
 func New(cfg config.Config, reporter *observability.Reporter) *Server {
 	_, err := os.Stat(filepath.Join(cfg.AppDir, "index.html"))
 	return &Server{
-		cfg:      cfg,
-		reporter: reporter,
-		page:     maintenancePage(),
-		hasIndex: err == nil,
+		cfg:          cfg,
+		reporter:     reporter,
+		page:         maintenancePage(),
+		hasIndex:     err == nil,
+		fingerprints: cfg.DeepLinks,
 	}
 }
 
@@ -42,6 +44,10 @@ func (s *Server) Handler() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	// F22.3: `.well-known` se sirve antes del fallback de la SPA. Si no, un
+	// `assetlinks.json` inexistente devolvería `index.html` y la verificación del
+	// dominio fallaría con un error de análisis en vez de un 404 claro.
+	mux.Handle("/.well-known/", s.wellKnownHandler())
 	mux.Handle("/", s.withSecurityHeaders(http.HandlerFunc(s.serveApp)))
 	return mux
 }

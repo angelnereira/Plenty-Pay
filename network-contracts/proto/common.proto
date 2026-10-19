@@ -50,6 +50,16 @@ message Address {
   GeoPoint location = 7;
 }
 
+// Datos que el cliente debe usar para aprobar un cobro: QR, URL o deep link.
+// Vive aquí porque `orders` y `pos` exponen exactamente la misma información y
+// declararla dos veces colisionaba al generarse el código Go de un mismo paquete.
+// Mismo contenido, mismos números de campo: el cambio es aditivo (ADR 0004).
+message NextActionInfo {
+  string type = 1;        // "QR" | "URL" | "DEEP_LINK"
+  string url = 2;
+  string qr_payload = 3;
+}
+
 enum PaymentRail {
   PAYMENT_RAIL_UNSPECIFIED = 0;
   PAYMENT_RAIL_WALLET = 1;        // saldo interno PlentyPay

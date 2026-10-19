@@ -54,7 +54,7 @@ CREATE TABLE notifications.suppressions (address_hash bytea PRIMARY KEY, channel
 | `FolioLow` | dueño, contador | in-app, correo | `fiscal.folio_low` |
 | `OrderPaid` | comprador; comercios (nuevo pedido) | in-app, push | `order.paid` / `merchant.new_order` |
 | `SubOrderStatusChanged` | comprador | in-app, push | `order.status` |
-| `DeliveryStatusChanged` | comprador (con link público) | push, WhatsApp (opt-in), SMS fallback | `delivery.status` |
+| `DeliveryStatusChanged` | comprador (con link público y código de 6 dígitos); repartidor asignado (`ASSIGNED`); comercio (`DELIVERED`, `FAILED`, bloqueo) | in-app, push, WhatsApp (opt-in), SMS fallback | `delivery.status` / `courier.assigned` / `merchant.delivery_alert` |
 | `StockLow` | dueño, almacenista | in-app | `inventory.low` |
 | `PayrollRunPaid` | empleados | push, correo (comprobante) | `payroll.paid` |
 | `TenantStatusChanged` | dueño | correo, in-app | `business.status` |

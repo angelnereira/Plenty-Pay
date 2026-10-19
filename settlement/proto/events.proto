@@ -1,0 +1,21 @@
+syntax = "proto3";
+package plentypay.events.v1;
+
+option go_package = "plentypay/events/pb";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+// Sobre común de todo evento de dominio publicado en el bus (NATS JetStream).
+// Reglas completas: docs/standards/events-and-messaging.md y ADR 0012.
+message EventEnvelope {
+  string event_id = 1;        // UUIDv7. Los consumidores deduplican por este id (también Nats-Msg-Id).
+  string event_type = 2;      // p. ej. "payments.payment.captured" (sin versión)
+  int32 schema_version = 3;   // empieza en 1; sube solo ante cambios incompatibles
+  string producer = 4;        // contenedor que lo publicó, p. ej. "payments-core"
+  string tenant_id = 5;       // vacío si el evento no pertenece a un comercio
+  string aggregate_id = 6;    // id de la entidad principal; clave de orden por entidad
+  google.protobuf.Timestamp occurred_at = 7;
+  string trace_id = 8;        // propaga la traza distribuida
+  google.protobuf.Any payload = 9; // el mensaje del evento, definido en el .proto del productor
+}

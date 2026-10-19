@@ -15,7 +15,7 @@ service Orders {
   rpc ClearCart(ClearCartRequest) returns (Cart);
 
   rpc QuoteCheckout(QuoteCheckoutRequest) returns (CheckoutQuote);
-  rpc Checkout(CheckoutRequest) returns (Order);                      // reserva stock + cobro con splits; idempotente
+  rpc Checkout(OrderCheckoutRequest) returns (Order);                      // reserva stock + cobro con splits; idempotente
   rpc GetOrder(GetOrderRequest) returns (Order);
   rpc ListMyOrders(ListMyOrdersRequest) returns (ListOrdersResponse);
   rpc CancelOrder(CancelOrderRequest) returns (Order);
@@ -61,7 +61,7 @@ message MerchantQuote { string merchant_tenant_id = 1; string merchant_name = 2;
 message CheckoutQuote { repeated MerchantQuote merchants = 1; plentypay.common.v1.Money grand_total = 2; plentypay.common.v1.Money customer_fees = 3; string quote_id = 4; google.protobuf.Timestamp expires_at = 5; }
 message QuoteCheckoutRequest { FulfillmentMethod fulfillment = 1; plentypay.common.v1.Address dropoff = 2; }
 
-message CheckoutRequest {
+message OrderCheckoutRequest {
   string idempotency_key = 1;
   string quote_id = 2;
   FulfillmentMethod fulfillment = 3;
@@ -97,9 +97,8 @@ message Order {
   FulfillmentMethod fulfillment = 8;
   plentypay.common.v1.Address dropoff = 9;
   google.protobuf.Timestamp created_at = 10;
-  NextActionInfo next_action = 11;     // QR/URL para aprobar el pago, copiado del PaymentIntent
+  plentypay.common.v1.NextActionInfo next_action = 11; // QR/URL para aprobar el pago, copiado del PaymentIntent
 }
-message NextActionInfo { string type = 1; string url = 2; string qr_payload = 3; }
 message GetOrderRequest { string order_id = 1; }
 message ListMyOrdersRequest { OrderStatus status = 1; plentypay.common.v1.PageRequest page = 2; }
 message ListOrdersResponse { repeated Order orders = 1; plentypay.common.v1.PageInfo page = 2; }

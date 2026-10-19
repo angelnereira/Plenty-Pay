@@ -135,7 +135,7 @@ message GetBalanceRequest { AccountRef account = 1; }
 message ListBalancesRequest { string party_id = 1; }
 message ListBalancesResponse { repeated Balance balances = 1; }
 
-message StatementLine {
+message LedgerStatementLine {
   Entry entry = 1;
   string transaction_id = 2;
   string transaction_type = 3;
@@ -150,7 +150,7 @@ message GetStatementRequest {
 }
 message GetStatementResponse {
   int64 opening_balance_minor = 1;
-  repeated StatementLine lines = 2;
+  repeated LedgerStatementLine lines = 2;
   int64 closing_balance_minor = 3;
   plentypay.common.v1.PageInfo page = 4;
 }

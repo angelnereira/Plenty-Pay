@@ -18,7 +18,7 @@ fiscal-invoicing|go|internal/pb|fiscal_invoicing.proto,security.proto,common.pro
 catalog|go|internal/pb|catalog.proto,inventory.proto,common.proto,events.proto
 inventory|go|internal/pb|inventory.proto,catalog.proto,common.proto,events.proto
 orders|go|internal/pb|orders.proto,catalog.proto,inventory.proto,payments.proto,logistics.proto,fiscal_invoicing.proto,identity.proto,common.proto,events.proto
-pos|go|internal/pb|pos.proto,catalog.proto,inventory.proto,payments.proto,fiscal_invoicing.proto,common.proto,events.proto
+pos|go|internal/pb|pos.proto,catalog.proto,inventory.proto,payments.proto,logistics.proto,fiscal_invoicing.proto,common.proto,events.proto
 logistics|go|internal/pb|logistics.proto,geolocation.proto,identity.proto,common.proto,events.proto
 payroll|go|internal/pb|payroll.proto,payments.proto,security.proto,geolocation.proto,common.proto,events.proto
 notifications|go|internal/pb|notifications.proto,identity.proto,common.proto,events.proto

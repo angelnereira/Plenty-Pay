@@ -15,7 +15,7 @@
 | Fase | F10 |
 | Capa | L2 (hoja: no llama a nadie) |
 
-**Estado**: 📋 sin código Rust. Especificación ejecutable de invariantes I1–I4 en `scripts/ledger-tests` (27 casos sobre la migración SQL del sistema de referencia) — portar a `tests/invariants.rs`.
+**Estado**: 📝 F10.1 en curso — proyecto Rust creado (`Cargo.toml`, `rust-toolchain.toml`), dominio `Money` (checked_add/sub, half_up_raw, allocate) y `PostingTemplate` con pruebas L1 (8 tests, incluidos vectores A–D y proptest de allocate). Pendiente: tonic/sqlx, migraciones, gRPC, observabilidad OTel.
 
 ## 3. Modelo de datos
 ```sql

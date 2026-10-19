@@ -173,9 +173,813 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get error_AGE_REQUIREMENT =>
       'Debes confirmar que tienes al menos 18 años.';
+
+  @override
+  String get accountTitle => 'Mi cuenta';
+
+  @override
+  String get profileTitle => 'Datos personales';
+
+  @override
+  String get sessionsTitle => 'Sesiones activas';
+
+  @override
+  String get businessTitle => 'Mi negocio';
+
+  @override
+  String get createBusinessTitle => 'Crear negocio';
+
+  @override
+  String get teamTitle => 'Equipo';
+
+  @override
+  String get rolesTitle => 'Roles';
+
+  @override
+  String get platformTitle => 'Plataforma';
+
+  @override
+  String get businessReviewTitle => 'Revisión de negocios';
+
+  @override
+  String get invitationAcceptTitle => 'Aceptar invitación';
+
+  @override
+  String get fieldLegalName => 'Razón social';
+
+  @override
+  String get fieldTradeName => 'Nombre comercial';
+
+  @override
+  String get fieldTaxId => 'RUC';
+
+  @override
+  String get fieldDv => 'DV';
+
+  @override
+  String get actionCreate => 'Crear';
+
+  @override
+  String get actionInvite => 'Invitar';
+
+  @override
+  String get actionDeactivate => 'Desactivar';
+
+  @override
+  String get actionRevoke => 'Revocar';
+
+  @override
+  String get actionApprove => 'Aprobar';
+
+  @override
+  String get actionReject => 'Rechazar';
+
+  @override
+  String get actionSave => 'Guardar';
+
+  @override
+  String get labelCurrentSession => 'Sesión actual';
+
+  @override
+  String get emptySessions => 'No tienes otras sesiones.';
+
+  @override
+  String get emptyTeam => 'Aún no hay miembros del equipo.';
+
+  @override
+  String get emptyRoles => 'Aún no hay roles personalizados.';
+
+  @override
+  String get emptyTenants => 'No hay negocios pendientes de revisión.';
+
+  @override
+  String get labelStatus => 'Estado';
+
+  @override
+  String get statusPending => 'Pendiente';
+
+  @override
+  String get statusActive => 'Activo';
+
+  @override
+  String get statusRejected => 'Rechazado';
+
+  @override
+  String get statusSuspended => 'Suspendido';
+
+  @override
+  String get msgBusinessCreated => 'Negocio creado. En revisión.';
+
+  @override
+  String get msgInvitationSent => 'Invitación enviada.';
+
+  @override
+  String get msgApproved => 'Negocio aprobado.';
+
+  @override
+  String get msgRejected => 'Negocio rechazado.';
+
+  @override
+  String get fieldNotes => 'Notas';
+
+  @override
+  String get fieldEmailInvite => 'Correo del invitado';
+
+  @override
+  String get fieldRole => 'Rol';
+
+  @override
+  String get fieldCurrentPassword => 'Contraseña actual';
+
+  @override
+  String get fieldNewPassword => 'Nueva contraseña';
+
+  @override
+  String get actionChangePassword => 'Cambiar contraseña';
+
+  @override
+  String get msgPasswordChanged => 'Contraseña actualizada.';
+
+  @override
+  String get labelMembers => 'Miembros';
+
+  @override
+  String get labelPermissions => 'Permisos';
+
+  @override
+  String get labelRoleName => 'Nombre del rol';
+
+  @override
+  String get labelRoleId => 'Identificador del rol';
+
+  @override
+  String get walletTitle => 'Billetera';
+
+  @override
+  String get topupTitle => 'Recargar';
+
+  @override
+  String get sendTitle => 'Enviar';
+
+  @override
+  String get payQrTitle => 'Pagar con QR';
+
+  @override
+  String get terminalsTitle => 'Terminales';
+
+  @override
+  String get fieldAmount => 'Monto';
+
+  @override
+  String get actionTopup => 'Recargar';
+
+  @override
+  String get actionSend => 'Enviar';
+
+  @override
+  String get actionPay => 'Pagar';
+
+  @override
+  String get msgPaymentCreated => 'Pago creado.';
+
+  @override
+  String get clockTitle => 'Marcar asistencia';
+
+  @override
+  String get payrollMyTitle => 'Mi nómina';
+
+  @override
+  String get payrollEmployeesTitle => 'Empleados';
+
+  @override
+  String get payrollScheduleTitle => 'Turnos y calendario';
+
+  @override
+  String get payrollAttendanceTitle => 'Asistencia';
+
+  @override
+  String get payrollRunsTitle => 'Corridas de nómina';
+
+  @override
+  String get payrollRunDetailTitle => 'Detalle de la corrida';
+
+  @override
+  String get payslipTitle => 'Comprobante de pago';
+
+  @override
+  String get kioskTitle => 'Quiosco de marcaje';
+
+  @override
+  String get tabClockings => 'Marcajes';
+
+  @override
+  String get tabPayslips => 'Comprobantes';
+
+  @override
+  String get tabVacations => 'Vacaciones';
+
+  @override
+  String get actionClockIn => 'Marcar entrada';
+
+  @override
+  String get actionStartBreak => 'Iniciar descanso';
+
+  @override
+  String get actionEndBreak => 'Terminar descanso';
+
+  @override
+  String get actionClockOut => 'Marcar salida';
+
+  @override
+  String get methodQr => 'Escanear QR del quiosco';
+
+  @override
+  String get methodNfc => 'Acercar a la etiqueta NFC';
+
+  @override
+  String get methodFace => 'Rostro';
+
+  @override
+  String get methodPin => 'PIN';
+
+  @override
+  String labelInsideZone(Object branch) {
+    return 'Estás en $branch';
+  }
+
+  @override
+  String get labelOutsideZone => 'Estás fuera de la zona';
+
+  @override
+  String get msgOutsideZoneReview => 'Tu marcaje quedará en revisión.';
+
+  @override
+  String get msgClockSaved => 'Marcaje registrado.';
+
+  @override
+  String labelTodayHours(Object hours, Object week) {
+    return 'Hoy: $hours · Semana: $week';
+  }
+
+  @override
+  String get runStatusDraft => 'Borrador';
+
+  @override
+  String get runStatusApproved => 'Aprobada';
+
+  @override
+  String get runStatusPaying => 'Pagando';
+
+  @override
+  String get runStatusPaid => 'Pagada';
+
+  @override
+  String get runStatusPartiallyFailed => 'Con pagos fallidos';
+
+  @override
+  String get actionNewRun => 'Nueva corrida';
+
+  @override
+  String get actionRecalculate => 'Recalcular';
+
+  @override
+  String get labelNetToPay => 'Neto a pagar';
+
+  @override
+  String get labelGross => 'Bruto';
+
+  @override
+  String get labelNet => 'Neto';
+
+  @override
+  String get labelEmployee => 'Empleado';
+
+  @override
+  String get labelPeriod => 'Período';
+
+  @override
+  String msgRetryFailedPayments(Object count) {
+    return 'Pagos fallidos: $count';
+  }
+
+  @override
+  String get actionRetryFailed => 'Reintentar fallidos';
+
+  @override
+  String get labelRatesApplied => 'Tasas aplicadas';
+
+  @override
+  String msgRatesAsOf(Object date) {
+    return 'Vigentes al $date';
+  }
+
+  @override
+  String get labelReviewsPending => 'Marcajes en revisión';
+
+  @override
+  String get labelOnlyUnderReview => 'Solo en revisión';
+
+  @override
+  String get actionAccept => 'Aceptar';
+
+  @override
+  String get actionCorrect => 'Corregir';
+
+  @override
+  String get fieldCorrectTime => 'Hora correcta';
+
+  @override
+  String get fieldReason => 'Motivo';
+
+  @override
+  String get msgCorrectionNeedsReason => 'El motivo es obligatorio.';
+
+  @override
+  String msgNoConnectionPending(Object count) {
+    return 'Sin conexión: $count marcajes guardados';
+  }
+
+  @override
+  String get kioskScanHint => 'Escanea con tu app';
+
+  @override
+  String get msgLeaveKioskNeedsManagerPin =>
+      'Salir del quiosco exige el PIN de un gerente.';
+
+  @override
+  String get actionAsk => 'Preguntar';
+
+  @override
+  String get askQuestionTitle => 'Preguntar sobre tus datos';
+
+  @override
+  String get askQuestionHint => '¿Cuánto vendí en octubre?';
+
+  @override
+  String get error_QUESTION_NOT_UNDERSTOOD =>
+      'No entendí la pregunta. Prueba con «cuánto vendí en octubre» o «cuántos pedidos hubo».';
+
+  @override
+  String get alertsTitle => 'Alertas';
+
+  @override
+  String get alertsEmpty => 'No hay alertas activas.';
+
+  @override
+  String get segmentsTitle => 'Segmentos de clientes';
+
+  @override
+  String get labelCustomers => 'Clientes';
+
+  @override
+  String get trendUp => 'Sube';
+
+  @override
+  String get trendDown => 'Baja';
+
+  @override
+  String get dashboardsTitle => 'Paneles';
+
+  @override
+  String get exportsTitle => 'Exportes';
+
+  @override
+  String get actionCreateExport => 'Crear exporte';
+
+  @override
+  String get msgExportReady => 'Tu exporte está listo.';
+
+  @override
+  String get msgExportPending => 'Estamos preparando el exporte.';
+
+  @override
+  String get askInterpretationTitle => 'Así lo entendí';
+
+  @override
+  String get updateRequiredTitle => 'Necesitas actualizar PlentyPay';
+
+  @override
+  String updateRequiredBody(Object current, Object minimum) {
+    return 'Esta versión ($current) ya no es compatible con el sistema. Necesitas la versión $minimum o posterior para seguir usándolo.';
+  }
+
+  @override
+  String get actionUpdate => 'Actualizar';
+
+  @override
+  String get actionExit => 'Salir';
+
+  @override
+  String get maintenanceTitle => 'Estamos Actualizando';
+
+  @override
+  String get maintenanceGeneric =>
+      'Estamos haciendo mantenimiento. Volvemos pronto.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).
 class AppLocalizationsEsPa extends AppLocalizationsEs {
   AppLocalizationsEsPa() : super('es_PA');
+
+  @override
+  String get accountTitle => 'Mi cuenta';
+
+  @override
+  String get profileTitle => 'Datos personales';
+
+  @override
+  String get sessionsTitle => 'Sesiones activas';
+
+  @override
+  String get businessTitle => 'Mi negocio';
+
+  @override
+  String get createBusinessTitle => 'Crear negocio';
+
+  @override
+  String get teamTitle => 'Equipo';
+
+  @override
+  String get rolesTitle => 'Roles';
+
+  @override
+  String get platformTitle => 'Plataforma';
+
+  @override
+  String get businessReviewTitle => 'Revisión de negocios';
+
+  @override
+  String get invitationAcceptTitle => 'Aceptar invitación';
+
+  @override
+  String get fieldLegalName => 'Razón social';
+
+  @override
+  String get fieldTradeName => 'Nombre comercial';
+
+  @override
+  String get fieldTaxId => 'RUC';
+
+  @override
+  String get fieldDv => 'DV';
+
+  @override
+  String get actionCreate => 'Crear';
+
+  @override
+  String get actionInvite => 'Invitar';
+
+  @override
+  String get actionDeactivate => 'Desactivar';
+
+  @override
+  String get actionRevoke => 'Revocar';
+
+  @override
+  String get actionApprove => 'Aprobar';
+
+  @override
+  String get actionReject => 'Rechazar';
+
+  @override
+  String get actionSave => 'Guardar';
+
+  @override
+  String get labelCurrentSession => 'Sesión actual';
+
+  @override
+  String get emptySessions => 'No tienes otras sesiones.';
+
+  @override
+  String get emptyTeam => 'Aún no hay miembros del equipo.';
+
+  @override
+  String get emptyRoles => 'Aún no hay roles personalizados.';
+
+  @override
+  String get emptyTenants => 'No hay negocios pendientes de revisión.';
+
+  @override
+  String get labelStatus => 'Estado';
+
+  @override
+  String get statusPending => 'Pendiente';
+
+  @override
+  String get statusActive => 'Activo';
+
+  @override
+  String get statusRejected => 'Rechazado';
+
+  @override
+  String get statusSuspended => 'Suspendido';
+
+  @override
+  String get msgBusinessCreated => 'Negocio creado. En revisión.';
+
+  @override
+  String get msgInvitationSent => 'Invitación enviada.';
+
+  @override
+  String get msgApproved => 'Negocio aprobado.';
+
+  @override
+  String get msgRejected => 'Negocio rechazado.';
+
+  @override
+  String get fieldNotes => 'Notas';
+
+  @override
+  String get fieldEmailInvite => 'Correo del invitado';
+
+  @override
+  String get fieldRole => 'Rol';
+
+  @override
+  String get fieldCurrentPassword => 'Contraseña actual';
+
+  @override
+  String get fieldNewPassword => 'Nueva contraseña';
+
+  @override
+  String get actionChangePassword => 'Cambiar contraseña';
+
+  @override
+  String get msgPasswordChanged => 'Contraseña actualizada.';
+
+  @override
+  String get labelMembers => 'Miembros';
+
+  @override
+  String get labelPermissions => 'Permisos';
+
+  @override
+  String get labelRoleName => 'Nombre del rol';
+
+  @override
+  String get labelRoleId => 'Identificador del rol';
+
+  @override
+  String get walletTitle => 'Billetera';
+
+  @override
+  String get topupTitle => 'Recargar';
+
+  @override
+  String get sendTitle => 'Enviar';
+
+  @override
+  String get payQrTitle => 'Pagar con QR';
+
+  @override
+  String get terminalsTitle => 'Terminales';
+
+  @override
+  String get fieldAmount => 'Monto';
+
+  @override
+  String get actionTopup => 'Recargar';
+
+  @override
+  String get actionSend => 'Enviar';
+
+  @override
+  String get actionPay => 'Pagar';
+
+  @override
+  String get msgPaymentCreated => 'Pago creado.';
+
+  @override
+  String get clockTitle => 'Marcar asistencia';
+
+  @override
+  String get payrollMyTitle => 'Mi nómina';
+
+  @override
+  String get payrollEmployeesTitle => 'Empleados';
+
+  @override
+  String get payrollScheduleTitle => 'Turnos y calendario';
+
+  @override
+  String get payrollAttendanceTitle => 'Asistencia';
+
+  @override
+  String get payrollRunsTitle => 'Corridas de nómina';
+
+  @override
+  String get payrollRunDetailTitle => 'Detalle de la corrida';
+
+  @override
+  String get payslipTitle => 'Comprobante de pago';
+
+  @override
+  String get kioskTitle => 'Quiosco de marcaje';
+
+  @override
+  String get tabClockings => 'Marcajes';
+
+  @override
+  String get tabPayslips => 'Comprobantes';
+
+  @override
+  String get tabVacations => 'Vacaciones';
+
+  @override
+  String get actionClockIn => 'Marcar entrada';
+
+  @override
+  String get actionStartBreak => 'Iniciar descanso';
+
+  @override
+  String get actionEndBreak => 'Terminar descanso';
+
+  @override
+  String get actionClockOut => 'Marcar salida';
+
+  @override
+  String get methodQr => 'Escanear QR del quiosco';
+
+  @override
+  String get methodNfc => 'Acercar a la etiqueta NFC';
+
+  @override
+  String get methodFace => 'Rostro';
+
+  @override
+  String get methodPin => 'PIN';
+
+  @override
+  String labelInsideZone(Object branch) {
+    return 'Estás en $branch';
+  }
+
+  @override
+  String get labelOutsideZone => 'Estás fuera de la zona';
+
+  @override
+  String get msgOutsideZoneReview => 'Tu marcaje quedará en revisión.';
+
+  @override
+  String get msgClockSaved => 'Marcaje registrado.';
+
+  @override
+  String labelTodayHours(Object hours, Object week) {
+    return 'Hoy: $hours · Semana: $week';
+  }
+
+  @override
+  String get runStatusDraft => 'Borrador';
+
+  @override
+  String get runStatusApproved => 'Aprobada';
+
+  @override
+  String get runStatusPaying => 'Pagando';
+
+  @override
+  String get runStatusPaid => 'Pagada';
+
+  @override
+  String get runStatusPartiallyFailed => 'Con pagos fallidos';
+
+  @override
+  String get actionNewRun => 'Nueva corrida';
+
+  @override
+  String get actionRecalculate => 'Recalcular';
+
+  @override
+  String get labelNetToPay => 'Neto a pagar';
+
+  @override
+  String get labelGross => 'Bruto';
+
+  @override
+  String get labelNet => 'Neto';
+
+  @override
+  String get labelEmployee => 'Empleado';
+
+  @override
+  String get labelPeriod => 'Período';
+
+  @override
+  String msgRetryFailedPayments(Object count) {
+    return 'Pagos fallidos: $count';
+  }
+
+  @override
+  String get actionRetryFailed => 'Reintentar fallidos';
+
+  @override
+  String get labelRatesApplied => 'Tasas aplicadas';
+
+  @override
+  String msgRatesAsOf(Object date) {
+    return 'Vigentes al $date';
+  }
+
+  @override
+  String get labelReviewsPending => 'Marcajes en revisión';
+
+  @override
+  String get labelOnlyUnderReview => 'Solo en revisión';
+
+  @override
+  String get actionAccept => 'Aceptar';
+
+  @override
+  String get actionCorrect => 'Corregir';
+
+  @override
+  String get fieldCorrectTime => 'Hora correcta';
+
+  @override
+  String get fieldReason => 'Motivo';
+
+  @override
+  String get msgCorrectionNeedsReason => 'El motivo es obligatorio.';
+
+  @override
+  String msgNoConnectionPending(Object count) {
+    return 'Sin conexión: $count marcajes guardados';
+  }
+
+  @override
+  String get kioskScanHint => 'Escanea con tu app';
+
+  @override
+  String get msgLeaveKioskNeedsManagerPin =>
+      'Salir del quiosco exige el PIN de un gerente.';
+
+  @override
+  String get actionAsk => 'Preguntar';
+
+  @override
+  String get askQuestionTitle => 'Preguntar sobre tus datos';
+
+  @override
+  String get askQuestionHint => '¿Cuánto vendí en octubre?';
+
+  @override
+  String get error_QUESTION_NOT_UNDERSTOOD =>
+      'No entendí la pregunta. Prueba con «cuánto vendí en octubre» o «cuántos pedidos hubo».';
+
+  @override
+  String get alertsTitle => 'Alertas';
+
+  @override
+  String get alertsEmpty => 'No hay alertas activas.';
+
+  @override
+  String get segmentsTitle => 'Segmentos de clientes';
+
+  @override
+  String get labelCustomers => 'Clientes';
+
+  @override
+  String get trendUp => 'Sube';
+
+  @override
+  String get trendDown => 'Baja';
+
+  @override
+  String get dashboardsTitle => 'Paneles';
+
+  @override
+  String get exportsTitle => 'Exportes';
+
+  @override
+  String get actionCreateExport => 'Crear exporte';
+
+  @override
+  String get msgExportReady => 'Tu exporte está listo.';
+
+  @override
+  String get msgExportPending => 'Estamos preparando el exporte.';
+
+  @override
+  String get askInterpretationTitle => 'Así lo entendí';
+
+  @override
+  String get updateRequiredTitle => 'Necesitas actualizar PlentyPay';
+
+  @override
+  String updateRequiredBody(Object current, Object minimum) {
+    return 'Esta versión ($current) ya no es compatible con el sistema. Necesitas la versión $minimum o posterior para seguir usándolo.';
+  }
+
+  @override
+  String get actionUpdate => 'Actualizar';
+
+  @override
+  String get actionExit => 'Salir';
+
+  @override
+  String get maintenanceTitle => 'Estamos Actualizando';
+
+  @override
+  String get maintenanceGeneric =>
+      'Estamos haciendo mantenimiento. Volvemos pronto.';
 }

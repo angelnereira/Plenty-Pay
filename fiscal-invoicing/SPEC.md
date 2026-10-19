@@ -1,5 +1,7 @@
 # SPEC — fiscal-invoicing
 
+**Estado**: 📝 F13.1/F13.2/F13.3 en curso — dominio (totales, impuestos, políticas) + migraciones + perfil fiscal con validación. Go tests OK. Marcado 📝 por AGENTS.md §2.11.
+
 ## 1. Responsabilidad
 **Hace**: facturación electrónica de Panamá (DGI, Sistema de Factura Electrónica — SFEP) a través de un **PAC** (proveedor autorizado de certificación): perfil fiscal del comercio, decisión de qué documento emitir (fiscal o recibo interno), emisión de facturas, notas de crédito y débito, folios, CUFE y QR, almacenamiento de XML/PDF por ≥ 5 años, contribuyentes frecuentes.
 **No hace**: cobrar, calcular precios (recibe líneas con impuestos ya calculados por pos/orders), enviar correos (notifications envía el PDF).

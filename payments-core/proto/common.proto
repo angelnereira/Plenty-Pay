@@ -1,0 +1,73 @@
+syntax = "proto3";
+package plentypay.common.v1;
+
+option go_package = "plentypay/common/pb";
+
+import "google/protobuf/timestamp.proto";
+
+// Tipos compartidos. Convenciones completas: docs/standards/grpc-conventions.md
+
+// Dinero: SIEMPRE entero en la unidad menor (centavos) + código ISO-4217. Nunca float.
+// 1 USD = amount_minor 100. Moneda por defecto del sistema: "USD" (Panamá está dolarizada).
+message Money {
+  int64 amount_minor = 1;
+  string currency = 2; // ISO-4217, 3 letras mayúsculas
+}
+
+message PageRequest {
+  int32 page_size = 1;   // 1..200, por defecto 50
+  string page_token = 2; // opaco; vacío = primera página
+}
+
+message PageInfo {
+  string next_page_token = 1; // vacío = no hay más
+}
+
+message GeoPoint {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message TimeRange {
+  google.protobuf.Timestamp from = 1; // inclusivo
+  google.protobuf.Timestamp to = 2;   // exclusivo
+}
+
+// Referencia polimórfica a una entidad de negocio de otro contenedor
+// (p. ej. type="sale", id="<uuid>"). Tipos válidos: docs/domain/domain-model.md §9.
+message Reference {
+  string type = 1;
+  string id = 2;
+}
+
+message Address {
+  string line1 = 1;
+  string line2 = 2;
+  string city = 3;
+  string province = 4;
+  string country = 5; // ISO-3166 alfa-2, p. ej. "PA"
+  string postal_code = 6;
+  GeoPoint location = 7;
+}
+
+// Datos que el cliente debe usar para aprobar un cobro: QR, URL o deep link.
+// Vive aquí porque `orders` y `pos` exponen exactamente la misma información y
+// declararla dos veces colisionaba al generarse el código Go de un mismo paquete.
+// Mismo contenido, mismos números de campo: el cambio es aditivo (ADR 0004).
+message NextActionInfo {
+  string type = 1;        // "QR" | "URL" | "DEEP_LINK"
+  string url = 2;
+  string qr_payload = 3;
+}
+
+enum PaymentRail {
+  PAYMENT_RAIL_UNSPECIFIED = 0;
+  PAYMENT_RAIL_WALLET = 1;        // saldo interno PlentyPay
+  PAYMENT_RAIL_YAPPY = 2;
+  PAYMENT_RAIL_TELERED_CLAVE = 3; // ACH Xpress / Tarjeta Clave
+  PAYMENT_RAIL_CARD = 4;          // Visa/Mastercard vía PSP
+  PAYMENT_RAIL_APPLE_PAY = 5;
+  PAYMENT_RAIL_GOOGLE_PAY = 6;
+  PAYMENT_RAIL_QR_INTEROP = 7;
+  PAYMENT_RAIL_CASH = 8;          // efectivo en POS (no pasa por payments-core; se registra como tender de caja)
+}

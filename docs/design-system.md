@@ -1,6 +1,8 @@
 # Sistema de diseño PlentyPay (2026)
 
-Estilo: **moderno, sobrio, de banca**: grises oscuros y claros con **rojo** como único color de acento. Material 3 como base técnica, personalizado con estos tokens. Implementación: `flutter_app/lib/core/theme/` (los valores de aquí y de `app_theme.dart` deben coincidir; `check-docs.sh` compara los hex).
+> **Regla de diseño estricta (`gravital-experience-ui`)**: El plano maestro y regla estricta obligatoria para construir, actualizar y diseñar todas las interfaces Flutter previas y futuras está en [`docs/gravital-experience-ui.md`](gravital-experience-ui.md) (**gravital-experience-ui** — M3 Expressive). Los tokens base actuales en `flutter_app/lib/core/theme/` que se listan abajo se mantienen sincronizados con `app_theme.dart` (`check-docs.sh` compara los hex) y se rigen bajo las reglas arquitectónicas, de movimiento, forma, tipografía y el checklist de revisión (§15.3) de [`docs/gravital-experience-ui.md`](gravital-experience-ui.md).
+
+Estilo: **moderno, sobrio, de banca**: grises oscuros y claros con **rojo** como único color de acento. Material 3 Expressive (`gravital-experience-ui`) como base técnica, personalizado con estos tokens. Implementación: `flutter_app/lib/core/theme/` (los valores de aquí y de `app_theme.dart` deben coincidir; `check-docs.sh` compara los hex).
 
 ## 1. Principios
 1. **Claridad del dinero primero**: el monto es el elemento más grande de cualquier pantalla de pago.

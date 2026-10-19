@@ -130,9 +130,12 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 ### 4.7 Logística y geolocalización (F14, F18)
 | Método y ruta | RPC | Permiso |
 |---|---|---|
-| GET/PUT `/v1/logistics/carriers` · `/v1/logistics/drivers` | List/UpsertCarrier · List/UpsertDriver | `logistics:manage` |
-| GET/POST `/v1/logistics/deliveries` · POST `/{id}/assign` · `/{id}/cancel` | List/Create/Assign/CancelDelivery | `logistics:read` / `logistics:manage` |
+| GET/PUT `/v1/logistics/carriers` · `/v1/logistics/drivers` | List/UpsertCarrier · List/UpsertDriver | `logistics:read` / `logistics:manage` |
+| POST `/v1/logistics/quote` | QuoteDelivery | `logistics:read`, `pos:sell` o `orders:create:self` |
+| GET/POST `/v1/logistics/deliveries` · GET `/{id}` · POST `/{id}/assign` · `/{id}/cancel` | List/Create/Get/Assign/CancelDelivery | `logistics:read` / `logistics:manage` |
+| POST `/v1/logistics/me/availability` | SetDriverAvailability | `logistics:deliver` |
 | GET `/v1/logistics/my-deliveries` · POST `/v1/logistics/deliveries/{id}/checkpoints` | ListMyDeliveries · RecordCheckpoint | `logistics:deliver` |
+| GET `/v1/me/deliveries` · GET `/v1/me/deliveries/{id}` | ListCustomerDeliveries · GetCustomerDelivery | `orders:read:self` |
 | POST `/v1/geo/pings` (lote ≤ 100) | geolocation.IngestLocations | `logistics:deliver` o `payroll:attendance:record` |
 | GET/PUT/DELETE `/v1/geo/geofences` | List/Upsert/DeleteGeofence | `logistics:geofence:manage` |
 | GET `/v1/public/tracking/{token}` | logistics.GetPublicTracking | **público** (token opaco ≥ 22 chars, rate limit estricto) |
