@@ -247,7 +247,10 @@ services:
       GARAGE_ADMIN_TOKEN: "${GARAGE_ADMIN_TOKEN:-garage_dev_admin_token_0123456789abcdef}"
     volumes:
       - garage-data:/var/lib/garage
-    networks: [services, data]
+    ports:
+      - "3900:3900"
+      - "3903:3903"
+    networks: [edge, services, data]
     # Salud del clúster vía CLI oficial (la API S3 responde 403 a anónimos: no sirve
     # como healthcheck). La prueba L2 verifica que la API S3 responda (criterio F07.8).
     healthcheck:

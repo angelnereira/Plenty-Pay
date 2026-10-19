@@ -11,6 +11,7 @@ import 'pos_close_session_screen.dart';
 import 'pos_parked_screen.dart';
 import 'pos_sales_history_screen.dart';
 import 'pos_settings_screen.dart';
+import '../../core/widgets/barcode_scanner_dialog.dart';
 
 /// S-POS-01 / S-POS-02 · `/pos` · Venta en 2 paneles.
 /// Cumple con docs/gravital-experience-ui.md (M3 Expressive) y docs/ux/functional-spec/03-pos.md.
@@ -53,6 +54,46 @@ class _PosScreenState extends State<PosScreen> {
         _lines.add(_PosLine(name: name, quantity: 1, unitPriceMinor: priceMinor));
       }
     });
+  }
+
+  static const Map<String, ({String name, int priceMinor})> _catalogByBarcode = {
+    '7451000100018': (name: 'Café Geisha Especial 250g', priceMinor: 1850),
+    '7451000100025': (name: 'Croissant de Almendras', priceMinor: 425),
+    '7451000100032': (name: 'Espresso Doble Selección', priceMinor: 350),
+    '7451000100049': (name: 'Jugo de Naranja Natural', priceMinor: 300),
+    '7451000100056': (name: 'Empanada de Pollo Criolla', priceMinor: 275),
+    '7451000100063': (name: 'Pastel de Tres Leches Artesanal', priceMinor: 500),
+  };
+
+  Future<void> _scanBarcode() async {
+    final scanned = await BarcodeScannerDialog.scan(
+      context,
+      title: 'Escanear Producto POS',
+      subtitle: 'Apunta al código de barra o QR para agregarlo a la venta',
+    );
+    if (scanned != null && scanned.isNotEmpty && mounted) {
+      final product = _catalogByBarcode[scanned];
+      if (product != null) {
+        _addLine(product.name, product.priceMinor);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Escaneado: ${product.name} (B/. ${(product.priceMinor / 100).toStringAsFixed(2)})'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        final newName = 'Producto SKU: $scanned';
+        _addLine(newName, 450);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Escaneado código nuevo: $scanned'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   void _incrementLine(int index) {
@@ -220,6 +261,11 @@ class _PosScreenState extends State<PosScreen> {
               }
             },
           ),
+          IconButton(
+            tooltip: 'Escanear producto (Cámara / Láser)',
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: _scanBarcode,
+          ),
           PopupMenuButton<String>(
             onSelected: (val) {
               switch (val) {
@@ -272,6 +318,7 @@ class _PosScreenState extends State<PosScreen> {
             onIncrement: _incrementLine,
             onDecrement: _decrementLine,
             onRemove: (i) => setState(() => _lines.removeAt(i)),
+            onScan: _scanBarcode,
           );
           final right = _TotalsPanel(
             subtotalMinor: _subtotalMinor,
@@ -318,6 +365,7 @@ class _LinesPanel extends StatelessWidget {
     required this.onIncrement,
     required this.onDecrement,
     required this.onRemove,
+    required this.onScan,
   });
 
   final List<_PosLine> lines;
@@ -328,6 +376,7 @@ class _LinesPanel extends StatelessWidget {
   final void Function(int) onIncrement;
   final void Function(int) onDecrement;
   final void Function(int) onRemove;
+  final VoidCallback onScan;
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +394,8 @@ class _LinesPanel extends StatelessWidget {
               prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.qr_code_scanner),
-                onPressed: () => onAdd('Producto Escaneado', 350),
+                tooltip: 'Escanear producto',
+                onPressed: onScan,
               ),
               hintText: l10n.searchProduct,
             ),

@@ -11,6 +11,8 @@ import 'stock_detail_screen.dart';
 import 'stock_transfer_screen.dart';
 import 'suppliers_screen.dart';
 import 'warehouses_screen.dart';
+import '../catalog/product_screen.dart';
+import '../../core/widgets/barcode_scanner_dialog.dart';
 
 /// S-INV-01 · `/inventory` · Existencias.
 ///
@@ -129,7 +131,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.qr_code_scanner),
-                          onPressed: () {},
+                          tooltip: 'Escanear código de barra',
+                          onPressed: () async {
+                            final code = await BarcodeScannerDialog.scan(
+                              context,
+                              title: 'Buscar Producto por Escaneo',
+                              subtitle: 'Escanea el código de barra para localizarlo en existencias',
+                            );
+                            if (code != null && code.isNotEmpty && mounted) {
+                              setState(() => _search.text = code);
+                            }
+                          },
                         ),
                         hintText: l10n.searchProductsHint,
                       ),
@@ -185,6 +197,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.add),
+        label: const Text('Nuevo Producto'),
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => ProductScreen(api: widget.api),
+        )),
       ),
     );
   }

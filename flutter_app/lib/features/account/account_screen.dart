@@ -11,6 +11,7 @@ import 'privacy_screen.dart';
 import 'profile_screen.dart';
 import 'security_screen.dart';
 import 'sessions_screen.dart';
+import '../../core/theme/theme_controller.dart';
 
 /// S-GEN-08 · `/account` · Mi cuenta y Configuración.
 /// Cumple estrictamente con docs/gravital-experience-ui.md (M3 Expressive)
@@ -25,7 +26,6 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   String _selectedLocale = 'es';
-  String _selectedTheme = 'dark';
   String _selectedCurrency = 'B/.';
 
   void _showServerInfoDialog() {
@@ -216,20 +216,21 @@ class _AccountScreenState extends State<AccountScreen> {
                     leading: const Icon(Icons.dark_mode_outlined),
                     title: const Text('Tema visual'),
                     subtitle: Text(
-                      _selectedTheme == 'dark'
+                      ThemeController.instance.modeString == 'dark'
                           ? 'Oscuro (OLED)'
-                          : _selectedTheme == 'light'
+                          : ThemeController.instance.modeString == 'light'
                               ? 'Claro'
                               : 'Automático',
                     ),
                     trailing: SegmentedButton<String>(
                       segments: const [
-                        ButtonSegment(value: 'dark', icon: Icon(Icons.dark_mode, size: 16)),
-                        ButtonSegment(value: 'light', icon: Icon(Icons.light_mode, size: 16)),
+                        ButtonSegment(value: 'dark', icon: Icon(Icons.dark_mode, size: 16), label: Text('Oscuro')),
+                        ButtonSegment(value: 'light', icon: Icon(Icons.light_mode, size: 16), label: Text('Claro')),
                       ],
-                      selected: {_selectedTheme},
+                      selected: {ThemeController.instance.modeString},
                       onSelectionChanged: (set) {
-                        setState(() => _selectedTheme = set.first);
+                        ThemeController.instance.setModeString(set.first);
+                        setState(() {});
                       },
                       style: SegmentedButton.styleFrom(
                         visualDensity: VisualDensity.compact,

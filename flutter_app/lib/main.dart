@@ -8,6 +8,7 @@ import 'core/l10n/locales.dart';
 import 'core/observability/app_logger.dart';
 import 'core/session/session_store.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_controller.dart';
 import 'features/auth/login_screen.dart';
 import 'features/shell/app_shell.dart';
 
@@ -59,20 +60,23 @@ class _PlentyPayAppState extends State<PlentyPayApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-      debugShowCheckedModeBanner: false,
-      locale: widget.locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: appSupportedLocales,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
-      navigatorObservers: [TelemetryNavigatorObserver(widget.api.logger)],
-      // F02.6: reemplazar por go_router con redirect global (flutter-standards.md §6).
-      home: _signedIn
-          ? AppShell(api: widget.api, onSignedOut: () => setState(() => _signedIn = false))
-          : LoginScreen(api: widget.api, onSignedIn: () => setState(() => _signedIn = true)),
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) => MaterialApp(
+        onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+        debugShowCheckedModeBanner: false,
+        locale: widget.locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: appSupportedLocales,
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: ThemeController.instance.mode,
+        navigatorObservers: [TelemetryNavigatorObserver(widget.api.logger)],
+        // F02.6: reemplazar por go_router con redirect global (flutter-standards.md §6).
+        home: _signedIn
+            ? AppShell(api: widget.api, onSignedOut: () => setState(() => _signedIn = false))
+            : LoginScreen(api: widget.api, onSignedIn: () => setState(() => _signedIn = true)),
+      ),
     );
   }
 }

@@ -98,6 +98,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _consents[index] = _consents[index].copyWith(granted: granted));
   }
 
+  bool _obscurePassword = true;
+
   @override
   void dispose() {
     _name.dispose();
@@ -139,17 +141,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 PPTextField(
                   controller: _password,
                   label: l10n.fieldPassword,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    tooltip: _obscurePassword ? 'Mostrar contraseña' : 'Ocultar contraseña',
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                   onChanged: (_) => setState(() {}),
                 ),
                 // e5
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 4),
-                  child: Text(
-                    _passwordValid ? l10n.passwordHelperRegisterOk : l10n.passwordHelperRegister,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: _passwordValid ? theme.colorScheme.primary : null,
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _passwordValid ? Icons.check_circle_outline : Icons.info_outline,
+                        size: 14,
+                        color: _passwordValid ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _password.text.isEmpty
+                              ? l10n.passwordHelperRegister
+                              : _passwordValid
+                                  ? '✓ Longitud segura (${_password.text.length} caracteres)'
+                                  : 'Mínimo 12 caracteres (llevas ${_password.text.length}/12 — faltan ${12 - _password.text.length})',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: _passwordValid
+                                ? theme.colorScheme.primary
+                                : (_password.text.isNotEmpty ? theme.colorScheme.tertiary : null),
+                            fontWeight: _password.text.isNotEmpty ? FontWeight.w600 : null,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 // e6
@@ -202,7 +228,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: Text(l10n.actionHaveAccount),
                     ),
                 ],
-                const SizedBox(height: 24),
+                if (!_formValid && (_name.text.isNotEmpty || _email.text.isNotEmpty || _password.text.isNotEmpty)) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pendiente para habilitar el registro:',
+                          style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        if (!_nameValid)
+                          Text('• Nombre completo (2 a 120 letras)', style: theme.textTheme.bodySmall),
+                        if (!_emailValid)
+                          Text('• Correo electrónico válido', style: theme.textTheme.bodySmall),
+                        if (!_passwordValid)
+                          Text('• Contraseña de al menos 12 caracteres (has escrito ${_password.text.length})',
+                              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.tertiary, fontWeight: FontWeight.w600)),
+                        if (!_consents[0].granted)
+                          Text('• Confirmar que tienes 18 años o más', style: theme.textTheme.bodySmall),
+                        if (!_consents[1].granted || !_consents[2].granted)
+                          Text('• Aceptar Términos y Condiciones y Privacidad', style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
                 // e10
                 PPButton.primary(
                   label: l10n.actionCreateAccount,
