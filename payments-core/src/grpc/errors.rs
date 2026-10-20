@@ -166,6 +166,11 @@ pub fn to_status(err: Error, rpc: &'static str, request_id: &str) -> Status {
             "INVALID_EXPIRATION",
             "la vigencia debe ser de 1 segundo a 24 horas",
         ),
+        Error::EvidenceRequired => status(
+            Code::InvalidArgument,
+            "EVIDENCE_REQUIRED",
+            "la resolución necesita evidencia",
+        ),
         Error::InvalidLabel => status(
             Code::InvalidArgument,
             "INVALID_LABEL",

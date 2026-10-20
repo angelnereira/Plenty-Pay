@@ -175,6 +175,24 @@ pub struct PaymentRow {
     pub attempts: Vec<AttemptRow>,
 }
 
+/// Cómo se capturó un pago.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Capture<'a> {
+    /// Asiento ya hecho (wallet, T3 en CaptureHold). `None` = lo hará el worker (riel externo).
+    pub ledger_transaction_id: Option<Uuid>,
+    /// Referencia del riel externo.
+    pub external_ref: Option<&'a str>,
+    /// Evidencia y actor de una resolución manual de UNKNOWN.
+    pub resolution: Option<(&'a str, Uuid)>,
+}
+
+/// Un pago capturado cuyo asiento falta, con lo necesario para armarlo.
+#[derive(Debug, Clone)]
+pub struct PendingPosting {
+    pub payment: PaymentRow,
+    pub reference_type: String,
+}
+
 /// Resultado de iniciar la confirmación de un intent.
 #[derive(Debug, Clone)]
 pub enum ConfirmStart {
@@ -670,7 +688,7 @@ impl PgPayments {
     pub async fn complete_capture(
         &self,
         payment_id: Uuid,
-        ledger_transaction_id: Uuid,
+        capture: Capture<'_>,
     ) -> Result<(PaymentRow, bool), StoreError> {
         let mut tx = self.begin(&Scope::service()).await?;
         let p = lock_payment(&mut tx, payment_id).await?;
@@ -681,11 +699,21 @@ impl PgPayments {
         if !p.status.can_transition(PaymentStatus::Captured) {
             return Err(StoreError::InvalidStateTransition);
         }
-        sqlx::query("UPDATE payments.payments SET status = 5, captured_minor = amount_minor, ledger_posting = 2, ledger_transaction_id = $2, captured_at = now(), unknown_since = NULL, next_check_at = NULL, updated_at = now(), version = version + 1 WHERE id = $1")
+        // Wallet: el asiento T3 ya existe (POSTED). Riel externo: queda PENDING para el worker (R8).
+        sqlx::query("UPDATE payments.payments SET status = 5, captured_minor = amount_minor, ledger_posting = CASE WHEN $2::uuid IS NULL THEN 1 ELSE 2 END, ledger_transaction_id = $2, captured_at = now(), unknown_since = NULL, next_check_at = NULL, resolution_evidence = $3, resolved_by = $4, updated_at = now(), version = version + 1 WHERE id = $1")
             .bind(payment_id)
-            .bind(ledger_transaction_id)
+            .bind(capture.ledger_transaction_id)
+            .bind(capture.resolution.map(|r| r.0))
+            .bind(capture.resolution.map(|r| r.1))
             .execute(tx.as_mut())
             .await?;
+        if let Some(ext) = capture.external_ref {
+            sqlx::query("UPDATE payments.attempts SET external_ref = $2 WHERE payment_id = $1 AND external_ref IS NULL")
+                .bind(payment_id)
+                .bind(ext)
+                .execute(tx.as_mut())
+                .await?;
+        }
         set_attempt(&mut tx, payment_id, AttemptStatus::Captured, None).await?;
         set_intent_status(&mut tx, p.intent_id, PaymentStatus::Captured).await?;
         let intent = load_intent_tx(&mut tx, p.intent_id).await?;
@@ -723,6 +751,16 @@ impl PgPayments {
         payment_id: Uuid,
         failure_code: &str,
     ) -> Result<(PaymentRow, bool), StoreError> {
+        self.fail_payment_with(payment_id, failure_code, None).await
+    }
+
+    /// Como [`fail_payment`], con la evidencia de una resolución manual (§6.3 paso 5).
+    pub async fn fail_payment_with(
+        &self,
+        payment_id: Uuid,
+        failure_code: &str,
+        resolution: Option<(&str, Uuid)>,
+    ) -> Result<(PaymentRow, bool), StoreError> {
         let mut tx = self.begin(&Scope::service()).await?;
         let p = lock_payment(&mut tx, payment_id).await?;
         if p.status == PaymentStatus::Failed {
@@ -732,9 +770,11 @@ impl PgPayments {
         if !p.status.can_transition(PaymentStatus::Failed) {
             return Err(StoreError::InvalidStateTransition);
         }
-        sqlx::query("UPDATE payments.payments SET status = 6, failure_code = $2, unknown_since = NULL, next_check_at = NULL, updated_at = now(), version = version + 1 WHERE id = $1")
+        sqlx::query("UPDATE payments.payments SET status = 6, failure_code = $2, unknown_since = NULL, next_check_at = NULL, resolution_evidence = $3, resolved_by = $4, updated_at = now(), version = version + 1 WHERE id = $1")
             .bind(payment_id)
             .bind(failure_code)
+            .bind(resolution.map(|r| r.0))
+            .bind(resolution.map(|r| r.1))
             .execute(tx.as_mut())
             .await?;
         set_attempt(
@@ -825,6 +865,101 @@ impl PgPayments {
             .rows_affected();
         tx.commit().await?;
         Ok(n == 1)
+    }
+
+    /// R8: pagos CAPTURED con el asiento pendiente (rieles externos), más antiguos primero.
+    pub async fn posting_pending(&self, limit: i64) -> Result<Vec<PendingPosting>, StoreError> {
+        let mut tx = self.begin(&Scope::service()).await?;
+        let rows = sqlx::query(&format!("SELECT {PAYMENT_COLS}, (SELECT reference_type FROM payments.intents i WHERE i.id = payments.payments.intent_id) AS reference_type FROM payments.payments WHERE status = 5 AND ledger_posting = 1 ORDER BY updated_at LIMIT $1"))
+            .bind(limit)
+            .fetch_all(tx.as_mut())
+            .await?;
+        tx.commit().await?;
+        rows.iter()
+            .map(|r| {
+                Ok(PendingPosting {
+                    payment: payment_row(r)?,
+                    reference_type: r.try_get("reference_type")?,
+                })
+            })
+            .collect()
+    }
+
+    /// El asiento quedó POSTED en el ledger. Idempotente.
+    pub async fn mark_posted(
+        &self,
+        payment_id: Uuid,
+        ledger_transaction_id: Uuid,
+    ) -> Result<bool, StoreError> {
+        let mut tx = self.begin(&Scope::service()).await?;
+        let n = sqlx::query("UPDATE payments.payments SET ledger_posting = 2, ledger_transaction_id = $2, posting_error = NULL, updated_at = now() WHERE id = $1 AND ledger_posting = 1")
+            .bind(payment_id)
+            .bind(ledger_transaction_id)
+            .execute(tx.as_mut())
+            .await?
+            .rows_affected();
+        tx.commit().await?;
+        Ok(n == 1)
+    }
+
+    /// El ledger rechazó el asiento de forma definitiva: requiere intervención (alerta crítica).
+    pub async fn mark_posting_failed(
+        &self,
+        payment_id: Uuid,
+        reason: &str,
+    ) -> Result<(), StoreError> {
+        let mut tx = self.begin(&Scope::service()).await?;
+        sqlx::query("UPDATE payments.payments SET ledger_posting = 3, posting_error = $2, updated_at = now() WHERE id = $1 AND ledger_posting = 1")
+            .bind(payment_id)
+            .bind(reason)
+            .execute(tx.as_mut())
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Reintento transitorio del asiento: se anota el motivo sin cambiar el estado.
+    pub async fn note_posting_error(
+        &self,
+        payment_id: Uuid,
+        reason: &str,
+    ) -> Result<(), StoreError> {
+        let mut tx = self.begin(&Scope::service()).await?;
+        sqlx::query(
+            "UPDATE payments.payments SET posting_error = $2 WHERE id = $1 AND ledger_posting = 1",
+        )
+        .bind(payment_id)
+        .bind(reason)
+        .execute(tx.as_mut())
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Pagos por riel externo a medio camino (PROCESSING tras una caída, o UNKNOWN) cuya consulta toca.
+    pub async fn due_external_payments(&self, limit: i64) -> Result<Vec<PaymentRow>, StoreError> {
+        let mut tx = self.begin(&Scope::service()).await?;
+        let rows = sqlx::query(&format!("SELECT {PAYMENT_COLS} FROM payments.payments WHERE rail <> 1 AND status IN (3, 9) AND next_check_at <= now() ORDER BY next_check_at LIMIT $1"))
+            .bind(limit)
+            .fetch_all(tx.as_mut())
+            .await?;
+        tx.commit().await?;
+        rows.iter().map(payment_row).collect()
+    }
+
+    /// Momento en que el pago entró en UNKNOWN (para el backoff de §6.3).
+    pub async fn unknown_since(
+        &self,
+        payment_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, StoreError> {
+        let mut tx = self.begin(&Scope::service()).await?;
+        let t = sqlx::query_scalar("SELECT unknown_since FROM payments.payments WHERE id = $1")
+            .bind(payment_id)
+            .fetch_optional(tx.as_mut())
+            .await?
+            .flatten();
+        tx.commit().await?;
+        Ok(t)
     }
 
     /// Pagos de wallet a medio camino (PROCESSING tras una caída, o UNKNOWN) cuya consulta toca.

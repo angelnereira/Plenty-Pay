@@ -121,3 +121,20 @@ func TestF11_QuoteResolvesBeforePaymentID(t *testing.T) {
 		t.Fatalf("GET /v1/payments/{id} → %s", r.RPC)
 	}
 }
+
+// R10: la ruta de recargas fija la referencia `topup`; el cliente no la cambia.
+func TestF11_7_TopupRouteForcesTopupReference(t *testing.T) {
+	r := route(t, "POST", "/v1/wallet/topups")
+	req := httptest.NewRequest("POST", "/v1/wallet/topups", strings.NewReader(`{"amount":{"amount_minor":"5000","currency":"USD"},"rail":"PAYMENT_RAIL_YAPPY","reference":{"type":"sale","id":"x"},"terminal_code":"AbCdEfGhIjKlMnOp"}`))
+	msg, err := r.DecodeRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := msg.(*pb.CreatePaymentIntentRequest)
+	if m.GetReference().GetType() != "topup" || m.GetReference().GetId() != "" || m.GetTerminalCode() != "" {
+		t.Fatalf("topup = %v", m)
+	}
+	if m.GetRail() != pb.PaymentRail_PAYMENT_RAIL_YAPPY || r.Permission != "wallet:topup" {
+		t.Fatalf("rail/permiso = %v %s", m.GetRail(), r.Permission)
+	}
+}

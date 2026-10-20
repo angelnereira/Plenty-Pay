@@ -69,7 +69,9 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 - Las rutas que piden «`wallet:pay` o `payments:charge`» no tienen permiso único en el gateway. La primera barrera es la autenticación y payments-core decide (R23, defensa en profundidad).
 - `X-Step-Up-Token` viaja como `x-pp-step-up`.
 - Si payments-core o el ledger no responden: `503`.
-- Faltan reembolsos (F11.6), recargas y transferencias (F11.7) y la resolución de UNKNOWN (F11.7). Ninguna de esas rutas está en la tabla.
+- `POST /v1/wallet/topups` (F11.7) fija `reference.type=topup` y vacía `terminal_code`: el cliente no convierte un cobro en recarga. `POST /v1/platform/payments/{id}/resolve` exige `platform:reconcile`.
+- Las conexiones a payments-core y ledger resuelven el nombre en cada intento (`passthrough`) con reintento ≤ 5 s: si el gateway arranca antes que ellos, se recuperan solas.
+- Faltan reembolsos (F11.6) y transferencias P2P: esas rutas no están en la tabla.
 
 | Método y ruta | RPC | Permiso |
 |---|---|---|

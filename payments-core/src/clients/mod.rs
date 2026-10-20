@@ -119,11 +119,29 @@ pub struct Limits {
     pub step_up_threshold_minor: i64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Flags {
     pub payments_enabled: bool,
     /// `wallet.real_money` (N-AML-01): hasta el registro ante la SBP la wallet es sandbox.
     pub wallet_real_money: bool,
+    /// `rail.<nombre>.enabled` de cada riel externo (R17). Una flag desconocida vale `false`.
+    pub rails: HashMap<String, bool>,
+}
+
+impl Flags {
+    pub fn rail_enabled(&self, flag: &str) -> bool {
+        self.rails.get(flag).copied().unwrap_or(false)
+    }
+}
+
+/// Un asiento a pedir al ledger (plantilla de domain-model §5.2).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntryLine {
+    pub party_id: String,
+    pub account_type: i32,
+    pub scope_id: String,
+    pub debit: bool,
+    pub amount_minor: i64,
 }
 
 pub const LIMIT_MAX_PAYMENT: &str = "limits.payment.max_minor";
@@ -262,6 +280,61 @@ impl Clients {
                 dep: "ledger",
                 message: "capture without transaction".into(),
             })?;
+        Uuid::parse_str(&tx.transaction_id).map_err(|e| DependencyError::Misconfigured {
+            dep: "ledger",
+            message: format!("transaction_id: {e}"),
+        })
+    }
+
+    /// PostTransaction idempotente por [key] (R8: `topup:<payment_id>` T1, `pay:<payment_id>` T2).
+    #[tracing::instrument(skip_all, err, fields(pp.transaction_type = transaction_type))]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn post_transaction(
+        &self,
+        request_id: &str,
+        key: &str,
+        tenant_id: Option<Uuid>,
+        transaction_type: &str,
+        reference: (&str, &str),
+        currency: &str,
+        entries: &[EntryLine],
+    ) -> Result<Uuid, DependencyError> {
+        let req = ledger::PostTransactionRequest {
+            idempotency_key: key.to_string(),
+            tenant_id: tenant_id.map(|t| t.to_string()).unwrap_or_default(),
+            transaction_type: transaction_type.to_string(),
+            reference: Some(Reference {
+                r#type: reference.0.to_string(),
+                id: reference.1.to_string(),
+            }),
+            currency: currency.to_string(),
+            description: String::new(),
+            entries: entries
+                .iter()
+                .map(|e| ledger::EntryInput {
+                    account: Some(ledger::AccountRef {
+                        party_id: e.party_id.clone(),
+                        r#type: e.account_type,
+                        currency: currency.to_string(),
+                        scope_id: e.scope_id.clone(),
+                    }),
+                    side: if e.debit {
+                        ledger::EntrySide::Debit as i32
+                    } else {
+                        ledger::EntrySide::Credit as i32
+                    },
+                    amount_minor: e.amount_minor,
+                })
+                .collect(),
+            effective_at: None,
+        };
+        let tx = self
+            .ledger
+            .clone()
+            .post_transaction(request(req, request_id))
+            .await
+            .map_err(|s| classify("ledger", s))?
+            .into_inner();
         Uuid::parse_str(&tx.transaction_id).map_err(|e| DependencyError::Misconfigured {
             dep: "ledger",
             message: format!("transaction_id: {e}"),
@@ -412,7 +485,7 @@ impl Clients {
         if let Ok(cache) = self.flags.lock() {
             if let Some((f, at)) = cache.get(&tenant_id) {
                 if at.elapsed() < FLAGS_TTL {
-                    return Ok(*f);
+                    return Ok(f.clone());
                 }
             }
         }
@@ -421,7 +494,11 @@ impl Clients {
             .clone()
             .evaluate_flags(request(
                 infra::EvaluateFlagsRequest {
-                    keys: vec![FLAG_PAYMENTS.into(), FLAG_WALLET_REAL_MONEY.into()],
+                    keys: [FLAG_PAYMENTS, FLAG_WALLET_REAL_MONEY]
+                        .into_iter()
+                        .chain(crate::rails::EXTERNAL_RAILS.iter().map(|r| r.flag))
+                        .map(str::to_string)
+                        .collect(),
                     context: Some(infra::FlagContext {
                         tenant_id: tenant_id.to_string(),
                         ..Default::default()
@@ -439,9 +516,18 @@ impl Clients {
                 .get(FLAG_WALLET_REAL_MONEY)
                 .copied()
                 .unwrap_or(false),
+            rails: crate::rails::EXTERNAL_RAILS
+                .iter()
+                .map(|r| {
+                    (
+                        r.flag.to_string(),
+                        resp.values.get(r.flag).copied().unwrap_or(false),
+                    )
+                })
+                .collect(),
         };
         if let Ok(mut cache) = self.flags.lock() {
-            cache.insert(tenant_id, (f, Instant::now()));
+            cache.insert(tenant_id, (f.clone(), Instant::now()));
         }
         Ok(f)
     }

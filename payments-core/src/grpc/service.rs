@@ -583,11 +583,29 @@ impl Payments for PaymentsService {
         Err(unimplemented("F11.8"))
     }
 
+    #[tracing::instrument(skip_all, fields(rpc = "ResolveUnknownPayment"))]
     async fn resolve_unknown_payment(
         &self,
-        _: Request<pb::ResolveUnknownPaymentRequest>,
+        request: Request<pb::ResolveUnknownPaymentRequest>,
     ) -> R<pb::Payment> {
-        Err(unimplemented("F11.7"))
+        let a = actor(request.metadata());
+        let req = request.into_inner();
+        let resolution = i16::try_from(req.resolution)
+            .ok()
+            .and_then(crate::domain::state::PaymentStatus::from_code)
+            .ok_or_else(|| {
+                status(
+                    tonic::Code::InvalidArgument,
+                    "INVALID_STATE_TRANSITION",
+                    "resolución inválida",
+                )
+            })?;
+        let p = self
+            .core
+            .resolve_unknown(&a, uuid(&req.payment_id)?, resolution, &req.evidence)
+            .await
+            .map_err(|e| to_status(e, "ResolveUnknownPayment", &a.request_id))?;
+        Ok(Response::new(payment_pb(&p)))
     }
 
     async fn post_memo_entry(&self, _: Request<pb::PostMemoEntryRequest>) -> R<pb::MemoEntry> {

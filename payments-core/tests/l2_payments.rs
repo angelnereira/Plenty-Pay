@@ -1477,3 +1477,329 @@ async fn r5_step_up_token_from_metadata_is_consumed() {
     let err = e.svc.create_payment_intent(req).await.unwrap_err();
     assert_eq!(reason(&err), "STEP_UP_INVALID");
 }
+
+// ── F11.7: rieles externos sandbox, recargas (T1), cobros externos (T2) y UNKNOWN ───────────────
+
+const YAPPY: i32 = 2;
+
+fn topup_req(amount: i64, rail: i32) -> pb::CreatePaymentIntentRequest {
+    pb::CreatePaymentIntentRequest {
+        idempotency_key: key(),
+        amount: usd(amount),
+        rail,
+        reference: Some(pb::Reference {
+            r#type: "topup".into(),
+            id: String::new(),
+        }),
+        ..Default::default()
+    }
+}
+
+fn topper<M>(msg: M, user: Uuid) -> Request<M> {
+    with_md(
+        msg,
+        "api-gateway",
+        Some(user),
+        None,
+        "wallet:topup,wallet:read,wallet:pay",
+    )
+}
+
+/// Crea y confirma una recarga; devuelve el intent tras confirmar.
+async fn topup(e: &Env, user: Uuid, amount: i64) -> pb::PaymentIntent {
+    let i = e
+        .svc
+        .create_payment_intent(topper(topup_req(amount, YAPPY), user))
+        .await
+        .unwrap()
+        .into_inner();
+    e.svc
+        .confirm_payment_intent(topper(
+            pb::ConfirmPaymentIntentRequest {
+                payment_intent_id: i.payment_intent_id,
+                idempotency_key: key(),
+                ..Default::default()
+            },
+            user,
+        ))
+        .await
+        .unwrap()
+        .into_inner()
+}
+
+async fn due_now(e: &Env, payment_id: &str) {
+    let mut tx = e.pool.begin().await.unwrap();
+    sqlx::query("SELECT set_config('app.actor', 'service', true)")
+        .execute(tx.as_mut())
+        .await
+        .unwrap();
+    sqlx::query("UPDATE payments.payments SET next_check_at = now() - interval '1 second' WHERE id = $1::uuid")
+        .bind(payment_id)
+        .execute(tx.as_mut())
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+}
+
+/// R10/T1: la recarga aprobada por el riel acredita la wallet una sola vez (asiento `topup:<id>`).
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_7_topup_credits_the_wallet_exactly_once() {
+    let e = env().await;
+    let u = Uuid::new_v4();
+    let done = topup(&e, u, 5_000).await;
+    assert_eq!(done.status, CAPTURED);
+    assert!(done.sandbox, "R13: riel sin credenciales = sandbox");
+    assert_eq!(
+        balance(&e, &u.to_string(), T::Wallet).await.posted_minor,
+        5_000
+    );
+    e.core.post_pending().await.unwrap();
+    assert_eq!(ledger_txs_for(&e, &done.payment_id).await, 1);
+    let p = e
+        .store
+        .payment(
+            &plentypay_payments_core::store::Scope::service(),
+            Uuid::parse_str(&done.payment_id).unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(p.ledger_posting, 2, "LedgerPostingStatus POSTED");
+    assert_eq!(
+        service_count(&e.pool, "SELECT count(*) FROM payments.outbox WHERE aggregate_id = $1 AND event_type = 'pp.payments.payment.captured.v1'", &done.payment_id).await,
+        1
+    );
+}
+
+/// SPEC §12 prueba de aceptación 2: el riel no responde → UNKNOWN (sin saldo); el job consulta,
+/// lo resuelve a CAPTURED y se asienta una sola vez.
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_7_acceptance_2_rail_timeout_unknown_then_captured_once() {
+    let e = env().await;
+    let u = Uuid::new_v4();
+    let i = topup(&e, u, 1_013).await;
+    assert_eq!(i.status, UNKNOWN);
+    assert_eq!(balance(&e, &u.to_string(), T::Wallet).await.posted_minor, 0);
+    due_now(&e, &i.payment_id).await;
+    e.core.resume_external_payments().await.unwrap();
+    e.core.post_pending().await.unwrap();
+    e.core.resume_external_payments().await.unwrap();
+    let after = e
+        .svc
+        .get_payment_intent(topper(
+            pb::GetPaymentIntentRequest {
+                payment_intent_id: i.payment_intent_id,
+            },
+            u,
+        ))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(after.status, CAPTURED);
+    assert_eq!(
+        balance(&e, &u.to_string(), T::Wallet).await.posted_minor,
+        1_013
+    );
+    assert_eq!(ledger_txs_for(&e, &i.payment_id).await, 1);
+}
+
+/// R7: un rechazo del riel es FAILED sin asiento; un riel sin flag está deshabilitado (R17).
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn r17_declined_and_disabled_rails() {
+    let e = env().await;
+    let u = Uuid::new_v4();
+    let i = topup(&e, u, 1_066).await;
+    assert_eq!(i.status, FAILED);
+    assert_eq!(ledger_txs_for(&e, &i.payment_id).await, 0);
+    let err = e
+        .svc
+        .create_payment_intent(topper(topup_req(1_000, 4), u))
+        .await
+        .unwrap_err();
+    assert_eq!(
+        reason(&err),
+        "RAIL_DISABLED",
+        "CARD no tiene flag hasta tener PSP"
+    );
+    let err = e
+        .svc
+        .create_payment_intent(topper(topup_req(1_000, 1), u))
+        .await
+        .unwrap_err();
+    assert_eq!(
+        reason(&err),
+        "INVALID_REFERENCE",
+        "una recarga no sale de la wallet"
+    );
+    let err = e
+        .svc
+        .create_payment_intent(person(topup_req(1_000, YAPPY), u))
+        .await
+        .unwrap_err();
+    assert_eq!(
+        reason(&err),
+        "PERMISSION_DENIED",
+        "recargar exige wallet:topup"
+    );
+}
+
+/// T2: cobro a un comercio por riel externo: MERCHANT_PAYABLE + neto, comisión e ITBMS, asiento
+/// `PAYMENT_CAPTURE` único; la recarga y el cobro aparecen en el extracto como movimientos reales.
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_7_external_rail_payment_posts_t2() {
+    let e = env().await;
+    let m = active_merchant(&e).await;
+    // Política del comercio para el riel (la de active_merchant es solo de WALLET).
+    e.svc
+        .upsert_fee_policy(platform(pb::UpsertFeePolicyRequest {
+            policy: Some(pb::FeePolicy {
+                tenant_id: m.to_string(),
+                rail: YAPPY,
+                percentage_bps: 250,
+                tax_rate_bps: 700,
+                bearer: 1,
+                active: true,
+                effective_from: Some(prost_types::Timestamp {
+                    seconds: 0,
+                    nanos: 0,
+                }),
+                ..Default::default()
+            }),
+            idempotency_key: key(),
+        }))
+        .await
+        .unwrap();
+    let code = terminal(&e, m).await.public_code;
+    let a = Uuid::new_v4();
+    let mut req = intent_req(&code, 2_500);
+    req.rail = YAPPY;
+    let i = e
+        .svc
+        .create_payment_intent(person(req, a))
+        .await
+        .unwrap()
+        .into_inner();
+    assert!(i.sandbox);
+    let done = confirm(&e, a, &i.payment_intent_id, &key()).await.unwrap();
+    assert_eq!(done.status, CAPTURED);
+    assert_eq!(
+        balance(&e, &m.to_string(), T::MerchantPayable)
+            .await
+            .posted_minor,
+        2_433
+    );
+    assert_eq!(ledger_txs_for(&e, &done.payment_id).await, 1);
+    assert_eq!(
+        balance(&e, &a.to_string(), T::Wallet).await.posted_minor,
+        0,
+        "no sale de la wallet"
+    );
+}
+
+/// domain-model §6.3 paso 5: resolución manual con evidencia, solo plataforma.
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_7_resolve_unknown_requires_evidence_and_platform() {
+    let e = env().await;
+    let u = Uuid::new_v4();
+    let i = topup(&e, u, 2_099).await;
+    assert_eq!(i.status, UNKNOWN);
+    let resolve = |evidence: &str, perms: &str| {
+        with_md(
+            pb::ResolveUnknownPaymentRequest {
+                payment_id: i.payment_id.clone(),
+                resolution: CAPTURED,
+                evidence: evidence.into(),
+                idempotency_key: key(),
+            },
+            "api-gateway",
+            Some(Uuid::new_v4()),
+            None,
+            perms,
+        )
+    };
+    let err = e
+        .svc
+        .resolve_unknown_payment(resolve("", "platform:reconcile"))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&err), "EVIDENCE_REQUIRED");
+    let err = e
+        .svc
+        .resolve_unknown_payment(resolve("extracto 2026-10-20 línea 4", "payments:read"))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&err), "PERMISSION_DENIED");
+    let p = e
+        .svc
+        .resolve_unknown_payment(resolve("extracto 2026-10-20 línea 4", "platform:reconcile"))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(p.status, CAPTURED);
+    assert_eq!(
+        balance(&e, &u.to_string(), T::Wallet).await.posted_minor,
+        2_099
+    );
+    assert_eq!(ledger_txs_for(&e, &i.payment_id).await, 1);
+}
+
+/// La cadena completa del dinero: recargar acredita, pagar debita y ambos quedan en el extracto
+/// de la persona; el comercio ve el cobro en su lista y en su saldo por liquidar.
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn chain_topup_then_pay_is_consistent_everywhere() {
+    let e = env().await;
+    let m = active_merchant(&e).await;
+    let code = terminal(&e, m).await.public_code;
+    let u = Uuid::new_v4();
+    assert_eq!(topup(&e, u, 3_000).await.status, CAPTURED);
+    let i = pay_intent(&e, u, &code, 1_000).await;
+    let paid = confirm(&e, u, &i.payment_intent_id, &key()).await.unwrap();
+    assert_eq!(paid.status, CAPTURED);
+    let stmt = e
+        .ledger
+        .clone()
+        .get_statement(as_payments(pb::ledger::GetStatementRequest {
+            account: Some(account(&u.to_string(), T::Wallet)),
+            range: Some(pb::TimeRange {
+                from: Some(prost_types::Timestamp {
+                    seconds: chrono::Utc::now().timestamp() - 3_600,
+                    nanos: 0,
+                }),
+                to: None,
+            }),
+            page: None,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    let kinds: Vec<_> = stmt
+        .lines
+        .iter()
+        .map(|l| l.transaction_type.as_str())
+        .collect();
+    assert_eq!(kinds, vec!["WALLET_TOPUP", "WALLET_PAYMENT"]);
+    assert_eq!(stmt.closing_balance_minor, 2_000);
+    assert_eq!(
+        balance(&e, &m.to_string(), T::MerchantPayable)
+            .await
+            .posted_minor,
+        973
+    );
+    let listed = e
+        .svc
+        .list_payments(merchant(
+            pb::ListPaymentsRequest::default(),
+            Uuid::new_v4(),
+            m,
+            "payments:read",
+        ))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(listed.payments.len(), 1);
+}

@@ -15,22 +15,19 @@
 | Fase | F11 (wallet + sandbox), F23 (rieles reales según credenciales), F28 (certificaciones) |
 | Capa | L3 |
 
-**Estado** (2026-10-20): 📝 F11.3 L2 ✅. Reescrito según `rust-standards.md` §3. Hechos:
-- dominio: comisiones con vectores A–E y R1–R3, máquinas de estado §8.1/§8.2;
-- migración con RLS y sin DELETE;
-- intents y pagos wallet con hold y captura T3;
-- outbox y relay;
-- proyección de `TenantStatusChanged`;
-- terminales;
-- políticas de comisión;
-- jobs R7/R9 y R14.
+**Estado** (2026-10-20): 📝, desplegado en producción. Hechos:
+- dominio y migraciones (0001, 0002);
+- wallet T3 (F11.3);
+- outbox, relay y worker de asiento R8 (F11.4);
+- terminales (F11.5);
+- rieles externos sandbox, recargas T1, cobros T2, job UNKNOWN y ResolveUnknownPayment (F11.7).
 
-Evidencia: `./payments-core/test/test_l2.sh` contra ledger, identity e infra-management efímeros (26 L2, 18 unitarias, 15 vectores). Pendiente:
-- rutas del gateway y despliegue (L4 de F11.3);
+Evidencia: `./payments-core/test/test_l2.sh` (32 L2, 21 unitarias, 15 vectores) y el recorrido en producción por el gateway de `docs/roadmap/status.md` (F11.3, F11.7). Pendiente:
 - reembolsos (F11.6);
-- rieles externos sandbox y UNKNOWN de riel (F11.7);
 - webhooks (F11.8);
-- `PostMemoEntry` (F17).
+- P2P (T4);
+- `PostMemoEntry` (F17);
+- trazas OTel y alertas.
 
 ## 3. Modelo de datos
 ```sql
@@ -115,7 +112,7 @@ Diferencias de la migración `0001_initial.sql` con el modelo de arriba, decidid
 | QuoteFees | cualquiera que pueda cobrar/pagar | — | aplica §4 sin persistir | `FEE_POLICY_MISSING` |
 | UpsertFeePolicy / ListFeePolicies | `platform:flags:manage` / `payments:fees:read` | sí | nunca editar una política: se crea una nueva con `effective_from`. Política del riel WALLET: la comisión de riel se ignora, porque T3 no tiene línea RAIL | `INVALID_FEE_POLICY`, `IDEMPOTENCY_KEY_REUSED` |
 | HandleRailWebhook | solo api-gateway | por `provider_event_id` | verifica firma del riel, deduplica, actualiza attempt/payment o marca discrepancia | `SIGNATURE_INVALID` (→ 401) |
-| ResolveUnknownPayment | `platform:reconcile` | sí | resolución manual con evidencia obligatoria (§6.3 domain-model) | `INVALID_STATE_TRANSITION`, `EVIDENCE_REQUIRED` |
+| ResolveUnknownPayment | `platform:reconcile` | sí | resolución manual con evidencia obligatoria (§6.3 domain-model); solo rieles externos (§6.1) | `INVALID_STATE_TRANSITION`, `EVIDENCE_REQUIRED`, `PERMISSION_DENIED`, `NOT_FOUND` |
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-AML-01, N-AML-03, N-AML-05, N-AML-06, N-AML-12, N-PAG-01, N-PAG-03, N-PAG-06 y N-CON-01. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
@@ -160,6 +157,31 @@ pub trait RailAdapter: Send + Sync {
 }
 ```
 `RailError::Ambiguous` ⇒ UNKNOWN; `RailError::Definitive` ⇒ FAILED. Cada adaptador tiene su doble `Sandbox<Rail>` con el mismo trait. Estado de especificaciones: WALLET (interno, F11), Yappy y TELERED (especificación privada del proveedor — **Q-02 BLOQUEANTE** para producción), tarjeta/Apple Pay/Google Pay vía PSP (**Q-03**), QR interoperable (Q-05).
+
+### 6.1 Sandbox (F11.7, R13)
+Ningún riel tiene credenciales en security: Yappy (`rail.yappy.enabled`) y Clave (`rail.ach.enabled`) corren con `SandboxRail`. Tarjeta, Apple Pay, Google Pay y QR interoperable no tienen flag sembrada y responden `RAIL_DISABLED` hasta tener PSP (N-PAG-01, Q-03, Q-05).
+
+El sandbox es determinista por los centavos del monto, para recorrer cada camino:
+
+| Centavos | Inicio | Consulta | Resultado |
+|---|---|---|---|
+| `.13` | ambiguo (timeout) | aprobado | CAPTURED |
+| `.66` | rechazado (`SANDBOX_DECLINED`) | — | FAILED |
+| `.99` | ambiguo (timeout) | rechazado | FAILED |
+| cualquier otro | aprobado | — | CAPTURED |
+
+Todo pago externo nace con `sandbox=true`.
+
+Flujo de una captura externa:
+1. En una transacción: CAPTURED, `ledger_posting=PENDING` y outbox `PaymentCaptured`.
+2. El worker (cada 2 s, y en el mismo pedido de Confirm) pide al ledger T1 `WALLET_TOPUP` con clave `topup:<payment_id>`, o T2 `PAYMENT_CAPTURE` con `pay:<payment_id>`, y marca POSTED.
+3. Si el ledger rechaza el asiento: `ledger_posting=FAILED` y log de error (alerta crítica). Si no responde: reintenta en la siguiente vuelta.
+
+Pagos externos UNKNOWN o PROCESSING a medias: el job `resume_external` (cada 10 s) toma el turno y consulta al riel, con el backoff de domain-model §6.3.
+
+**Recargas (R10)**: intent con `reference.type=topup`. La referencia la fija la ruta `POST /v1/wallet/topups`. El dueño contable es PLATFORM y el único split es la propia persona. Exige `wallet:topup`. No lleva comisión (T1 no tiene líneas de comisión) ni step-up: es dinero que entra; N-AML-05 se revisa aparte. No puede usar el riel WALLET (`INVALID_REFERENCE`).
+
+**ResolveUnknownPayment**: exige `platform:reconcile` y evidencia (`EVIDENCE_REQUIRED`). Solo pagos UNKNOWN por riel externo; un pago de wallet lo resuelve el job contra el ledger. Guarda `resolution_evidence` y `resolved_by`.
 
 ## 7. Eventos
 Publica: `PaymentCaptured`, `PaymentFailed`, `PaymentUnknown`, `RefundSucceeded`, `AuditRecorded` (reembolsos, resoluciones, políticas). Consume: `pp.identity.tenant.status_changed.v1` (proyección), `pp.ledger.hold.status_changed.v1` (hold expirado → intent EXPIRED si seguía esperando).

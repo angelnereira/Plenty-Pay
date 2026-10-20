@@ -320,6 +320,16 @@ var Table = []Route{
 		NewResponse: func() proto.Message { return &pb.GetStatementResponse{} },
 	},
 
+	{
+		// R10/T1: la recarga es un intent con referencia `topup` que fija el gateway (el cliente no
+		// puede convertir un cobro en recarga ni al revés); se confirma con /confirm.
+		Method: "POST", Path: "/v1/wallet/topups", RPC: "/plentypay.payments.v1.Payments/CreatePaymentIntent",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, Permission: "wallet:topup",
+		Defaults:    map[string]string{"reference.type": "topup", "reference.id": "", "terminal_code": ""},
+		NewRequest:  func() proto.Message { return &pb.CreatePaymentIntentRequest{} },
+		NewResponse: func() proto.Message { return &pb.PaymentIntent{} },
+	},
+
 	// ── Cobros (F11.3). payments-core revisa `wallet:pay` / `payments:charge` (SPEC §4) ──────
 	{
 		Method: "POST", Path: "/v1/payments/intents", RPC: "/plentypay.payments.v1.Payments/CreatePaymentIntent",
@@ -382,6 +392,15 @@ var Table = []Route{
 		PathParams:  map[string]string{"public_code": "public_code"},
 		NewRequest:  func() proto.Message { return &pb.ResolveTerminalRequest{} },
 		NewResponse: func() proto.Message { return &pb.PublicTerminalInfo{} },
+	},
+
+	{
+		// domain-model §6.3 paso 5: resolución manual de UNKNOWN con evidencia.
+		Method: "POST", Path: "/v1/platform/payments/{payment_id}/resolve", RPC: "/plentypay.payments.v1.Payments/ResolveUnknownPayment",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, Permission: "platform:reconcile",
+		PathParams:  map[string]string{"payment_id": "payment_id"},
+		NewRequest:  func() proto.Message { return &pb.ResolveUnknownPaymentRequest{} },
+		NewResponse: func() proto.Message { return &pb.Payment{} },
 	},
 
 	// ── Terminales de cobro (F11.5) ───────────────────────────────────────────

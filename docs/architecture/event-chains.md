@@ -5,19 +5,35 @@ eventos (outbox → NATS, consumidores idempotentes, ADR 0012). Este documento c
 los SPEC y `docs/standards/events-and-messaging.md` §7 con lo que **existe y corre en producción**,
 para que ningún paso quede como simulación. Se actualiza en el mismo cambio que cierre un eslabón.
 
-## 1. Estado de los contenedores en la máquina de producción
+## 1. Estado de los contenedores en la máquina de producción (2026-10-20, tarde)
 
 | Contenedor | Código | Desplegado | Nota |
 |---|---|---|---|
-| identity, security, infra-management, api-gateway, web | sí | sí | identity con el modelo de acceso (ADR 0018) desde 2026-10-19 |
-| ledger (Rust, ~4 900 líneas), payments-core (Rust, ~10 300) | parcial | **no** (sin servicio en `docker-compose.yml`) | F10/F11 en curso |
-| settlement, fiscal-invoicing, payroll, notifications, analytics-bi | parcial (≤ 1 500 líneas) | no | — |
-| catalog, inventory, orders, pos, logistics, geolocation | esqueleto (~150 líneas) | no | F14–F18 |
+| identity, security, infra-management, api-gateway, web, event-bus | sí | sí | identity con el modelo de acceso (ADR 0018) |
+| ledger | sí (F10) | **sí** desde 2026-10-20 | relay a `PP_LEDGER` publicando; I7 = 0 verificado en producción |
+| payments-core | sí (F11.1–F11.7) | **sí** desde 2026-10-20 | wallet (T3), recargas sandbox (T1), cobros por riel sandbox (T2), UNKNOWN; relay a `PP_PAYMENTS`; proyección de `TenantStatusChanged` |
+| settlement, fiscal-invoicing, payroll, notifications, analytics-bi | parcial | no | — |
+| catalog, inventory, orders, pos, logistics, geolocation | esqueleto | no | F14–F18 |
 
-Consecuencia: en la app solo funcionan contra el servidor cuenta, registro, negocio, equipo, roles,
-módulos y revisión de negocios. El resto de módulos muestra estados vacíos o **datos fijos de
-demostración** (34 pantallas con datos literales; ver §4). Ninguna cadena de comercio (venta,
-compra, inventario, cobro) ocurre todavía en producción.
+## 1.1 Reglas de atomicidad (aplican a todo contenedor que mueve dinero, stock o estado)
+
+1. **Un hecho, una transacción local.** El cambio de estado y su fila de outbox se escriben en la
+   MISMA transacción de base de datos. Si falla una, no ocurre ninguna. Nunca hay escritura doble a
+   la base y al bus (ADR 0012).
+2. **Ninguna transacción de base abarca una llamada a otro servicio o a un riel** (payments-core R6):
+   se persiste el estado intermedio, se llama y se persiste el resultado. Un estado intermedio tiene
+   dueño (turno con `next_check_at`) y un job que lo retoma.
+3. **Exactamente una vez entre servicios por clave determinista**, no por suerte: `hold:<payment_id>`,
+   `pay:<payment_id>`, `topup:<payment_id>`, `refund:<refund_id>` (domain-model §5.2). El ledger
+   devuelve el asiento original si la clave ya existe con el mismo contenido.
+4. **Consumidores idempotentes**: registran `event_id` en `processed_events` en la misma transacción
+   que su efecto, y confirman (ack) solo después. Un evento duplicado no tiene efecto.
+5. **Lo ambiguo no se adivina**: una respuesta ambigua es UNKNOWN y se resuelve consultando la
+   fuente (riel o ledger), con backoff, o a mano con evidencia (domain-model §6.3).
+6. **Nada se borra para corregir**: reverso, nota de crédito o evento de corrección. La base lo
+   impide (sin DELETE para los roles de servicio; triggers de inmutabilidad).
+7. **Una cadena se da por cerrada solo con una prueba que la recorra**: L2 con servicios reales y
+   efímeros, y la evidencia en producción en `docs/roadmap/status.md`.
 
 ## 2. Cadenas definidas por los SPEC
 
@@ -26,11 +42,13 @@ compra, inventario, cobro) ocurre todavía en producción.
 | Venta de caja (pos.CompleteSale) | catalog (precio) → payments-core (cobro) → inventory.AdjustStock SALE (si cae: movimiento diferido en outbox de pos) | `pos.sale.paid` → analytics-bi, notifications; fiscal-invoicing emite la factura | no existe |
 | Devolución de caja | payments.RefundPayment o salida de caja → inventory RETURN → nota de crédito | `pos.sale.refunded` → analytics-bi | no existe |
 | Pedido del mercado (orders.Checkout) | catalog → inventory.ReserveStock (TTL) → payments-core.CreatePaymentIntent con splits | `payments.payment.captured` → orders (Commit de reservas), pos, notifications, analytics-bi; `orders.order.paid` → notifications, analytics-bi | no existe |
-| Pago con billetera / compra | payments-core → ledger.CreateHold/CaptureHold/PostTransaction (asiento balanceado, saldo) | `ledger.transaction.posted` → settlement, analytics-bi; `payments.payment.captured` → orders/pos | código parcial, no desplegado |
+| Pago con billetera / compra | payments-core → ledger.CreateHold + CaptureHold (T3, hold y asiento en una transacción del ledger) | `ledger.transaction.posted` y `ledger.hold.status_changed` → settlement, analytics-bi; `payments.payment.captured` → orders, pos, notifications | **en producción (2026-10-20)**. Saldo del pagador −, `MERCHANT_PAYABLE` +, comisión e ITBMS a plataforma, extracto de los dos lados, lista de cobros del comercio. Consumidores aún no desplegados; realtime `payment.status` pendiente (F20/F23.4: la app consulta el intent) |
+| Recarga de wallet (T1) | payments-core → riel (sandbox) → captura local + outbox → worker → ledger.PostTransaction `topup:<id>` | `payments.payment.captured`, `ledger.transaction.posted` | **en producción (2026-10-20)**. Riel ambiguo → UNKNOWN → job de consulta → CAPTURED, un solo asiento |
+| Cobro por riel externo (T2) | payments-core → riel (sandbox) → captura + outbox → worker → ledger `pay:<id>` (RAIL_RECEIVABLE, neto, comisión, ITBMS, comisión del riel) | ídem | en producción (sandbox) |
 | Producto creado o editado | — | `catalog.product.changed` → orders (instantáneas), analytics-bi | no existe |
 | Movimiento de stock | — | `inventory.stock.changed` → catalog (`in_stock`, ≤ 30 s); `inventory.stock.low` → notifications | no existe |
 | Alta/cambio de capacidades, sucursales, roles, membresías | identity (transacción + outbox) | `identity.capabilities.changed` → gateway, pos, catalog, inventory, logistics, payroll; `identity.branch.changed` → pos, fiscal, catalog, inventory, logistics, analytics; `identity.membership.changed` → gateway, payroll | **publicados**; sin consumidores desplegados |
-| Revisión de negocio | identity | `identity.tenant.status_changed` → payments-core, catalog, notifications | publicado; sin consumidores |
+| Revisión de negocio | identity | `identity.tenant.status_changed` → payments-core (proyección R2, durable, ack acotado), catalog, notifications | **payments-core consume en producción** (2026-10-20); catalog y notifications pendientes |
 
 ## 3. Huecos de diseño encontrados (a corregir en los documentos antes del código, ADR 0010)
 
@@ -54,6 +72,11 @@ compra, inventario, cobro) ocurre todavía en producción.
    adopción, paso 5).
 
 ## 4. Datos de demostración en la app (no deben verse en producción)
+
+Actualización 2026-10-20: billetera, pagos, cobros y puntos de cobro usan datos reales; los módulos
+sin servicio ya no se abren. Quedan subpantallas de ejemplo dentro de Cuenta, Negocio y Plataforma
+(lista en `docs/roadmap/status.md`, F11).
+
 
 Pantallas con datos literales en el código (2026-10-20): analytics (4), Mi negocio S-ADM-04 a 07
 (4), finanzas (4), fiscal (2), inventario (2), logística (5), pedidos (1), nómina (4), plataforma

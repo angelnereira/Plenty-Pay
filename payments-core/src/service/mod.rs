@@ -10,21 +10,117 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::clients::{Clients, DependencyError, Leg, TENANT_ACTIVE};
+use crate::clients::{Clients, DependencyError, EntryLine, Leg, TENANT_ACTIVE};
 use crate::domain::errors::DomainError;
 use crate::domain::fees::{FeeBearer, FeeBreakdown, FeeTerms};
 use crate::domain::request;
+use crate::domain::state::PaymentStatus;
 use crate::observability::Metrics;
 use crate::pb::ledger::AccountType;
+use crate::rails;
 use crate::store::{
-    ConfirmStart, FeePolicyRow, FrozenFees, IntentRow, NewFeePolicy, NewIntent, PaymentFilter,
-    PaymentRow, PgPayments, Scope, SplitFees, SplitJson, StoreError, TerminalRow,
+    Capture, ConfirmStart, FeePolicyRow, FrozenFees, IntentRow, NewFeePolicy, NewIntent,
+    PaymentFilter, PaymentRow, PendingPosting, PgPayments, Scope, SplitFees, SplitJson, StoreError,
+    TerminalRow,
 };
 
 /// Party de la plataforma (domain-model §2): dueña de PLATFORM_FEES y TAX_PAYABLE.
 pub const PLATFORM_PARTY: &str = "00000000-0000-0000-0000-000000000001";
 /// Riel WALLET (`common.PaymentRail`).
 pub const RAIL_WALLET: i16 = 1;
+/// `common.Reference.type` de una recarga (domain-model §9, R10).
+pub const REF_TOPUP: &str = "topup";
+
+fn platform_party() -> Uuid {
+    Uuid::from_u128(1)
+}
+
+/// Σ total cobrado de los splits.
+pub fn total_charged(fees: &FrozenFees) -> Result<i64, DomainError> {
+    fees.splits
+        .iter()
+        .try_fold(0i64, |acc, s| acc.checked_add(s.total_charged_minor))
+        .ok_or(DomainError::Overflow)
+}
+
+/// T1 (domain-model §5.2): D RAIL_RECEIVABLE(PLATFORM, riel) g · C WALLET(u) g.
+pub fn topup_entries(rail: rails::RailSpec, payer: Uuid, amount_minor: i64) -> Vec<EntryLine> {
+    vec![
+        EntryLine {
+            party_id: PLATFORM_PARTY.into(),
+            account_type: AccountType::RailReceivable as i32,
+            scope_id: rail.name.into(),
+            debit: true,
+            amount_minor,
+        },
+        EntryLine {
+            party_id: payer.to_string(),
+            account_type: AccountType::Wallet as i32,
+            scope_id: String::new(),
+            debit: false,
+            amount_minor,
+        },
+    ]
+}
+
+/// T2 (domain-model §5.2): D RAIL_RECEIVABLE(riel) total · C MERCHANT_PAYABLE(m) neto por split ·
+/// C PLATFORM_FEES pf · C TAX_PAYABLE tax · C RAIL_FEES_PAYABLE(riel) rf. Las líneas en 0 se omiten.
+pub fn external_capture_entries(
+    rail: rails::RailSpec,
+    fees: &FrozenFees,
+) -> Result<Vec<EntryLine>, DomainError> {
+    let total = total_charged(fees)?;
+    let mut out = vec![EntryLine {
+        party_id: PLATFORM_PARTY.into(),
+        account_type: AccountType::RailReceivable as i32,
+        scope_id: rail.name.into(),
+        debit: true,
+        amount_minor: total,
+    }];
+    let (mut pf, mut tax, mut rf) = (0i64, 0i64, 0i64);
+    for s in &fees.splits {
+        if s.merchant_net_minor > 0 {
+            out.push(EntryLine {
+                party_id: s.merchant_party_id.to_string(),
+                account_type: AccountType::MerchantPayable as i32,
+                scope_id: String::new(),
+                debit: false,
+                amount_minor: s.merchant_net_minor,
+            });
+        }
+        pf = pf
+            .checked_add(s.platform_fee_minor)
+            .ok_or(DomainError::Overflow)?;
+        tax = tax.checked_add(s.tax_minor).ok_or(DomainError::Overflow)?;
+        rf = rf
+            .checked_add(s.rail_fee_minor)
+            .ok_or(DomainError::Overflow)?;
+    }
+    for (kind, amount, scope) in [
+        (AccountType::PlatformFees, pf, ""),
+        (AccountType::TaxPayable, tax, ""),
+        (AccountType::RailFeesPayable, rf, rail.name),
+    ] {
+        if amount > 0 {
+            out.push(EntryLine {
+                party_id: PLATFORM_PARTY.into(),
+                account_type: kind as i32,
+                scope_id: scope.into(),
+                debit: false,
+                amount_minor: amount,
+            });
+        }
+    }
+    let credits = out
+        .iter()
+        .filter(|e| !e.debit)
+        .try_fold(0i64, |acc, e| acc.checked_add(e.amount_minor))
+        .ok_or(DomainError::Overflow)?;
+    if credits != total {
+        return Err(DomainError::SplitsMismatch);
+    }
+    Ok(out)
+}
 /// Operaciones con que se pide el reto de step-up (security-standards §4).
 pub const STEP_UP_CREATE: &str = "payments.intent.create";
 pub const STEP_UP_CONFIRM: &str = "payments.intent.confirm";
@@ -60,6 +156,8 @@ pub enum Error {
     InvalidExpiration,
     #[error("invalid label")]
     InvalidLabel,
+    #[error("evidence required")]
+    EvidenceRequired,
 }
 
 /// Quién llama, desde los metadatos (ADR 0011): nunca del cuerpo.
@@ -388,13 +486,26 @@ impl PaymentsCore {
             return Err(DomainError::AmountOutOfRange.into());
         }
         request::metadata(cmd.metadata.iter().map(|(k, v)| (k.as_str(), v.as_str())))?;
-        request::reference(&cmd.reference_type, &cmd.reference_id)?;
+        let is_topup = cmd.reference_type == REF_TOPUP;
+        let intent_id = Uuid::now_v7();
+        // R10: la recarga se identifica por su propio intent.
+        let reference_id = if is_topup && cmd.reference_id.is_empty() {
+            intent_id.to_string()
+        } else {
+            cmd.reference_id.clone()
+        };
+        request::reference(&cmd.reference_type, &reference_id)?;
         for s in &cmd.splits {
             request::reference(&s.reference_type, &s.reference_id)?;
         }
-        // F11.3: solo WALLET. Los rieles externos llegan con su adaptador sandbox (F11.7).
-        if cmd.rail != RAIL_WALLET {
-            return Err(Error::RailDisabled);
+        // WALLET o un riel externo conocido (sandbox, F11.7). Una recarga nunca sale de la wallet.
+        let external = if cmd.rail == RAIL_WALLET {
+            None
+        } else {
+            Some(rails::external(cmd.rail).ok_or(Error::RailDisabled)?)
+        };
+        if is_topup && external.is_none() {
+            return Err(DomainError::InvalidReference.into());
         }
         let ttl = match i64::from(cmd.expires_in_seconds) {
             0 => i64::try_from(self.default_ttl.as_secs()).unwrap_or(900),
@@ -404,7 +515,14 @@ impl PaymentsCore {
 
         // Quién cobra y quién paga: el comercio de la terminal (paga la persona del contexto) o el
         // negocio del contexto (cobra; el pagador se fija al confirmar).
-        let (tenant_id, created_by, payer, terminal) = if !cmd.terminal_code.is_empty() {
+        let (tenant_id, created_by, payer, terminal) = if is_topup {
+            // R10/T1: la persona se recarga a sí misma; el dueño contable es la plataforma.
+            if !actor.has("wallet:topup") || !cmd.terminal_code.is_empty() {
+                return Err(Error::PermissionDenied);
+            }
+            let user = actor.user()?;
+            (platform_party(), user, Some(user), None)
+        } else if !cmd.terminal_code.is_empty() {
             if !actor.has("wallet:pay") {
                 return Err(Error::PermissionDenied);
             }
@@ -425,7 +543,17 @@ impl PaymentsCore {
             return Err(Error::PermissionDenied);
         };
 
-        let splits: Vec<SplitJson> = if cmd.splits.is_empty() {
+        let splits: Vec<SplitJson> = if is_topup {
+            if !cmd.splits.is_empty() {
+                return Err(DomainError::SplitsMismatch.into());
+            }
+            vec![SplitJson {
+                merchant_party_id: created_by,
+                amount_minor: cmd.amount_minor,
+                reference_type: String::new(),
+                reference_id: String::new(),
+            }]
+        } else if cmd.splits.is_empty() {
             vec![SplitJson {
                 merchant_party_id: tenant_id,
                 amount_minor: cmd.amount_minor,
@@ -464,17 +592,19 @@ impl PaymentsCore {
             return self.view(existing).await;
         }
 
-        for s in &splits {
-            self.require_active(&actor.request_id, s.merchant_party_id)
-                .await?;
+        if !is_topup {
+            for s in &splits {
+                self.require_active(&actor.request_id, s.merchant_party_id)
+                    .await?;
+            }
         }
         let flags = self.clients.flags(&actor.request_id, tenant_id).await?;
-        if !flags.payments_enabled {
+        if !flags.payments_enabled || external.is_some_and(|r| !flags.rail_enabled(r.flag)) {
             return Err(Error::RailDisabled);
         }
         let limits = self.clients.limits(&actor.request_id).await?;
         let now = Utc::now();
-        let fees = self.price(cmd.rail, &splits, now).await?;
+        let fees = self.fees_for(is_topup, cmd.rail, &splits, now).await?;
         let charged = fees
             .splits
             .iter()
@@ -483,7 +613,8 @@ impl PaymentsCore {
         if charged > limits.max_payment_minor {
             return Err(DomainError::AmountOutOfRange.into());
         }
-        if payer.is_some() && charged >= limits.step_up_threshold_minor {
+        // El step-up protege el dinero que sale; una recarga trae dinero (N-AML-05 se revisa aparte).
+        if payer.is_some() && !is_topup && charged >= limits.step_up_threshold_minor {
             let token = if cmd.step_up_token.is_empty() {
                 actor.step_up.as_str()
             } else {
@@ -496,7 +627,7 @@ impl PaymentsCore {
         let (row, hash) = self
             .store
             .insert_intent(NewIntent {
-                id: Uuid::now_v7(),
+                id: intent_id,
                 tenant_id,
                 created_by,
                 payer_party_id: payer,
@@ -505,10 +636,11 @@ impl PaymentsCore {
                 rail: cmd.rail,
                 terminal_id: terminal,
                 reference_type: cmd.reference_type,
-                reference_id: cmd.reference_id,
+                reference_id,
                 metadata: serde_json::to_value(&cmd.metadata).map_err(StoreError::from)?,
                 splits,
-                sandbox: !flags.wallet_real_money,
+                // R13: sin credenciales, todo riel externo es sandbox; la wallet, hasta N-AML-01.
+                sandbox: external.is_some() || !flags.wallet_real_money,
                 expires_at: now
                     .checked_add_signed(chrono::Duration::seconds(ttl))
                     .ok_or(DomainError::Overflow)?,
@@ -534,15 +666,20 @@ impl PaymentsCore {
         confirmation_data: &BTreeMap<String, String>,
     ) -> Result<IntentView, Error> {
         request::idempotency_key(idempotency_key)?;
-        if !actor.has("wallet:pay") {
-            return Err(Error::PermissionDenied);
-        }
         let payer = actor.user()?;
         let intent = match self.store.intent(&Scope::service(), intent_id).await {
             Ok(i) => i,
             Err(StoreError::NotFound) => return Err(Error::NotFound),
             Err(e) => return Err(e.into()),
         };
+        let is_topup = intent.reference_type == REF_TOPUP;
+        if !actor.has(if is_topup {
+            "wallet:topup"
+        } else {
+            "wallet:pay"
+        }) {
+            return Err(Error::PermissionDenied);
+        }
         if intent.payer_party_id.is_some_and(|p| p != payer) {
             return Err(Error::NotFound);
         }
@@ -557,36 +694,42 @@ impl PaymentsCore {
             // Reintento de la misma confirmación: se continúa si quedó a medias y nadie más la está
             // conduciendo; si otro la conduce, se devuelve el estado actual (PROCESSING/UNKNOWN).
             if !p.status.is_terminal() && self.store.claim(p.id).await? {
-                self.drive_wallet(&actor.request_id, p).await?;
+                self.drive(&actor.request_id, p, true).await?;
             }
             return self
                 .view(self.store.intent(&Scope::service(), intent_id).await?)
                 .await;
         }
-        if intent.rail != RAIL_WALLET {
-            return Err(Error::RailDisabled);
+        let external = if intent.rail == RAIL_WALLET {
+            None
+        } else {
+            Some(rails::external(intent.rail).ok_or(Error::RailDisabled)?)
+        };
+        if !is_topup {
+            for s in &intent.splits {
+                self.require_active(&actor.request_id, s.merchant_party_id)
+                    .await?;
+            }
         }
-        for s in &intent.splits {
-            self.require_active(&actor.request_id, s.merchant_party_id)
-                .await?;
-        }
-        if !self
+        let flags = self
             .clients
             .flags(&actor.request_id, intent.tenant_id)
-            .await?
-            .payments_enabled
-        {
+            .await?;
+        if !flags.payments_enabled || external.is_some_and(|r| !flags.rail_enabled(r.flag)) {
             return Err(Error::RailDisabled);
         }
         let limits = self.clients.limits(&actor.request_id).await?;
         let now = Utc::now();
-        let fees = self.price(intent.rail, &intent.splits, now).await?;
-        let (_, charged) = wallet_legs(&fees)?;
+        let fees = self
+            .fees_for(is_topup, intent.rail, &intent.splits, now)
+            .await?;
+        let charged = total_charged(&fees)?;
         if charged > limits.max_payment_minor {
             return Err(DomainError::AmountOutOfRange.into());
         }
         // Un cobro creado por el comercio no tenía pagador: la confirmación fuerte va aquí.
-        if intent.payer_party_id.is_none() && charged >= limits.step_up_threshold_minor {
+        if intent.payer_party_id.is_none() && !is_topup && charged >= limits.step_up_threshold_minor
+        {
             let token = confirmation_data
                 .get("step_up_token")
                 .map(String::as_str)
@@ -616,9 +759,222 @@ impl PaymentsCore {
             Err(StoreError::NotFound) => return Err(Error::NotFound),
             Err(e) => return Err(e.into()),
         };
-        self.drive_wallet(&actor.request_id, p).await?;
+        self.drive(&actor.request_id, p, false).await?;
         self.view(self.store.intent(&Scope::service(), intent_id).await?)
             .await
+    }
+
+    /// Lleva un pago a su estado final por su riel. `resume` = el pago ya había llegado al riel
+    /// (reintento o job): un riel externo se consulta en vez de iniciarse otra vez.
+    pub async fn drive(
+        &self,
+        request_id: &str,
+        p: PaymentRow,
+        resume: bool,
+    ) -> Result<PaymentRow, Error> {
+        if p.rail == RAIL_WALLET {
+            self.drive_wallet(request_id, p).await
+        } else {
+            self.drive_external(request_id, p, resume).await
+        }
+    }
+
+    /// F11.7: cobro por riel externo (sandbox, R13). Aprobado → CAPTURED con el asiento pendiente
+    /// para el worker (R8) e intento de asentarlo ya; rechazado → FAILED; ambiguo → UNKNOWN (R7).
+    /// Ninguna transacción de BD abarca la llamada al riel (R6).
+    #[tracing::instrument(skip_all, err, fields(pp.payment_id = %p.id))]
+    pub async fn drive_external(
+        &self,
+        request_id: &str,
+        p: PaymentRow,
+        resume: bool,
+    ) -> Result<PaymentRow, Error> {
+        if p.status.is_terminal() {
+            return Ok(p);
+        }
+        let spec = rails::external(p.rail).ok_or(Error::RailDisabled)?;
+        let key = format!("pay:{}", p.id);
+        let sandbox = rails::SandboxRail;
+        let (op, r) = if resume || p.status == PaymentStatus::Unknown {
+            ("query", sandbox.query(spec, &key, p.amount_minor))
+        } else {
+            ("start", sandbox.start(spec, &key, p.amount_minor))
+        };
+        self.metrics
+            .rail_requests
+            .with_label_values(&[
+                spec.name,
+                op,
+                match &r {
+                    Ok(rails::RailOutcome::Approved { .. }) => "ok",
+                    Ok(rails::RailOutcome::Declined { .. }) => "declined",
+                    Err(_) => "ambiguous",
+                },
+            ])
+            .inc();
+        match r {
+            Ok(rails::RailOutcome::Approved { external_ref }) => {
+                let (done, changed) = self
+                    .store
+                    .complete_capture(
+                        p.id,
+                        Capture {
+                            external_ref: Some(&external_ref),
+                            ..Default::default()
+                        },
+                    )
+                    .await?;
+                if changed {
+                    self.metrics
+                        .payments
+                        .with_label_values(&[spec.name, "CAPTURED"])
+                        .inc();
+                    self.metrics
+                        .amount_minor
+                        .with_label_values(&[spec.name, &done.currency])
+                        .inc_by(u64::try_from(done.captured_minor).unwrap_or(0));
+                    tracing::info!(pp.payment_id = %done.id, pp.rail = spec.name, "payment captured by rail");
+                }
+                // El asiento se intenta ya para que el saldo refleje el cobro al instante; si el
+                // ledger no responde, el worker lo reintenta (R8).
+                self.post_pending_payment(request_id, done.id).await?;
+                Ok(self.store.payment(&Scope::service(), done.id).await?)
+            }
+            Ok(rails::RailOutcome::Declined { code }) => {
+                let (out, changed) = self.store.fail_payment(p.id, &code).await?;
+                if changed {
+                    self.metrics
+                        .payments
+                        .with_label_values(&[spec.name, "FAILED"])
+                        .inc();
+                }
+                Ok(out)
+            }
+            Err(e) => {
+                let since = self.store.unknown_since(p.id).await?;
+                let out = self
+                    .store
+                    .mark_unknown(p.id, next_check(since, Utc::now()))
+                    .await?;
+                if since.is_none() {
+                    self.metrics
+                        .payments
+                        .with_label_values(&[spec.name, "UNKNOWN"])
+                        .inc();
+                }
+                tracing::warn!(pp.payment_id = %p.id, err = %e, "payment unknown: rail answer ambiguous");
+                Ok(out)
+            }
+        }
+    }
+
+    /// R10/R3: una recarga no lleva comisión (T1 no tiene líneas de comisión); un cobro se tarifa
+    /// con la política de cada comercio.
+    async fn fees_for(
+        &self,
+        is_topup: bool,
+        rail: i16,
+        splits: &[SplitJson],
+        at: DateTime<Utc>,
+    ) -> Result<FrozenFees, Error> {
+        if !is_topup {
+            return self.price(rail, splits, at).await;
+        }
+        Ok(FrozenFees {
+            fee_policy_id: Uuid::nil(),
+            splits: splits
+                .iter()
+                .map(|s| SplitFees {
+                    merchant_party_id: s.merchant_party_id,
+                    gross_minor: s.amount_minor,
+                    platform_fee_minor: 0,
+                    tax_minor: 0,
+                    rail_fee_minor: 0,
+                    merchant_net_minor: s.amount_minor,
+                    total_charged_minor: s.amount_minor,
+                })
+                .collect(),
+        })
+    }
+
+    /// R8: pide al ledger el asiento de un pago capturado por riel externo (T1 recarga, T2 cobro)
+    /// con su clave determinista; repetirlo no duplica nada. Devuelve si quedó POSTED.
+    pub async fn post_pending_payment(
+        &self,
+        request_id: &str,
+        payment_id: Uuid,
+    ) -> Result<bool, Error> {
+        let Some(pending) = self
+            .store
+            .posting_pending(500)
+            .await?
+            .into_iter()
+            .find(|p| p.payment.id == payment_id)
+        else {
+            return Ok(false);
+        };
+        self.post_one(request_id, &pending).await
+    }
+
+    async fn post_one(&self, request_id: &str, pending: &PendingPosting) -> Result<bool, Error> {
+        let p = &pending.payment;
+        let spec = rails::external(p.rail)
+            .ok_or(StoreError::Corrupt("posting for a non-external rail"))?;
+        let fees = p
+            .fees
+            .clone()
+            .ok_or(StoreError::Corrupt("payment without fees"))?;
+        let is_topup = pending.reference_type == REF_TOPUP;
+        let (key, ttype, tenant, entries) = if is_topup {
+            let payer = p
+                .payer_party_id
+                .ok_or(StoreError::Corrupt("topup without payer"))?;
+            (
+                format!("topup:{}", p.id),
+                "WALLET_TOPUP",
+                None,
+                topup_entries(spec, payer, p.amount_minor),
+            )
+        } else {
+            (
+                format!("pay:{}", p.id),
+                "PAYMENT_CAPTURE",
+                Some(p.tenant_id),
+                external_capture_entries(spec, &fees)?,
+            )
+        };
+        let pid = p.id.to_string();
+        match self
+            .clients
+            .post_transaction(
+                request_id,
+                &key,
+                tenant,
+                ttype,
+                ("payment", &pid),
+                &p.currency,
+                &entries,
+            )
+            .await
+        {
+            Ok(txid) => {
+                if self.store.mark_posted(p.id, txid).await? {
+                    tracing::info!(pp.payment_id = %p.id, pp.ledger_transaction_id = %txid, pp.transaction_type = ttype, "payment posted to ledger");
+                }
+                Ok(true)
+            }
+            Err(e) if e.is_ambiguous() => {
+                self.store.note_posting_error(p.id, &e.to_string()).await?;
+                tracing::warn!(pp.payment_id = %p.id, err = %e, "ledger posting deferred");
+                Ok(false)
+            }
+            Err(e) => {
+                // Un asiento rechazado es un defecto: el pago quedó cobrado sin reflejo contable.
+                self.store.mark_posting_failed(p.id, e.reason()).await?;
+                tracing::error!(pp.payment_id = %p.id, error.type = "ledger_posting", err = %e, "ledger posting failed");
+                Ok(false)
+            }
+        }
     }
 
     /// R9: retiene en la wallet del pagador y captura con el asiento T3 en una sola llamada al
@@ -671,7 +1027,16 @@ impl PaymentsCore {
         self.count_rail(rail, "capture_hold", &r);
         match r {
             Ok(txid) => {
-                let (done, changed) = self.store.complete_capture(p.id, txid).await?;
+                let (done, changed) = self
+                    .store
+                    .complete_capture(
+                        p.id,
+                        Capture {
+                            ledger_transaction_id: Some(txid),
+                            ..Default::default()
+                        },
+                    )
+                    .await?;
                 if changed {
                     self.metrics
                         .payments
@@ -828,6 +1193,94 @@ impl PaymentsCore {
             }
         }
         Ok(resolved)
+    }
+
+    /// R8 (F11.4): asienta los pagos capturados por riel externo que aún no tienen asiento.
+    /// Devuelve cuántos quedaron POSTED.
+    pub async fn post_pending(&self) -> Result<usize, Error> {
+        let mut posted = 0usize;
+        for p in self.store.posting_pending(50).await? {
+            if self.post_one("job:post_pending", &p).await? {
+                posted = posted.saturating_add(1);
+            }
+        }
+        Ok(posted)
+    }
+
+    /// R7 (F11.7): consulta al riel los pagos externos UNKNOWN o a medio camino cuyo turno venció.
+    pub async fn resume_external_payments(&self) -> Result<usize, Error> {
+        let mut resolved = 0usize;
+        for p in self.store.due_external_payments(50).await? {
+            let id = p.id;
+            if !self.store.claim(id).await? {
+                continue;
+            }
+            match self.drive_external("job:resume_external", p, true).await {
+                Ok(done) if done.status.is_terminal() => resolved = resolved.saturating_add(1),
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::error!(pp.payment_id = %id, err = %e, "external payment resume failed")
+                }
+            }
+        }
+        Ok(resolved)
+    }
+
+    /// ResolveUnknownPayment (domain-model §6.3 paso 5): plataforma fija el estado final de un pago
+    /// UNKNOWN por riel externo con evidencia obligatoria. CAPTURED deja el asiento al worker (R8).
+    /// Un pago de wallet no se resuelve a mano: el ledger es la fuente y el job lo resuelve.
+    pub async fn resolve_unknown(
+        &self,
+        actor: &Actor,
+        payment_id: Uuid,
+        resolution: PaymentStatus,
+        evidence: &str,
+    ) -> Result<PaymentRow, Error> {
+        if !actor.has("platform:reconcile") {
+            return Err(Error::PermissionDenied);
+        }
+        let user = actor.user()?;
+        let evidence = evidence.trim();
+        if evidence.is_empty() {
+            return Err(Error::EvidenceRequired);
+        }
+        let p = match self.store.payment(&Scope::service(), payment_id).await {
+            Ok(p) => p,
+            Err(StoreError::NotFound) => return Err(Error::NotFound),
+            Err(e) => return Err(e.into()),
+        };
+        if p.status == resolution {
+            return Ok(p);
+        }
+        if p.status != PaymentStatus::Unknown || p.rail == RAIL_WALLET {
+            return Err(DomainError::InvalidStateTransition.into());
+        }
+        let out = match resolution {
+            PaymentStatus::Captured => {
+                let (done, _) = self
+                    .store
+                    .complete_capture(
+                        p.id,
+                        Capture {
+                            resolution: Some((evidence, user)),
+                            ..Default::default()
+                        },
+                    )
+                    .await?;
+                self.post_pending_payment(&actor.request_id, done.id)
+                    .await?;
+                self.store.payment(&Scope::service(), done.id).await?
+            }
+            PaymentStatus::Failed => {
+                self.store
+                    .fail_payment_with(p.id, "RESOLVED_FAILED", Some((evidence, user)))
+                    .await?
+                    .0
+            }
+            _ => return Err(DomainError::InvalidStateTransition.into()),
+        };
+        tracing::info!(pp.payment_id = %p.id, resolution = resolution.name(), actor = %user, "unknown payment resolved manually");
+        Ok(out)
     }
 
     /// Actualiza los indicadores de pagos UNKNOWN y capturados sin asiento.

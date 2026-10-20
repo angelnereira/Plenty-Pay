@@ -8,5 +8,6 @@ pub mod events;
 pub mod grpc;
 pub mod observability;
 pub mod pb;
+pub mod rails;
 pub mod service;
 pub mod store;
