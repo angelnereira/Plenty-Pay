@@ -1,0 +1,9 @@
+[Unit]
+Description=PlentyPay: revisa la URL del túnel cada 2 minutos
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target

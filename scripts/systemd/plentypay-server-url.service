@@ -1,0 +1,10 @@
+# ADR 0019 §5. Instalar (usuario, no root):
+#   cp scripts/systemd/plentypay-server-url.* ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now plentypay-server-url.timer
+[Unit]
+Description=PlentyPay: publica la URL vigente del gateway en GitHub Pages
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Github-local-angelnereira/Plenty-Pay
+ExecStart=%h/Github-local-angelnereira/Plenty-Pay/scripts/publish-server-url.sh

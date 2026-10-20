@@ -51,7 +51,7 @@ Este repositorio **se gobierna por su documentación** (ADR 0010). Tu trabajo es
 El repositorio vive en el servidor que atiende a las apps instaladas. Por eso:
 - Nada de simulaciones ni datos de demostración en servicios o pantallas: un módulo sin servicio desplegado muestra su estado vacío.
 - Las pruebas L2/L3 corren contra recursos **efímeros** (p. ej. `identity/test/test_store_l2.sh` crea y borra su base); nunca contra la base `plentypay`, el stream de NATS de producción ni los contenedores en servicio.
-- Desplegar = `docker compose build <svc> && docker compose up -d --no-deps <svc>`. **Nunca** reiniciar el contenedor `tunnel`: su URL está incrustada en las apps instaladas y cambia al reiniciarse.
+- Desplegar = `docker compose build <svc> && docker compose up -d --no-deps <svc>`. **Nunca** reiniciar el contenedor `tunnel` sin necesidad: su URL cambia al reiniciarse. Desde ADR 0019 las apps la descubren en `server.json` de GitHub Pages (`scripts/publish-server-url.sh`, temporizador cada 2 min); si el túnel muere («Tunnel not found»), se reinicia y se publica la URL nueva.
 - Antes de modificar datos de producción, respaldo (`pg_dump`) fuera del repositorio.
 
 ## 4. Cómo crear un contenedor nuevo

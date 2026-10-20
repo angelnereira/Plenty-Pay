@@ -9,6 +9,7 @@ class SessionStore {
   static const _accessKey = 'pp_access_token';
   static const _refreshKey = 'pp_refresh_token';
   static const _customBaseUrlKey = 'pp_custom_base_url';
+  static const _discoveredBaseUrlKey = 'pp_discovered_base_url';
 
   Future<void> save(
       {required String accessToken, required String refreshToken}) async {
@@ -23,6 +24,12 @@ class SessionStore {
       _storage.write(key: _customBaseUrlKey, value: url);
   Future<String?> customBaseUrl() => _storage.read(key: _customBaseUrlKey);
   Future<void> clearCustomBaseUrl() => _storage.delete(key: _customBaseUrlKey);
+
+  /// Última URL del gateway obtenida por descubrimiento (ADR 0019 §2).
+  Future<void> saveDiscoveredBaseUrl(String url) =>
+      _storage.write(key: _discoveredBaseUrlKey, value: url);
+  Future<String?> discoveredBaseUrl() =>
+      _storage.read(key: _discoveredBaseUrlKey);
 
   Future<void> clear() async {
     await _storage.delete(key: _accessKey);

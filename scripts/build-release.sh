@@ -19,7 +19,8 @@ VERSION="$(sed -nE 's/^version: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' "$APP/pubspec.y
 [ -n "$VERSION" ] || { echo "no se pudo leer la versión de flutter_app/pubspec.yaml"; exit 1; }
 
 # URL del despliegue en producción / servidor host expuesto en internet
-API_BASE_URL="${API_BASE_URL:-https://undo-guards-roots-lectures.trycloudflare.com}"
+# URL incrustada = respaldo; la app descubre la vigente en GitHub Pages (ADR 0019).
+API_BASE_URL="${API_BASE_URL:-$("$(dirname "$0")/current-tunnel-url.sh")}"
 DEFINES=(--dart-define=FLAVOR=prod --dart-define=API_BASE_URL="$API_BASE_URL")
 
 # Firma (CI): KEYSTORE_PATH + KEYSTORE_PROPERTIES (nunca en el repo).

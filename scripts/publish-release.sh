@@ -67,6 +67,8 @@ PAGES="$TMP/pages"; mkdir -p "$PAGES"
 tar -xzf "$OUT/web/plentypay-web-$VERSION.tar.gz" -C "$PAGES"
 sed -i 's|<base href="/">|<base href="/Plenty-Pay/">|' "$PAGES/index.html"
 cp "$PAGES/index.html" "$PAGES/404.html"; touch "$PAGES/.nojekyll"
+# ADR 0019: gh-pages se reescribe completo, así que el documento de descubrimiento va incluido.
+printf '{"api_base_url": "%s"}' "$("$ROOT/scripts/current-tunnel-url.sh")" > "$PAGES/server.json"
 (cd "$PAGES" && git init -q && git checkout -q -b gh-pages && git add -A \
   && git -c user.name="$(git -C "$ROOT" config user.name)" -c user.email="$(git -C "$ROOT" config user.email)" commit -q -m "deploy(web): v$VERSION" \
   && git push -q -f "$(git -C "$ROOT" remote get-url origin)" gh-pages)

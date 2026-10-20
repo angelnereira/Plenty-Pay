@@ -40,6 +40,8 @@ Se eligen con `--dart-define` (estándar §15), sin flavors nativos:
 | `staging` | https de staging | http rechazado |
 | `prod` | https de producción | http rechazado |
 
+**Descubrimiento del servidor (ADR 0019).** En producción la URL de `API_BASE_URL` es solo el respaldo: al arrancar, la app lee `server.json` de GitHub Pages (`--dart-define=PP_DISCOVERY_URL` lo cambia; `lib/core/config/server_discovery.dart`), acepta solo https y hosts permitidos, guarda la última URL conocida y vuelve a descubrir si el túnel deja de responder en plena sesión.
+
 `AppConfig.fromEnvironment()` se ejecuta al arrancar y lanza `StateError` si el flavor no existe, la URL es inválida o un flavor que exige https recibe http. En Android el tráfico en claro solo está habilitado en builds de depuración.
 
 ## Idiomas (`lib/core/l10n/`)

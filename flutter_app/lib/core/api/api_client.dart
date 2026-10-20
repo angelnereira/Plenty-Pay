@@ -49,6 +49,7 @@ class ApiClient {
     http.Client? client,
     SessionStore? session,
     AppLogger? logger,
+    this.rediscover,
   })  : _session = session ?? SessionStore(),
         logger = logger ?? AppLogger.disabled() {
     _dio = dio ??
@@ -86,6 +87,44 @@ class ApiClient {
   }
 
   void setBaseUrl(String newUrl) => updateBaseUrl(newUrl);
+
+  /// ADR 0019 §4: devuelve la URL vigente del gateway (descubrimiento). Si el túnel deja de
+  /// responder, el cliente la consulta como máximo una vez cada [_rediscoverEvery].
+  final Future<String?> Function()? rediscover;
+  static const _rediscoverEvery = Duration(seconds: 30);
+  DateTime? _lastRediscovery;
+  Future<bool>? _rediscovering;
+
+  /// Sin respuesta del gateway: error de red, o 502/530 del túnel (1033 es el cuerpo de 530).
+  static bool _unreachable(DioException err) {
+    final status = err.response?.statusCode;
+    if (status == 502 || status == 530) return true;
+    return status == null &&
+        (err.type == DioExceptionType.connectionError ||
+            err.type == DioExceptionType.connectionTimeout);
+  }
+
+  /// true si la URL cambió (vale la pena reintentar en la nueva).
+  Future<bool> _rediscoverOnce() {
+    final fn = rediscover;
+    if (fn == null) return Future.value(false);
+    final pending = _rediscovering;
+    if (pending != null) return pending;
+    final last = _lastRediscovery;
+    if (last != null && DateTime.now().difference(last) < _rediscoverEvery) {
+      return Future.value(false);
+    }
+    _lastRediscovery = DateTime.now();
+    final previous = baseUrl;
+    final run = fn().then((url) {
+      if (url == null || url == previous) return false;
+      updateBaseUrl(url);
+      logger.info(
+          'gateway url rediscovered', {'url.domain': Uri.parse(url).host});
+      return true;
+    }).whenComplete(() => _rediscovering = null);
+    return _rediscovering = run;
+  }
 
   Future<bool>? _refreshing; // un solo refresh concurrente
 
@@ -173,6 +212,22 @@ class ApiClient {
             }
           } else {
             await _session.clear();
+          }
+        }
+
+        // ADR 0019 §4: el túnel cambió de URL. Reintentar es seguro: las mutaciones llevan
+        // Idempotency-Key, que se conserva en la petición reintentada.
+        if (_unreachable(err) && req.extra['rediscovered'] != true) {
+          final failedBase = req.baseUrl;
+          if (await _rediscoverOnce() || baseUrl != failedBase) {
+            req.extra['rediscovered'] = true;
+            req.baseUrl = baseUrl;
+            try {
+              final response = await _dio.fetch<dynamic>(req);
+              return handler.resolve(response);
+            } on DioException catch (retryErr) {
+              return handler.next(retryErr);
+            }
           }
         }
 
