@@ -29,6 +29,10 @@ import (
 
 const testNATSStream = "PP_IDENTITY"
 
+// streamSince acota la lectura del stream a esta corrida: el stream conserva 7 dias de mensajes
+// y leer desde el principio con un tope de N mensajes deja fuera los recientes.
+var streamSince = time.Now().UTC().Add(-time.Minute)
+
 // natsEnv devuelve url/user/pass del bus de pruebas (mismos que el contenedor).
 func natsEnv() (string, string, string) {
 	return "nats://event-bus:4222", "identity_svc", "identity_nats_secret"
@@ -245,7 +249,7 @@ func streamMsgIDs(ctx context.Context, url, user, pass, subject string, limit in
 	if err != nil {
 		return nil, err
 	}
-	sub, err := js.PullSubscribe(subject, "", nats.BindStream(testNATSStream))
+	sub, err := js.PullSubscribe(subject, "", nats.BindStream(testNATSStream), nats.StartTime(streamSince))
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +291,7 @@ func countStreamMessages(ctx context.Context, url, user, pass, subject string, l
 	if err != nil {
 		return 0, nil, err
 	}
-	sub, err := js.PullSubscribe(subject, "", nats.BindStream(testNATSStream))
+	sub, err := js.PullSubscribe(subject, "", nats.BindStream(testNATSStream), nats.StartTime(streamSince))
 	if err != nil {
 		return 0, nil, err
 	}
@@ -314,7 +318,7 @@ func envelopeOf(ctx context.Context, url, user, pass string, mine map[string]boo
 	if err != nil {
 		return nil, err
 	}
-	sub, err := js.PullSubscribe(events.SubjectTenantStatusChanged, "", nats.BindStream(testNATSStream))
+	sub, err := js.PullSubscribe(events.SubjectTenantStatusChanged, "", nats.BindStream(testNATSStream), nats.StartTime(streamSince))
 	if err != nil {
 		return nil, err
 	}

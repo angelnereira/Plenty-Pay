@@ -15,10 +15,11 @@ import (
 // fakeSessionStore implementa store.SessionStore en memoria, con la misma
 // semantica de rotacion y reuso que la version PostgreSQL.
 type fakeSessionStore struct {
-	mu       sync.Mutex
-	sessions map[string]*domain.Session
-	tokens   map[string]*domain.RefreshToken // por hash hex
+	mu         sync.Mutex
+	sessions   map[string]*domain.Session
+	tokens     map[string]*domain.RefreshToken // por hash hex
 	outbox     []string
+	payloads   []string
 	revoked    []string
 	reported   []string
 	failOutbox error
@@ -84,13 +85,14 @@ func (f *fakeSessionStore) SessionByID(_ context.Context, sessionID string) (*do
 	return &cp, nil
 }
 
-func (f *fakeSessionStore) WriteOutboxEvent(_ context.Context, eventType, aggregateID, tenantID string, _ []byte) error {
+func (f *fakeSessionStore) WriteOutboxEvent(_ context.Context, eventType, aggregateID, tenantID string, payload []byte) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.failOutbox != nil {
 		return f.failOutbox
 	}
 	f.outbox = append(f.outbox, eventType)
+	f.payloads = append(f.payloads, string(payload))
 	return nil
 }
 

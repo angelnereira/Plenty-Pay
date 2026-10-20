@@ -1,0 +1,19 @@
+BEGIN;
+
+DROP TABLE IF EXISTS membership_branches;
+DROP TABLE IF EXISTS memberships;
+
+ALTER TABLE invitations DROP COLUMN IF EXISTS revoked_at;
+ALTER TABLE invitations DROP COLUMN IF EXISTS job_title;
+ALTER TABLE invitations DROP COLUMN IF EXISTS branch_ids;
+ALTER TABLE invitations DROP COLUMN IF EXISTS scope;
+
+ALTER TABLE roles DROP COLUMN IF EXISTS archived;
+ALTER TABLE roles DROP COLUMN IF EXISTS version;
+ALTER TABLE roles DROP COLUMN IF EXISTS description;
+ALTER TABLE roles DROP COLUMN IF EXISTS template_version;
+ALTER TABLE roles DROP COLUMN IF EXISTS template_key;
+
+ALTER TABLE users DROP COLUMN IF EXISTS status;
+
+COMMIT;

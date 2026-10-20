@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -57,6 +56,8 @@ type Permissions struct {
 	Role           string
 	EnabledModules []string
 	Permissions    []string
+	BranchScope    string   // "*", ids separados por coma o "" (R24)
+	Capabilities   []string // capacidades encendidas del negocio (R21)
 }
 
 // SecurityReporter reporta eventos de abuso a `security`: TOKEN_REUSE (R8) y
@@ -132,6 +133,7 @@ type IdentityService struct {
 	reporter  *observability.Reporter
 	metrics   *observability.Metrics
 	security  SecurityReporter
+	stepUp    StepUpConsumer // nil = las operaciones con dinero responden STEP_UP_INVALID
 	revoked   *revocationCache
 	// now es el reloj inyectado (go-standards.md 3.3): time.Now solo en main.
 	now func() time.Time
@@ -296,7 +298,11 @@ func (s *IdentityService) Login(ctx context.Context, email, password string) (*A
 		}
 		return reject("INVALID_CREDENTIALS", "correo o contrasena incorrectos"), nil
 	}
-	// Credenciales correctas: si la cuenta sigue bloqueada, no entra (R5).
+	// Credenciales correctas: una cuenta suspendida o dada de baja por su negocio no entra.
+	if !user.IsActive() {
+		return reject("ACCOUNT_SUSPENDED", "tu cuenta está suspendida; contacta al administrador de tu negocio"), nil
+	}
+	// Si la cuenta sigue bloqueada, no entra (R5).
 	if s.attempts != nil {
 		if until, _ := s.attempts.BlockedUntil(ctx, user.ID); until != nil {
 			return reject("ACCOUNT_LOCKED", "cuenta bloqueada temporalmente por intentos fallidos"), nil
@@ -396,38 +402,6 @@ func (s *IdentityService) assertSessionAlive(ctx context.Context, sessionID stri
 	}
 	s.revoked.markAlive(sessionID)
 	return nil
-}
-
-// PermissionsForUser devuelve rol, permisos y modulos derivados (R10, R22).
-func (s *IdentityService) PermissionsForUser(ctx context.Context, userID string) (*Permissions, error) {
-	user, err := s.users.FindByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	var perms []string
-	switch user.Role {
-	case "PLATFORM_ADMIN":
-		perms = auth.PermissionsFor("PLATFORM_ADMIN")
-	case "BUSINESS_OWNER":
-		perms = auth.PermissionsFor("BUSINESS_OWNER")
-	case "BUSINESS_STAFF":
-		if s.roles != nil {
-			role, err := s.roles.RoleForUser(ctx, userID)
-			if err != nil {
-				return nil, err
-			}
-			if role != nil {
-				perms = auth.PermissionsWithBase(role.Permissions)
-			} else {
-				perms = auth.CustomerPermissions()
-			}
-		} else {
-			perms = auth.CustomerPermissions()
-		}
-	default:
-		perms = auth.CustomerPermissions()
-	}
-	return &Permissions{Role: user.Role, EnabledModules: auth.ModulesForPermissions(perms), Permissions: perms}, nil
 }
 
 // Refresh rota el refresh token (R8): cada uso emite uno nuevo e invalida el
@@ -599,5 +573,3 @@ func internal() *AuthResult {
 func ErrorEnvuelto(op string, err error) error {
 	return fmt.Errorf("%s: %w", op, err)
 }
-
-var _ = strings.TrimSpace

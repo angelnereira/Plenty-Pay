@@ -327,7 +327,7 @@ func TestR22_StaffWithoutRoleReceivesBaseOnly(t *testing.T) {
 		t.Fatalf("PermissionsForUser: %v", err)
 	}
 
-	expectedBase := auth.CustomerPermissions()
+	expectedBase := auth.PermissionsWithBase(nil) // base de CUSTOMER, ordenada
 	if !reflect.DeepEqual(perms.Permissions, expectedBase) {
 		t.Fatalf("staff sin rol debe recibir solo permisos base: got %v, want %v", perms.Permissions, expectedBase)
 	}
@@ -338,4 +338,3 @@ func TestR22_StaffWithoutRoleReceivesBaseOnly(t *testing.T) {
 }
 
 var _ store.UserStore = (*fakeStore)(nil)
-

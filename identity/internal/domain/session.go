@@ -41,3 +41,7 @@ func (t *RefreshToken) Used() bool { return t.UsedAt != nil }
 // RevokedReasonReuse es el reason con el que se revoca una familia al detectar
 // reuso de refresh (R8).
 const RevokedReasonReuse = "REFRESH_REUSE"
+
+// RevokedReasonAdmin es el reason con el que se revocan las sesiones de un miembro
+// suspendido o desactivado por su negocio (SessionRevoked.reason).
+const RevokedReasonAdmin = "ADMIN_ACTION"

@@ -9,13 +9,22 @@ import (
 	"time"
 )
 
+// Estados de usuario (ciclo de vida en la empresa/plataforma).
+const (
+	UserStatusActive      = "ACTIVE"
+	UserStatusSuspended   = "SUSPENDED"
+	UserStatusDeactivated = "DEACTIVATED"
+	UserStatusLocked      = "LOCKED"
+)
+
 // Errores tipados del dominio. Los traduce server a status.Error con el
 // `reason` estable (grpc-conventions.md seccion 4).
 var (
-	ErrUserNotFound = errors.New("usuario no encontrado")
-	ErrEmailTaken   = errors.New("el correo ya está registrado")
-	ErrInvalidEmail = errors.New("correo invalido")
-	ErrWeakPassword = errors.New("la contrasena debe tener entre 12 y 128 caracteres")
+	ErrUserNotFound     = errors.New("usuario no encontrado")
+	ErrEmailTaken       = errors.New("el correo ya está registrado")
+	ErrInvalidEmail     = errors.New("correo invalido")
+	ErrWeakPassword     = errors.New("la contrasena debe tener entre 12 y 128 caracteres")
+	ErrAccountSuspended = errors.New("cuenta suspendida por el administrador")
 )
 
 // Constantes de las reglas R1 y R2 del SPEC de identity.
@@ -46,7 +55,24 @@ type User struct {
 	FullName     string
 	Role         string // valor del enum UserRole del .proto, como string
 	TenantID     string
+	Status       string // ACTIVE | SUSPENDED | DEACTIVATED | LOCKED (vacío = ACTIVE)
+	RoleID       string
+	RoleName     string
+	Scope        string   // TENANT | BRANCHES
+	BranchIDs    []string // sucursales asignadas si Scope == BRANCHES
+	JobTitle     string
+	LastLoginAt  *time.Time
 	Consents     []ConsentRecord
+}
+
+// IsActive devuelve true si el usuario está en estado operativo.
+func (u *User) IsActive() bool {
+	return u.Status == "" || u.Status == UserStatusActive
+}
+
+// IsSuspended devuelve true si el usuario fue suspendido temporalmente o desactivado.
+func (u *User) IsSuspended() bool {
+	return u.Status == UserStatusSuspended || u.Status == UserStatusDeactivated
 }
 
 // NormalizeEmail aplica R1: recorta espacios y pasa a minusculas. El dominio
@@ -66,8 +92,8 @@ func ValidateEmail(normalizedEmail string) error {
 	if at <= 0 || at == len(normalizedEmail)-1 {
 		return ErrInvalidEmail
 	}
-	domain := normalizedEmail[at+1:]
-	if !strings.Contains(domain, ".") || strings.HasPrefix(domain, ".") || strings.HasSuffix(domain, ".") {
+	domainPart := normalizedEmail[at+1:]
+	if !strings.Contains(domainPart, ".") || strings.HasPrefix(domainPart, ".") || strings.HasSuffix(domainPart, ".") {
 		return ErrInvalidEmail
 	}
 	return nil

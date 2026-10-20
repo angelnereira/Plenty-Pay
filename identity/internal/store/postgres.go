@@ -134,9 +134,9 @@ func (s *PostgresUserStore) FindByEmail(ctx context.Context, email string) (*Use
 
 	// Columnas explicitas (no SELECT *): la funcion devuelve SETOF users y una
 	// columna nueva en la tabla romperia el scan posicional.
-	err := s.pool.QueryRow(ctx, `SELECT id, email, password_hash, full_name, role, tenant_id
+	err := s.pool.QueryRow(ctx, `SELECT id, email, password_hash, full_name, role, tenant_id, coalesce(status, CASE WHEN active THEN 'ACTIVE' ELSE 'DEACTIVATED' END)
 		FROM find_user_by_email($1)`, normalized).
-		Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.Role, &tenantID)
+		Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.Role, &tenantID, &u.Status)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -169,10 +169,10 @@ func (s *PostgresUserStore) FindByID(ctx context.Context, id string) (*User, err
 			createdAt, updatedAt   time.Time
 			emailNormalizedDiscard string
 		)
-		err := tx.QueryRow(ctx, `SELECT id, email, email_normalized, password_hash, full_name, role, tenant_id, created_at, updated_at
+		err := tx.QueryRow(ctx, `SELECT id, email, email_normalized, password_hash, full_name, role, tenant_id, coalesce(status, CASE WHEN active THEN 'ACTIVE' ELSE 'DEACTIVATED' END), created_at, updated_at
 			FROM users WHERE id = $1::uuid`, id).
 			Scan(&candidate.ID, &candidate.Email, &emailNormalizedDiscard, &candidate.PasswordHash,
-				&candidate.FullName, &candidate.Role, &candidateTenant, &createdAt, &updatedAt)
+				&candidate.FullName, &candidate.Role, &candidateTenant, &candidate.Status, &createdAt, &updatedAt)
 		if err != nil {
 			return err
 		}

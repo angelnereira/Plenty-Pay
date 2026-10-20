@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -23,14 +24,21 @@ import (
 const (
 	SubjectTenantStatusChanged = "pp.identity.tenant.status_changed.v1"
 	SubjectSessionRevoked      = "pp.identity.session.revoked.v1"
+	SubjectRoleChanged         = "pp.identity.role.changed.v1"
+	SubjectMembershipChanged   = "pp.identity.membership.changed.v1"
+	SubjectCapabilitiesChanged = "pp.identity.capabilities.changed.v1"
+	SubjectBranchChanged       = "pp.identity.branch.changed.v1"
 )
 
-// EventTypeTenantStatusChanged es el event_type del envelope (sin version,
-// events.proto §EventEnvelope).
-const EventTypeTenantStatusChanged = "identity.tenant.status_changed"
-
-// EventTypeSessionRevoked es el event_type del envelope (events.proto §6).
-const EventTypeSessionRevoked = "identity.session.revoked"
+// EventType* son los event_type del envelope (sin version, events.proto §EventEnvelope).
+const (
+	EventTypeTenantStatusChanged = "identity.tenant.status_changed"
+	EventTypeSessionRevoked      = "identity.session.revoked"
+	EventTypeRoleChanged         = "identity.role.changed"
+	EventTypeMembershipChanged   = "identity.membership.changed"
+	EventTypeCapabilitiesChanged = "identity.capabilities.changed"
+	EventTypeBranchChanged       = "identity.branch.changed"
+)
 
 // Envelope arma el sobre canónico del evento listo para publicar.
 type Envelope struct {
@@ -67,6 +75,34 @@ func BuildEnvelope(e store.OutboxEvent, traceID string) (Envelope, error) {
 		}
 		payload = &msg
 		envelope.EventType = EventTypeSessionRevoked
+	case SubjectRoleChanged:
+		var msg pb.RoleChanged
+		if err := accessEventUnmarshal(e.Payload, &msg); err != nil {
+			return Envelope{}, fmt.Errorf("decode role changed payload: %w", err)
+		}
+		payload = &msg
+		envelope.EventType = EventTypeRoleChanged
+	case SubjectMembershipChanged:
+		var msg pb.MembershipChanged
+		if err := accessEventUnmarshal(e.Payload, &msg); err != nil {
+			return Envelope{}, fmt.Errorf("decode membership changed payload: %w", err)
+		}
+		payload = &msg
+		envelope.EventType = EventTypeMembershipChanged
+	case SubjectCapabilitiesChanged:
+		var msg pb.CapabilitiesChanged
+		if err := accessEventUnmarshal(e.Payload, &msg); err != nil {
+			return Envelope{}, fmt.Errorf("decode capabilities changed payload: %w", err)
+		}
+		payload = &msg
+		envelope.EventType = EventTypeCapabilitiesChanged
+	case SubjectBranchChanged:
+		var msg pb.BranchChanged
+		if err := accessEventUnmarshal(e.Payload, &msg); err != nil {
+			return Envelope{}, fmt.Errorf("decode branch changed payload: %w", err)
+		}
+		payload = &msg
+		envelope.EventType = EventTypeBranchChanged
 	default:
 		return Envelope{}, errUnknownEvent
 	}
@@ -80,7 +116,7 @@ func BuildEnvelope(e store.OutboxEvent, traceID string) (Envelope, error) {
 	if err != nil {
 		return Envelope{}, fmt.Errorf("marshal envelope: %w", err)
 	}
-	return Envelope{Subject: SubjectTenantStatusChanged, MessageID: e.ID, Bytes: bytes}, nil
+	return Envelope{Subject: e.EventType, MessageID: e.ID, Bytes: bytes}, nil
 }
 
 // errUnknownEvent marca los tipos que identity aun no publica (p. ej. la
@@ -142,3 +178,12 @@ func TraceIDFromContext(_ context.Context) string { return "" }
 
 // now es el reloj inyectado en las pruebas.
 var now = time.Now
+
+// accessEventUnmarshal decodifica los eventos del modelo de acceso (ADR 0018): el store los
+// escribe con los nombres de campo del .proto, que protojson acepta tal cual.
+func accessEventUnmarshal(b []byte, m proto.Message) error {
+	if len(strings.TrimSpace(string(b))) == 0 {
+		return fmt.Errorf("payload vacio")
+	}
+	return protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(b, m)
+}

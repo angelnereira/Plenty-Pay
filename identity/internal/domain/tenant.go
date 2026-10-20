@@ -14,28 +14,49 @@ const (
 	TenantRejected      = "REJECTED"
 )
 
-// Errores del dominio de tenants.
+// Errores del dominio de tenants, perfiles y capacidades.
 var (
 	ErrTenantNotFound      = errors.New("tenant no encontrado")
 	ErrTenantAlreadyExists = errors.New("el usuario ya tiene un negocio")
 	ErrTaxIDTaken          = errors.New("el RUC ya está registrado")
 	ErrInvalidTaxID        = errors.New("RUC inválido")
 	ErrInvalidTransition   = errors.New("transición de estado inválida")
+	ErrVerticalNotFound    = errors.New("vertical comercial no encontrada")
+	ErrPlanLimitReached    = errors.New("límite del plan alcanzado")
+	ErrCapabilityDisabled  = errors.New("capacidad desactivada para este negocio")
+	ErrCapabilityGated     = errors.New("capacidad sujeta a validación legal pendiente")
+	ErrUnknownCapability   = errors.New("capacidad desconocida")
+	ErrUnknownTrait        = errors.New("rasgo operativo desconocido")
+	ErrTooManyVerticals    = errors.New("se permiten hasta 2 verticales secundarias distintas de la principal")
 )
+
+// CapabilityState representa el estado de una capacidad en un comercio (R21).
+type CapabilityState struct {
+	Capability string
+	Enabled    bool
+	Source     string // VERTICAL | TRAIT | MANUAL | PLAN
+}
 
 // Tenant es el negocio (comercio) de PlentyPay.
 type Tenant struct {
-	ID          string
-	LegalName   string
-	TradeName   string
-	TaxID       string
-	DV          string
-	Status      string
-	Country     string
-	ReviewNotes string
-	OwnerID     string
-	CreatedAt   time.Time
-	Documents   []string
+	ID                 string
+	LegalName          string
+	TradeName          string
+	TaxID              string
+	DV                 string
+	Status             string
+	Country            string
+	ReviewNotes        string
+	OwnerID            string
+	PrimaryVertical    string
+	SecondaryVerticals []string
+	TraitOverrides     map[string]bool
+	PlanCode           string
+	Version            int32
+	BranchName         string // Nombre inicial de la sucursal matriz 0000 en el alta
+	Capabilities       []CapabilityState
+	CreatedAt          time.Time
+	Documents          []string
 }
 
 // NormalizeTaxId quita espacios y pasa a mayúsculas (R17: único sin distinguir).

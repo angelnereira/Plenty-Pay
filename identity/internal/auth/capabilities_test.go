@@ -30,7 +30,8 @@ func TestCapabilities_MatchesSecurityStandards(t *testing.T) {
 	}
 
 	// Regex para filas: | modulo | `permiso` | `capacidad` |
-	rowRe := regexp.MustCompile(`(?m)^\|\s*[^|]+\s*\|\s*` + "`" + `([^` + "`" + `]+)` + "`" + `\s*\|\s*` + "`" + `([^` + "`" + `]+)` + "`" + `\s*\|`)
+	// La columna de capacidad puede listar varias (`a`, `b`): basta cualquiera.
+	rowRe := regexp.MustCompile(`(?m)^\|\s*[^|]+\s*\|\s*` + "`" + `([^` + "`" + `]+)` + "`" + `\s*\|\s*([^|]+)\|`)
 	matches := rowRe.FindAllStringSubmatch(sub, -1)
 	if len(matches) == 0 {
 		t.Fatalf("no se encontraron filas de permisos en la tabla 3.1")
@@ -38,9 +39,11 @@ func TestCapabilities_MatchesSecurityStandards(t *testing.T) {
 
 	docMap := make(map[string]string, len(matches))
 	for _, m := range matches {
-		perm := m[1]
-		cap := m[2]
-		docMap[perm] = cap
+		var caps []string
+		for _, c := range strings.Split(m[2], ",") {
+			caps = append(caps, strings.Trim(strings.TrimSpace(c), "`"))
+		}
+		docMap[m[1]] = strings.Join(caps, ",")
 	}
 
 	codeMap := auth.PermissionCapabilityMap
@@ -49,7 +52,8 @@ func TestCapabilities_MatchesSecurityStandards(t *testing.T) {
 	}
 
 	for perm, expectedCap := range docMap {
-		actualCap, ok := codeMap[perm]
+		actualCaps, ok := codeMap[perm]
+		actualCap := strings.Join(actualCaps, ",")
 		if !ok {
 			t.Errorf("permiso en documento pero faltante en código: %s", perm)
 			continue

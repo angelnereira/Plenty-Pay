@@ -74,7 +74,7 @@ compose up -d --build identity >/dev/null 2>&1
 echo "  [*] Aplicando migraciones (identity migrate)..."
 MIG_OUT=$(compose exec -T -e PP_DB_DSN="$SVC_DSN" identity /app migrate 2>&1 || true)
 MIG_VERSION=$(echo "$MIG_OUT" | grep -oE '"version":[0-9]+' | head -1 | cut -d: -f2)
-assert_eq "La ultima migracion aplicada es la 0006 (recuperacion)" "6" "$MIG_VERSION"
+assert_eq "La ultima migracion aplicada es la 0009 (membresias y alcance)" "9" "$MIG_VERSION"
 
 # 4. Idempotencia: la segunda ejecucion no aplica nada
 MIG_OUT2=$(compose exec -T -e PP_DB_DSN="$SVC_DSN" identity /app migrate 2>&1 || true)
@@ -84,22 +84,25 @@ assert_eq "La segunda ejecucion de migrate no reaplica (idempotente)" "false" "$
 # 5. Las tablas y las politicas RLS existen (RLS ACTIVO, ADR 0014)
 TABLES=$(compose exec -T -e PGPASSWORD="identity_svc_dev_secret_32_chars!" postgres-db \
   psql -h postgres-db -U identity_svc -d plentypay -tAc \
-  "SELECT count(*) FROM pg_tables WHERE schemaname='identity' AND tablename IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets')" 2>/dev/null | tr -d '[:space:]')
-assert_eq "Las tablas del esquema identity existen (13)" "13" "$TABLES"
+  "SELECT count(*) FROM pg_tables WHERE schemaname='identity' AND tablename IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches')" 2>/dev/null | tr -d '[:space:]')
+assert_eq "Las tablas del esquema identity existen (18)" "18" "$TABLES"
 
 RLS_ON=$(compose exec -T -e PGPASSWORD="identity_svc_dev_secret_32_chars!" postgres-db \
   psql -h postgres-db -U identity_svc -d plentypay -tAc \
   "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-   WHERE n.nspname='identity' AND c.relname IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets') AND c.relrowsecurity" 2>/dev/null | tr -d '[:space:]')
-assert_eq "RLS esta activo en las 13 tablas (ADR 0014)" "13" "$RLS_ON"
+   WHERE n.nspname='identity' AND c.relname IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches') AND c.relrowsecurity" 2>/dev/null | tr -d '[:space:]')
+assert_eq "RLS esta activo en las 18 tablas (ADR 0014)" "18" "$RLS_ON"
 
 # 6. Compilar las pruebas L2 y ejecutarlas dentro de la red de datos
 echo "  [*] Compilando y ejecutando las pruebas Go L2 del store..."
 mkdir -p "$BIN_DIR"
-(cd identity && go test -c -tags l2 -o "$BIN_DIR/store.l2.test" ./internal/store/)
+# Ruta absoluta: el binario se compila dentro de identity/ y debe quedar donde el runner lo monta
+# (con una ruta relativa caia en identity/identity/test/bin y corria un binario viejo).
+rm -f "$PWD/$BIN_DIR/store.l2.test"
+(cd identity && go test -c -tags l2 -o "$OLDPWD/$BIN_DIR/store.l2.test" ./internal/store/)
 TEST_OUT=$(docker run --rm --network "$NETWORK" -e PP_TEST_DB_DSN="$TEST_DSN" \
   -v "$PWD/$BIN_DIR:/t:ro" "$RUNNER_IMAGE" /t/store.l2.test -test.v 2>&1 || true)
-echo "$TEST_OUT" | grep -E "^(=== RUN|--- (PASS|FAIL|SKIP)|PASS|FAIL|ok)" | head -30
+echo "$TEST_OUT" | grep -E "^(--- (PASS|FAIL|SKIP)|PASS|FAIL|ok)|_test.go:[0-9]+:" | head -80
 RESULT=$(echo "$TEST_OUT" | grep -cE "^--- PASS" || true)
 FAILS=$(echo "$TEST_OUT" | grep -cE "^--- FAIL" || true)
 SKIPS=$(echo "$TEST_OUT" | grep -cE "^--- SKIP" || true)
@@ -110,5 +113,5 @@ else
 fi
 
 echo ""
-echo "Resultado L2 (F08.2-F08.7): $PASS pasadas, $FAIL fallidas"
+echo "Resultado L2 (F08.2-F08.7, F08.6 ampliado): $PASS pasadas, $FAIL fallidas"
 [ "$FAIL" -eq 0 ] || exit 1

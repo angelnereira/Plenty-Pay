@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"plentypay/identity/internal/auth"
+	"plentypay/identity/internal/domain"
 	"plentypay/identity/internal/observability"
 	"plentypay/identity/internal/pb"
 	"plentypay/identity/internal/service"
@@ -35,11 +37,13 @@ type IdentityServer struct {
 // NewIdentityServer cablea el servicio de identity sobre el store recibido.
 func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter *observability.Reporter, metrics *observability.Metrics) *IdentityServer {
 	svc := service.New(users, tokens, reporter, metrics)
+	stepUp := auth.NewStepUpManager()
+	svc.WithStepUp(stepUp)
 	return &IdentityServer{
 		users:    users,
 		tokens:   tokens,
 		svc:      svc,
-		stepUp:   auth.NewStepUpManager(),
+		stepUp:   stepUp,
 		reporter: reporter,
 		metrics:  metrics,
 		now:      time.Now,
@@ -145,12 +149,21 @@ func (s *IdentityServer) ValidateToken(ctx context.Context, req *pb.ValidateToke
 	if err != nil {
 		return &pb.ValidateTokenResult{Valid: false}, nil
 	}
+	// El gateway propaga permisos, alcance y capacidades como x-pp-* (ADR 0018): se calculan
+	// aquí, con el estado actual, no con lo que el token tenía al emitirse.
+	perms, err := s.svc.PermissionsForUser(ctx, claims.UserID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "resolve permissions on validate").Error())
+	}
 	return &pb.ValidateTokenResult{
-		Valid:     true,
-		UserId:    claims.UserID,
-		TenantId:  claims.TenantID,
-		Role:      pb.UserRole(pb.UserRole_value[claims.Role]),
-		SessionId: claims.SessionID,
+		Valid:        true,
+		UserId:       claims.UserID,
+		TenantId:     claims.TenantID,
+		Role:         pb.UserRole(pb.UserRole_value[claims.Role]),
+		SessionId:    claims.SessionID,
+		Permissions:  perms.Permissions,
+		BranchScope:  perms.BranchScope,
+		Capabilities: perms.Capabilities,
 	}, nil
 }
 
@@ -158,12 +171,17 @@ func (s *IdentityServer) ValidateToken(ctx context.Context, req *pb.ValidateToke
 func (s *IdentityServer) GetUserPermissions(ctx context.Context, req *pb.GetUserPermissionsRequest) (*pb.UserPermissions, error) {
 	perms, err := s.svc.PermissionsForUser(ctx, req.UserId)
 	if err != nil {
-		return &pb.UserPermissions{}, nil
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, ErrorInfo(codes.NotFound, ReasonNotFound, "usuario no encontrado")
+		}
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "resolve permissions").Error())
 	}
 	return &pb.UserPermissions{
 		Role:           pb.UserRole(pb.UserRole_value[perms.Role]),
 		EnabledModules: perms.EnabledModules,
 		Permissions:    perms.Permissions,
+		BranchScope:    perms.BranchScope,
+		Capabilities:   perms.Capabilities,
 	}, nil
 }
 
@@ -222,6 +240,11 @@ func toPBTenant(v *service.TenantView) *pb.Tenant {
 		Country:     v.Country,
 		ReviewNotes: v.ReviewNotes,
 		CreatedAt:   timestamppb.New(v.CreatedAt),
+
+		PrimaryVertical:    v.PrimaryVertical,
+		SecondaryVerticals: v.SecondaryVerticals,
+		Traits:             v.Traits,
+		PlanCode:           v.PlanCode,
 	}
 }
 
@@ -245,6 +268,7 @@ func (s *IdentityServer) CreateBusiness(ctx context.Context, req *pb.CreateBusin
 		OwnerEmail: req.OwnerEmail, OwnerPassword: req.OwnerPassword, OwnerFullName: req.OwnerFullName,
 		LegalName: req.LegalName, TradeName: req.TradeName, TaxID: req.TaxId, DV: req.Dv,
 		Country: req.Country, DocumentKeys: req.KybDocumentObjectKeys, Now: s.now(),
+		PrimaryVertical: req.GetPrimaryVertical(), TraitAnswers: req.GetTraitAnswers(), BranchName: req.GetBranchName(),
 	})
 	if err != nil {
 		return nil, status.Error(codes.Internal, "error interno")
@@ -297,24 +321,28 @@ func (s *IdentityServer) ListTenants(ctx context.Context, req *pb.ListTenantsReq
 
 // ── Roles, invitaciones y equipo (F08.6) ──────────────────────────────────────
 
-// UpsertRole crea un rol personalizado (R12).
+// UpsertRole crea o edita un rol del negocio (R12, A1, A2; step-up si suma dinero).
 func (s *IdentityServer) UpsertRole(ctx context.Context, req *pb.UpsertRoleRequest) (*pb.Role, error) {
-	perms := []string(nil)
-	if req.Role != nil {
-		perms = req.Role.Permissions
+	r := req.GetRole()
+	if r == nil {
+		return nil, toStatus(domain.ErrInvalidRequest)
 	}
-	role, err := s.svc.UpsertRole(ctx, tenantFromContext(ctx), roleName(req.Role), perms)
-	if err != nil || role == nil {
-		return &pb.Role{}, nil
+	role, err := s.svc.UpsertRole(ctx, service.RoleInput{
+		ID: r.GetRoleId(), Name: r.GetName(), Description: r.GetDescription(),
+		TemplateKey: r.GetTemplateKey(), TemplateVersion: r.GetTemplateVersion(), Permissions: r.GetPermissions(),
+	})
+	if err != nil {
+		return nil, toStatus(err)
 	}
 	return toPBRole(role), nil
 }
 
-// ListRoles devuelve presets y roles del tenant.
-func (s *IdentityServer) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.ListRolesResult, error) {
-	list, err := s.svc.ListRoles(ctx, req.TenantId)
+// ListRoles devuelve presets y roles del negocio del actor. El tenant sale del contexto, nunca
+// del cuerpo (ADR 0011): ListRolesRequest.tenant_id se ignora.
+func (s *IdentityServer) ListRoles(ctx context.Context, _ *pb.ListRolesRequest) (*pb.ListRolesResult, error) {
+	list, err := s.svc.ListRoles(ctx)
 	if err != nil {
-		return &pb.ListRolesResult{}, nil
+		return nil, toStatus(err)
 	}
 	out := &pb.ListRolesResult{}
 	for i := range list {
@@ -323,55 +351,55 @@ func (s *IdentityServer) ListRoles(ctx context.Context, req *pb.ListRolesRequest
 	return out, nil
 }
 
-// AssignRole asigna un rol a un usuario.
+// AssignRole asigna un rol a un miembro (compatibilidad; la app usa UpdateMembership).
 func (s *IdentityServer) AssignRole(ctx context.Context, req *pb.AssignRoleRequest) (*pb.SimpleResult, error) {
-	if err := s.svc.AssignRole(ctx, req.UserId, req.RoleId); err != nil {
-		return &pb.SimpleResult{Success: false, ErrorMessage: "no se pudo asignar el rol"}, nil
+	if _, err := s.svc.AssignRole(ctx, req.GetUserId(), req.GetRoleId()); err != nil {
+		return nil, toStatus(err)
 	}
 	return &pb.SimpleResult{Success: true}, nil
 }
 
-// InviteStaff invita a una persona al equipo (SPEC §4: 7 dias).
+// InviteStaff invita a una persona con rol, alcance y cargo (A1, A3).
 func (s *IdentityServer) InviteStaff(ctx context.Context, req *pb.InviteStaffRequest) (*pb.Invitation, error) {
-	res, err := s.svc.InviteStaff(ctx, tenantFromContext(ctx), req.Email, req.FullName, req.RoleId, userFromContext(ctx))
-	if err != nil || !res.Success {
-		return &pb.Invitation{}, nil
+	res, err := s.svc.InviteStaff(ctx, service.InviteInput{
+		Email: req.GetEmail(), FullName: req.GetFullName(), RoleID: req.GetRoleId(),
+		Scope: strings.ToUpper(req.GetScope()), BranchIDs: req.GetBranchIds(), JobTitle: req.GetJobTitle(),
+	})
+	if err != nil {
+		return nil, toStatus(err)
 	}
-	return &pb.Invitation{
-		InvitationId: res.InvitationID, Email: req.Email, RoleId: req.RoleId,
-		ExpiresAt: timestamppb.New(res.ExpiresAt),
-	}, nil
+	return s.toPBInvitation(res.Invitation), nil
 }
 
-// AcceptInvitation canjea el token y devuelve la sesion del nuevo staff.
+// AcceptInvitation canjea el token y devuelve la sesion (H8: también para cuentas existentes).
 func (s *IdentityServer) AcceptInvitation(ctx context.Context, req *pb.AcceptInvitationRequest) (*pb.AuthResult, error) {
-	res, err := s.svc.AcceptInvitation(ctx, req.InvitationToken, req.Password)
-	if err != nil || !res.Success {
-		return toPB(nil), nil
+	res, err := s.svc.AcceptInvitation(ctx, req.GetInvitationToken(), req.GetPassword())
+	if err != nil {
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "accept invitation").Error())
+	}
+	if !res.Success {
+		return rejected(res.Reason, res.ErrorMessage), nil
 	}
 	return toPB(res.Session), nil
 }
 
-// ListUsers devuelve el equipo del tenant.
-func (s *IdentityServer) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.ListUsersResult, error) {
-	users, err := s.svc.ListUsers(ctx, req.TenantId)
+// ListUsers devuelve el equipo del negocio del actor (tenant del contexto, nunca del cuerpo).
+func (s *IdentityServer) ListUsers(ctx context.Context, _ *pb.ListUsersRequest) (*pb.ListUsersResult, error) {
+	users, err := s.svc.ListUsers(ctx)
 	if err != nil {
-		return &pb.ListUsersResult{}, nil
+		return nil, toStatus(err)
 	}
 	out := &pb.ListUsersResult{}
 	for i := range users {
-		out.Users = append(out.Users, &pb.UserSummary{
-			UserId: users[i].ID, Email: users[i].Email, FullName: users[i].FullName,
-			Role: pb.UserRole(pb.UserRole_value[users[i].Role]),
-		})
+		out.Users = append(out.Users, toPBUser(&users[i]))
 	}
 	return out, nil
 }
 
-// DeactivateUser desactiva a un miembro (R13).
+// DeactivateUser da de baja a un miembro (R13, A2).
 func (s *IdentityServer) DeactivateUser(ctx context.Context, req *pb.DeactivateUserRequest) (*pb.SimpleResult, error) {
-	if err := s.svc.DeactivateUser(ctx, req.UserId); err != nil {
-		return &pb.SimpleResult{Success: false, ErrorMessage: "no se puede desactivar al ultimo dueno del negocio"}, nil
+	if err := s.svc.DeactivateUser(ctx, req.GetUserId()); err != nil {
+		return nil, toStatus(err)
 	}
 	return &pb.SimpleResult{Success: true}, nil
 }
@@ -380,18 +408,12 @@ func toPBRole(r *service.RoleResult) *pb.Role {
 	if r == nil {
 		return &pb.Role{}
 	}
-	return &pb.Role{RoleId: r.ID, TenantId: r.TenantID, Name: r.Name, Permissions: r.Permissions, System: r.System}
-}
-
-func roleName(r *pb.Role) string {
-	if r == nil {
-		return ""
+	return &pb.Role{
+		RoleId: r.ID, TenantId: r.TenantID, Name: r.Name, Permissions: r.Permissions, System: r.System,
+		TemplateKey: r.TemplateKey, TemplateVersion: r.TemplateVersion, Description: r.Description,
+		Version: r.Version, Archived: r.Archived, MemberCount: r.MemberCount,
 	}
-	return r.Name
 }
-
-func tenantFromContext(ctx context.Context) string { return tenancy.TenantIDFromContext(ctx) }
-func userFromContext(ctx context.Context) string   { return tenancy.UserIDFromContext(ctx) }
 
 // ── Contrasena (F08.7) ────────────────────────────────────────────────────────
 

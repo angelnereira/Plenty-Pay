@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ type fakeTenantStore struct {
 	byTaxID  map[string]*domain.Tenant
 	outbox   []string
 	reviews  []string // "tenantID:prev->next"
+	branches map[string][]domain.Branch
 	failWith error
 }
 
@@ -99,6 +101,107 @@ func (f *fakeTenantStore) ReviewTenant(_ context.Context, tenantID string, appro
 	f.reviews = append(f.reviews, tenantID+":"+previous+"->"+next)
 	f.outbox = append(f.outbox, "pp.identity.tenant.status_changed.v1")
 	return previous, next, nil
+}
+
+func (f *fakeTenantStore) UpdateBusinessProfile(_ context.Context, tenantID, primary string, secondary []string, traits map[string]bool, derived map[string]string, _ string) (*domain.Tenant, error) {
+	t, ok := f.tenants[tenantID]
+	if !ok {
+		return nil, domain.ErrTenantNotFound
+	}
+	t.PrimaryVertical, t.SecondaryVerticals, t.TraitOverrides = primary, secondary, traits
+	var kept []domain.CapabilityState
+	for _, c := range t.Capabilities {
+		if c.Source == "MANUAL" || c.Source == "PLAN" {
+			kept = append(kept, c)
+		}
+	}
+	for c, src := range derived {
+		if !slices.ContainsFunc(kept, func(k domain.CapabilityState) bool { return k.Capability == c }) {
+			kept = append(kept, domain.CapabilityState{Capability: c, Enabled: true, Source: src})
+		}
+	}
+	t.Capabilities = kept
+	t.Version++
+	f.outbox = append(f.outbox, "pp.identity.capabilities.changed.v1")
+	cp := *t
+	return &cp, nil
+}
+
+func (f *fakeTenantStore) SetCapabilities(_ context.Context, tenantID string, changes map[string]bool, _ string) (*domain.Tenant, error) {
+	t, ok := f.tenants[tenantID]
+	if !ok {
+		return nil, domain.ErrTenantNotFound
+	}
+	for c, on := range changes {
+		i := slices.IndexFunc(t.Capabilities, func(k domain.CapabilityState) bool { return k.Capability == c })
+		if i < 0 {
+			t.Capabilities = append(t.Capabilities, domain.CapabilityState{Capability: c, Enabled: on, Source: "MANUAL"})
+			continue
+		}
+		t.Capabilities[i] = domain.CapabilityState{Capability: c, Enabled: on, Source: "MANUAL"}
+	}
+	t.Version++
+	f.outbox = append(f.outbox, "pp.identity.capabilities.changed.v1")
+	cp := *t
+	return &cp, nil
+}
+
+func (f *fakeTenantStore) UpsertBranch(_ context.Context, b *domain.Branch) (*domain.Branch, error) {
+	if f.branches == nil {
+		f.branches = map[string][]domain.Branch{}
+	}
+	list := f.branches[b.TenantID]
+	for i := range list {
+		if list[i].Code == b.Code && list[i].ID != b.ID {
+			return nil, domain.ErrBranchCodeTaken
+		}
+	}
+	out := *b
+	if out.ID == "" {
+		out.ID = "branch-" + b.Code
+		out.Active, out.Version = true, 1
+		f.branches[b.TenantID] = append(list, out)
+		return &out, nil
+	}
+	for i := range list {
+		if list[i].ID == b.ID {
+			out.Active, out.Version = list[i].Active, list[i].Version+1
+			list[i] = out
+			return &out, nil
+		}
+	}
+	return nil, domain.ErrBranchNotFound
+}
+
+func (f *fakeTenantStore) ListBranches(_ context.Context, tenantID string, includeInactive bool) ([]domain.Branch, error) {
+	var out []domain.Branch
+	for _, b := range f.branches[tenantID] {
+		if includeInactive || b.Active {
+			out = append(out, b)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeTenantStore) SetBranchActive(_ context.Context, tenantID, branchID string, active bool) (*domain.Branch, error) {
+	list := f.branches[tenantID]
+	activeCount := 0
+	for _, b := range list {
+		if b.Active {
+			activeCount++
+		}
+	}
+	for i := range list {
+		if list[i].ID == branchID {
+			if !active && list[i].Active && activeCount <= 1 {
+				return nil, domain.ErrCannotDeactivateLastBranch
+			}
+			list[i].Active = active
+			cp := list[i]
+			return &cp, nil
+		}
+	}
+	return nil, domain.ErrBranchNotFound
 }
 
 func (f *fakeTenantStore) OutboxPending(_ context.Context, _ int) ([]store.OutboxEvent, error) {

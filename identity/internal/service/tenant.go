@@ -3,11 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
-	"plentypay/identity/internal/auth"
 
+	"plentypay/identity/internal/auth"
 	"plentypay/identity/internal/domain"
 )
 
@@ -22,8 +23,16 @@ type CreateBusinessInput struct {
 	DV            string
 	Country       string
 	DocumentKeys  []string
-	Now           time.Time
+	// Perfil de negocio (R20): vertical principal (vacía = general_commercial), respuestas de
+	// rasgos y nombre de la sucursal matriz 0000.
+	PrimaryVertical string
+	TraitAnswers    map[string]bool
+	BranchName      string
+	Now             time.Time
 }
+
+// DefaultPlanCode es el plan único del piloto mientras se decide Q-29.
+const DefaultPlanCode = "standard"
 
 // TenantView es el tenant tal como lo devuelve el servicio.
 type TenantView struct {
@@ -36,6 +45,14 @@ type TenantView struct {
 	Country     string
 	ReviewNotes string
 	CreatedAt   time.Time
+	// Perfil de negocio y capacidades (ADR 0018).
+	PrimaryVertical    string
+	SecondaryVerticals []string
+	TraitOverrides     map[string]bool
+	Traits             []string // rasgos efectivos, ordenados
+	PlanCode           string
+	Version            int32
+	Capabilities       []domain.CapabilityState
 }
 
 // BusinessResult es el resultado de CreateBusiness (tenant + sesion del dueno).
@@ -58,6 +75,13 @@ func (s *IdentityService) CreateBusiness(ctx context.Context, in CreateBusinessI
 	}
 	if err := domain.ValidateTaxId(in.TaxID, in.DV); err != nil {
 		return rejectBusiness("INVALID_TAX_ID", "RUC inválido"), nil
+	}
+	profile, err := normalizeProfile(ProfileInput{PrimaryVertical: in.PrimaryVertical, TraitAnswers: in.TraitAnswers})
+	if err != nil {
+		if errors.Is(err, domain.ErrVerticalNotFound) {
+			return rejectBusiness("VERTICAL_NOT_FOUND", "tipo de negocio no encontrado"), nil
+		}
+		return rejectBusiness("INVALID_REQUEST", "rasgo de negocio desconocido"), nil
 	}
 
 	// El dueeno: se busca por correo; si no existe, se crea con la clave dada.
@@ -92,7 +116,10 @@ func (s *IdentityService) CreateBusiness(ctx context.Context, in CreateBusinessI
 		LegalName: in.LegalName, TradeName: in.TradeName,
 		TaxID: domain.NormalizeTaxId(in.TaxID), DV: in.DV,
 		Country: in.Country, Documents: in.DocumentKeys,
-		CreatedAt: in.Now,
+		CreatedAt:       in.Now,
+		PrimaryVertical: profile.PrimaryVertical, SecondaryVerticals: profile.SecondaryVerticals,
+		TraitOverrides: profile.TraitAnswers, PlanCode: DefaultPlanCode, BranchName: in.BranchName,
+		Capabilities: derivedCapabilityStates(profile),
 	}
 	if err := s.tenants.CreateTenant(ctx, owner, tenant); err != nil {
 		if errors.Is(err, domain.ErrTenantAlreadyExists) {
@@ -104,8 +131,9 @@ func (s *IdentityService) CreateBusiness(ctx context.Context, in CreateBusinessI
 		return nil, err
 	}
 
-	// Sesion del dueno recien creado/verificado.
-	session, err := s.issueTokens(ctx, owner, "")
+	// Sesion del dueno: el token ya lleva su nuevo rol y su tenant.
+	owner.Role, owner.TenantID = "BUSINESS_OWNER", tenant.ID
+	session, err := s.issueTokens(ctx, owner, s.startSession(ctx, owner.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -189,10 +217,18 @@ func toTenantView(t *domain.Tenant) *TenantView {
 	if t == nil {
 		return nil
 	}
+	traits := []string{}
+	for tr := range auth.EffectiveTraits(t.PrimaryVertical, t.SecondaryVerticals, t.TraitOverrides) {
+		traits = append(traits, tr)
+	}
+	sort.Strings(traits)
 	return &TenantView{
 		ID: t.ID, LegalName: t.LegalName, TradeName: t.TradeName,
 		TaxID: t.TaxID, DV: t.DV, Status: t.Status, Country: t.Country,
 		ReviewNotes: t.ReviewNotes, CreatedAt: t.CreatedAt,
+		PrimaryVertical: t.PrimaryVertical, SecondaryVerticals: t.SecondaryVerticals,
+		TraitOverrides: t.TraitOverrides, Traits: traits, PlanCode: t.PlanCode, Version: t.Version,
+		Capabilities: t.Capabilities,
 	}
 }
 
