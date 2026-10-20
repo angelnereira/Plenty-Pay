@@ -13,7 +13,8 @@ para que ningún paso quede como simulación. Se actualiza en el mismo cambio qu
 | ledger | sí (F10) | **sí** desde 2026-10-20 | relay a `PP_LEDGER` publicando; I7 = 0 verificado en producción |
 | payments-core | sí (F11.1–F11.7) | **sí** desde 2026-10-20 | wallet (T3), recargas sandbox (T1), cobros por riel sandbox (T2), UNKNOWN; relay a `PP_PAYMENTS`; proyección de `TenantStatusChanged` |
 | settlement, fiscal-invoicing, payroll, notifications, analytics-bi | parcial | no | — |
-| catalog, inventory, orders, pos, logistics, geolocation | esqueleto | no | F14–F18 |
+| catalog, inventory, pos | sí (F15.1–F15.2, F16.1–F16.4, F17.1–F17.5) | pendiente (`commerce-reset.sh`) | productos, existencias y caja con outbox a `PP_COMMERCE`; pos consume `PP_PAYMENTS` |
+| orders, logistics, geolocation | esqueleto | no | F15.6–F18 |
 
 ## 1.1 Reglas de atomicidad (aplican a todo contenedor que mueve dinero, stock o estado)
 
@@ -39,7 +40,7 @@ para que ningún paso quede como simulación. Se actualiza en el mismo cambio qu
 
 | Operación | Pasos síncronos | Eventos y consumidores | Estado |
 |---|---|---|---|
-| Venta de caja (pos.CompleteSale) | catalog (precio) → payments-core (cobro) → inventory.AdjustStock SALE (si cae: movimiento diferido en outbox de pos) | `pos.sale.paid` → analytics-bi, notifications; fiscal-invoicing emite la factura | no existe |
+| Venta de caja (pos.Checkout) | catalog (precio, al armar la venta) → efectivo en caja / billetera: el cliente paga el QR de la venta (payments-core T3 con `reference = {sale, id}`) → pos consume `PaymentCaptured` → en UNA transacción: PAID, recibo, efectivo esperado, tareas de stock y `SalePaid` → worker → inventory.AdjustStock SALE `sale:<venta>:<línea>` (si cae: diferido con backoff) | `pos.sale.paid` → analytics-bi, notifications, fiscal-invoicing (no desplegados) | **código y L2 (2026-10-20)**; despliegue pendiente. Saldo del cliente −, `MERCHANT_PAYABLE` +, venta en el historial, existencias −, todo con claves deterministas |
 | Devolución de caja | payments.RefundPayment o salida de caja → inventory RETURN → nota de crédito | `pos.sale.refunded` → analytics-bi | no existe |
 | Pedido del mercado (orders.Checkout) | catalog → inventory.ReserveStock (TTL) → payments-core.CreatePaymentIntent con splits | `payments.payment.captured` → orders (Commit de reservas), pos, notifications, analytics-bi; `orders.order.paid` → notifications, analytics-bi | no existe |
 | Pago con billetera / compra | payments-core → ledger.CreateHold + CaptureHold (T3, hold y asiento en una transacción del ledger) | `ledger.transaction.posted` y `ledger.hold.status_changed` → settlement, analytics-bi; `payments.payment.captured` → orders, pos, notifications | **en producción (2026-10-20)**. Saldo del pagador −, `MERCHANT_PAYABLE` +, comisión e ITBMS a plataforma, extracto de los dos lados, lista de cobros del comercio. Consumidores aún no desplegados; realtime `payment.status` pendiente (F20/F23.4: la app consulta el intent) |

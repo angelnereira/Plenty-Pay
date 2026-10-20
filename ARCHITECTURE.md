@@ -37,9 +37,9 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [payments-core](payments-core/SPEC.md) | Rust | 50062 | 📝 | F11 |
 | [settlement](settlement/SPEC.md) | Rust | 50063 | 📋 | F12 |
 | [fiscal-invoicing](fiscal-invoicing/SPEC.md) | Go | 50064 | 📋 | F13 |
-| [catalog](catalog/SPEC.md) | Go | 50065 | 📋 | F15 |
-| [inventory](inventory/SPEC.md) | Go | 50066 | 📋 | F16 |
-| [pos](pos/SPEC.md) | Go | 50067 | 📋 | F17 |
+| [catalog](catalog/SPEC.md) | Go | 50065 | 📝 productos, categorías y tasas legales (L2); despliegue pendiente | F15 |
+| [inventory](inventory/SPEC.md) | Go | 50066 | 📝 bodegas, existencias, ajustes y transferencias (L2); despliegue pendiente | F16 |
+| [pos](pos/SPEC.md) | Go | 50067 | 📝 sesiones, ventas, efectivo y billetera, descuento de stock (L2); despliegue pendiente | F17 |
 | [logistics](logistics/SPEC.md) | Go | 50068 | 📋 | F18 |
 | [geolocation](geolocation/SPEC.md) | Go | 50069 | 📋 | F14 |
 | [payroll](payroll/SPEC.md) | Go | 50070 | 📋 | F19 |
