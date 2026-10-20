@@ -55,7 +55,21 @@ type Route struct {
 	QueryParams map[string]string
 	// RawBody indica que el cuerpo viaja tal cual (webhooks, R9).
 	RawBody bool
+	// Backend es el contenedor destino (vacío = identity). Ver Backend* abajo.
+	Backend string
+	// Defaults fija campos constantes del proto (ruta → `account.type`), antes del query.
+	Defaults map[string]string
+	// FromCaller fija campos del proto con la identidad validada (`user_id`, `tenant_id`), al
+	// final: nunca los decide el cliente (R5, ADR 0011).
+	FromCaller map[string]string
 }
+
+// Contenedores destino de la tabla (service-dependencies.md §3).
+const (
+	BackendIdentity = ""
+	BackendPayments = "payments-core"
+	BackendLedger   = "ledger"
+)
 
 // FullMethod devuelve el método gRPC normalizado (con barra inicial).
 func (r Route) FullMethod() string {
@@ -102,6 +116,12 @@ func (r Route) DecodeRequest(req *http.Request) (proto.Message, error) {
 		}
 	}
 
+	for field, value := range r.Defaults {
+		if err := setField(msg, field, value); err != nil {
+			return nil, err
+		}
+	}
+
 	// Query: listas con page_size/page_token.
 	if len(r.QueryParams) > 0 {
 		q := req.URL.Query()
@@ -110,6 +130,24 @@ func (r Route) DecodeRequest(req *http.Request) (proto.Message, error) {
 				if err := setField(msg, field, v); err != nil {
 					return nil, fmt.Errorf("query %s: %w", name, err)
 				}
+			}
+		}
+	}
+
+	if len(r.FromCaller) > 0 {
+		c := metadata.FromContext(req.Context())
+		for field, attr := range r.FromCaller {
+			var v string
+			switch attr {
+			case "user_id":
+				v = c.UserID
+			case "tenant_id":
+				v = c.TenantID
+			default:
+				return nil, fmt.Errorf("atributo de caller %q desconocido", attr)
+			}
+			if err := setField(msg, field, v); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -257,12 +295,48 @@ func writeError(w http.ResponseWriter, status int, reason, msg string) {
 }
 
 // setField fija un campo del proto por nombre, convirtiendo segun su tipo
-// (string para rutas, int32 para page_size).
+// (string para rutas, int32 para page_size). Acepta rutas con punto hacia mensajes
+// anidados (`page.page_size`, `amount.amount_minor`), enums por nombre o número y
+// `google.protobuf.Timestamp` en RFC 3339.
 func setField(msg proto.Message, field, value string) error {
 	m := msg.ProtoReflect()
+	parts := strings.Split(field, ".")
+	for _, name := range parts[:len(parts)-1] {
+		fd := m.Descriptor().Fields().ByName(protoreflect.Name(name))
+		if fd == nil || fd.Kind() != protoreflect.MessageKind || fd.IsList() || fd.IsMap() {
+			return fmt.Errorf("campo %s no existe en %s", field, msg.ProtoReflect().Descriptor().FullName())
+		}
+		m = m.Mutable(fd).Message()
+	}
+	field = parts[len(parts)-1]
 	fd := m.Descriptor().Fields().ByName(protoreflect.Name(field))
 	if fd == nil {
 		return fmt.Errorf("campo %s no existe en %s", field, m.Descriptor().FullName())
+	}
+	switch fd.Kind() {
+	case protoreflect.EnumKind:
+		if ev := fd.Enum().Values().ByName(protoreflect.Name(value)); ev != nil {
+			m.Set(fd, protoreflect.ValueOfEnum(ev.Number()))
+			return nil
+		}
+		n, err := strconv.ParseInt(value, 10, 32)
+		if err != nil || fd.Enum().Values().ByNumber(protoreflect.EnumNumber(n)) == nil {
+			return fmt.Errorf("campo %s: %q no es un valor válido", field, value)
+		}
+		m.Set(fd, protoreflect.ValueOfEnum(protoreflect.EnumNumber(n)))
+		return nil
+	case protoreflect.MessageKind:
+		if fd.Message().FullName() != "google.protobuf.Timestamp" {
+			return fmt.Errorf("campo %s: tipo %s no soportado", field, fd.Message().FullName())
+		}
+		t, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			return fmt.Errorf("campo %s: %q no es una fecha RFC 3339", field, value)
+		}
+		ts := m.Mutable(fd).Message()
+		ts.Set(ts.Descriptor().Fields().ByName("seconds"), protoreflect.ValueOfInt64(t.Unix()))
+		ts.Set(ts.Descriptor().Fields().ByName("nanos"), protoreflect.ValueOfInt32(int32(t.Nanosecond())))
+		return nil
 	}
 	switch fd.Kind() {
 	case protoreflect.StringKind:

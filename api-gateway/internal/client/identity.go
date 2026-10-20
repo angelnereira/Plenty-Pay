@@ -38,6 +38,16 @@ func dialOptions(reporter *observability.Reporter, creds credentials.TransportCr
 	}
 }
 
+// NewServiceConn abre la conexión hacia otro contenedor (payments-core, ledger) con la misma
+// cadena de interceptores: metadatos x-pp-* del token validado, traza y métricas (F11).
+func NewServiceConn(target string, reporter *observability.Reporter) (*grpc.ClientConn, error) {
+	conn, err := grpc.NewClient(target, dialOptions(reporter, insecure.NewCredentials())...)
+	if err != nil {
+		return nil, observability.Wrap(err, "create service client")
+	}
+	return conn, nil
+}
+
 // NewIdentityClientWithCredentials permite inicializar el cliente con credenciales de transporte personalizadas.
 func NewIdentityClientWithCredentials(target string, reporter *observability.Reporter, creds credentials.TransportCredentials) (*IdentityClient, error) {
 	conn, err := grpc.NewClient(target, dialOptions(reporter, creds)...)

@@ -78,8 +78,14 @@ func TestTableRoutesWellFormed(t *testing.T) {
 		if r.Path == "" || !strings.HasPrefix(r.Path, "/v1/") {
 			t.Errorf("ruta %s %s: path inválido", r.Method, r.Path)
 		}
-		if r.RPC == "" || !strings.HasPrefix(r.RPC, "/plentypay.identity.v1.Identity/") {
-			t.Errorf("ruta %s %s: RPC %q inválido", r.Method, r.Path, r.RPC)
+		// El RPC pertenece al servicio del contenedor destino de la ruta.
+		prefix := map[string]string{
+			routes.BackendIdentity: "/plentypay.identity.v1.Identity/",
+			routes.BackendPayments: "/plentypay.payments.v1.Payments/",
+			routes.BackendLedger:   "/plentypay.ledger.v1.Ledger/",
+		}[r.Backend]
+		if r.RPC == "" || prefix == "" || !strings.HasPrefix(r.RPC, prefix) {
+			t.Errorf("ruta %s %s: RPC %q inválido para el destino %q", r.Method, r.Path, r.RPC, r.Backend)
 		}
 		if r.NewRequest == nil {
 			t.Errorf("ruta %s %s: sin fábrica de request", r.Method, r.Path)

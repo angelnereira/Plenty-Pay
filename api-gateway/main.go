@@ -15,13 +15,14 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"google.golang.org/grpc"
 	"plentypay/api-gateway/internal/client"
-	"plentypay/api-gateway/internal/middleware"
-	"plentypay/api-gateway/internal/ratelimit"
 	"plentypay/api-gateway/internal/handlers"
 	"plentypay/api-gateway/internal/metadata"
-	"plentypay/api-gateway/internal/openapi"
+	"plentypay/api-gateway/internal/middleware"
 	"plentypay/api-gateway/internal/observability"
+	"plentypay/api-gateway/internal/openapi"
+	"plentypay/api-gateway/internal/ratelimit"
 	"plentypay/api-gateway/internal/realtime"
 	"plentypay/api-gateway/internal/routes"
 	"plentypay/api-gateway/internal/storage"
@@ -56,7 +57,8 @@ var rutasConHandlerPropio = map[string]bool{
 	"GET /v1/me/permissions": true,
 }
 
-func newMux(identity *client.IdentityClient, hub *realtime.Hub) *http.ServeMux {
+// backends son las conexiones a los contenedores de la tabla además de identity (Route.Backend).
+func newMux(identity *client.IdentityClient, backends map[string]*grpc.ClientConn, hub *realtime.Hub) *http.ServeMux {
 	h := handlers.NewAuthHandlers(identity)
 	auth := middleware.RequireAuth(identity)
 	mux := http.NewServeMux()
@@ -96,7 +98,16 @@ func newMux(identity *client.IdentityClient, hub *realtime.Hub) *http.ServeMux {
 		if rutasConHandlerPropio[r.Method+" "+r.Path] {
 			continue
 		}
-		var handler http.Handler = routes.Handler(identity.Conn(), r)
+		conn := identity.Conn()
+		if r.Backend != routes.BackendIdentity {
+			c, ok := backends[r.Backend]
+			if !ok {
+				// Sin conexión configurada la ruta no existe (nunca se manda a otro contenedor).
+				continue
+			}
+			conn = c
+		}
+		var handler http.Handler = routes.Handler(conn, r)
 		if r.RequireAuth {
 			handler = auth(handler)
 		}
@@ -163,6 +174,20 @@ func main() {
 		fatal("identity client setup failed", err)
 	}
 	defer identity.Close()
+	// F11: payments-core y ledger (solo lectura de la billetera). Conexión perezosa: si el
+	// contenedor no está, la ruta responde 503 DEPENDENCY_UNAVAILABLE (service-dependencies.md §6).
+	backends := map[string]*grpc.ClientConn{}
+	for name, target := range map[string]string{
+		routes.BackendPayments: envOr("PP_PAYMENTS_ADDR", "payments-core:50062"),
+		routes.BackendLedger:   envOr("PP_LEDGER_ADDR", "ledger:50061"),
+	} {
+		conn, err := client.NewServiceConn(target, reporter)
+		if err != nil {
+			fatal("service client setup failed", err)
+		}
+		defer conn.Close()
+		backends[name] = conn
+	}
 
 	// Rate limiter (F09.6): NATS KV compartido entre réplicas; si no hay NATS, memoria (fail-open a nivel de réplica).
 	var rl ratelimit.Limiter = ratelimit.NewMemory()
@@ -221,7 +246,7 @@ func main() {
 
 	srv := &http.Server{
 		// R5: las x-pp-* del cliente se descartan en el borde, antes de cualquier handler.
-		Handler:           metadata.StripInboundMiddleware(observability.HTTPMiddleware(logger, reporter, metrics)(middleware.RateLimitMiddleware(rl)(newMux(identity, hub)))),
+		Handler:           metadata.StripInboundMiddleware(observability.HTTPMiddleware(logger, reporter, metrics)(middleware.RateLimitMiddleware(rl)(newMux(identity, backends, hub)))),
 		ReadHeaderTimeout: 5 * time.Second, // protege contra conexiones lentas (slowloris)
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

@@ -1463,3 +1463,17 @@ async fn r12_webhooks_are_rejected_until_their_adapter_exists() {
         .unwrap();
     assert!(row.get::<i64, _>("n") >= 10);
 }
+
+/// R5 vía gateway: el token llega en `x-pp-step-up` (cabecera `X-Step-Up-Token`), no en el cuerpo.
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn r5_step_up_token_from_metadata_is_consumed() {
+    let e = env().await;
+    let m = active_merchant(&e).await;
+    let code = terminal(&e, m).await.public_code;
+    let mut req = person(intent_req(&code, 10_000), Uuid::new_v4());
+    req.metadata_mut()
+        .insert("x-pp-step-up", "no-emitido-por-identity".parse().unwrap());
+    let err = e.svc.create_payment_intent(req).await.unwrap_err();
+    assert_eq!(reason(&err), "STEP_UP_INVALID");
+}

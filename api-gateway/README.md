@@ -17,6 +17,17 @@
 | Salud | Puerto admin `:9100` con `/healthz/live` y `/healthz/ready`, subcomando `/app healthcheck`, apagado ordenado con SIGTERM (F02.1). `ready` no depende de identity (matriz de degradación); `/metrics` en F04.6 | L1 `internal/observability` |
 | Observabilidad | 📝 Implementado y probado 2026-10-12: logs JSON de una línea con `request_id`, `trace_id` y `span_id`; modelo de error con pila en el origen y registro único en el borde; recuperación de pánicos con `pp_panics_total`; trazas OpenTelemetry con propagación W3C; `/metrics` con contadores. Métricas obligatorias §2.1 implementadas 2026-10-12: `pp_http_requests_total{route,status}`, `pp_http_duration_seconds{route}` (histograma 5 ms–10 s), `pp_rpc_client_requests_total{target,rpc,code}` y `pp_rpc_client_duration_seconds` en el interceptor de cliente, `pp_build_info{service,version,commit}` y rechazo de etiquetas prohibidas (§2.3) con prueba. **Falta para cerrar F04.6**: métricas de `pp_db_*` cuando haya base de datos, `pp_ws_connections_current` y `pp_rate_limited_total` (F09.5/F09.6), puente de logs a OTLP (hoy solo stdout), exportación verificada contra un colector real (F04.1) y `golangci-lint` (herramienta no instalada: no ejecutado) | L1: pruebas `TestObs_*`; L4: E2E 23/23 con la misma traza en gateway e identity |
 
+## Billetera y pagos (F11.3)
+- **Rutas**: `/v1/wallet/{balance,statement}` van al ledger y son solo de lectura, siempre sobre la cuenta de la persona del token. `/v1/payments/*`, `/v1/pay-links/{code}`, `/v1/terminals` y `/v1/fee-policies` van a payments-core. Detalle en SPEC §4.2.
+- **Conexiones**: `PP_PAYMENTS_ADDR` (`payments-core:50062`) y `PP_LEDGER_ADDR` (`ledger:50061`), perezosas y con la misma cadena de interceptores (metadatos, traza, métricas).
+- **Pruebas**: L1 en `internal/routes/payments_test.go`:
+  - el ledger solo expone lecturas;
+  - la cuenta sale del token aunque el cliente mande otra;
+  - campos anidados del query y fechas RFC 3339;
+  - la clave de idempotencia llega al proto;
+  - `quote` no se confunde con un id.
+- **Pendiente**: el L4 de punta a punta, que necesita el ledger y payments-core desplegados.
+
 ## Tiempo real (F09.5)
 GET /v1/realtime (WebSocket): autenticacion por primer mensaje {"type":"auth","token":...} en 5 s, suscripciones por topic (inbox, payment.status, delivery, customer_display, geo.subject, session), maximo 20 por conexion y 1 conexion por sesion, ping cada 25 s. Al llegar SessionRevoked de NATS se cierran los sockets de esas sesiones (R10).
 

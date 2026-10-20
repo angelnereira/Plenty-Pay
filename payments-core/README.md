@@ -13,7 +13,7 @@ Orquestador de cobros: intents, pagos, intentos por riel, comisiones, reembolsos
 |---|---|---|
 | Dominio: comisiones §4, máquinas de estado §8.1/§8.2, validación de entradas | ✅ L1 | `src/domain/`; 15 vectores literales y propiedades en `tests/fees_vectors.rs`, unitarias en cada módulo |
 | Migración `0001_initial.sql`: RLS en 10 tablas, sin DELETE, triggers de congelado | ✅ L2 | `test/test_l2.sh` migra dos veces y comprueba privilegios, RLS y dueño (2026-10-20) |
-| Intents y pagos wallet con hold y captura T3 (F11.3, R1–R9, R13–R15) | ✅ L2 · ⏳ L4 | 25 pruebas L2 contra ledger, identity e infra-management reales y efímeros, entre ellas la prueba de aceptación 1 del SPEC |
+| Intents y pagos wallet con hold y captura T3 (F11.3, R1–R9, R13–R15) | ✅ L2 · ⏳ L4 | 26 pruebas L2 contra ledger, identity e infra-management reales y efímeros, entre ellas la prueba de aceptación 1 del SPEC |
 | Terminales y ResolveTerminal (F11.5, R16) | ✅ L2 | `f11_5_resolve_terminal_shows_verified_name`: nombre verificado en identity; inactiva → `TERMINAL_INACTIVE` |
 | Políticas de comisión y QuoteFees | ✅ L2 | `r3_*` |
 | Outbox y relay a NATS (ADR 0012) | ✅ código · ⏳ en vivo | L2 verifica que cada fila arma el `EventEnvelope` del contrato. Aún no se publicó en `PP_PAYMENTS` en este entorno |
@@ -52,6 +52,6 @@ Para que un negocio pueda cobrar debe cumplir tres condiciones:
 
 ## Limitaciones conocidas
 - **Producción**: el esquema `payments` tiene 9 tablas vacías creadas como `postgres` por el agente anterior, sin registro de migraciones. Hay que respaldarlo y recrearlo después de desplegar el ledger. El script está preparado fuera del repo y requiere autorización del responsable.
-- **Gateway**: aún no expone `/v1/payments/*`, `/v1/terminals` ni `/v1/pay-links/*`, así que la app no llega a payments-core. Eso es lo que falta para el L4 de F11.3.
+- **Gateway**: ya enruta `/v1/payments/*`, `/v1/terminals`, `/v1/pay-links/*` y `/v1/fee-policies`. Mientras payments-core no esté desplegado, esas rutas responden 503.
 - **Saldo de prueba**: la wallet es sandbox (`wallet.real_money` apagado, N-AML-01). Las recargas reales llegan con el riel sandbox de F11.7; hasta entonces ninguna billetera tiene saldo.
 - **Observabilidad**: parcial (ver la fila de arriba).

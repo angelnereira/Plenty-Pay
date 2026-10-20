@@ -70,6 +70,8 @@ pub struct Actor {
     pub tenant_id: Option<Uuid>,
     pub permissions: Vec<String>,
     pub request_id: String,
+    /// Token de step-up de `x-pp-step-up` (cabecera `X-Step-Up-Token` en el gateway).
+    pub step_up: String,
 }
 
 impl Actor {
@@ -482,14 +484,13 @@ impl PaymentsCore {
             return Err(DomainError::AmountOutOfRange.into());
         }
         if payer.is_some() && charged >= limits.step_up_threshold_minor {
-            self.step_up(
-                actor,
-                &cmd.step_up_token,
-                STEP_UP_CREATE,
-                charged,
-                &cmd.currency,
-            )
-            .await?;
+            let token = if cmd.step_up_token.is_empty() {
+                actor.step_up.as_str()
+            } else {
+                cmd.step_up_token.as_str()
+            };
+            self.step_up(actor, token, STEP_UP_CREATE, charged, &cmd.currency)
+                .await?;
         }
 
         let (row, hash) = self
@@ -589,7 +590,8 @@ impl PaymentsCore {
             let token = confirmation_data
                 .get("step_up_token")
                 .map(String::as_str)
-                .unwrap_or("");
+                .filter(|t| !t.is_empty())
+                .unwrap_or(actor.step_up.as_str());
             self.step_up(actor, token, STEP_UP_CONFIRM, charged, &intent.currency)
                 .await?;
         }

@@ -296,6 +296,129 @@ var Table = []Route{
 		NewRequest:  func() proto.Message { return &pb.ReviewBusinessRequest{} },
 		NewResponse: func() proto.Message { return &pb.Tenant{} },
 	},
+
+	// ── Billetera (F11): saldo y extracto del ledger, siempre de la persona del token ─────────
+	{
+		Method: "GET", Path: "/v1/wallet/balance", RPC: "/plentypay.ledger.v1.Ledger/GetBalance", Backend: BackendLedger,
+		RequireAuth: true, Permission: "wallet:read",
+		Defaults:    map[string]string{"account.type": "ACCOUNT_TYPE_WALLET", "account.currency": "USD"},
+		QueryParams: map[string]string{"currency": "account.currency"},
+		FromCaller:  map[string]string{"account.party_id": "user_id"},
+		NewRequest:  func() proto.Message { return &pb.GetBalanceRequest{} },
+		NewResponse: func() proto.Message { return &pb.Balance{} },
+	},
+	{
+		Method: "GET", Path: "/v1/wallet/statement", RPC: "/plentypay.ledger.v1.Ledger/GetStatement", Backend: BackendLedger,
+		RequireAuth: true, Permission: "wallet:read",
+		Defaults: map[string]string{"account.type": "ACCOUNT_TYPE_WALLET", "account.currency": "USD"},
+		QueryParams: map[string]string{
+			"currency": "account.currency", "from": "range.from", "to": "range.to",
+			"page_size": "page.page_size", "page_token": "page.page_token",
+		},
+		FromCaller:  map[string]string{"account.party_id": "user_id"},
+		NewRequest:  func() proto.Message { return &pb.GetStatementRequest{} },
+		NewResponse: func() proto.Message { return &pb.GetStatementResponse{} },
+	},
+
+	// ── Cobros (F11.3). payments-core revisa `wallet:pay` / `payments:charge` (SPEC §4) ──────
+	{
+		Method: "POST", Path: "/v1/payments/intents", RPC: "/plentypay.payments.v1.Payments/CreatePaymentIntent",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, StepUp: true,
+		NewRequest:  func() proto.Message { return &pb.CreatePaymentIntentRequest{} },
+		NewResponse: func() proto.Message { return &pb.PaymentIntent{} },
+	},
+	{
+		Method: "POST", Path: "/v1/payments/intents/{payment_intent_id}/confirm", RPC: "/plentypay.payments.v1.Payments/ConfirmPaymentIntent",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, Permission: "wallet:pay",
+		PathParams:  map[string]string{"payment_intent_id": "payment_intent_id"},
+		NewRequest:  func() proto.Message { return &pb.ConfirmPaymentIntentRequest{} },
+		NewResponse: func() proto.Message { return &pb.PaymentIntent{} },
+	},
+	{
+		Method: "POST", Path: "/v1/payments/intents/{payment_intent_id}/cancel", RPC: "/plentypay.payments.v1.Payments/CancelPaymentIntent",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true,
+		PathParams:  map[string]string{"payment_intent_id": "payment_intent_id"},
+		NewRequest:  func() proto.Message { return &pb.CancelPaymentIntentRequest{} },
+		NewResponse: func() proto.Message { return &pb.PaymentIntent{} },
+	},
+	{
+		Method: "GET", Path: "/v1/payments/intents/{payment_intent_id}", RPC: "/plentypay.payments.v1.Payments/GetPaymentIntent",
+		Backend: BackendPayments, RequireAuth: true,
+		PathParams:  map[string]string{"payment_intent_id": "payment_intent_id"},
+		NewRequest:  func() proto.Message { return &pb.GetPaymentIntentRequest{} },
+		NewResponse: func() proto.Message { return &pb.PaymentIntent{} },
+	},
+	{
+		// N-CON-01 / N-PAG-06: el desglose se muestra antes de confirmar.
+		Method: "GET", Path: "/v1/payments/quote", RPC: "/plentypay.payments.v1.Payments/QuoteFees",
+		Backend: BackendPayments, RequireAuth: true,
+		Defaults:    map[string]string{"amount.currency": "USD", "rail": "PAYMENT_RAIL_WALLET"},
+		QueryParams: map[string]string{"amount": "amount.amount_minor", "currency": "amount.currency", "rail": "rail"},
+		NewRequest:  func() proto.Message { return &pb.QuoteFeesRequest{} },
+		NewResponse: func() proto.Message { return &pb.FeeBreakdown{} },
+	},
+	{
+		Method: "GET", Path: "/v1/payments", RPC: "/plentypay.payments.v1.Payments/ListPayments",
+		Backend: BackendPayments, RequireAuth: true, Permission: "payments:read",
+		QueryParams: map[string]string{
+			"status": "status", "rail": "rail", "from": "range.from", "to": "range.to",
+			"reference_type": "reference.type", "reference_id": "reference.id",
+			"page_size": "page.page_size", "page_token": "page.page_token",
+		},
+		NewRequest:  func() proto.Message { return &pb.ListPaymentsRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListPaymentsResponse{} },
+	},
+	{
+		Method: "GET", Path: "/v1/payments/{payment_id}", RPC: "/plentypay.payments.v1.Payments/GetPayment",
+		Backend: BackendPayments, RequireAuth: true, Permission: "payments:read",
+		PathParams:  map[string]string{"payment_id": "payment_id"},
+		NewRequest:  func() proto.Message { return &pb.GetPaymentRequest{} },
+		NewResponse: func() proto.Message { return &pb.Payment{} },
+	},
+	{
+		// F3: quien paga ve el nombre VERIFICADO del comercio antes de confirmar (R16).
+		Method: "GET", Path: "/v1/pay-links/{public_code}", RPC: "/plentypay.payments.v1.Payments/ResolveTerminal",
+		Backend: BackendPayments, RequireAuth: true,
+		PathParams:  map[string]string{"public_code": "public_code"},
+		NewRequest:  func() proto.Message { return &pb.ResolveTerminalRequest{} },
+		NewResponse: func() proto.Message { return &pb.PublicTerminalInfo{} },
+	},
+
+	// ── Terminales de cobro (F11.5) ───────────────────────────────────────────
+	{
+		Method: "GET", Path: "/v1/terminals", RPC: "/plentypay.payments.v1.Payments/ListTerminals",
+		Backend: BackendPayments, RequireAuth: true, Permission: "payments:terminal:manage",
+		NewRequest:  func() proto.Message { return &pb.ListTerminalsRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListTerminalsResponse{} },
+	},
+	{
+		Method: "POST", Path: "/v1/terminals", RPC: "/plentypay.payments.v1.Payments/CreateTerminal",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, Permission: "payments:terminal:manage",
+		NewRequest:  func() proto.Message { return &pb.CreateTerminalRequest{} },
+		NewResponse: func() proto.Message { return &pb.Terminal{} },
+	},
+	{
+		Method: "POST", Path: "/v1/terminals/{terminal_id}/active", RPC: "/plentypay.payments.v1.Payments/SetTerminalActive",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, Permission: "payments:terminal:manage",
+		PathParams:  map[string]string{"terminal_id": "terminal_id"},
+		NewRequest:  func() proto.Message { return &pb.SetTerminalActiveRequest{} },
+		NewResponse: func() proto.Message { return &pb.Terminal{} },
+	},
+
+	// ── Políticas de comisión: lectura del negocio o de plataforma; alta solo plataforma ─────
+	{
+		Method: "GET", Path: "/v1/fee-policies", RPC: "/plentypay.payments.v1.Payments/ListFeePolicies",
+		Backend: BackendPayments, RequireAuth: true,
+		QueryParams: map[string]string{"tenant_id": "tenant_id"},
+		NewRequest:  func() proto.Message { return &pb.ListFeePoliciesRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListFeePoliciesResponse{} },
+	},
+	{
+		Method: "PUT", Path: "/v1/fee-policies", RPC: "/plentypay.payments.v1.Payments/UpsertFeePolicy",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, Permission: "platform:flags:manage",
+		NewRequest:  func() proto.Message { return &pb.UpsertFeePolicyRequest{} },
+		NewResponse: func() proto.Message { return &pb.FeePolicy{} },
+	},
 }
 
 // Find busca una ruta por método y path exacto (`{param}` comodín).

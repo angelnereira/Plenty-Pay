@@ -25,7 +25,7 @@
 - políticas de comisión;
 - jobs R7/R9 y R14.
 
-Evidencia: `./payments-core/test/test_l2.sh` contra ledger, identity e infra-management efímeros (25 L2, 18 unitarias, 15 vectores). Pendiente:
+Evidencia: `./payments-core/test/test_l2.sh` contra ledger, identity e infra-management efímeros (26 L2, 18 unitarias, 15 vectores). Pendiente:
 - rutas del gateway y despliegue (L4 de F11.3);
 - reembolsos (F11.6);
 - rieles externos sandbox y UNKNOWN de riel (F11.7);
@@ -126,6 +126,8 @@ Diferencias de la migración `0001_initial.sql` con el modelo de arriba, decidid
 - **R5** Step-up obligatorio (consumido con `identity.ConsumeStepUp`) para pagos y transferencias ≥ umbral (`stepup.threshold_minor` de infra-management) y para todo reembolso. Operaciones del reto:
   - `payments.intent.create`: paga la persona del contexto, por ejemplo con una terminal;
   - `payments.intent.confirm`: el cobro lo creó el comercio y la persona confirma.
+
+  El token llega en `step_up_token` o `confirmation_data["step_up_token"]`, o en el metadato `x-pp-step-up` (cabecera `X-Step-Up-Token` del gateway, igual que identity R14).
 - **R6** Ninguna transacción de BD abarca la llamada al riel (persistir PROCESSING → llamar → persistir resultado).
 - **R7** Respuesta ambigua/timeout del riel → `UNKNOWN` (nunca FAILED). Protocolo §6.3 de domain-model con job de resolución.
 - **R8** Captura confirmada → misma transacción local: Payment `CAPTURED`, `fees` congeladas, `ledger_posting=PENDING`, outbox `PaymentCaptured`; worker asienta T2/T3 con `pay:<payment_id>` hasta POSTED (backoff 1 s…5 min); >5 min sin asiento → alerta crítica.

@@ -64,6 +64,13 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | GET `/v1/business/branches` · POST `/v1/business/branches` (`branch.branch_id` vacío = crear) · POST `/v1/business/branches/{branch_id}/deactivate` · `/reactivate` | ListBranches · UpsertBranch · DeactivateBranch · ReactivateBranch | miembro / `admin:business:manage` |
 
 ### 4.2 Billetera y pagos (F11, F23)
+**Implementado (2026-10-20)**: los saldos, extractos, intents, cobros, terminales y políticas de esta tabla, con su `Backend` en `internal/routes/table.go`. Reglas:
+- El ledger solo se **lee**, y la cuenta de la billetera siempre es la de la persona del token (`FromCaller`). Lo que mande el cliente en el cuerpo o el query se ignora.
+- Las rutas que piden «`wallet:pay` o `payments:charge`» no tienen permiso único en el gateway. La primera barrera es la autenticación y payments-core decide (R23, defensa en profundidad).
+- `X-Step-Up-Token` viaja como `x-pp-step-up`.
+- Si payments-core o el ledger no responden: `503`.
+- Faltan reembolsos (F11.6), recargas y transferencias (F11.7) y la resolución de UNKNOWN (F11.7). Ninguna de esas rutas está en la tabla.
+
 | Método y ruta | RPC | Permiso |
 |---|---|---|
 | GET `/v1/wallet/balance` | ledger.GetBalance (party = user) | `wallet:read` |

@@ -24,5 +24,6 @@ pub fn actor(m: &MetadataMap) -> Actor {
             .map(str::to_string)
             .collect(),
         request_id: md(m, "x-pp-request-id"),
+        step_up: md(m, "x-pp-step-up"),
     }
 }
