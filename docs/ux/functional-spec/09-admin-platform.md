@@ -14,14 +14,21 @@ Módulos `admin` (paso F08.8) y `platform` (pasos indicados), y páginas servida
 | e3 | Datos comerciales | Nombre comercial · Logo · Teléfono · Correo · Sitio web | Editables |
 | e4 | Aviso de Operación | Número · Archivo · Vigente | Reemplazable; el cambio pasa por revisión |
 | e5 | Dueños | Personas con 10 % o más | Cambios 🔒 y con revisión (N-AML-04) |
-| e6 | Sucursales | Lista: nombre, código, dirección, punto en el mapa, horario | Agregar, editar, desactivar. El código se usa en la factura |
+| e6 | Sucursales | Lista: nombre, código (0000 matriz por defecto, único por negocio), dirección, mapa, horario, estado | Agregar, editar, desactivar (`CANNOT_DEACTIVATE_LAST_BRANCH`). El código se usa en facturación DGI y alcance |
 | e7 | Preferencias | Mostrar moneda como $ o B/. · Mostrar equivalencia en libras | — |
+| e8 | Perfil comercial | Vertical primaria, secundarias y rasgos | Muestra vertical y enlace a `/business/modules` (S-ADM-08) para ajustar capacidades |
 
 ### S-ADM-02 · `/business/staff` · Equipo de usuarios
-`admin:users:manage`. Lista: nombre, correo, rol, sucursal, estado, último acceso. "Invitar": correo, rol, sucursal → envía enlace que vence en 7 días. Por usuario: "Cambiar rol" (🔒 si el rol nuevo incluye permisos de dinero), "Desactivar" (C-05; cierra sus sesiones), "Reenviar invitación". El dueño no se desactiva (`CANNOT_DEACTIVATE_OWNER`: "No puedes desactivar al dueño del negocio.").
+`admin:users:manage`. Lista: nombre, correo, rol, alcance (`TENANT` o sucursales específicas), cargo (`job_title`), estado, último acceso. "Invitar": correo, rol, alcance (`TENANT` o selección de sucursales activas), cargo opcional → envía enlace que vence en 7 días (`InviteStaff`). Reglas: A1 (no conceder permisos que no tienes), A2 (no puedes autoasignarte ni modificar tu propio rol/alcance sin otro administrador), A3 (el alcance asignado debe ser subconjunto de tu propio alcance). Por usuario: "Cambiar rol/alcance" (🔒 si el rol incluye permisos de dinero), "Suspender" (bloqueo temporal reversible, C-05; revoca sesiones y el acceso responde "Tu cuenta está suspendida. Contacta al administrador de tu negocio."), "Reactivar" (quita la suspensión o la baja), "Desactivar" (baja del equipo, C-05; revoca sesiones en tiempo real). Pestaña "Invitaciones" con las pendientes (correo, rol, alcance, vence): "Reenviar" (emite enlace nuevo) y "Revocar". Nadie puede suspender ni desactivar su propia cuenta (`SELF_ASSIGNMENT_FORBIDDEN`). El dueño no se desactiva (`CANNOT_DEACTIVATE_OWNER`). Staff sin rol asignado recibe únicamente permisos base de cliente (deny-by-default).
 
 ### S-ADM-03 · `/business/roles` · Roles
-`admin:roles:manage`. Lista de roles predefinidos (solo lectura, `PRESET_READ_ONLY`) y propios. Editor: nombre y matriz de permisos agrupada por módulo, con una descripción en lenguaje llano de cada permiso ("Devolver ventas y reembolsar dinero"). Los permisos de dinero llevan el icono 🔒. No aparecen permisos de plataforma. Aviso al guardar un rol que combina crear y aprobar nómina, o cobrar y reembolsar: "Este rol reúne funciones que conviene separar."
+`admin:roles:manage`. Lista de plantillas predefinidas universales (`manager`, `cashier`, `stock_keeper`, `accountant`, `courier`, `viewer`, `supervisor`) y de vertical (según las verticales activas del negocio, solo lectura `PRESET_READ_ONLY`) y roles propios. Editor: nombre, descripción, duplicar desde plantilla o en blanco, y matriz de permisos organizada didácticamente en **5 niveles de acceso** por módulo:
+- **Ver**: lectura y consulta de datos.
+- **Operar**: registrar ventas, movimientos de inventario, cobrar o marcar asistencia.
+- **Gestionar**: crear y editar catálogos, clientes, pedidos o turnos.
+- **Aprobar**: autorizar reembolsos, aprobar nómina o cerrar arqueos (🔒).
+- **Configurar**: parámetros del módulo y reglas de negocio.
+Los permisos con impacto monetario llevan el icono 🔒. No se muestran permisos de plataforma (`platform:*`). Aviso visual y advertencia de segregación de funciones (SoD) al guardar un rol que combina crear y aprobar nómina, vender y reembolsar, o gestionar catálogo y ajustar inventario: *"Este rol reúne funciones que conviene separar."* Reglas de custodia en servidor: A1 (no puedes conceder permisos que tu propio usuario no posea), A2 (no puedes editar un rol asignado a tu propio usuario para ganar privilegios).
 
 ### S-ADM-04 · `/business/integrations` · Integraciones
 `admin:integrations:manage` · Pasos F13.9, F20.8, F23.6. Tarjeta por integración (medios de pago, facturación, WhatsApp, impresoras) con estado: "Modo de prueba", "Conectado", "Requiere atención". Las credenciales se introducen una vez, se guardan cifradas y no se vuelven a mostrar. Cambiarlas es operación 🔒.
@@ -43,6 +50,18 @@ El negocio es responsable de los datos de **sus** clientes y empleados; PlentyPa
 | e2 | Lista | Solicitudes de clientes y empleados sobre sus datos | Tipo, fecha, fecha límite (5 o 10 días hábiles), estado. En `warning` a 2 días del límite |
 | e3 | Detalle de solicitud | Datos encontrados · Lo que debe conservarse por ley | Acciones: "Entregar copia", "Corregir", "Eliminar lo permitido", "Rechazar" (motivo obligatorio) |
 | e4 | Fila | Documentos: aviso de privacidad para mi tienda · consentimiento de biometría para empleados | Descarga de modelos |
+
+### S-ADM-08 · `/business/modules` · Módulos y funciones
+`admin:business:manage` · Paso F08.8 · Principios: perfil comercial, capacidades y rasgos.
+
+Lista de módulos y capacidades funcionales con interruptores (`Switch`), agrupados por vertical y rasgos de negocio.
+
+| Id | Componente | Texto visible | Comportamiento y validación |
+|---|---|---|---|
+| e1 | Encabezado | Vertical comercial activa: {vertical} | Muestra vertical primaria y secundarias con chip informativo |
+| e2 | Tarjeta de plan | Plan actual: {plan_code} | Muestra capacidades incluidas en el plan actual y aviso si hay capacidades bloqueadas por plan |
+| e3 | Lista de capacidades | Interruptores organizados por módulo (Punto de venta, Inventario, Logística, Nómina, Citas, etc.) | Cada capacidad muestra nombre claro, descripción breve y switch activo/inactivo. Si el plan no la incluye, switch deshabilitado con candado 🔒 y tooltip ("Disponible en Plan Avanzado") |
+| e4 | `PPButton.primary` | Guardar capacidades | Llama a `SetCapabilities` en `identity`. Si se desactiva una capacidad en uso, diálogo de confirmación: "¿Deseas desactivar esta función? Los permisos asociados dejarán de estar disponibles para tu equipo." Emite evento outbox `pp.identity.capabilities.changed.v1` |
 
 ## Plataforma (equipo de PlentyPay)
 

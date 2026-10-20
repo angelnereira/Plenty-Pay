@@ -176,7 +176,7 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F08.3 | Sesiones con rotación de refresh y detección de reuso | identity | R8, R9 con prueba | L2 |
 | F08.4 | Bloqueo progresivo | identity | R5 | L2 |
 | F08.5 | Tenants: CreateBusiness/ReviewBusiness/GetTenant + outbox `TenantStatusChanged` | identity | Evento publicado una vez por transición | L2 |
-| F08.6 | Roles personalizados + invitaciones de staff | identity | R12, R13; invitación vence a 7 días | L2 |
+| F08.6 | Roles personalizados + invitaciones de staff, modelo de acceso, sucursales y capacidades | identity | R12, R13, R20–R24; invitaciones con alcance TENANT/BRANCHES, reglas A1–A3, resolución de membresía | L2 |
 | F08.7 | Recuperación y cambio de contraseña | identity | R16 | L2 |
 | F08.8 | Pantallas Flutter: perfil, sesiones, alta de negocio (KYB), equipo, roles, invitaciones, revisión de negocios (plataforma) | flutter_app | integration_test: dueño invita cajero y el cajero ve su menú | L4 |
 
@@ -582,3 +582,21 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | 5. App única multiplataforma | F02, F22–F25 |
 | 6. Seguridad y confianza (PCI, biometría, inmutabilidad) | F05, F10, F28 |
 | 7. Escala (500 000+ usuarios/día) | F27, F29 |
+| 3.12 Citas y servicios programados | F31 |
+
+## F31 — Citas y servicios programados (`scheduling`)
+
+- **Objetivo**: Sistema completo de gestión de turnos, citas, reservas y disponibilidad para profesionales y negocios de servicios.
+- **Entregable operable en producción**: Negocios de belleza, salud/clínicas y servicios profesionales configuran agendas, recursos, profesionales, reservas con confirmación y recordatorios automatizados.
+- **Contenedores**: scheduling, api-gateway, notifications, flutter_app
+- **Depende de**: F08 (identidad y alcance por sucursal), F15 (catálogo de servicios), F19 (empleados), F20 (notificaciones)
+
+| Paso | Qué | Dónde | Criterio de aceptación | Nivel |
+|---|---|---|---|---|
+| F31.1 | Contrato proto y núcleo en memoria de citas (`scheduling.proto`) | scheduling | Pruebas de reglas de negocio R1–R6 (bloqueos, solapamiento, buffer time) | L1 |
+| F31.2 | Persistencia PostgreSQL, migraciones y RLS por tenant/sucursal | scheduling | Pruebas de store con aislamiento multi-sucursal; RLS activo | L2 |
+| F31.3 | Motor de disponibilidad y reglas de agenda (horarios de empleados, excepciones, descansos) | scheduling | Pruebas de cálculo de slots con feriados y solapamientos | L2 |
+| F31.4 | Integración con notificaciones outbox (confirmación de cita, recordatorio 24h/2h) | scheduling, notifications | Eventos outbox `pp.scheduling.appointment.*` publicados e idempotentes | L3 |
+| F31.5 | Rutas HTTP/WebSocket en api-gateway con validación de capacidad `appointments.booking` | api-gateway | Endpoints de agenda protegidos por permisos y capacidades | L3 |
+| F31.6 | Pantallas Flutter de agenda: calendario visual, reserva, check-in y configuración | flutter_app | Vistas adaptativas teléfono/tablet para agenda de citas con `gravital-experience-ui` | L4 |
+

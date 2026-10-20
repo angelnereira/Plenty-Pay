@@ -34,39 +34,113 @@ Aplica a todos los contenedores y a la app Flutter. Es la base mínima: un SPEC 
 2. El gateway hace una primera verificación (ruta → permiso); **cada servicio vuelve a verificar** con `x-pp-permissions` (defensa en profundidad).
 3. Permisos con formato `<módulo>:<acción>[:<calificador>]`.
 
-### 3.1 Catálogo de permisos (fuente de verdad)
+### 3.1 Catálogo de permisos y mapeo a capacidades (fuente de verdad)
 
-| Módulo | Permisos |
-|---|---|
-| wallet | `wallet:read`, `wallet:topup`, `wallet:transfer`, `wallet:pay` |
-| payments | `payments:charge`, `payments:read`, `payments:refund`, `payments:terminal:manage`, `payments:fees:read`, `payments:fees:manage` |
-| settlement | `settlement:read`, `settlement:schedule:manage`, `settlement:reconcile` |
-| catalog | `catalog:read`, `catalog:write`, `catalog:import`, `catalog:listing:manage` |
-| inventory | `inventory:read`, `inventory:adjust`, `inventory:purchase:manage`, `inventory:receive` |
-| pos | `pos:sell`, `pos:void`, `pos:refund`, `pos:session:manage`, `pos:settings:manage`, `pos:discount:apply` |
-| fiscal | `fiscal:read`, `fiscal:issue`, `fiscal:note:issue`, `fiscal:profile:manage` |
-| orders | `orders:read`, `orders:manage`, `orders:read:self`, `orders:create:self` |
-| logistics | `logistics:read`, `logistics:manage`, `logistics:deliver`, `logistics:geofence:manage` |
-| payroll | `payroll:employee:read`, `payroll:employee:manage`, `payroll:attendance:record`, `payroll:attendance:read`, `payroll:run:create`, `payroll:run:approve`, `payroll:run:pay`, `payroll:payslip:read:self` |
-| analytics | `analytics:read`, `analytics:dashboard:manage`, `analytics:alert:manage`, `analytics:export` |
-| admin (del comercio) | `admin:users:manage`, `admin:roles:manage`, `admin:business:manage`, `admin:integrations:manage`, `admin:audit:read` |
-| notifications | `notifications:read:self`, `notifications:template:manage` |
-| platform | `platform:tenants:review`, `platform:users:manage`, `platform:flags:manage`, `platform:security:read`, `platform:reconcile`, `platform:support` |
+Un permiso de negocio está activo si **al menos una** de sus capacidades asociadas está encendida en el negocio. Los permisos marcados como `(núcleo)` no dependen de capacidades y están siempre activos si el rol los contiene. Los permisos de `(plataforma)` aplican exclusivamente a `PLATFORM_ADMIN`.
 
-### 3.2 Roles predefinidos (presets; el dueño puede crear roles propios con subconjuntos)
-
-| Rol | Ámbito | Permisos |
+| Módulo | Permiso | Capacidad asociada |
 |---|---|---|
-| `PLATFORM_ADMIN` | plataforma | todos los `platform:*` + lectura de cualquier módulo para soporte (auditada) |
-| `BUSINESS_OWNER` | tenant | todos los permisos de módulos del tenant excepto `platform:*` |
-| Gerente (`manager`) | tenant | `catalog:*`, `inventory:*`, `pos:*`, `orders:*` (no self), `logistics:*`, `payments:charge/read/refund`, `settlement:read`, `fiscal:read/issue/note:issue`, `analytics:read`, `payroll:attendance:read`, `payroll:employee:read` |
-| Cajero (`cashier`) | tenant | `pos:sell`, `pos:session:manage`, `payments:charge`, `payments:read`, `catalog:read`, `inventory:read`, `fiscal:issue`, `payroll:attendance:record`, `payroll:payslip:read:self` |
-| Almacenista (`stock_keeper`) | tenant | `inventory:*`, `catalog:read`, `payroll:attendance:record`, `payroll:payslip:read:self` |
-| Repartidor (`courier`) | tenant | `logistics:deliver`, `logistics:read`, `payroll:attendance:record`, `payroll:payslip:read:self` |
-| Contador (`accountant`) | tenant | `fiscal:*` excepto `fiscal:profile:manage`, `settlement:read`, `settlement:reconcile`, `payments:read`, `analytics:read`, `analytics:export`, `payroll:run:create` |
-| `CUSTOMER` | propio | `wallet:*`, `catalog:read`, `orders:read:self`, `orders:create:self`, `notifications:read:self` |
+| wallet | `wallet:read` | `(núcleo)` |
+| wallet | `wallet:topup` | `(núcleo)` |
+| wallet | `wallet:transfer` | `(núcleo)` |
+| wallet | `wallet:pay` | `(núcleo)` |
+| payments | `payments:charge` | `finance.payments` |
+| payments | `payments:read` | `finance.payments` |
+| payments | `payments:refund` | `finance.payments` |
+| payments | `payments:terminal:manage` | `finance.terminals` |
+| payments | `payments:fees:read` | `finance.payments` |
+| payments | `payments:fees:manage` | `finance.payments` |
+| settlement | `settlement:read` | `finance.settlement` |
+| settlement | `settlement:schedule:manage` | `finance.settlement` |
+| settlement | `settlement:reconcile` | `finance.settlement` |
+| fiscal | `fiscal:read` | `finance.fiscal` |
+| fiscal | `fiscal:issue` | `finance.fiscal` |
+| fiscal | `fiscal:note:issue` | `finance.fiscal` |
+| fiscal | `fiscal:profile:manage` | `finance.fiscal` |
+| catalog | `catalog:read` | `(núcleo)` |
+| catalog | `catalog:write` | `catalog.products` |
+| catalog | `catalog:import` | `catalog.products` |
+| catalog | `catalog:listing:manage` | `catalog.listing` |
+| catalog | `catalog:pricelist:manage` | `catalog.price_lists` |
+| inventory | `inventory:read` | `inventory.stock` |
+| inventory | `inventory:adjust` | `inventory.stock` |
+| inventory | `inventory:purchase:manage` | `inventory.purchasing` |
+| inventory | `inventory:receive` | `inventory.purchasing` |
+| inventory | `inventory:recipe:manage` | `inventory.recipes` |
+| pos | `pos:read` | `pos.counter` |
+| pos | `pos:sell` | `pos.counter` |
+| pos | `pos:void` | `pos.counter` |
+| pos | `pos:refund` | `pos.counter` |
+| pos | `pos:session:manage` | `pos.counter` |
+| pos | `pos:settings:manage` | `pos.counter` |
+| pos | `pos:discount:apply` | `pos.counter` |
+| pos | `pos:table:manage` | `pos.tables` |
+| pos | `pos:kitchen:update` | `pos.kitchen_display` |
+| pos | `pos:credit:approve` | `pos.house_credit` |
+| orders | `orders:read:self` | `(núcleo)` |
+| orders | `orders:create:self` | `(núcleo)` |
+| orders | `orders:read` | `orders.marketplace` |
+| orders | `orders:manage` | `orders.marketplace` |
+| orders | `orders:quote:manage` | `orders.quotes` |
+| appointments | `appointments:read` | `appointments.calendar` |
+| appointments | `appointments:read:self` | `appointments.calendar` |
+| appointments | `appointments:book` | `appointments.calendar` |
+| appointments | `appointments:checkin` | `appointments.queue` |
+| appointments | `appointments:manage` | `appointments.calendar` |
+| appointments | `appointments:settings:manage` | `appointments.calendar` |
+| logistics | `logistics:read` | `logistics.own_fleet` |
+| logistics | `logistics:deliver` | `logistics.own_fleet` |
+| logistics | `logistics:manage` | `logistics.own_fleet` |
+| logistics | `logistics:geofence:manage` | `logistics.geofences` |
+| logistics | `logistics:fleet:manage` | `logistics.fleet` |
+| logistics | `logistics:route:plan` | `logistics.routes` |
+| payroll | `payroll:employee:read` | `payroll.runs` |
+| payroll | `payroll:employee:manage` | `payroll.runs` |
+| payroll | `payroll:attendance:record` | `payroll.attendance` |
+| payroll | `payroll:attendance:read` | `payroll.attendance` |
+| payroll | `payroll:run:create` | `payroll.runs` |
+| payroll | `payroll:run:approve` | `payroll.runs` |
+| payroll | `payroll:run:pay` | `payroll.runs` |
+| payroll | `payroll:payslip:read:self` | `payroll.runs` |
+| payroll | `payroll:commission:read:self` | `payroll.commissions` |
+| payroll | `payroll:commission:manage` | `payroll.commissions` |
+| analytics | `analytics:read` | `analytics.dashboards` |
+| analytics | `analytics:dashboard:manage` | `analytics.dashboards` |
+| analytics | `analytics:alert:manage` | `analytics.dashboards` |
+| analytics | `analytics:export` | `analytics.export` |
+| admin | `admin:users:manage` | `(núcleo)` |
+| admin | `admin:roles:manage` | `(núcleo)` |
+| admin | `admin:business:manage` | `(núcleo)` |
+| admin | `admin:integrations:manage` | `(núcleo)` |
+| admin | `admin:audit:read` | `(núcleo)` |
+| notifications | `notifications:read:self` | `(núcleo)` |
+| notifications | `notifications:template:manage` | `(núcleo)` |
+| platform | `platform:tenants:review` | `(plataforma)` |
+| platform | `platform:users:manage` | `(plataforma)` |
+| platform | `platform:flags:manage` | `(plataforma)` |
+| platform | `platform:security:read` | `(plataforma)` |
+| platform | `platform:reconcile` | `(plataforma)` |
+| platform | `platform:support` | `(plataforma)` |
 
-**Todo usuario recibe además los permisos de `CUSTOMER`** (cualquier persona tiene billetera propia y puede comprar). Los **módulos visibles** en la app se derivan de los permisos (tabla en `identity/SPEC.md` R10; código en `identity/internal/auth/permissions.go`) (`identity.GetUserPermissions → modules`), regla en `flutter-standards.md` §6 y `docs/ux/screen-catalog.md`.
+### 3.2 Roles predefinidos y plantillas universales
+
+| Rol / Plantilla | Ámbito | Responsabilidad y permisos |
+|---|---|---|
+| `PLATFORM_ADMIN` | plataforma | Todos los `platform:*` + lectura de soporte auditada + base `CUSTOMER`. |
+| `BUSINESS_OWNER` | tenant | Todos los permisos de módulos del tenant excepto `platform:*`. |
+| Gerente (`manager`) | tenant | Operar y gestionar el día a día: `catalog:write`, `catalog:import`, `catalog:listing:manage`, `inventory:adjust`, `inventory:purchase:manage`, `inventory:receive`, `pos:sell`, `pos:void`, `pos:refund`, `pos:session:manage`, `pos:settings:manage`, `pos:discount:apply`, `orders:read`, `orders:manage`, `logistics:read`, `logistics:manage`, `logistics:deliver`, `logistics:geofence:manage`, `payments:charge`, `payments:read`, `payments:refund`, `settlement:read`, `fiscal:read`, `fiscal:issue`, `fiscal:note:issue`, `analytics:read`, `payroll:attendance:read`, `payroll:employee:read`, `payroll:attendance:record`, `payroll:payslip:read:self`. |
+| Supervisor (`supervisor`) | tenant | Autorizaciones y excepciones de caja: `pos:void`, `pos:refund`, `pos:discount:apply`, `pos:session:manage`, `payroll:attendance:read`, `payroll:attendance:record`, `payroll:payslip:read:self`. **No incluye `pos:sell` para evitar conflicto SoD.** |
+| Cajero (`cashier`) | tenant | Operación de ventas y cobros: `pos:sell`, `pos:session:manage`, `payments:charge`, `payments:read`, `catalog:read`, `inventory:read`, `fiscal:issue`, `payroll:attendance:record`, `payroll:payslip:read:self`. |
+| Almacenista (`stock_keeper`) | tenant | Gestión de almacén: `inventory:read`, `inventory:adjust`, `inventory:purchase:manage`, `inventory:receive`, `catalog:read`, `payroll:attendance:record`, `payroll:payslip:read:self`. |
+| Repartidor (`courier`) | tenant | Entregas y logística: `logistics:deliver`, `logistics:read`, `payroll:attendance:record`, `payroll:payslip:read:self`. |
+| Contador (`accountant`) | tenant | Facturación y finanzas: `fiscal:read`, `fiscal:issue`, `fiscal:note:issue`, `settlement:read`, `settlement:reconcile`, `payments:read`, `analytics:read`, `analytics:export`, `payroll:run:create`, `payroll:attendance:record`, `payroll:payslip:read:self`. |
+| Solo lectura (`viewer`) | tenant | Auditoría y consulta sin mutaciones: `catalog:read`, `inventory:read`, `orders:read`, `logistics:read`, `payments:read`, `settlement:read`, `fiscal:read`, `payroll:attendance:read`, `analytics:read`. |
+| `CUSTOMER` | propio | Billetera y marketplace propio: `wallet:*`, `catalog:read`, `orders:read:self`, `orders:create:self`, `notifications:read:self`. |
+
+**Reglas de asignación**:
+1. Todo usuario recibe siempre los permisos base de `CUSTOMER`.
+2. Un empleado (`BUSINESS_STAFF`) sin rol personalizado asignado recibe **únicamente** la base de `CUSTOMER` (principio deny-by-default).
+3. Los módulos visibles en la app se derivan dinámicamente de los permisos efectivos y las capacidades activas del comercio (`identity.GetUserPermissions → modules`, `flutter-standards.md` §6 y `docs/ux/screen-catalog.md`).
 
 ## 4. Confirmación fuerte (step-up)
 Operaciones que exigen `x-pp-step-up` válido (token de un solo uso, 5 min, ligado a usuario + operación + monto):

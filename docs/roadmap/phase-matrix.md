@@ -34,6 +34,7 @@
 | F28 | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
 | F29 | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |  | ● |
 | F30 | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |  | ● |
+| F31 |  | ● |  |  |  |  |  |  |  |  |  |  |  | ● |  |  |  |  | ● |  | ● |  |  | ● | ● |
 
 Leyenda de columnas: `idp`=identity, `gw`=api-gateway, `ledger`=ledger, `pay`=payments-core, `settle`=settlement, `fiscal`=fiscal-invoicing, `catalog`=catalog, `inv`=inventory, `orders`=orders, `pos`=pos, `logi`=logistics, `geo`=geolocation, `payroll`=payroll, `notif`=notifications, `bi`=analytics-bi, `security`=security, `infra`=infra-management, `obs`=observability, `pg`=postgres-db, `nosql`=nosql-db, `bus`=event-bus, `s3`=object-storage, `web`=web, `app`=flutter_app, `proto`=network-contracts.
 

@@ -37,15 +37,59 @@ CREATE TABLE identity.tenants (
   id uuid PRIMARY KEY, legal_name text NOT NULL, trade_name text NOT NULL,
   ruc text NOT NULL, dv text NOT NULL, status text NOT NULL,   -- TenantStatus
   owner_user_id uuid NOT NULL, review_notes text, reviewed_by uuid, reviewed_at timestamptz,
+  primary_vertical text REFERENCES identity.verticals(key),
+  secondary_verticals text[] NOT NULL DEFAULT '{}',
+  trait_overrides jsonb NOT NULL DEFAULT '{}',
+  plan_code text,
   kyb_documents jsonb NOT NULL DEFAULT '[]',   -- [{kind, object_key, uploaded_at}]
   created_at timestamptz NOT NULL, updated_at timestamptz NOT NULL, version int NOT NULL DEFAULT 1
 );
 CREATE UNIQUE INDEX tenants_ruc ON identity.tenants (ruc, dv);
 
+CREATE TABLE identity.verticals (
+  key text PRIMARY KEY, family text NOT NULL, default_traits text[] NOT NULL,
+  suggested_modules jsonb NOT NULL, role_template_keys text[] NOT NULL, label_pack text NOT NULL,
+  version int NOT NULL, active boolean NOT NULL DEFAULT true
+);
+
+CREATE TABLE identity.tenant_capabilities (
+  tenant_id uuid NOT NULL, capability text NOT NULL, enabled boolean NOT NULL,
+  source text NOT NULL, changed_by uuid, changed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, capability)
+);
+
+CREATE TABLE identity.branches (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES identity.tenants(id),
+  code char(4) NOT NULL, name text NOT NULL, kind text NOT NULL, -- STORE|WAREHOUSE_ONLY|KITCHEN|SALON|DEPOT|VIRTUAL
+  address jsonb, open_hours jsonb, active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL, updated_at timestamptz NOT NULL, version int NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, code)
+);
+
 CREATE TABLE identity.roles (
   id uuid PRIMARY KEY, tenant_id uuid,          -- NULL = preset de plataforma
   name text NOT NULL, permissions text[] NOT NULL, is_preset bool NOT NULL DEFAULT false,
+  template_key text, template_version int, description text,
+  archived_at timestamptz, version int NOT NULL DEFAULT 1,
   UNIQUE (tenant_id, name)
+);
+
+CREATE TABLE identity.memberships (
+  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES identity.users(id),
+  tenant_id uuid NOT NULL REFERENCES identity.tenants(id),
+  base_role text NOT NULL CHECK (base_role IN ('BUSINESS_OWNER','BUSINESS_STAFF')),
+  role_id uuid REFERENCES identity.roles(id),
+  scope text NOT NULL CHECK (scope IN ('TENANT','BRANCHES')),
+  job_title text, status text NOT NULL, -- INVITED|ACTIVE|DEACTIVATED
+  invited_by uuid, created_at timestamptz NOT NULL, ended_at timestamptz, version int NOT NULL DEFAULT 1,
+  UNIQUE (user_id, tenant_id)
+);
+CREATE UNIQUE INDEX one_active_membership ON identity.memberships (user_id) WHERE status = 'ACTIVE';
+
+CREATE TABLE identity.membership_branches (
+  membership_id uuid NOT NULL REFERENCES identity.memberships(id),
+  branch_id uuid NOT NULL REFERENCES identity.branches(id),
+  PRIMARY KEY (membership_id, branch_id)
 );
 CREATE TABLE identity.consents (
   id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES identity.users(id),
@@ -85,7 +129,7 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 | RPC | Permiso | Idemp. | Comportamiento | Errores (`reason`) |
 |---|---|---|---|---|
 | Register | público (vía gateway) | no | crea `CUSTOMER`; el gateway fuerza el rol (R6), el canal y el dispositivo; valida y registra los consentimientos (R18) | `INVALID_EMAIL`, `WEAK_PASSWORD`, `EMAIL_TAKEN`, `CONSENT_REQUIRED`, `AGE_REQUIREMENT` |
-| Login | público | no | verifica contraseña, bloqueo progresivo, crea sesión, devuelve access+refresh | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED` |
+| Login | público | no | verifica contraseña, bloqueo progresivo, crea sesión, devuelve access+refresh | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ACCOUNT_SUSPENDED` |
 | ValidateToken | servicio (gateway) | — | valida access token: firma, exp, algoritmo, sesión no revocada | `TOKEN_INVALID` |
 | GetUserPermissions | servicio / self | — | rol base + rol personalizado → `permissions` y `modules` | `NOT_FOUND` |
 | RefreshToken | público | — | rota refresh; reuso ⇒ revoca familia y publica `SessionRevoked` | `TOKEN_INVALID`, `TOKEN_REUSED` |
@@ -94,15 +138,28 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 | ChangePassword | self + step-up | sí | verifica actual, aplica política, revoca otras sesiones | `INVALID_CREDENTIALS`, `WEAK_PASSWORD`, `STEP_UP_REQUIRED` |
 | RequestPasswordReset | público | — | siempre `ok=true`; si existe, outbox → notifications envía enlace `/reset/<token>` | — |
 | ConfirmPasswordReset | público | sí | token válido 30 min, un uso; revoca todas las sesiones | `TOKEN_INVALID` |
-| CreateBusiness | usuario autenticado sin tenant | sí | crea tenant `PENDING_REVIEW`, usuario pasa a `BUSINESS_OWNER` | `ALREADY_HAS_TENANT`, `RUC_TAKEN`, `INVALID_RUC` |
+| CreateBusiness | usuario autenticado sin tenant | sí | crea tenant `PENDING_REVIEW`, membresía `BUSINESS_OWNER` alcance `TENANT`, sucursal matriz `0000` y capacidades base en 1 transacción | `ALREADY_HAS_TENANT`, `RUC_TAKEN`, `INVALID_RUC`, `VERTICAL_NOT_FOUND` |
 | ReviewBusiness | `platform:tenants:review` | sí | transición de estado §8.15; publica `TenantStatusChanged` | `INVALID_STATE_TRANSITION` |
 | GetTenant | miembro del tenant / plataforma | — | datos del tenant | `NOT_FOUND` |
 | ListTenants | `platform:tenants:review` | — | filtro por estado, paginado | — |
-| InviteStaff | `admin:users:manage` | sí | invitación 7 días; outbox → correo | `ROLE_NOT_FOUND`, `EMAIL_TAKEN` |
-| AcceptInvitation | público con token | sí | crea usuario `BUSINESS_STAFF` con rol; devuelve tokens | `TOKEN_INVALID` |
-| ListUsers / DeactivateUser | `admin:users:manage` | — / sí | staff del tenant; desactivar revoca sesiones | `NOT_FOUND`, `CANNOT_DEACTIVATE_OWNER` |
+| ListVerticals | público / autenticado | — | catálogo de verticales, familias, rasgos y sugerencias | — |
+| ListRoleTemplates | público / autenticado | — | plantillas de roles universales y por vertical | — |
+| GetBusinessProfile | `admin:business:manage` / miembro | — | perfil comercial, verticales y rasgos operativos | `NOT_FOUND` |
+| UpdateBusinessProfile | `admin:business:manage` | sí | actualiza verticales y rasgos sin borrar datos ni roles | `NOT_FOUND`, `VERTICAL_NOT_FOUND` |
+| SetCapabilities | `admin:business:manage` | sí | activa/desactiva capacidades dentro del plan | `CAPABILITY_DISABLED`, `PLAN_LIMIT_REACHED` |
+| UpsertBranch | `admin:business:manage` | sí | crea/actualiza sucursal (código DGI 4 dígitos) | `BRANCH_CODE_TAKEN`, `INVALID_BRANCH_CODE` |
+| ListBranches | miembro del tenant | — | sucursales activas del comercio | — |
+| DeactivateBranch / ReactivateBranch | `admin:business:manage` | sí | desactiva (o reactiva) una sucursal; no permite desactivar la única activa; las membresías con alcance `BRANCHES` conservan el vínculo | `NOT_FOUND`, `CANNOT_DEACTIVATE_LAST_BRANCH` |
+| InviteStaff | `admin:users:manage` | sí | invitación con rol, alcance y cargo; valida A1, A2, A3 | `ROLE_NOT_FOUND`, `PERMISSION_NOT_HELD`, `BRANCH_OUT_OF_SCOPE`, `PLAN_LIMIT_REACHED` |
+| AcceptInvitation | público con token | sí | activa membresía del usuario (existente o nuevo) | `TOKEN_INVALID` |
+| UpdateMembership | `admin:users:manage` | sí | actualiza rol, alcance y cargo de un miembro; valida A1–A3 | `NOT_FOUND`, `PERMISSION_NOT_HELD`, `SELF_ASSIGNMENT_FORBIDDEN`, `BRANCH_OUT_OF_SCOPE` |
+| ListUsers / DeactivateUser | `admin:users:manage` | — / sí | staff del tenant con rol, alcance, cargo y estado; desactivar es la baja del equipo y revoca sesiones | `NOT_FOUND`, `CANNOT_DEACTIVATE_OWNER`, `SELF_ASSIGNMENT_FORBIDDEN` |
+| SuspendUser / ReactivateUser | `admin:users:manage` | sí | bloqueo temporal reversible (`SUSPENDED`): revoca sesiones y el login responde `ACCOUNT_SUSPENDED`; reactivar vuelve a `ACTIVE` (también reactiva a un `DEACTIVATED`) | `NOT_FOUND`, `CANNOT_DEACTIVATE_OWNER`, `SELF_ASSIGNMENT_FORBIDDEN` |
+| ListInvitations / RevokeInvitation / ResendInvitation | `admin:users:manage` | — / sí / sí | invitaciones pendientes del negocio; revocar invalida el token; reenviar emite token nuevo y vuelve a publicar la solicitud de correo | `NOT_FOUND`, `ALREADY_USED` |
+| GetAccessCatalog | autenticado | — | catálogo de permisos con módulo, nivel de acceso, capacidad asociada y marca de dinero 🔒, orden de módulos y capacidades conocidas; lo usa el editor de roles (S-ADM-03) y S-ADM-08 sin copiar el catálogo en la app | — |
 | GetUserContacts | servicio (notifications) | — | email/teléfono/locale/preferencias | `NOT_FOUND` |
-| UpsertRole / ListRoles / AssignRole | `admin:roles:manage` (+ step-up si el rol tiene permisos de dinero) | sí | roles personalizados ⊆ permisos del catálogo; presets no editables | `UNKNOWN_PERMISSION`, `PRESET_READ_ONLY`, `STEP_UP_REQUIRED` |
+| UpsertRole / ListRoles / AssignRole | `admin:roles:manage` (+ step-up si el rol tiene permisos de dinero) | sí | roles personalizados ⊆ permisos del catálogo; presets no editables; valida A1 | `UNKNOWN_PERMISSION`, `PRESET_READ_ONLY`, `PERMISSION_NOT_HELD`, `STEP_UP_REQUIRED` |
+| ArchiveRole | `admin:roles:manage` | sí | archiva rol; no permite si tiene miembros activos | `ROLE_IN_USE`, `NOT_FOUND` |
 | Begin/FinishPasskeyRegistration, Begin/FinishPasskeyLogin | self / público | — | WebAuthn (F28) | `TOKEN_INVALID` |
 | IssueStepUpChallenge / VerifyStepUp | self | — | desafío ligado a operación+monto; token 5 min | `TOKEN_INVALID` |
 | ConsumeStepUp | servicio | — | atómico: `UPDATE ... SET consumed_at=now() WHERE consumed_at IS NULL AND expires_at>now()`; compara operación/monto/usuario | resultado `valid=false` + reason |
@@ -125,9 +182,10 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
   | `wallet` | algún `wallet:*` |
   | `marketplace` | `orders:create:self` u `orders:read:self` |
   | `pos` | algún `pos:*` |
-  | `catalog` | `catalog:write`, `catalog:import` o `catalog:listing:manage` |
+  | `appointments` | algún `appointments:*` |
+  | `catalog` | `catalog:write`, `catalog:import`, `catalog:listing:manage` o `catalog:pricelist:manage` |
   | `inventory` | algún `inventory:*` |
-  | `orders` (del comercio) | `orders:read` u `orders:manage` (no los `:self`) |
+  | `orders` (del comercio) | `orders:read`, `orders:manage` u `orders:quote:manage` (no los `:self`) |
   | `logistics` | algún `logistics:*` |
   | `finance` (cobros, liquidaciones, facturas) | algún `payments:*`, `settlement:*` o `fiscal:*` |
   | `payroll` | algún `payroll:*` |
@@ -142,10 +200,31 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 - **R16** Cambiar contraseña o reset revoca todas las demás sesiones.
 - **R17** RUC + DV válidos (formato DGI; algoritmo de DV en F08.6) y únicos.
 - **R18** Consentimientos del registro público (N-DAT-02, N-DAT-14): obligatorios `AGE_CONFIRMATION`, `TERMS` y `PRIVACY_DATA_PROCESSING`, cada uno con la versión del texto visto; `MARKETING` es opcional y se registra también si no se concede. Se guardan con fecha del servidor, canal y dispositivo. Sin ellos no se crea la cuenta: `AGE_REQUIREMENT` si falta la confirmación de mayoría de edad, `CONSENT_REQUIRED` si faltan términos o privacidad. Una finalidad desconocida se ignora. Revocar no borra: agrega un registro con `granted=false`.
-- **R19** Las contraseñas se derivan con SHA-256 + base64 antes de bcrypt costo 12 (esquema declarado en el propio hash, `sha256-bcrypt:`), porque bcrypt solo consume 72 bytes y la política permite 128 caracteres (R2). 
+- **R19** Las contraseñas se derivan con SHA-256 + base64 antes de bcrypt costo 12 (esquema declarado en el propio hash, `sha256-bcrypt:`), porque bcrypt solo consume 72 bytes y la política permite 128 caracteres (R2).
+- **R20** Perfil comercial y verticales: todo comercio registra una vertical principal y hasta 2 secundarias con sus rasgos operativos asociados. Los rasgos son personalizables en el alta o edición sin alterar la base de código de los servicios.
+- **R21** Capacidades del negocio y resolución dinámica: un permiso del rol solo se concede en los permisos efectivos si su capacidad asociada (`security-standards.md` §3.1) está activa en el negocio por perfil o plan (salvo permisos de núcleo y plataforma). El gateway propaga `x-pp-capabilities` y los servicios deniegan invocaciones a capacidades inactivas con `FAILED_PRECONDITION` y `reason: CAPABILITY_DISABLED`.
+- **R22** Asignación efectiva de roles: para usuarios `BUSINESS_STAFF`, `PermissionsForUser` resuelve exactamente los permisos del rol asignado en `memberships` (o `user_roles`) + base `CUSTOMER`. Un `BUSINESS_STAFF` sin rol asignado recibe únicamente la base `CUSTOMER` (principio deny-by-default; sin fallback al preset de cajero).
+- **R23** Reglas de gobierno anti-escalada:
+  - **A1**: Nadie puede crear roles ni asignar permisos que no posea en sus permisos efectivos (`PERMISSION_NOT_HELD`).
+  - **A2**: Nadie puede modificar su propio rol asignado ni su propia membresía (`SELF_ASSIGNMENT_FORBIDDEN`).
+  - **A3**: El alcance no puede crecer al delegar; quien posee alcance `BRANCHES` solo asigna subconjuntos de sus sucursales asignadas (`BRANCH_OUT_OF_SCOPE`).
+- **R24** Alcance por sucursal (`branch_scope`): toda membresía posee alcance `TENANT` (`*`) o `BRANCHES` (lista de UUIDs de sucursales). El gateway propaga el metadato `x-pp-branch-scope`. Acciones fuera del alcance asignado son denegadas con `PERMISSION_DENIED` y `reason: BRANCH_OUT_OF_SCOPE`.
+
+### Vectores de prueba normativos
+| Vector | Caso de prueba | Regla verificada | Prueba |
+|---|---|---|---|
+| **V1** | Persona sin negocio | R10 | `TestR10_CustomerOnly` |
+| **V2** | Dueño con inventario y logística apagados | R21 | `TestR21_OwnerLimitedByCapabilities` |
+| **V3** | Barbero con plantilla stylist en sucursal específica | R24 | `TestR24_StylistBranchScope` |
+| **V4** | Rol con capacidad apagada temporalmente | R21 | `TestR21_DisabledCapabilityDropsPermission` |
+| **V5** | Cajero de tenant en `PENDING_REVIEW` | R11 | `TestR11_PendingTenantKeepsPermissions` |
+| **V6** | Staff con rol personalizado asignado | R22 | `TestR22_AssignedCustomRoleResolves` |
+| **V7** | Delegación que expande alcance de sucursal | R23 (A3) | `TestR23_ScopeCannotGrow` |
+| **V8** | Delegación de permiso no poseído | R23 (A1) | `TestR23_CannotGrantUnheldPermission` |
+| **V9** | Auto-modificación de propio rol o membresía | R23 (A2) | `TestR23_NoSelfEscalation` |
 
 ## 6. Eventos
-Publica: `pp.identity.tenant.status_changed.v1` (`TenantStatusChanged`), `pp.identity.session.revoked.v1` (`SessionRevoked`), `pp.audit.identity.recorded.v1`. Solicitudes de correo (reset, invitación, bienvenida, bloqueo) se publican como `pp.identity.notification.requested.v1` con `notifications.SendRequest` embebido *(mensaje a agregar en F20.2 — hasta entonces notifications consume los eventos anteriores)*.
+Publica: `pp.identity.tenant.status_changed.v1` (`TenantStatusChanged`), `pp.identity.session.revoked.v1` (`SessionRevoked`), `pp.identity.role.changed.v1`, `pp.identity.membership.changed.v1`, `pp.identity.capabilities.changed.v1`, `pp.identity.branch.changed.v1`, `pp.audit.identity.recorded.v1`. Solicitudes de correo (reset, invitación, bienvenida, bloqueo) se publican como `pp.identity.notification.requested.v1` con `notifications.SendRequest` embebido *(mensaje a agregar en F20.2 — hasta entonces notifications consume los eventos anteriores)*.
 Consume: nada.
 
 ## 7. Dependencias

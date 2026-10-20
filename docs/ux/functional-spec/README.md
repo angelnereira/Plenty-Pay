@@ -17,7 +17,7 @@ Precedencia si hay conflicto: ADR → `domain-model.md` → SPEC del contenedor 
 | [`06-finance.md`](06-finance.md) | Cobros, liquidación y fiscal | S-FIN-01 a S-FIN-10 |
 | [`07-payroll.md`](07-payroll.md) | Equipo, asistencia y nómina | S-PAY-01 a S-PAY-09 |
 | [`08-analytics.md`](08-analytics.md) | Análisis | S-ANA-01 a S-ANA-08 |
-| [`09-admin-platform.md`](09-admin-platform.md) | Mi negocio, plataforma y páginas públicas | S-ADM-01 a S-ADM-07, S-PLT-01 a S-PLT-09, S-PUB-01 a S-PUB-04 |
+| [`09-admin-platform.md`](09-admin-platform.md) | Mi negocio, plataforma y páginas públicas | S-ADM-01 a S-ADM-08, S-PLT-01 a S-PLT-09, S-PUB-01 a S-PUB-04 |
 
 ## 2. Cómo se lee la ficha de una pantalla
 
@@ -130,7 +130,7 @@ Cada requisito es verificable y cita las pantallas que lo cumplen.
 | **RF-PAY-03** | Calcular la nómina con extras, deducciones y aportes legales, aprobarla y pagarla | S-PAY-06, S-PAY-07 |
 | **RF-PAY-04** | Calcular y pagar el décimo tercer mes y las vacaciones | S-PAY-06, S-PAY-08 |
 | **RF-ANA-01** | Ver indicadores, pronósticos y alertas, y exportar registros para el contador | S-ANA-01 a S-ANA-08 |
-| **RF-ADM-01** | Administrar datos del negocio, equipo, roles e integraciones | S-ADM-01 a S-ADM-07 |
+| **RF-ADM-01** | Administrar datos del negocio, equipo, roles e integraciones | S-ADM-01 a S-ADM-08 |
 | **RF-PLT-01** | La plataforma revisa negocios, opera cumplimiento, resuelve pagos inciertos y concilia | S-PLT-01 a S-PLT-09 |
 
 ## 6. Conexiones entre módulos

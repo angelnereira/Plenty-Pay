@@ -14,7 +14,7 @@ func TestR10_ModulesDerivedFromPermissions(t *testing.T) {
 	cases := map[string][]string{
 		"CUSTOMER":       {"wallet", "marketplace"},
 		"BUSINESS_STAFF": {"wallet", "marketplace"}, // deny-by-default: staff sin rol asignado recibe solo base
-		"BUSINESS_OWNER": {"wallet", "marketplace", "pos", "catalog", "inventory", "orders", "logistics", "finance", "payroll", "analytics", "admin"},
+		"BUSINESS_OWNER": {"wallet", "marketplace", "pos", "appointments", "catalog", "inventory", "orders", "logistics", "finance", "payroll", "analytics", "admin"},
 		"PLATFORM_ADMIN": {"wallet", "marketplace", "orders", "logistics", "finance", "analytics", "admin", "platform"},
 		"cashier":        {"wallet", "marketplace", "pos", "inventory", "finance", "payroll"},
 		"stock_keeper":   {"wallet", "marketplace", "inventory", "payroll"},

@@ -6,7 +6,7 @@ Fuente de verdad de **las reglas de negocio transversales**: quién es quién, c
 
 | Contexto | Dueño (contenedor) | Agregados raíz |
 |---|---|---|
-| Identidad y tenencia | identity | User, Tenant (Business), Session, Role, StepUpChallenge |
+| Identidad y tenencia | identity | User, Tenant (Business), Branch, Membership, Session, Role, StepUpChallenge |
 | Libro contable | ledger | Account, LedgerTransaction (+Entries), Hold |
 | Pagos | payments-core | PaymentIntent, Payment, PaymentAttempt, Refund, Terminal, FeePolicy |
 | Liquidación | settlement | SettlementBatch, PayoutSchedule, ReconciliationItem |
@@ -44,12 +44,15 @@ Términos de negocio esenciales. El glosario completo del proyecto (tipos, enums
 - **Step-up**: confirmación fuerte adicional (biometría/passkey) para una operación concreta.
 - **Instantánea (snapshot)**: copia inmutable de datos de otro contexto en un momento (p. ej. precio y nombre del producto en una línea de pedido).
 
-## 3. Identidad y tenencia
-1. Un **User** tiene un `UserRole` base (`PLATFORM_ADMIN`, `BUSINESS_OWNER`, `BUSINESS_STAFF`, `CUSTOMER`) y, si es staff, un `Role` personalizado del tenant con permisos (`security-standards.md` §3).
-2. Un usuario pertenece como máximo a **un** tenant como staff/dueño (MVP). Una persona que es cliente y además dueño usa la misma cuenta: su wallet personal es `party=user_id`, la del negocio `party=tenant_id`.
-3. **Tenant.status**: `PENDING_REVIEW` (puede configurar catálogo, no puede cobrar ni aparecer en marketplace) → `ACTIVE` | `REJECTED`; `ACTIVE` ↔ `SUSPENDED`. Solo `PLATFORM_ADMIN` cambia estados (`platform:tenants:review`). payments-core rechaza cobros de tenants no `ACTIVE` con `FAILED_PRECONDITION` `TENANT_NOT_ACTIVE`.
-4. KYB mínimo para `ACTIVE`: RUC + DV, razón social, aviso de operación, representante legal (cédula cifrada), cuenta bancaria de liquidación verificada, aceptación de términos. Documentos en object-storage, datos sensibles cifrados (`security.Encrypt`).
-5. El **tenant del contexto** es siempre el del usuario autenticado; un `PLATFORM_ADMIN` que actúa sobre un tenant lo hace con RPC de plataforma explícitos y auditados.
+## 3. Identidad, tenencia y modelo de acceso (ADR 0018)
+1. Un **User** tiene un `UserRole` base (`PLATFORM_ADMIN`, `BUSINESS_OWNER`, `BUSINESS_STAFF`, `CUSTOMER`). Toda persona es además un cliente con billetera propia y permisos base de `CUSTOMER`.
+2. Una **Membership** vincula a un usuario con un comercio (`tenant_id`), especificando su rol asignado (`role_id`), su alcance territorial/operativo (`scope`: `TENANT` o `BRANCHES`), su cargo laboral informativo (`job_title`) y su estado (`status`: `INVITED`, `ACTIVE`, `DEACTIVATED`). En el MVP, un usuario pertenece como máximo a **un** comercio con membresía activa; el desacoplamiento en la entidad `Membership` permite soporte multinegocio a futuro sin rediseño (H9).
+3. Un **Branch** (sucursal) es poseído exclusivamente por `identity`. Dispone de código DGI de 4 dígitos (`branch_code`, ej. `0000` para matriz), nombre comercial, tipo (`STORE`, `WAREHOUSE_ONLY`, `KITCHEN`, `SALON`, `DEPOT`, `VIRTUAL`), geolocalización y vigencia. Los demás contenedores persisten solo referencias por `branch_id`.
+4. El **BusinessProfile** comprende la vertical principal del comercio, hasta dos verticales secundarias y sus rasgos operativos (`traits`). Éstos determinan las capacidades activas (`capabilities`) del negocio junto a su plan contratado. El código de los contenedores evalúa capacidades, nunca cadenas de vertical.
+5. **Tenant.status**: `PENDING_REVIEW` (puede configurar catálogo, roles y sucursales; no puede cobrar ni aparecer en marketplace) → `ACTIVE` | `REJECTED`; `ACTIVE` ↔ `SUSPENDED`. Solo `PLATFORM_ADMIN` cambia estados (`platform:tenants:review`). payments-core rechaza cobros de tenants no `ACTIVE` con `FAILED_PRECONDITION` `TENANT_NOT_ACTIVE`.
+6. KYB mínimo para `ACTIVE`: RUC + DV, razón social, aviso de operación, representante legal (cédula cifrada), cuenta bancaria de liquidación verificada, aceptación de términos. Documentos en object-storage, datos sensibles cifrados (`security.Encrypt`).
+7. El **tenant del contexto** es siempre el del usuario autenticado; un `PLATFORM_ADMIN` que actúa sobre un tenant lo hace con RPC de plataforma explícitos y auditados.
+8. **Gobierno y anti-escalada**: Toda delegación de acceso cumple A1 (no conceder lo que no se posee), A2 (no auto-ampliación) y A3 (el alcance asignado no crece al delegar). Deny-by-default estricto: staff sin rol asignado no recibe acceso comercial hasta que se le asigne un rol explícito.
 
 ## 4. Motor de comisiones (fee engine) — payments-core
 

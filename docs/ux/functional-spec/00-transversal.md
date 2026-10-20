@@ -197,15 +197,16 @@ Resultado: `StatusChip` "En revisión" con el texto "Suele tardar menos de 24 ho
 ### S-GEN-15 · `/business/new` · Registrar mi negocio
 Usuario sin negocio · Paso F08.8 · `POST /v1/business` · Reglas: N-AML-04, N-COM-01, N-FMT-06
 
-Requiere identidad verificada del solicitante (si no, redirige a S-GEN-14). Asistente de 5 pasos.
+Requiere identidad verificada del solicitante (si no, redirige a S-GEN-14). Asistente de 6 pasos.
 
 | Paso | Elementos | Validación |
 |---|---|---|
-| 1 Negocio | Tipo: Persona natural / Persona jurídica · Razón social · Nombre comercial · RUC · DV · Actividad económica (lista) · Rubro del comercio (lista de categorías con su código MCC de 4 dígitos, N-STD-35) · Fecha de inicio | RUC natural = cédula; jurídica = `rollo-folio-asiento`. DV de 2 dígitos. `INVALID_RUC`: "El RUC o el DV no son válidos." `RUC_TAKEN`: "Este RUC ya está registrado." |
-| 2 Ubicación y contacto | Provincia → Distrito → Corregimiento · Ciudad · Dirección · Punto en el mapa · Teléfono · Correo del negocio | Punto obligatorio dentro de Panamá |
-| 3 Representante y dueños | Representante legal (precargado con el solicitante; editable) · Lista "Personas con 10 % o más del negocio": nombre, documento, porcentaje, nacionalidad · Casilla "Nadie más tiene 10 % o más." | Persona jurídica: al menos un dueño o la casilla. Suma de porcentajes ≤ 100 |
-| 4 Documentos | Aviso de Operación · Documento del representante · Pacto social o certificado del Registro Público (solo jurídica) · Comprobante de la cuenta bancaria | Cada uno: PDF o imagen ≤ 10 MB. Estado por archivo: subiendo, listo, error |
-| 5 Cuenta de liquidación y envío | Banco (lista) · Tipo: Corriente / Ahorros · Número · Titular · Casillas: "Acepto el Contrato de comercio." y "Declaro que la información es verdadera." · `PPButton.primary` "Enviar a revisión" | El titular debe coincidir con la razón social o el representante |
+| 1 Negocio y vertical | Tipo: Persona natural / Persona jurídica · Razón social · Nombre comercial · RUC · DV · Actividad económica · Rubro MCC · Fecha de inicio · **Vertical primaria** (lista de 10 verticales: `retail`, `food_and_beverage`, `services_appointments`, `professional_services`, `wholesale_distribution`, `logistics_courier`, `beauty_wellness`, `health_clinic`, `education_courses`, `general_commercial`) | RUC natural = cédula; jurídica = `rollo-folio-asiento`. DV de 2 dígitos. `INVALID_RUC`: "El RUC o el DV no son válidos." `RUC_TAKEN`: "Este RUC ya está registrado." `VERTICAL_NOT_FOUND`: vertical requerida |
+| 2 Ubicación y primera sucursal | Provincia → Distrito → Corregimiento · Ciudad · Dirección · Punto en el mapa · Teléfono · Correo del negocio · Nombre de sucursal inicial (por defecto "Casa Matriz", código fiscal `0000`) | Punto obligatorio dentro de Panamá. Crea la primera sucursal con código `0000` para DGI |
+| 3 Rasgos y funciones | Preguntas de rasgos derivadas de la vertical elegida (variantes de producto, ventas por mesa/cocina, agenda de citas, entregas con flota propia, inventario por lotes). Muestra capacidades sugeridas activas | Permite personalizar qué funciones encender en el negocio desde el primer día |
+| 4 Representante y dueños | Representante legal (precargado con el solicitante; editable) · Lista "Personas con 10 % o más del negocio": nombre, documento, porcentaje, nacionalidad · Casilla "Nadie más tiene 10 % o más." | Persona jurídica: al menos un dueño o la casilla. Suma de porcentajes ≤ 100. Registra la membresía de dueño con alcance `TENANT` |
+| 5 Documentos | Aviso de Operación · Documento del representante · Pacto social o certificado del Registro Público (solo jurídica) · Comprobante de la cuenta bancaria | Cada uno: PDF o imagen ≤ 10 MB. Estado por archivo: subiendo, listo, error |
+| 6 Cuenta de liquidación y envío | Banco (lista) · Tipo: Corriente / Ahorros · Número · Titular · Casillas: "Acepto el Contrato de comercio." y "Declaro que la información es verdadera." · `PPButton.primary` "Enviar a revisión" | El titular debe coincidir con la razón social o el representante. Transacción atómica en servidor: negocio + sucursal `0000` + capacidades + membresía dueño |
 
 Resultado → S-GEN-16.
 
@@ -213,7 +214,7 @@ Resultado → S-GEN-16.
 `StatusChip` "En revisión". Texto: "Ya puedes preparar tu catálogo. Podrás cobrar cuando aprobemos tu negocio." Lista de lo permitido (crear productos, configurar caja, invitar equipo) y lo bloqueado (cobrar, publicar en tiendas, recibir liquidaciones). Si la plataforma pide corrección: tarjeta "Necesitamos algo más" con el motivo y botón "Corregir" que reabre el paso afectado.
 
 ### S-GEN-17 · `/invite/:token` · Aceptar invitación
-Sin sesión · Paso F08.8. Muestra "{Negocio} te invita como {rol}." Campos de S-GEN-03 (correo precargado y bloqueado). Botón "Aceptar y crear cuenta". Token inválido: "Esta invitación ya no es válida. Pide una nueva a tu negocio."
+Sin sesión obligatoria · Paso F08.8. Muestra "{Negocio} te invita como {rol}" y sucursal/alcance asignado. Si el usuario ya tiene cuenta activa en PlentyPay, inicia sesión y acepta la membresía vinculándose al negocio sin duplicar su cuenta; si es nuevo, muestra los campos de registro de S-GEN-03 (correo precargado y bloqueado). Botón "Aceptar invitación" / "Aceptar y crear cuenta". Token vencido o revocado: "Esta invitación ya no es válida. Pide una nueva a tu negocio."
 
 ### S-GEN-18 · rechazo o suspensión del negocio
 Tarjeta en Inicio y en S-ADM-01: "Tu negocio fue {rechazado / suspendido}." con el motivo comunicable y botón "Reenviar documentos" (rechazado) o "Contactar soporte" (suspendido).

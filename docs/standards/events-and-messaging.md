@@ -35,6 +35,10 @@ Mismo régimen que `.proto` (solo aditivo). Cambio incompatible = nuevo `schema_
 |---|---|---|---|
 | `pp.identity.tenant.status_changed.v1` | `identity.TenantStatusChanged` | identity | payments-core, catalog, notifications |
 | `pp.identity.session.revoked.v1` | `identity.SessionRevoked` | identity | api-gateway (cierra WebSockets), notifications |
+| `pp.identity.role.changed.v1` | `identity.RoleChanged` | identity | api-gateway |
+| `pp.identity.membership.changed.v1` | `identity.MembershipChanged` | identity | api-gateway, payroll |
+| `pp.identity.capabilities.changed.v1` | `identity.CapabilitiesChanged` | identity | api-gateway, pos, catalog, inventory, logistics, payroll |
+| `pp.identity.branch.changed.v1` | `identity.BranchChanged` | identity | pos, fiscal-invoicing, catalog, inventory, logistics, analytics-bi |
 | `pp.audit.<contenedor>.recorded.v1` | `security.AuditRecorded` | **cualquier** contenedor (excepción documentada: subject por productor) | security (registro encadenado), analytics-bi (solo métricas agregadas) |
 | `pp.payments.payment.captured.v1` | `payments.PaymentCaptured` | payments-core | pos, orders, notifications, analytics-bi |
 | `pp.payments.payment.failed.v1` | `payments.PaymentFailed` | payments-core | pos, orders, notifications, analytics-bi |

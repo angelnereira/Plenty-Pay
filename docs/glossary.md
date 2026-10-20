@@ -218,35 +218,46 @@ Líneas de débito y crédito de cada plantilla: dominio §5.2. Invariantes `I1`
 
 Son internos de su dueño y no se exponen por API: `idempotency_keys.state` (`IN_PROGRESS`, `DONE`); estados internos del asiento `DRAFT` → `VALIDATING` (no visibles por API).
 
-## 6. Identidad y autorización
+## 6. Identidad, autorización y modelo de acceso (ADR 0018)
 
-### 6.1 Roles
+### 6.1 Roles, plantillas y membresías
 - **Rol base** (`UserRole`): `PLATFORM_ADMIN`, `BUSINESS_OWNER`, `BUSINESS_STAFF`, `CUSTOMER`. En mayúsculas.
-- **Presets de staff** (en minúsculas): `manager`, `cashier`, `stock_keeper`, `courier`, `accountant`. El dueño puede crear roles propios con subconjuntos del catálogo, nunca con `platform:*`.
-- **Todo usuario recibe además los permisos de `CUSTOMER`**.
+- **Plantillas universales y presets de staff** (en minúsculas): `manager`, `supervisor`, `cashier`, `stock_keeper`, `courier`, `accountant`, `viewer`. El dueño puede crear roles propios con subconjuntos del catálogo, nunca con `platform:*`. `supervisor` excluye `pos:sell` (SoD).
+- **Membresía** (`membership`): relación explícita usuario ↔ comercio con `role_id`, `scope`, `job_title` y `status`. En MVP, un usuario tiene a lo sumo una activa (H9).
+- **Alcance** (`scope`): delimitación territorial/operativa de la membresía (`TENANT` para todo el comercio, `BRANCHES` para sucursales específicas).
+- **Cargo laboral** (`job_title`): puesto de trabajo para contratos y nómina; no otorga permisos de sistema.
+- **Todo usuario recibe además los permisos de `CUSTOMER`**. Un staff sin rol asignado recibe deny-by-default (solo base de `CUSTOMER`).
 
-### 6.2 Permisos
-Formato `<módulo>:<acción>[:<calificador>]`, en minúsculas. El sufijo `:self` limita al propio usuario. Catálogo (64 permisos): [`standards/security-standards.md`](standards/security-standards.md) §3.1; copia ejecutable en `identity/internal/auth/permissions.go`.
+### 6.2 Perfil de negocio, verticales, rasgos y capacidades
+- **Perfil de negocio** (`business_profile`): vertical principal, hasta dos secundarias y rasgos operativos del comercio.
+- **Vertical** (`vertical`): paquete declarativo de rasgos y sugerencias (ej. `RETAIL_STORE`, `RESTAURANT`, `BARBERSHOP`). Prohibido usar como condición en código.
+- **Rasgo operativo** (`trait`): pregunta de sí/no en el alta que enciende capacidades (ej. `sells_goods`, `table_service`, `appointments`).
+- **Capacidad** (`capability`): función granular dentro de un módulo (ej. `pos.tables`, `inventory.lots`). Se propaga en `x-pp-capabilities`.
 
-### 6.3 Módulos de la app
-Ids, en orden de navegación: `wallet`, `marketplace`, `pos`, `catalog`, `inventory`, `orders`, `logistics`, `finance`, `payroll`, `analytics`, `admin`, `platform`. Los decide el servidor (`enabled_modules` de `GetUserPermissions`); la app muestra la intersección con su registro. Fuente: [`../identity/SPEC.md`](../identity/SPEC.md) R10, [`ux/screen-catalog.md`](ux/screen-catalog.md) §1.
+### 6.3 Permisos
+Formato `<módulo>:<acción>[:<calificador>]`, en minúsculas. El sufijo `:self` limita al propio usuario. Catálogo (81 permisos): [`standards/security-standards.md`](standards/security-standards.md) §3.1; copia ejecutable en `identity/internal/auth/permissions.go` y mapeo en `capabilities.go`.
 
-No confundir el id de módulo con el contenedor: `marketplace` lo sirve `orders` + `catalog`; `finance` agrupa `payments-core`, `settlement` y `fiscal-invoicing`; `admin` y `platform` los sirve `identity` e `infra-management`.
+### 6.4 Módulos de la app
+Ids, en orden de navegación: `wallet`, `marketplace`, `pos`, `appointments`, `catalog`, `inventory`, `orders`, `logistics`, `finance`, `payroll`, `analytics`, `admin`, `platform`. Los decide el servidor (`enabled_modules` de `GetUserPermissions`); la app muestra la intersección con su registro. Fuente: [`../identity/SPEC.md`](../identity/SPEC.md) R10, [`ux/screen-catalog.md`](ux/screen-catalog.md) §1.
 
-### 6.4 Contexto de petición
+No confundir el id de módulo con el contenedor: `marketplace` lo sirve `orders` + `catalog`; `finance` agrupa `payments-core`, `settlement` y `fiscal-invoicing`; `appointments` lo sirve `scheduling` (futuro); `admin` y `platform` los sirve `identity` e `infra-management`.
+
+### 6.5 Contexto de petición
 
 | Cabecera HTTP (app → gateway) | Metadato gRPC (gateway → servicios) | Contenido |
 |---|---|---|
 | `Authorization: Bearer <access>` | `x-pp-user-id`, `x-pp-tenant-id`, `x-pp-role`, `x-pp-permissions` | Identidad validada. Tenant vacío = cliente final o plataforma |
+| — | `x-pp-branch-scope` | Alcance territorial (`*` para `TENANT` o lista de UUIDs de sucursales) |
+| — | `x-pp-capabilities` | Capacidades activas del comercio separadas por comas |
 | `X-Request-Id` | `x-pp-request-id` | UUIDv7 por petición; se propaga sin cambio y se devuelve |
 | `Idempotency-Key` | campo `idempotency_key` del request | 16–100 caracteres |
 | `X-Step-Up-Token` | `x-pp-step-up` | Token de confirmación fuerte |
 | — | `x-pp-actor-service` | Contenedor que origina la llamada |
 | `traceparent` | `traceparent` | W3C Trace Context |
 
-**Tenant y actor salen de estos metadatos, nunca del cuerpo.** Un `tenant_id` o `party_id` en el cuerpo es un dato de negocio (a quién se liquida), no una fuente de autorización. Fuente: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §2, ADR 0011 y 0014.
+**Tenant y actor salen de estos metadatos, nunca del cuerpo.** Un `tenant_id` o `party_id` en el cuerpo es un dato de negocio (a quién se liquida), no una fuente de autorización. Fuente: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §2, ADR 0011, 0014 y 0018.
 
-### 6.5 Tokens
+### 6.6 Tokens
 Access JWT de 15 min; refresh de 30 días con rotación en cada uso; step-up de un solo uso, 5 min, ligado a usuario + operación + monto. Fuente: seguridad §2 y §4.
 
 ## 7. Errores
@@ -275,12 +286,12 @@ Access JWT de 15 min; refresh de 30 días con rotación en cada uso; step-up de 
 
 ### 7.3 Catálogo de `reason`
 
-Transversales (cualquier servicio): `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID`, `INSUFFICIENT_FUNDS`, `OUT_OF_STOCK`, `INVALID_STATE_TRANSITION`, `AMOUNT_BELOW_FEES`, `CURRENCY_MISMATCH`, `UNBALANCED_TRANSACTION`, `RAIL_UNAVAILABLE`, `RATE_LIMITED`, `MAINTENANCE_MODE`.
+Transversales (cualquier servicio): `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE`, `CAPABILITY_DISABLED`, `BRANCH_OUT_OF_SCOPE`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID`, `INSUFFICIENT_FUNDS`, `OUT_OF_STOCK`, `INVALID_STATE_TRANSITION`, `AMOUNT_BELOW_FEES`, `CURRENCY_MISMATCH`, `UNBALANCED_TRANSACTION`, `RAIL_UNAVAILABLE`, `RATE_LIMITED`, `MAINTENANCE_MODE`.
 
 | Dueño | `reason` propios |
 |---|---|
 | api-gateway | `TOKEN_INVALID`, `IDENTITY_UNAVAILABLE`, `INVALID_JSON`, `BODY_TOO_LARGE`, `IDEMPOTENCY_KEY_REQUIRED`, `RATE_LIMITED`, `MAINTENANCE_MODE` |
-| identity | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `EMAIL_TAKEN`, `INVALID_EMAIL`, `WEAK_PASSWORD`, `TOKEN_INVALID`, `TOKEN_REUSED`, `ALREADY_HAS_TENANT`, `INVALID_RUC`, `RUC_TAKEN`, `ROLE_NOT_FOUND`, `PRESET_READ_ONLY`, `UNKNOWN_PERMISSION`, `CANNOT_DEACTIVATE_OWNER`, `ALREADY_USED` |
+| identity | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ACCOUNT_SUSPENDED`, `EMAIL_TAKEN`, `INVALID_EMAIL`, `WEAK_PASSWORD`, `TOKEN_INVALID`, `TOKEN_REUSED`, `ALREADY_HAS_TENANT`, `INVALID_RUC`, `RUC_TAKEN`, `ROLE_NOT_FOUND`, `PRESET_READ_ONLY`, `UNKNOWN_PERMISSION`, `CANNOT_DEACTIVATE_OWNER`, `ALREADY_USED`, `PERMISSION_NOT_HELD`, `SELF_ASSIGNMENT_FORBIDDEN`, `ROLE_IN_USE`, `BRANCH_CODE_TAKEN`, `INVALID_BRANCH_CODE`, `VERTICAL_NOT_FOUND`, `PLAN_LIMIT_REACHED`, `CANNOT_DEACTIVATE_LAST_BRANCH` |
 | ledger | `UNKNOWN_TEMPLATE`, `UNBALANCED_TRANSACTION`, `CURRENCY_MISMATCH`, `INVALID_AMOUNT`, `INSUFFICIENT_FUNDS`, `DUPLICATE_CAPTURE`, `ALREADY_REVERSED`, `HOLD_NOT_ACTIVE`, `INVALID_RANGE` |
 | payments-core | `AMOUNT_OUT_OF_RANGE`, `AMOUNT_BELOW_FEES`, `SPLITS_MISMATCH`, `FEE_POLICY_MISSING`, `RAIL_DISABLED`, `RAIL_UNAVAILABLE`, `TERMINAL_INACTIVE`, `PAYMENT_NOT_CAPTURED`, `REFUND_EXCEEDS_CAPTURED`, `MERCHANT_BALANCE_INSUFFICIENT`, `EVIDENCE_REQUIRED`, `SIGNATURE_INVALID`, `RAIL_PARTIAL_REFUND_UNSUPPORTED` |
 | settlement | `NOTHING_TO_SETTLE`, `BELOW_MINIMUM`, `INVALID_DESTINATION`, `ALREADY_IMPORTED`, `UNSUPPORTED_FORMAT`, `EVIDENCE_REQUIRED` |

@@ -26,6 +26,8 @@ El **tenant y el actor NUNCA viajan en el cuerpo para autorizar**: viajan en met
 | `x-pp-tenant-id` | comercio del usuario (vacío = cliente final o plataforma) |
 | `x-pp-role` | rol del usuario |
 | `x-pp-permissions` | permisos separados por coma (si > 4 KB se omite y el servicio consulta a identity) |
+| `x-pp-branch-scope` | alcance por sucursal: `*` para `TENANT`, o lista de UUIDs de sucursal separados por comas para `BRANCHES` (ADR 0018) |
+| `x-pp-capabilities` | capacidades activas del comercio separadas por coma para validación de funciones sin permiso propio (ADR 0018) |
 | `x-pp-actor-service` | contenedor que origina la llamada (auditoría) |
 | `traceparent` | W3C Trace Context (OpenTelemetry) |
 | `x-pp-step-up` | token de confirmación fuerte, si la operación lo exige |

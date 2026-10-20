@@ -12,15 +12,16 @@ Orden de navegación (= orden de `identity` R10 y de `ModuleRegistry`):
 | 1 | `wallet` | Billetera | `account_balance_wallet` | algún `wallet:*` | `/wallet` | F11.9 |
 | 2 | `marketplace` | Comprar | `storefront` | `orders:create:self`/`orders:read:self` | `/market` | F15.10 |
 | 3 | `pos` | Caja | `point_of_sale` | algún `pos:*` | `/pos` | F17.10 |
-| 4 | `catalog` | Productos | `inventory_2` | `catalog:write`/`import`/`listing:manage` | `/catalog` | F15.10 |
-| 5 | `inventory` | Inventario | `warehouse` | algún `inventory:*` | `/inventory` | F16.7 |
-| 6 | `orders` | Pedidos | `receipt_long` | `orders:read`/`orders:manage` | `/orders` | F15.10 |
-| 7 | `logistics` | Entregas | `local_shipping` | algún `logistics:*` | `/logistics` | F18.7 |
-| 8 | `finance` | Finanzas | `payments` | algún `payments:*`, `settlement:*`, `fiscal:*` | `/finance` | F11.9/F12.8/F13.9 |
-| 9 | `payroll` | Equipo | `badge` | algún `payroll:*` | `/team` | F19.8 |
-| 10 | `analytics` | Análisis | `insights` | algún `analytics:*` | `/insights` | F21.10 |
-| 11 | `admin` | Mi negocio | `tune` | algún `admin:*` | `/business` | F08.8 |
-| 12 | `platform` | Plataforma | `admin_panel_settings` | algún `platform:*` | `/platform` | F05.9/F08.8/F12.8 |
+| 4 | `appointments` | Agenda | `calendar_month` | algún `appointments:*` | `/appointments` | F31.1 |
+| 5 | `catalog` | Productos | `inventory_2` | `catalog:write`/`import`/`listing:manage`/`pricelist:manage` | `/catalog` | F15.10 |
+| 6 | `inventory` | Inventario | `warehouse` | algún `inventory:*` | `/inventory` | F16.7 |
+| 7 | `orders` | Pedidos | `receipt_long` | `orders:read`/`orders:manage`/`orders:quote:manage` | `/orders` | F15.10 |
+| 8 | `logistics` | Entregas | `local_shipping` | algún `logistics:*` | `/logistics` | F18.7 |
+| 9 | `finance` | Finanzas | `payments` | algún `payments:*`, `settlement:*`, `fiscal:*` | `/finance` | F11.9/F12.8/F13.9 |
+| 10 | `payroll` | Equipo | `badge` | algún `payroll:*` | `/team` | F19.8 |
+| 11 | `analytics` | Análisis | `insights` | algún `analytics:*` | `/insights` | F21.10 |
+| 12 | `admin` | Mi negocio | `tune` | algún `admin:*` | `/business` | F08.8 |
+| 13 | `platform` | Plataforma | `admin_panel_settings` | algún `platform:*` | `/platform` | F05.9/F08.8/F12.8 |
 
 Fuera de los módulos (siempre disponibles con sesión): Inicio (`/`), Bandeja (`/inbox`), Cuenta (`/account`). Inicio muestra tarjetas según módulos visibles (saldo, ventas de hoy, pedidos por aceptar, entregas activas, alertas).
 
@@ -158,9 +159,10 @@ Fuera de los módulos (siempre disponibles con sesión): Inicio (`/`), Bandeja (
 ## 13. Mi negocio (`admin`)
 | Ruta | Pantalla | Permiso | Paso |
 |---|---|---|---|
-| `/business` | Datos del negocio, estado de revisión, sucursales | `admin:business:manage` | F08.8 |
-| `/business/staff` | Equipo: invitar, desactivar, asignar rol 🔒 | `admin:users:manage` | F08.8 |
-| `/business/roles` | Roles personalizados (matriz de permisos agrupada por módulo) | `admin:roles:manage` | F08.8 |
+| `/business` · `/business/branches` | Datos del negocio, estado de revisión, sucursales y códigos DGI | `admin:business:manage` | F08.8 |
+| `/business/staff` | Equipo: invitar, desactivar, asignar rol y alcance 🔒 | `admin:users:manage` | F08.8 |
+| `/business/roles` | Roles personalizados (matriz de permisos y plantillas por vertical) | `admin:roles:manage` | F08.8 |
+| `/business/modules` | Módulos y funciones: activar/desactivar capacidades y rasgos | `admin:business:manage` | F08.8 |
 | `/business/integrations` | Integraciones (rieles, PAC, WhatsApp) — estado sandbox/real | `admin:integrations:manage` | F13.9, F20.8, F23.6 |
 | `/business/templates` | Plantillas de mensajes | `notifications:template:manage` | F20.8 |
 | `/business/audit` | Auditoría del negocio | `admin:audit:read` | F05.4 (backend) / F08.8 |

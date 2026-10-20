@@ -25,7 +25,7 @@
 6. Rate limit (§6).
 7. Autenticación (`Authorization: Bearer`): `identity.ValidateToken` (F09) → validación local EdDSA/JWKS con caché de revocaciones (F28).
 8. Autorización por ruta: permiso de la tabla §4 contra `permissions` de la sesión (caché 60 s por usuario, invalidada por `SessionRevoked` y por `session.permissions_changed`).
-9. Construcción de metadatos gRPC `x-pp-request-id`, `x-pp-user-id`, `x-pp-tenant-id`, `x-pp-role`, `x-pp-permissions`, `x-pp-actor-service=api-gateway`, `traceparent`, `x-pp-step-up` (desde cabecera `X-Step-Up-Token`).
+9. Construcción de metadatos gRPC `x-pp-request-id`, `x-pp-user-id`, `x-pp-tenant-id`, `x-pp-role`, `x-pp-permissions`, `x-pp-branch-scope`, `x-pp-capabilities` (ADR 0018; los dos últimos salen de `ValidateToken`), `x-pp-actor-service=api-gateway`, `traceparent`, `x-pp-step-up` (desde cabecera `X-Step-Up-Token`).
 10. Handler: decodificación JSON estricta → request proto → llamada con deadline → respuesta proto → JSON (`protojson`, nombres `snake_case`, enums como string sin prefijo, int64 como **número** si ≤ 2^53, como string si mayor).
 11. Traducción de errores gRPC → HTTP según `grpc-conventions.md` §4, cuerpo `{"error": "<mensaje es>", "reason": "<REASON>", "request_id": "..."}`.
 
@@ -49,9 +49,18 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | POST `/v1/business` | CreateBusiness | autenticado sin tenant |
 | GET `/v1/business` | GetTenant | miembro |
 | POST `/v1/business/documents/upload-url` | catalog.CreateUploadUrl (propósito `kyb`) | `admin:business:manage` |
-| GET/POST `/v1/business/staff` · POST `/v1/business/staff/{id}/deactivate` | ListUsers · InviteStaff · DeactivateUser | `admin:users:manage` |
+| GET `/v1/business/staff` · POST `/v1/business/staff` | ListUsers · InviteStaff (rol, alcance `TENANT`/`BRANCHES`, cargo) | `admin:users:manage` |
+| PUT `/v1/business/staff/{user_id}/membership` | UpdateMembership (rol, alcance, cargo; A1–A3; `STEP_UP_REQUIRED` si el rol incluye permisos de dinero 🔒) | `admin:users:manage` |
+| POST `/v1/business/staff/{user_id}/suspend` · `/reactivate` | SuspendUser · ReactivateUser | `admin:users:manage` |
+| DELETE `/v1/business/staff/{user_id}` | DeactivateUser | `admin:users:manage` |
+| GET `/v1/business/invitations` · POST `/v1/business/invitations/{invitation_id}/resend` · DELETE `/v1/business/invitations/{invitation_id}` | ListInvitations · ResendInvitation · RevokeInvitation | `admin:users:manage` |
 | POST `/v1/invitations/accept` | AcceptInvitation | público con token |
-| GET/PUT `/v1/business/roles` · POST `/v1/business/roles/{id}/assign` 🔒 | ListRoles · UpsertRole · AssignRole | `admin:roles:manage` |
+| GET `/v1/business/roles` · POST `/v1/business/roles` 🔒 (crear y editar: `role.role_id` vacío = crear) · DELETE `/v1/business/roles/{role_id}` | ListRoles · UpsertRole · ArchiveRole | `admin:roles:manage` |
+| POST `/v1/business/roles/{user_id}/assign` 🔒 | AssignRole (compat.; la app usa `membership`) | `admin:roles:manage` |
+| GET `/v1/access/catalog` · GET `/v1/verticals` · GET `/v1/role-templates` | GetAccessCatalog · ListVerticals · ListRoleTemplates | autenticado |
+| GET `/v1/business/profile` · PUT `/v1/business/profile` | GetBusinessProfile · UpdateBusinessProfile | miembro / `admin:business:manage` |
+| PUT `/v1/business/capabilities` | SetCapabilities | `admin:business:manage` |
+| GET `/v1/business/branches` · POST `/v1/business/branches` (`branch.branch_id` vacío = crear) · POST `/v1/business/branches/{branch_id}/deactivate` · `/reactivate` | ListBranches · UpsertBranch · DeactivateBranch · ReactivateBranch | miembro / `admin:business:manage` |
 
 ### 4.2 Billetera y pagos (F11, F23)
 | Método y ruta | RPC | Permiso |

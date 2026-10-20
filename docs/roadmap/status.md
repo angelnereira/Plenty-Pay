@@ -415,3 +415,14 @@ Además, la especificación funcional y el marco normativo (2026-10-12) requiere
 | F30.4 Piloto con comercios seleccionados y feature flags | 📝 | 2026-10-19: **bloqueante**: requiere despliegue en staging (F26.7) y la matriz de controles (F28.7) |
 | F30.5 Migración/alta asistida de comercios y materiales de entrenamiento | 📝 | 2026-10-19: la alta asistida usa el flujo ya implementado (`business_create_screen.dart`, `TeamScreen`, `RolesScreen`); los textos de ayuda viven en las fichas S-*. **Falta**: guía publicada y materiales de entrenamiento (L0, fuera del repositorio) |
 | F30.6 Apertura general y revisión post-lanzamiento | 📝 | 2026-10-19: **bloqueante**: requiere F30.4 (piloto sin incidentes críticos) |
+
+## F31 — Citas y servicios programados (`scheduling`)
+
+| Paso | Estado | Evidencia / qué falta |
+|---|---|---|
+| F31.1 Contrato proto y núcleo en memoria de citas (`scheduling.proto`) | 📝 | 2026-10-19: planificado (ADR 0018, `identity/SPEC.md`); depende de F08.6 y Q-33. Sin contenedor `scheduling` aún |
+| F31.2 Persistencia PostgreSQL, migraciones y RLS por tenant/sucursal | 📝 | 2026-10-19: planificado |
+| F31.3 Motor de disponibilidad y reglas de agenda | 📝 | 2026-10-19: planificado |
+| F31.4 Integración con notificaciones outbox (confirmación y recordatorio) | 📝 | 2026-10-19: planificado |
+| F31.5 Rutas HTTP/WebSocket en api-gateway con validación de capacidad `appointments.booking` | 📝 | 2026-10-19: planificado |
+| F31.6 Pantallas Flutter de agenda | 📝 | 2026-10-19: planificado; el módulo `appointments` ya existe en el orden de módulos (glosario §6.4) |

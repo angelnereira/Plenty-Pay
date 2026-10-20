@@ -21,3 +21,5 @@ Una decisión = un archivo `NNNN-titulo.md` (plantilla: `docs/templates/ADR-TEMP
 | [0015](0015-cliente-https-json-websocket.md) | Flutter ↔ api-gateway por HTTPS/JSON y WebSocket | Aceptada (enmienda ADR 0003) |
 | [0016](0016-unidades-de-despliegue.md) | Unidades de despliegue con procesos de respaldo y carpetas no-contenedor | Aceptada (enmienda ADR 0002) |
 | [0017](0017-contenedor-orders.md) | Contenedor `orders` para el marketplace multi-comercio | Aceptada |
+| [0018](0018-perfil-negocio-capacidades-alcance-sucursal.md) | Perfil de negocio, capacidades y alcance por sucursal | Aceptada |
+
