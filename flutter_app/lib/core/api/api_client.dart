@@ -285,18 +285,28 @@ class ApiClient {
     });
   }
 
+  /// Invita al equipo (identity.InviteStaffRequest). El negocio sale del token (ADR 0011) y la
+  /// invitación vence a los 7 días en el servidor; [tenantId] se conserva por compatibilidad de
+  /// las pantallas y no viaja. [role] es el `role_id`. Si el rol mueve dinero, identity responde
+  /// `STEP_UP_REQUIRED` y se reintenta con [stepUpToken] (operación `identity.staff.invite`).
   Future<Map<String, dynamic>> inviteStaff({
     required String tenantId,
     required String email,
     required String role,
-    int expiresInDays = 7,
+    String? fullName,
+    String scope = 'TENANT',
+    List<String> branchIds = const [],
+    String? jobTitle,
+    String? stepUpToken,
   }) async {
     return _post('/v1/business/staff', data: {
-      'tenant_id': tenantId,
       'email': email,
-      'role': role,
-      'expires_in_days': expiresInDays,
-    });
+      'role_id': role,
+      if (fullName != null) 'full_name': fullName,
+      'scope': scope,
+      if (branchIds.isNotEmpty) 'branch_ids': branchIds,
+      if (jobTitle != null) 'job_title': jobTitle,
+    }, headers: _stepUpHeaders(stepUpToken));
   }
 
   Future<void> deactivateUser(String userId) async {
@@ -318,22 +328,26 @@ class ApiClient {
     required List<String> permissions,
     String? stepUpToken,
   }) async {
+    // identity.UpsertRoleRequest: el rol va anidado; role_id vacío = crear. El tenant sale del
+    // token. El step-up viaja en la cabecera X-Step-Up-Token (operación `identity.role.upsert`).
     return _post('/v1/business/roles', data: {
-      'tenant_id': tenantId,
-      'role_id': roleId,
-      'name': name,
-      'permissions': permissions,
-      if (stepUpToken != null) 'step_up_token': stepUpToken,
-    });
+      'role': {
+        'role_id': roleId,
+        'name': name,
+        'permissions': permissions,
+      },
+    }, headers: _stepUpHeaders(stepUpToken));
   }
 
   Future<void> assignRole({required String userId, required String roleId, String? stepUpToken}) async {
     await _post('/v1/business/roles/$userId/assign', data: {
-      'user_id': userId,
       'role_id': roleId,
-      if (stepUpToken != null) 'step_up_token': stepUpToken,
-    });
+    }, headers: _stepUpHeaders(stepUpToken));
   }
+
+  /// Cabecera de confirmación fuerte (api-gateway SPEC §3.9 → `x-pp-step-up`).
+  Map<String, String>? _stepUpHeaders(String? stepUpToken) =>
+      stepUpToken == null ? null : {'X-Step-Up-Token': stepUpToken};
 
   Future<Map<String, dynamic>> listSessions(String userId) async {
     return _get('/v1/sessions', queryParameters: {'user_id': userId});
@@ -385,10 +399,10 @@ class ApiClient {
     required String email,
     required String password,
   }) async {
+    // identity.AcceptInvitationRequest: solo token y contraseña. El correo y el nombre ya están
+    // en la invitación; quien ya tiene cuenta entra con su contraseña actual (H8).
     final body = await _post('/v1/invitations/accept', data: {
-      'token': token,
-      'full_name': fullName,
-      'email': email,
+      'invitation_token': token,
       'password': password,
     }, skipAuth: true, skipIdempotency: false);
     if (body['access_token'] != null) {
