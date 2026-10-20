@@ -62,7 +62,7 @@ RLS: `orders` por `buyer_user_id` (políticas por usuario) y `sub_orders` por `t
   3. `inventory.ReserveStock` por comercio con TTL = expiración del intent + 5 min (si falla → liberar reservas previas, Order CANCELLED).
   4. `payments.CreatePaymentIntent` con splits = total por comercio, `reference=order` (si falla → liberar reservas, CANCELLED).
   5. Responder al cliente con el intent (`next_action`); el cliente confirma el pago.
-  6. Al consumir `PaymentCaptured` → Order PAID, sub-pedidos AWAITING_ACCEPTANCE con `accept_deadline = now + 15 min`, `CommitReservation`, evento `OrderPaid`.
+  6. Al consumir `PaymentCaptured` → Order PAID, sub-pedidos AWAITING_ACCEPTANCE con `accept_deadline = now + 15 min`, `CommitReservation`, evento `OrderPaid` y, en la misma transacción, los productos del pedido salen del carrito del comprador (nunca antes: un reintento con step-up recotiza el mismo carrito). Un cobro que llega sobre un pedido ya cancelado se reembolsa entero (`late-payment-refund:<sub_order_id>`).
   7. `PaymentFailed`/`EXPIRED` → liberar reservas, Order CANCELLED. `PaymentUnknown` → mantener reservas hasta resolución (máx. 24 h).
 - **R4** SLA de aceptación 15 min (configurable por tenant 5–60): vencido → REJECTED automático (`reason=ACCEPTANCE_TIMEOUT`) → reembolso del split (`payments.RefundPayment` con key `suborder-reject:<id>`, sin step-up: lo origina el sistema y queda auditado).
 - **R5** Rechazo por comercio → reembolso del split + devolución de stock (movimiento RETURN si ya se comprometió).

@@ -361,6 +361,8 @@ type Change struct {
 	Events []OutboxEvent
 	// CancelReason se guarda si el pedido se cancela.
 	CancelReason string
+	// ClearCart quita del carrito del comprador los productos del pedido (al cobrarse, R3.6).
+	ClearCart bool
 }
 
 // Mutate bloquea el pedido y sus sub-pedidos, aplica `fn`, deriva el estado (R8) y guarda todo
@@ -426,6 +428,18 @@ func (s *Store) Mutate(ctx context.Context, who Who, orderID, eventID string, no
 			if _, err := tx.Exec(ctx, `UPDATE sub_orders SET status = $2, pickup_code = $3, reject_reason = $4, accept_deadline = $5,
 				updated_at = $6, version = version + 1 WHERE id = $1`, sub.ID, sub.Status, sub.PickupCode, sub.RejectReason, deadline, now); err != nil {
 				return fmt.Errorf("update sub-order: %w", err)
+			}
+		}
+		if ch.ClearCart {
+			var products []string
+			for _, sub := range o.Subs {
+				for _, l := range sub.Lines {
+					products = append(products, l.ProductID)
+				}
+			}
+			if _, err := tx.Exec(ctx, `DELETE FROM cart_items WHERE user_id = $1 AND product_id = ANY($2::uuid[])`,
+				o.BuyerID, products); err != nil {
+				return fmt.Errorf("clear purchased cart items: %w", err)
 			}
 		}
 		if err := insertTasks(ctx, tx, ch.Tasks, now); err != nil {

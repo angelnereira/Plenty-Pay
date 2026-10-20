@@ -355,6 +355,9 @@ func (s *Orders) PaymentCaptured(ctx context.Context, eventID, orderID, paymentI
 			}
 			return ch, nil
 		}
+		// Lo comprado sale del carrito en la misma transacción que el pago (nunca antes: un
+		// reintento con step-up recotiza el mismo carrito).
+		ch.ClearCart = true
 		var merchants []string
 		for i := range o.Subs {
 			sub := &o.Subs[i]

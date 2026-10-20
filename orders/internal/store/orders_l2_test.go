@@ -273,6 +273,22 @@ func TestSPEC11_1_TwoMerchantsOnePaymentWithSplits(t *testing.T) {
 	}
 }
 
+func TestR3_CapturedPaymentEmptiesPurchasedCartItems(t *testing.T) {
+	ctx, w := context.Background(), newWorld(t)
+	w.cart(t)
+	o := w.checkout(t, "k-"+id())
+	// Antes del cobro el carrito sigue entero: el reintento con step-up lo vuelve a cotizar.
+	if items, err := w.svc.Cart(ctx, w.buyer); err != nil || len(items) != 3 {
+		t.Fatalf("antes del cobro: %d %v", len(items), err)
+	}
+	if err := w.svc.PaymentCaptured(ctx, id(), o.ID, id()); err != nil {
+		t.Fatal(err)
+	}
+	if items, err := w.svc.Cart(ctx, w.buyer); err != nil || len(items) != 0 {
+		t.Fatalf("después del cobro: %d %v", len(items), err)
+	}
+}
+
 func TestSPEC11_4_SameKeyIsOneOrder(t *testing.T) {
 	ctx, w := context.Background(), newWorld(t)
 	w.cart(t)
