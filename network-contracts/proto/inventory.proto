@@ -80,6 +80,7 @@ message AdjustStockRequest {
   MovementType type = 5;
   string reason = 6;              // obligatorio para ADJUSTMENT y WRITE_OFF
   string lot_id = 7;
+  plentypay.common.v1.Reference reference = 8; // qué lo causó (p. ej. {sale, <id>}); lo fijan pos/orders
 }
 message TransferStockRequest { string idempotency_key = 1; string product_id = 2; string from_warehouse_id = 3; string to_warehouse_id = 4; int64 quantity_milli = 5; string reason = 6; }
 message TransferStockResponse { StockMovement out = 1; StockMovement in = 2; }

@@ -71,3 +71,11 @@ catalog (validar variante, 500 ms, lectura). Llamado por gateway, pos, orders, c
 
 ## 12. Plan
 F16.1 bodegas/stock → F16.2 movimientos/ajustes → F16.3 reservas → F16.4 transferencias y lotes → F16.5 proveedores/OC/recepción → F16.6 velocidad, StockLow y reorden → F16.7 pantallas Flutter de inventario.
+
+## 13. Estado de implementación (2026-10-20)
+- **Implementado**: UpsertWarehouse, ListWarehouses (crea la bodega por defecto «Bodega principal» si no hay), GetStock (sin bodega suma todas; sin movimientos = 0), ListStock (keyset producto/bodega, `only_low`), AdjustStock, TransferStock, ListMovements. Reservas, proveedores, compras, recepción y reorden responden `UNIMPLEMENTED`.
+- **Contrato (aditivo)**: `AdjustStockRequest.reference = 8` (qué causó el movimiento, p. ej. `{sale, <id>}` desde pos).
+- **Idempotencia**: la clave vive en la fila del movimiento (`UNIQUE (tenant_id, idempotency_key, type)`) con el hash del contenido: misma clave y mismo contenido → el movimiento original; otro contenido → `IDEMPOTENCY_KEY_REUSED`; reintentos concurrentes → uno solo.
+- **Quién mueve qué**: SALE y RETURN solo desde pos u orders (`x-pp-actor-service`; el gateway siempre fija `api-gateway`); las personas registran RECEIPT, ADJUSTMENT y WRITE_OFF; TRANSFER solo por TransferStock.
+- **Desviaciones**: `movements` sin partición por fecha (ver README); `StockChanged` por movimiento, sin *debounce*.
+- **Errores agregados**: `INVENTORY_NOT_TRACKED`, `INVALID_WAREHOUSE`, `DEPENDENCY_UNAVAILABLE`, `TENANT_REQUIRED`.

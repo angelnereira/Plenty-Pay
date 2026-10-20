@@ -111,3 +111,10 @@ F17.1 dominio (totales, impuestos incluidos) → F17.2 migraciones → F17.3 caj
 
 ## 13. Riesgos
 Integración con impresoras/cajones por plataforma (Flutter `printing`; ESC/POS por red en F24) — Q-12 modelos de hardware a soportar.
+
+## 14. Estado de implementación (2026-10-20)
+- **Implementado**: OpenCashSession, GetCashSession (sin id: la sesión abierta del cajero), CloseCashSession, RecordCashMovement, CreateSale (`client_sale_id` idempotente), UpdateSale (precio, nombre, tasa y si lleva inventario salen de catalog: el cliente nunca fija el precio), Checkout (efectivo y billetera), VoidSale, GetSale, ListSales. El resto responde `UNIMPLEMENTED`.
+- **Caja = punto de cobro**: `terminal_label` es el código público de un terminal de payments-core (S-FIN-04). Un medio de billetera devuelve `next_action` con el QR `https://plentypay.app/t/<código>?sale=<id>&amount=<centavos>`; el cliente paga con `reference = {sale, id}` y monto fijo.
+- **Cadena al pagar (event-chains §1.1)**: en UNA transacción la venta pasa a PAID, toma su número de recibo (R10), suma el efectivo al esperado de la sesión, crea una tarea de stock por línea con inventario y escribe `SalePaid`. Un worker entrega cada tarea a `inventory.AdjustStock` SALE con la clave `sale:<venta>:<línea>`; inventory caído → reintento con backoff 30 s → 30 min (diferido, nunca perdido); rechazo definitivo → `needs_review`.
+- **Consumidor**: durable `pos-payments` sobre `PP_PAYMENTS` (`pp.payments.payment.>`); `PaymentCaptured` con `reference.type = sale` marca el medio de billetera del mismo monto (otro monto → `needs_review`, R7); `PaymentFailed` reabre la venta. `processed_events` en la misma transacción; ack después.
+- **Errores agregados**: `NOT_SESSION_OWNER`, `EMPTY_SALE`, `RAIL_NOT_SUPPORTED`, `PRODUCT_NOT_FOUND`, `REASON_REQUIRED`, `VERSION_CONFLICT`, `DEPENDENCY_UNAVAILABLE`, `TENANT_REQUIRED`.

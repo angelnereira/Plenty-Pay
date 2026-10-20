@@ -34,6 +34,7 @@ const (
 	Catalog_GetMarketplaceProduct_FullMethodName = "/plentypay.catalog.v1.Catalog/GetMarketplaceProduct"
 	Catalog_GetStorefront_FullMethodName         = "/plentypay.catalog.v1.Catalog/GetStorefront"
 	Catalog_UpdateStorefront_FullMethodName      = "/plentypay.catalog.v1.Catalog/UpdateStorefront"
+	Catalog_ListTaxRates_FullMethodName          = "/plentypay.catalog.v1.Catalog/ListTaxRates"
 )
 
 // CatalogClient is the client API for Catalog service.
@@ -58,6 +59,9 @@ type CatalogClient interface {
 	GetMarketplaceProduct(ctx context.Context, in *GetMarketplaceProductRequest, opts ...grpc.CallOption) (*MarketplaceProduct, error)
 	GetStorefront(ctx context.Context, in *GetStorefrontRequest, opts ...grpc.CallOption) (*Storefront, error)
 	UpdateStorefront(ctx context.Context, in *UpdateStorefrontRequest, opts ...grpc.CallOption) (*Storefront, error)
+	// Tasas de ITBMS vigentes que un producto puede llevar (legal.pa.itbms.* de infra-management):
+	// la app nunca las lleva en su código (AGENTS.md §2.13).
+	ListTaxRates(ctx context.Context, in *ListTaxRatesRequest, opts ...grpc.CallOption) (*ListTaxRatesResponse, error)
 }
 
 type catalogClient struct {
@@ -221,6 +225,16 @@ func (c *catalogClient) UpdateStorefront(ctx context.Context, in *UpdateStorefro
 	return out, nil
 }
 
+func (c *catalogClient) ListTaxRates(ctx context.Context, in *ListTaxRatesRequest, opts ...grpc.CallOption) (*ListTaxRatesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListTaxRatesResponse)
+	err := c.cc.Invoke(ctx, Catalog_ListTaxRates_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CatalogServer is the server API for Catalog service.
 // All implementations must embed UnimplementedCatalogServer
 // for forward compatibility.
@@ -243,6 +257,9 @@ type CatalogServer interface {
 	GetMarketplaceProduct(context.Context, *GetMarketplaceProductRequest) (*MarketplaceProduct, error)
 	GetStorefront(context.Context, *GetStorefrontRequest) (*Storefront, error)
 	UpdateStorefront(context.Context, *UpdateStorefrontRequest) (*Storefront, error)
+	// Tasas de ITBMS vigentes que un producto puede llevar (legal.pa.itbms.* de infra-management):
+	// la app nunca las lleva en su código (AGENTS.md §2.13).
+	ListTaxRates(context.Context, *ListTaxRatesRequest) (*ListTaxRatesResponse, error)
 	mustEmbedUnimplementedCatalogServer()
 }
 
@@ -297,6 +314,9 @@ func (UnimplementedCatalogServer) GetStorefront(context.Context, *GetStorefrontR
 }
 func (UnimplementedCatalogServer) UpdateStorefront(context.Context, *UpdateStorefrontRequest) (*Storefront, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateStorefront not implemented")
+}
+func (UnimplementedCatalogServer) ListTaxRates(context.Context, *ListTaxRatesRequest) (*ListTaxRatesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListTaxRates not implemented")
 }
 func (UnimplementedCatalogServer) mustEmbedUnimplementedCatalogServer() {}
 func (UnimplementedCatalogServer) testEmbeddedByValue()                 {}
@@ -578,6 +598,24 @@ func _Catalog_UpdateStorefront_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Catalog_ListTaxRates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListTaxRatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CatalogServer).ListTaxRates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Catalog_ListTaxRates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CatalogServer).ListTaxRates(ctx, req.(*ListTaxRatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Catalog_ServiceDesc is the grpc.ServiceDesc for Catalog service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -640,6 +678,10 @@ var Catalog_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateStorefront",
 			Handler:    _Catalog_UpdateStorefront_Handler,
+		},
+		{
+			MethodName: "ListTaxRates",
+			Handler:    _Catalog_ListTaxRates_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

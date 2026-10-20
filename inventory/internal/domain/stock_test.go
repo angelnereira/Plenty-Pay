@@ -1,110 +1,82 @@
 package domain
 
-import "testing"
+import (
+	"errors"
+	"testing"
+	"time"
+)
 
-func TestStockLevel_Available(t *testing.T) {
-	s := StockLevel{OnHand: 100, Reserved: 30}
-	if s.Available() != 70 {
-		t.Fatalf("expected 70, got %d", s.Available())
+func TestSPEC4_MovementSignAndReason(t *testing.T) {
+	bad := []Movement{
+		{Type: Receipt, DeltaMilli: -1000},
+		{Type: Sale, DeltaMilli: 1000},
+		{Type: WriteOff, DeltaMilli: -1000}, // sin motivo
+		{Type: Adjustment, DeltaMilli: 500}, // sin motivo
+		{Type: Receipt, DeltaMilli: 0},      // cero
+		{Type: MovementType(99), DeltaMilli: 1, Reason: "x"},
+	}
+	for _, m := range bad {
+		if m.Validate() == nil {
+			t.Errorf("aceptado: %+v", m)
+		}
+	}
+	good := []Movement{
+		{Type: Receipt, DeltaMilli: 12000},
+		{Type: Sale, DeltaMilli: -2000},
+		{Type: Adjustment, DeltaMilli: -1000, Reason: "conteo físico"},
+		{Type: WriteOff, DeltaMilli: -1000, Reason: "vencido"},
+		{Type: Return, DeltaMilli: 1000},
+	}
+	for _, m := range good {
+		if err := m.Validate(); err != nil {
+			t.Errorf("%+v: %v", m, err)
+		}
 	}
 }
 
-func TestStockLevel_Reserve_OK(t *testing.T) {
-	s := StockLevel{OnHand: 100, Reserved: 0}
-	if err := s.Reserve(30); err != nil {
-		t.Fatalf("expected ok, got %v", err)
+func TestSPEC4_SaleAndReturnOnlyFromSellingServices(t *testing.T) {
+	sale := Movement{Type: Sale, DeltaMilli: -1000}
+	if !errors.Is(sale.AllowedFor("api-gateway"), ErrServiceOnly) {
+		t.Fatal("una persona no registra ventas a mano")
 	}
-	if s.Reserved != 30 {
-		t.Fatalf("expected 30, got %d", s.Reserved)
+	if err := sale.AllowedFor("pos"); err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestStockLevel_Reserve_Insufficient(t *testing.T) {
-	s := StockLevel{OnHand: 10, Reserved: 0}
-	if err := s.Reserve(20); err != ErrInsufficientStock {
-		t.Fatalf("expected ErrInsufficientStock, got %v", err)
+	if err := (Movement{Type: Adjustment}).AllowedFor("api-gateway"); err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestStockLevel_Release(t *testing.T) {
-	s := StockLevel{OnHand: 100, Reserved: 30}
-	s.Release(10)
-	if s.Reserved != 20 {
-		t.Fatalf("expected 20, got %d", s.Reserved)
+func TestR2_AvailableCannotGoNegativeExceptForSales(t *testing.T) {
+	l := Level{OnHandMilli: 3000, ReservedMilli: 1000}
+	if !errors.Is(l.Apply(Movement{Type: WriteOff, DeltaMilli: -2500}), ErrOutOfStock) {
+		t.Fatal("ajuste dejó available negativo")
+	}
+	if l.OnHandMilli != 3000 {
+		t.Fatal("un movimiento rechazado no cambia la existencia")
+	}
+	if err := l.Apply(Movement{Type: Sale, DeltaMilli: -5000}); err != nil {
+		t.Fatalf("la venta física se registra aunque quede negativo: %v", err)
+	}
+	if l.OnHandMilli != -2000 || !l.IsLow() {
+		t.Fatalf("%+v", l)
 	}
 }
 
-func TestStockLevel_Adjust(t *testing.T) {
-	s := StockLevel{OnHand: 100}
-	s.Adjust(-20)
-	if s.OnHand != 80 {
-		t.Fatalf("expected 80, got %d", s.OnHand)
+func TestR7_StockLowAtMostOncePerDay(t *testing.T) {
+	now := time.Date(2026, 10, 20, 15, 0, 0, 0, time.UTC)
+	l := Level{OnHandMilli: 2000, ReorderPointMilli: 5000}
+	if !l.ShouldNotifyLow(now) {
+		t.Fatal("bajo el punto de reorden debe avisar")
 	}
-}
-
-func TestMovement_Validate_OK(t *testing.T) {
-	m := Movement{TenantID: "t1", VariantID: "v1", WarehouseID: "w1", Qty: 10}
-	if err := m.Validate(); err != nil {
-		t.Fatalf("expected ok, got %v", err)
+	l.LowNotifiedOn = now.Add(-2 * time.Hour)
+	if l.ShouldNotifyLow(now) {
+		t.Fatal("ya avisó hoy")
 	}
-}
-
-func TestMovement_Validate_EmptyTenant(t *testing.T) {
-	m := Movement{VariantID: "v1", WarehouseID: "w1", Qty: 10}
-	if err := m.Validate(); err != ErrInvalidMovement {
-		t.Fatalf("expected ErrInvalidMovement, got %v", err)
+	if !l.ShouldNotifyLow(now.Add(24 * time.Hour)) {
+		t.Fatal("al día siguiente vuelve a avisar")
 	}
-}
-
-func TestReservation_Validate_OK(t *testing.T) {
-	r := Reservation{TenantID: "t1", VariantID: "v1", WarehouseID: "w1", Qty: 5}
-	if err := r.Validate(); err != nil {
-		t.Fatalf("expected ok, got %v", err)
-	}
-}
-
-func TestReservation_Validate_InvalidQty(t *testing.T) {
-	r := Reservation{TenantID: "t1", VariantID: "v1", WarehouseID: "w1", Qty: 0}
-	if err := r.Validate(); err != ErrInvalidQty {
-		t.Fatalf("expected ErrInvalidQty, got %v", err)
-	}
-}
-
-func TestTransfer_Validate_OK(t *testing.T) {
-	tr := Transfer{TenantID: "t1", VariantID: "v1", FromWarehouse: "w1", ToWarehouse: "w2", Qty: 5}
-	if err := tr.Validate(); err != nil {
-		t.Fatalf("expected ok, got %v", err)
-	}
-}
-
-func TestTransfer_Validate_SameWarehouse(t *testing.T) {
-	tr := Transfer{TenantID: "t1", VariantID: "v1", FromWarehouse: "w1", ToWarehouse: "w1", Qty: 5}
-	if err := tr.Validate(); err != ErrInvalidTransfer {
-		t.Fatalf("expected ErrInvalidTransfer, got %v", err)
-	}
-}
-
-func TestSupplier_Validate_OK(t *testing.T) {
-	s := Supplier{TenantID: "t1", Name: "Acme"}
-	if err := s.Validate(); err != nil {
-		t.Fatalf("expected ok, got %v", err)
-	}
-}
-
-func TestPurchaseOrder_Validate_OK(t *testing.T) {
-	po := PurchaseOrder{TenantID: "t1", SupplierID: "s1", Status: "DRAFT"}
-	if err := po.Validate(); err != nil {
-		t.Fatalf("expected ok, got %v", err)
-	}
-}
-
-func TestReorderSuggestion_ShouldReorder(t *testing.T) {
-	r := ReorderSuggestion{CurrentStock: 5, ReorderPoint: 10}
-	if !r.ShouldReorder() {
-		t.Fatal("expected should reorder")
-	}
-	r2 := ReorderSuggestion{CurrentStock: 15, ReorderPoint: 10}
-	if r2.ShouldReorder() {
-		t.Fatal("expected should not reorder")
+	if (Level{OnHandMilli: 9000, ReorderPointMilli: 5000}).ShouldNotifyLow(now) {
+		t.Fatal("sobre el punto no avisa")
 	}
 }

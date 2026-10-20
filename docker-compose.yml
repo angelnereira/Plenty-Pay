@@ -93,6 +93,66 @@ services:
       ledger:
         condition: service_healthy
 
+  # F15–F17: comercio. catalog (productos), inventory (existencias) y pos (caja). Cada uno
+  # migra con `docker compose run --rm <svc> migrate` (conexión directa) y sirve por PgBouncer.
+  catalog:
+    <<: *hardening
+    build:
+      context: ./catalog
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      PP_DB_DSN: "${CATALOG_DB_DSN:-postgres://catalog_svc:catalog_svc_dev_secret_32_chars!@pgbouncer:6432/plentypay?sslmode=disable}"
+      PP_MIGRATE_DSN: "${CATALOG_MIGRATE_DSN:-postgres://migrator_catalog:catalog_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_INFRA_ADDR: "infra-management:50074"
+      PP_NATS_URL: "${CATALOG_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${CATALOG_NATS_USER:-catalog_svc}"
+      PP_NATS_PASS: "${CATALOG_NATS_PASS:-catalog_nats_secret}"
+    networks: [services, data]
+    healthcheck: *healthcheck
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+
+  inventory:
+    <<: *hardening
+    build:
+      context: ./inventory
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      PP_DB_DSN: "${INVENTORY_DB_DSN:-postgres://inventory_svc:inventory_svc_dev_secret_32_chars!@pgbouncer:6432/plentypay?sslmode=disable}"
+      PP_MIGRATE_DSN: "${INVENTORY_MIGRATE_DSN:-postgres://migrator_inventory:inventory_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_CATALOG_ADDR: "catalog:50065"
+      PP_NATS_URL: "${INVENTORY_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${INVENTORY_NATS_USER:-inventory_svc}"
+      PP_NATS_PASS: "${INVENTORY_NATS_PASS:-inventory_nats_secret}"
+    networks: [services, data]
+    healthcheck: *healthcheck
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+
+  pos:
+    <<: *hardening
+    build:
+      context: ./pos
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      PP_DB_DSN: "${POS_DB_DSN:-postgres://pos_svc:pos_svc_dev_secret_32_chars!@pgbouncer:6432/plentypay?sslmode=disable}"
+      PP_MIGRATE_DSN: "${POS_MIGRATE_DSN:-postgres://migrator_pos:pos_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_CATALOG_ADDR: "catalog:50065"
+      PP_INVENTORY_ADDR: "inventory:50066"
+      PP_NATS_URL: "${POS_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${POS_NATS_USER:-pos_svc}"
+      PP_NATS_PASS: "${POS_NATS_PASS:-pos_nats_secret}"
+    networks: [services, data]
+    healthcheck: *healthcheck
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+
   api-gateway:
     <<: *hardening
     build:

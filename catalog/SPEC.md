@@ -83,3 +83,10 @@ Importación de 10 000 filas con 3 % errores → resultado por fila y productos 
 
 ## 12. Plan
 F15.1 productos/variantes → F15.2 categorías + imágenes → F15.3 importación → F15.4 listados + storefront → F15.5 búsqueda marketplace (+ Scylla atributos). Pantallas: F15.10 (compartido con orders).
+
+## 13. Estado de implementación (2026-10-20)
+- **Implementado**: CreateProduct, UpdateProduct (máscara de campos y bloqueo optimista por `version`), ArchiveProduct, GetProduct, ListProducts (texto en `tsvector` español + SKU/código exacto, keyset por nombre), LookupByBarcode (solo activos), UpsertCategory, ListCategories, `ListTaxRates`. El resto responde `UNIMPLEMENTED`.
+- **Contrato (aditivo)**: `Product.tax_exempt = 19` (proto3 no distingue tasa 0 de «sin tasa»: el exento se declara; exento con tasa > 0 → `INVALID_TAX_RATE`) y `rpc ListTaxRates` (`TaxRate{kind, rate_bps}`), para que la app nunca lleve tasas legales en su código (AGENTS §2.13).
+- **N-FIS-01**: la tasa de un producto debe ser 0 o una de `legal.pa.itbms.standard_bps|alcohol_bps|tobacco_bps` vigentes (infra-management, caché 60 s); sin tratamiento explícito → `TAX_TREATMENT_MISSING`; sin infra-management → `DEPENDENCY_UNAVAILABLE`.
+- **Modelo**: una variante por producto en la misma fila (`sku`, `barcode`, `price_minor`); `variants` y `branch_prices` llegan con F15.1b. La categoría de un producto se verifica bajo RLS en la misma transacción (la FK no ve la RLS).
+- **Errores agregados**: `INVALID_TAX_RATE`, `DEPENDENCY_UNAVAILABLE`, `VERSION_CONFLICT`, `TENANT_REQUIRED`.

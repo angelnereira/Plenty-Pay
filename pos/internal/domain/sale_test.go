@@ -1,95 +1,165 @@
 package domain
 
-import "testing"
+import (
+	"errors"
+	"testing"
+	"time"
+)
 
-func TestComputeSaleTotals_OK(t *testing.T) {
-	bases := []int64{10000, 5000}
-	rates := []uint32{700, 0}
-	tot, err := ComputeSaleTotals(bases, rates, 0)
+func priced(t *testing.T, price, qty int64, rate int32) Line {
+	t.Helper()
+	l := Line{ProductID: "p", UnitPriceMinor: price, QtyMilli: qty, TaxRateBps: rate}
+	if err := l.Price(); err != nil {
+		t.Fatal(err)
+	}
+	return l
+}
+
+func TestHalfUpMatchesDomainModel(t *testing.T) {
+	// domain-model §4: half_up(v, bps) = (v·bps + 5000) / 10000 (vector B: 1234 × 250 → 31).
+	if v, _ := HalfUp(1234, 250, 10000); v != 31 {
+		t.Fatalf("vector B: %d", v)
+	}
+	if v, _ := HalfUp(31, 700, 10000); v != 2 {
+		t.Fatalf("vector B (impuesto): %d", v)
+	}
+	if _, err := HalfUp(1<<62, 1<<10, 1); !errors.Is(err, ErrOverflow) {
+		t.Fatal("desbordamiento no detectado")
+	}
+}
+
+func TestR2_TaxIsExtractedFromTaxIncludedPrice(t *testing.T) {
+	// 10.70 con ITBMS 7 % incluido → base 10.00, impuesto 0.70.
+	l := priced(t, 1070, 1000, 700)
+	if l.LineTotalMinor != 1070 || l.TaxMinor != 70 {
+		t.Fatalf("%+v", l)
+	}
+	// Exento: sin impuesto.
+	if l := priced(t, 500, 2000, 0); l.LineTotalMinor != 1000 || l.TaxMinor != 0 {
+		t.Fatalf("%+v", l)
+	}
+	// 1.5 kg a 3.99/kg = 5.985 → 5.99 (half_up); tax = 5.99 − round(5.99/1.07) = 599 − 560 = 39.
+	if l := priced(t, 399, 1500, 700); l.LineTotalMinor != 599 || l.TaxMinor != 39 {
+		t.Fatalf("granel: %+v", l)
+	}
+}
+
+func TestR2_LineValidation(t *testing.T) {
+	for _, l := range []Line{
+		{UnitPriceMinor: 100, QtyMilli: 0, TaxRateBps: 700},
+		{UnitPriceMinor: -1, QtyMilli: 1000, TaxRateBps: 700},
+		{UnitPriceMinor: 100, QtyMilli: 1000, DiscountMinor: 101, TaxRateBps: 700},
+		{UnitPriceMinor: 100, QtyMilli: MaxQtyMilli + 1, TaxRateBps: 700},
+	} {
+		if err := l.Price(); !errors.Is(err, ErrInvalidLine) {
+			t.Errorf("%+v: %v", l, err)
+		}
+	}
+}
+
+func saleOf(t *testing.T, lines ...Line) Sale {
+	s := Sale{Status: Open, Lines: lines}
+	if err := s.Recalculate(); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func TestSPEC11_1_CashPlusWalletWithChange(t *testing.T) {
+	// Aceptación 1: 3 artículos, 10.00 en efectivo (entrega 20.00) y el resto con billetera.
+	s := saleOf(t, priced(t, 1850, 1000, 700), priced(t, 425, 2000, 700), priced(t, 300, 1000, 0))
+	if s.TotalMinor != 3000 {
+		t.Fatalf("total %d", s.TotalMinor)
+	}
+	err := s.PrepareCheckout([]Tender{
+		{Rail: RailCash, AmountMinor: 1000, CashTendered: 2000},
+		{Rail: RailWallet, AmountMinor: 2000},
+	})
 	if err != nil {
-		t.Fatalf("expected ok, got %v", err)
+		t.Fatal(err)
 	}
-	if tot.SubtotalMinor != 15000 {
-		t.Fatalf("expected subtotal 15000, got %d", tot.SubtotalMinor)
+	if s.Status != AwaitingPayment || s.ChangeMinor != 1000 || s.Tenders[0].Status != TenderCaptured {
+		t.Fatalf("%+v", s)
 	}
-	if tot.TotalMinor != tot.SubtotalMinor+tot.TaxMinor {
-		t.Fatalf("total mismatch")
+	if !s.CaptureTender("intent-1", 2000) || s.Status != Paid {
+		t.Fatalf("el cobro de billetera paga la venta: %+v", s)
 	}
-}
-
-func TestComputeSaleTotals_Discount(t *testing.T) {
-	bases := []int64{10000}
-	rates := []uint32{700}
-	tot, err := ComputeSaleTotals(bases, rates, 500)
-	if err != nil {
-		t.Fatalf("expected ok, got %v", err)
-	}
-	if tot.TotalMinor != tot.SubtotalMinor+tot.TaxMinor-500 {
-		t.Fatalf("discount not applied")
+	if s.CashInSale() != 1000 {
+		t.Fatalf("en el cajón quedan 10.00, no lo recibido: %d", s.CashInSale())
 	}
 }
 
-func TestComputeSaleTotals_MismatchedLengths(t *testing.T) {
-	_, err := ComputeSaleTotals([]int64{100}, []uint32{}, 0)
-	if err != ErrTotalsMismatch {
-		t.Fatalf("expected ErrTotalsMismatch, got %v", err)
+func TestR4_TendersMustSumTheTotal(t *testing.T) {
+	s := saleOf(t, priced(t, 1000, 1000, 700))
+	if !errors.Is(s.PrepareCheckout([]Tender{{Rail: RailCash, AmountMinor: 900}}), ErrTendersMismatch) {
+		t.Fatal("falta dinero")
+	}
+	if !errors.Is(s.PrepareCheckout([]Tender{{Rail: RailCash, AmountMinor: 1000, CashTendered: 500}}), ErrTendersMismatch) {
+		t.Fatal("el efectivo recibido no alcanza")
+	}
+	if !errors.Is(s.PrepareCheckout([]Tender{{Rail: 4, AmountMinor: 1000}}), ErrRailNotSupported) {
+		t.Fatal("tarjeta sin PSP")
+	}
+	empty := Sale{Status: Open}
+	if !errors.Is(empty.PrepareCheckout([]Tender{{Rail: RailCash, AmountMinor: 1}}), ErrEmptySale) {
+		t.Fatal("venta vacía")
+	}
+	if err := s.PrepareCheckout([]Tender{{Rail: RailCash, AmountMinor: 1000}}); err != nil || s.Status != Paid {
+		t.Fatalf("efectivo exacto paga al instante: %v %+v", err, s.Status)
 	}
 }
 
-func TestCashSession_OpenClose(t *testing.T) {
-	c := CashSession{OpeningFloatMinor: 10000, ExpectedCashMinor: 15000}
-	c.Open()
-	if !c.IsOpen() {
-		t.Fatal("expected open")
+func TestR7_WalletAmountMismatchNeedsReview(t *testing.T) {
+	s := saleOf(t, priced(t, 1000, 1000, 700))
+	if err := s.PrepareCheckout([]Tender{{Rail: RailWallet, AmountMinor: 1000}}); err != nil {
+		t.Fatal(err)
 	}
-	c.Close(14500)
-	if c.Status != "CLOSED" {
-		t.Fatalf("expected CLOSED, got %s", c.Status)
-	}
-	if c.DifferenceMinor != -500 {
-		t.Fatalf("expected -500, got %d", c.DifferenceMinor)
+	if s.CaptureTender("i", 999) || s.Status == Paid || !s.NeedsReview {
+		t.Fatalf("un cobro por otro monto no paga la venta: %+v", s)
 	}
 }
 
-func TestSale_ParkResume(t *testing.T) {
-	s := Sale{ID: "s1", Status: "DRAFT"}
-	s.Park("mesa 3")
-	if !s.Parked || s.Status != "PARKED" {
-		t.Fatalf("expected parked, got %s", s.Status)
+func TestR8_VoidOnlyBeforeElectronicCapture(t *testing.T) {
+	s := saleOf(t, priced(t, 1000, 1000, 700))
+	if !errors.Is(s.Void(""), ErrReasonRequired) {
+		t.Fatal("anular exige motivo")
 	}
-	s.Resume()
-	if s.Parked || s.Status != "DRAFT" {
-		t.Fatalf("expected draft, got %s", s.Status)
+	if err := s.PrepareCheckout([]Tender{{Rail: RailWallet, AmountMinor: 1000}}); err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestCheckout_Validate_OK(t *testing.T) {
-	c := Checkout{SaleID: "s1", Total: 10000, Tenders: []Tender{{Kind: "CASH", Amount: 5000}, {Kind: "WALLET", Amount: 5000}}}
-	if err := c.Validate(); err != nil {
-		t.Fatalf("expected ok, got %v", err)
+	s.CaptureTender("i", 1000)
+	if err := s.Void("cliente se arrepintió"); err == nil {
+		t.Fatal("una venta pagada se devuelve, no se anula")
 	}
-}
-
-func TestCheckout_Validate_Mismatch(t *testing.T) {
-	c := Checkout{SaleID: "s1", Total: 10000, Tenders: []Tender{{Kind: "CASH", Amount: 5000}}}
-	if err := c.Validate(); err == nil {
-		t.Fatal("expected error")
+	pending := saleOf(t, priced(t, 1000, 1000, 700))
+	if err := pending.Void("error de digitación"); err != nil || pending.Status != Voided {
+		t.Fatal(err)
 	}
 }
 
-func TestCustomerCredit_ChargePay(t *testing.T) {
-	c := CustomerCredit{CustomerID: "u1", TenantID: "t1"}
-	c.Charge(10000)
-	if c.BalanceMinor != 10000 {
-		t.Fatalf("expected 10000, got %d", c.BalanceMinor)
+func TestFailedWalletReopensSale(t *testing.T) {
+	s := saleOf(t, priced(t, 1000, 1000, 700))
+	if err := s.PrepareCheckout([]Tender{{Rail: RailWallet, AmountMinor: 1000}}); err != nil {
+		t.Fatal(err)
 	}
-	if !c.Pay(3000) {
-		t.Fatal("expected pay ok")
+	s.FailTender()
+	if s.Status != Open || s.Tenders[0].Status != TenderFailed {
+		t.Fatalf("%+v", s)
 	}
-	if c.BalanceMinor != 7000 {
-		t.Fatalf("expected 7000, got %d", c.BalanceMinor)
+}
+
+func TestSessionCloseDifference(t *testing.T) {
+	ss := Session{Status: "OPEN", ExpectedCash: 15000}
+	if err := ss.Close(14500, "faltante", time.Unix(0, 0)); err != nil || ss.DifferenceMinor != -500 {
+		t.Fatalf("%v %+v", err, ss)
 	}
-	if c.Pay(10000) {
-		t.Fatal("expected pay fail")
+	if !errors.Is(ss.Close(1, "", time.Unix(0, 0)), ErrSessionClosed) {
+		t.Fatal("cerrar dos veces")
+	}
+	if (CashMovement{Direction: "OUT", AmountMinor: 500, Reason: "retiro a caja fuerte"}).Signed() != -500 {
+		t.Fatal("salida resta")
+	}
+	if (CashMovement{Direction: "OUT", AmountMinor: 500}).Validate() == nil {
+		t.Fatal("sin motivo")
 	}
 }

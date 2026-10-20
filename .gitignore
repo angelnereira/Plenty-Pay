@@ -37,6 +37,9 @@ infra/opentofu/.terraform.lock.hcl
 object-storage/test/s3cli/s3clibin
 identity/test/bin/
 api-gateway/test/bin/
+catalog/test/bin/
+inventory/test/bin/
+pos/test/bin/
 
 # Herramientas instaladas en este entorno de desarrollo (no se commitean)
 /.local/bin/

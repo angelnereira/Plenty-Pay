@@ -27,6 +27,10 @@ service Catalog {
   rpc GetMarketplaceProduct(GetMarketplaceProductRequest) returns (MarketplaceProduct);
   rpc GetStorefront(GetStorefrontRequest) returns (Storefront);
   rpc UpdateStorefront(UpdateStorefrontRequest) returns (Storefront);
+
+  // Tasas de ITBMS vigentes que un producto puede llevar (legal.pa.itbms.* de infra-management):
+  // la app nunca las lleva en su código (AGENTS.md §2.13).
+  rpc ListTaxRates(ListTaxRatesRequest) returns (ListTaxRatesResponse);
 }
 
 enum ProductStatus {
@@ -54,6 +58,7 @@ message Product {
   bool tracks_inventory = 16;
   google.protobuf.Timestamp updated_at = 17;
   int32 version = 18;                       // bloqueo optimista
+  bool tax_exempt = 19;                     // exento de ITBMS declarado (tax_rate_bps = 0); el impuesto nunca se asume (N-FIS-01)
 }
 message CreateProductRequest { Product product = 1; string idempotency_key = 2; }
 message UpdateProductRequest { Product product = 1; repeated string update_mask = 2; 
@@ -117,6 +122,13 @@ message Storefront {
 message GetStorefrontRequest { string tenant_id = 1; }
 message UpdateStorefrontRequest { Storefront storefront = 1; 
   string idempotency_key = 2;}
+
+message TaxRate {
+  string kind = 1;        // "STANDARD" | "ALCOHOL" | "TOBACCO" (la clave legal.pa.itbms.<kind>_bps)
+  int32 rate_bps = 2;
+}
+message ListTaxRatesRequest {}
+message ListTaxRatesResponse { repeated TaxRate rates = 1; }
 
 // ── Eventos. Subject: pp.catalog.<entidad>.<hecho>.v1 ──
 // Lleva lo necesario para que analytics-bi y orders construyan sus dimensiones sin llamar de vuelta.

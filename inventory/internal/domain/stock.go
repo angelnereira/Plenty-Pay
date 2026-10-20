@@ -1,153 +1,168 @@
+// Package domain contiene las reglas puras de inventory (SPEC §5): sin E/S, sin pb, sin SQL.
+// Las cantidades van en milésimas (`_milli`) para admitir kg, litros y metros sin decimales.
 package domain
 
-import "errors"
+import (
+	"errors"
+	"strings"
+	"time"
+	"unicode/utf8"
+)
 
-var ErrInsufficientStock = errors.New("insufficient stock")
-var ErrInvalidQty = errors.New("qty must be > 0")
+// Errores tipados; server los traduce a `reason`.
+var (
+	ErrInvalidQty          = errors.New("quantity must be non-zero")
+	ErrInvalidMovementType = errors.New("invalid movement type")
+	ErrReasonRequired      = errors.New("movement reason required")
+	ErrOutOfStock          = errors.New("out of stock")
+	ErrSameWarehouse       = errors.New("same warehouse")
+	ErrProductNotFound     = errors.New("product not found")
+	ErrNotTracked          = errors.New("product does not track inventory")
+	ErrNotFound            = errors.New("not found")
+	ErrInvalidWarehouse    = errors.New("invalid warehouse")
+	ErrKeyReused           = errors.New("idempotency key reused")
+	ErrServiceOnly         = errors.New("movement type reserved to services")
+)
 
-type StockLevel struct {
-	VariantID  string
-	WarehouseID string
-	TenantID   string
-	OnHand     int64
-	Reserved   int64
-}
+// MovementType (inventory.proto MovementType).
+type MovementType int16
 
-func (s *StockLevel) Available() int64 {
-	return s.OnHand - s.Reserved
-}
+const (
+	Receipt     MovementType = 1
+	Sale        MovementType = 2
+	Adjustment  MovementType = 3
+	TransferOut MovementType = 4
+	TransferIn  MovementType = 5
+	Return      MovementType = 6
+	WriteOff    MovementType = 7
+)
 
-func (s *StockLevel) Reserve(qty int64) error {
-	if qty <= 0 {
-		return ErrInvalidQty
-	}
-	if s.Available() < qty {
-		return ErrInsufficientStock
-	}
-	s.Reserved += qty
-	return nil
-}
+// MaxReasonLength del motivo de un ajuste.
+const MaxReasonLength = 300
 
-func (s *StockLevel) Release(qty int64) {
-	s.Reserved -= qty
-	if s.Reserved < 0 {
-		s.Reserved = 0
-	}
-}
-
-func (s *StockLevel) Adjust(qty int64) {
-	s.OnHand += qty
-	if s.OnHand < 0 {
-		s.OnHand = 0
-	}
-}
-
+// Movement es un movimiento inmutable (R1). `DeltaMilli` lleva signo: + entra, − sale.
 type Movement struct {
-	ID          string
-	TenantID    string
-	VariantID   string
-	WarehouseID string
-	MovementType string
-	Qty         int64
-	Reason      string
+	ID             string
+	TenantID       string
+	WarehouseID    string
+	ProductID      string
+	Type           MovementType
+	DeltaMilli     int64
+	Reason         string
+	ReferenceType  string
+	ReferenceID    string
+	ActorUserID    string
+	ActorService   string
+	IdempotencyKey string
+	OccurredAt     time.Time
 }
 
+// ServiceTypes solo los generan pos y orders al vender o devolver (SPEC §4 AdjustStock).
+var ServiceTypes = map[MovementType]bool{Sale: true, Return: true}
+
+// SellingServices pueden registrar SALE y RETURN.
+var SellingServices = map[string]bool{"pos": true, "orders": true}
+
+// Validate aplica el signo de cada tipo y el motivo obligatorio (SPEC §4): RECEIPT y RETURN
+// entran (+), SALE y WRITE_OFF salen (−), ADJUSTMENT va en cualquier sentido con motivo.
 func (m Movement) Validate() error {
-	if m.TenantID == "" || m.VariantID == "" || m.WarehouseID == "" {
-		return ErrInvalidMovement
-	}
-	if m.Qty == 0 {
+	if m.DeltaMilli == 0 {
 		return ErrInvalidQty
 	}
-	return nil
-}
-
-var ErrInvalidMovement = errors.New("invalid movement")
-
-type Reservation struct {
-	ID          string
-	TenantID    string
-	VariantID   string
-	WarehouseID string
-	Qty         int64
-	Status      string
-}
-
-func (r Reservation) Validate() error {
-	if r.TenantID == "" || r.VariantID == "" || r.WarehouseID == "" {
-		return ErrInvalidReservation
+	switch m.Type {
+	case Receipt, Return, TransferIn:
+		if m.DeltaMilli < 0 {
+			return ErrInvalidQty
+		}
+	case Sale, WriteOff, TransferOut:
+		if m.DeltaMilli > 0 {
+			return ErrInvalidQty
+		}
+	case Adjustment:
+	default:
+		return ErrInvalidMovementType
 	}
-	if r.Qty <= 0 {
-		return ErrInvalidQty
+	reason := strings.TrimSpace(m.Reason)
+	if (m.Type == Adjustment || m.Type == WriteOff) && reason == "" {
+		return ErrReasonRequired
 	}
-	return nil
-}
-
-var ErrInvalidReservation = errors.New("invalid reservation")
-
-type Transfer struct {
-	ID          string
-	TenantID    string
-	VariantID   string
-	FromWarehouse string
-	ToWarehouse   string
-	Qty         int64
-}
-
-func (t Transfer) Validate() error {
-	if t.TenantID == "" || t.VariantID == "" || t.FromWarehouse == "" || t.ToWarehouse == "" {
-		return ErrInvalidTransfer
-	}
-	if t.Qty <= 0 {
-		return ErrInvalidQty
-	}
-	if t.FromWarehouse == t.ToWarehouse {
-		return ErrInvalidTransfer
+	if utf8.RuneCountInString(reason) > MaxReasonLength {
+		return ErrReasonRequired
 	}
 	return nil
 }
 
-var ErrInvalidTransfer = errors.New("invalid transfer")
-
-type Supplier struct {
-	ID       string
-	TenantID string
-	Name     string
-}
-
-func (s Supplier) Validate() error {
-	if s.TenantID == "" || s.Name == "" {
-		return ErrInvalidSupplier
+// AllowedFor: SALE/RETURN solo desde pos u orders; las personas usan RECEIPT, ADJUSTMENT y
+// WRITE_OFF. Las transferencias solo se crean con TransferStock (par OUT/IN atómico).
+func (m Movement) AllowedFor(service string) error {
+	if m.Type == TransferOut || m.Type == TransferIn {
+		return ErrInvalidMovementType
+	}
+	if ServiceTypes[m.Type] && !SellingServices[service] {
+		return ErrServiceOnly
 	}
 	return nil
 }
 
-var ErrInvalidSupplier = errors.New("invalid supplier")
+// Level es la existencia de un producto en una bodega.
+type Level struct {
+	TenantID          string
+	WarehouseID       string
+	ProductID         string
+	OnHandMilli       int64
+	ReservedMilli     int64
+	ReorderPointMilli int64
+	LowNotifiedOn     time.Time // R7: a lo sumo un StockLow por día y producto
+	Version           int64
+}
 
-type PurchaseOrder struct {
+// Available = on_hand − reserved.
+func (l Level) Available() int64 { return l.OnHandMilli - l.ReservedMilli }
+
+// Apply suma el movimiento. R2: por defecto `available` no puede quedar < 0; una venta física
+// (SALE) sí puede dejarlo negativo: ya ocurrió y se marca para revisión con StockLow.
+func (l *Level) Apply(m Movement) error {
+	next := l.OnHandMilli + m.DeltaMilli
+	if m.DeltaMilli < 0 && m.Type != Sale && next-l.ReservedMilli < 0 {
+		return ErrOutOfStock
+	}
+	l.OnHandMilli = next
+	l.Version++
+	return nil
+}
+
+// IsLow (R7 parcial): available ≤ punto de reorden definido, o negativo.
+func (l Level) IsLow() bool {
+	return l.Available() < 0 || (l.ReorderPointMilli > 0 && l.Available() <= l.ReorderPointMilli)
+}
+
+// ShouldNotifyLow: bajo y sin aviso hoy (fecha UTC).
+func (l Level) ShouldNotifyLow(now time.Time) bool {
+	if !l.IsLow() {
+		return false
+	}
+	y1, m1, d1 := l.LowNotifiedOn.UTC().Date()
+	y2, m2, d2 := now.UTC().Date()
+	return !(y1 == y2 && m1 == m2 && d1 == d2)
+}
+
+// Warehouse es una bodega del comercio.
+type Warehouse struct {
 	ID         string
 	TenantID   string
-	SupplierID string
-	Status     string
+	Name       string
+	BranchCode string
+	Active     bool
+	IsDefault  bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
-func (po PurchaseOrder) Validate() error {
-	if po.TenantID == "" || po.SupplierID == "" {
-		return ErrInvalidPurchaseOrder
+// Validate: nombre 1–80.
+func (w Warehouse) Validate() error {
+	n := utf8.RuneCountInString(strings.TrimSpace(w.Name))
+	if n < 1 || n > 80 {
+		return ErrInvalidWarehouse
 	}
 	return nil
-}
-
-var ErrInvalidPurchaseOrder = errors.New("invalid purchase order")
-
-type ReorderSuggestion struct {
-	VariantID   string
-	WarehouseID string
-	CurrentStock int64
-	ReorderPoint int64
-	SuggestedQty int64
-}
-
-func (r ReorderSuggestion) ShouldReorder() bool {
-	return r.CurrentStock <= r.ReorderPoint
 }
