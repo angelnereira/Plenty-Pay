@@ -74,7 +74,7 @@ compose up -d --build identity >/dev/null 2>&1
 echo "  [*] Aplicando migraciones (identity migrate)..."
 MIG_OUT=$(compose exec -T -e PP_DB_DSN="$SVC_DSN" identity /app migrate 2>&1 || true)
 MIG_VERSION=$(echo "$MIG_OUT" | grep -oE '"version":[0-9]+' | head -1 | cut -d: -f2)
-assert_eq "La ultima migracion aplicada es la 0009 (membresias y alcance)" "9" "$MIG_VERSION"
+assert_eq "La ultima migracion aplicada es la 0010 (claves de idempotencia)" "10" "$MIG_VERSION"
 
 # 4. Idempotencia: la segunda ejecucion no aplica nada
 MIG_OUT2=$(compose exec -T -e PP_DB_DSN="$SVC_DSN" identity /app migrate 2>&1 || true)
@@ -84,14 +84,14 @@ assert_eq "La segunda ejecucion de migrate no reaplica (idempotente)" "false" "$
 # 5. Las tablas y las politicas RLS existen (RLS ACTIVO, ADR 0014)
 TABLES=$(compose exec -T -e PGPASSWORD="identity_svc_dev_secret_32_chars!" postgres-db \
   psql -h postgres-db -U identity_svc -d plentypay -tAc \
-  "SELECT count(*) FROM pg_tables WHERE schemaname='identity' AND tablename IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches')" 2>/dev/null | tr -d '[:space:]')
-assert_eq "Las tablas del esquema identity existen (18)" "18" "$TABLES"
+  "SELECT count(*) FROM pg_tables WHERE schemaname='identity' AND tablename IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches','idempotency_keys')" 2>/dev/null | tr -d '[:space:]')
+assert_eq "Las tablas del esquema identity existen (19)" "19" "$TABLES"
 
 RLS_ON=$(compose exec -T -e PGPASSWORD="identity_svc_dev_secret_32_chars!" postgres-db \
   psql -h postgres-db -U identity_svc -d plentypay -tAc \
   "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-   WHERE n.nspname='identity' AND c.relname IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches') AND c.relrowsecurity" 2>/dev/null | tr -d '[:space:]')
-assert_eq "RLS esta activo en las 18 tablas (ADR 0014)" "18" "$RLS_ON"
+   WHERE n.nspname='identity' AND c.relname IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches','idempotency_keys') AND c.relrowsecurity" 2>/dev/null | tr -d '[:space:]')
+assert_eq "RLS esta activo en las 19 tablas (ADR 0014)" "19" "$RLS_ON"
 
 # 6. Compilar las pruebas L2 y ejecutarlas dentro de la red de datos
 echo "  [*] Compilando y ejecutando las pruebas Go L2 del store..."

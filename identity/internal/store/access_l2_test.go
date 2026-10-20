@@ -380,3 +380,48 @@ func TestL2_R13_UserStatusRevokesSessionsAndKeepsAnOwner(t *testing.T) {
 		t.Fatalf("R13 último dueño: %v", err)
 	}
 }
+
+// grpc-conventions §3 sobre PostgreSQL real: reserva única por (tenant, rpc, key), cierre con la
+// respuesta, liberación de una ejecución fallida, aislamiento por tenant (RLS) y purga.
+func TestL2_Idempotency_ReserveCompleteReleasePurge(t *testing.T) {
+	f := newAccessL2(t)
+	ctx := context.Background()
+	st := store.NewPostgresIdempotencyStore(f.st.Pool())
+	key := "l2-" + uuid.NewString()
+	rpc := "/plentypay.identity.v1.Identity/UpsertBranch"
+	hash := []byte("hash-1")
+
+	if rec, err := st.Reserve(ctx, f.t.ID, rpc, key, hash); err != nil || rec != nil {
+		t.Fatalf("primera reserva: %v %+v", err, rec)
+	}
+	rec, err := st.Reserve(ctx, f.t.ID, rpc, key, hash)
+	if err != nil || rec == nil || rec.Done || string(rec.RequestHash) != "hash-1" {
+		t.Fatalf("segunda reserva ve la primera en curso: %v %+v", err, rec)
+	}
+	if err := st.Complete(ctx, f.t.ID, rpc, key, []byte("resp")); err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+	rec, err = st.Reserve(ctx, f.t.ID, rpc, key, hash)
+	if err != nil || rec == nil || !rec.Done || string(rec.Response) != "resp" {
+		t.Fatalf("tras completar: %v %+v", err, rec)
+	}
+	if err := st.Complete(ctx, f.t.ID, rpc, key, []byte("otra")); err == nil {
+		t.Fatal("una clave DONE no se completa dos veces")
+	}
+
+	// Otro negocio con la misma clave reserva la suya.
+	other := newAccessL2(t)
+	if rec, err := st.Reserve(ctx, other.t.ID, rpc, key, hash); err != nil || rec != nil {
+		t.Fatalf("aislamiento por tenant: %v %+v", err, rec)
+	}
+	if err := st.Release(ctx, other.t.ID, rpc, key); err != nil {
+		t.Fatalf("Release: %v", err)
+	}
+	if rec, err := st.Reserve(ctx, other.t.ID, rpc, key, hash); err != nil || rec != nil {
+		t.Fatalf("tras liberar se vuelve a reservar: %v %+v", err, rec)
+	}
+
+	if n, err := st.Purge(ctx, time.Now().UTC().Add(time.Minute)); err != nil || n < 2 {
+		t.Fatalf("Purge: %v n=%d", err, n)
+	}
+}

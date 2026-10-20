@@ -118,6 +118,7 @@ func main() {
 		tenants   store.TenantStore
 		roles     store.RoleStore
 		passwords store.PasswordStore
+		idem      store.IdempotencyStore
 	)
 	if dsn := cfg.DBDSN; dsn != "" {
 		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
@@ -131,9 +132,11 @@ func main() {
 		tenants = store.NewPostgresTenantStore(pgStore.Pool())
 		roles = store.NewPostgresRoleStore(pgStore.Pool())
 		passwords = store.NewPostgresPasswordStore(pgStore.Pool())
+		idem = store.NewPostgresIdempotencyStore(pgStore.Pool())
 		logger.Info("using postgres user store with sessions and lockout", "dsn_host", dsnHost(dsn))
 	} else {
 		users = store.NewInMemoryUserStore()
+		idem = store.NewInMemoryIdempotencyStore()
 		logger.Info("using in-memory user store without sessions or lockout (PP_DB_DSN no definido)")
 	}
 
@@ -161,7 +164,13 @@ func main() {
 	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		observability.UnaryServerInterceptor(logger, reporter, metrics),
 		server.SPIFFEServerInterceptor(enforceMTLS, server.AllowedIdentityCallers),
+		// Mutaciones reintentables (grpc-conventions.md §3, AGENTS.md §2.8).
+		server.IdempotencyInterceptor(idem, reporter),
 	))
+	// Purga de claves de idempotencia de más de 72 h (data-standards.md §6).
+	purgeCtx, cancelPurge := context.WithCancel(context.Background())
+	defer cancelPurge()
+	go purgeIdempotencyKeys(purgeCtx, idem, reporter)
 	identitySrv := server.NewIdentityServer(users, tokens, reporter, metrics)
 	if sessions != nil {
 		identitySrv = identitySrv.WithSessions(sessions)
@@ -247,4 +256,21 @@ func main() {
 		fatal("grpc server failed", err)
 	}
 	<-done
+}
+
+// purgeIdempotencyKeys borra cada hora las claves de idempotencia vencidas. Un fallo se registra
+// como dependencia y se reintenta en la siguiente vuelta.
+func purgeIdempotencyKeys(ctx context.Context, st store.IdempotencyStore, reporter *observability.Reporter) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if _, err := st.Purge(ctx, time.Now().UTC().Add(-store.IdempotencyTTL)); err != nil {
+				reporter.Dependency(ctx, "idempotency purge failed", "postgres-db", observability.Wrap(err, "purge idempotency keys"))
+			}
+		}
+	}
 }
