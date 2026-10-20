@@ -74,7 +74,7 @@ func TestSPIFFE_MissingCertificateWhenEnforced(t *testing.T) {
 func TestSPIFFE_AllowedCallerSucceeds(t *testing.T) {
 	interceptor := SPIFFEServerInterceptor(true, AllowedIdentityCallers)
 
-	for _, caller := range []string{"api-gateway", "payments-core", "settlement", "orders", "logistics", "payroll", "notifications"} {
+	for _, caller := range []string{"api-gateway", "payments-core", "catalog", "settlement", "orders", "logistics", "payroll", "notifications"} {
 		ctx := mockPeerContext(caller, true)
 		resp, err := interceptor(ctx, nil, &grpc.UnaryServerInfo{}, dummyHandler)
 		if err != nil {
@@ -89,8 +89,9 @@ func TestSPIFFE_AllowedCallerSucceeds(t *testing.T) {
 func TestSPIFFE_UnauthorizedCallerFails(t *testing.T) {
 	interceptor := SPIFFEServerInterceptor(true, AllowedIdentityCallers)
 
-	// 'web' o 'catalog' no pueden llamar directamente a identity según service-dependencies.md §3
-	for _, caller := range []string{"web", "catalog", "inventory", "unknown-service"} {
+	// 'web' o 'inventory' no pueden llamar directamente a identity según service-dependencies.md §3
+	// (catalog sí desde 2026-10-20: estado del negocio para publicar en el marketplace, R4).
+	for _, caller := range []string{"web", "inventory", "unknown-service"} {
 		ctx := mockPeerContext(caller, true)
 		_, err := interceptor(ctx, nil, &grpc.UnaryServerInfo{}, dummyHandler)
 		if status.Code(err) != codes.PermissionDenied {
