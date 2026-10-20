@@ -32,6 +32,7 @@ Todo de código abierto; sin dependencia de un proveedor de nube.
 | [`docs/standards/`](docs/standards) | gRPC, datos, eventos, seguridad, observabilidad, pruebas, Go, Rust, Flutter, entrega |
 | [`docs/architecture/service-dependencies.md`](docs/architecture/service-dependencies.md) | 23 contenedores, puertos, quién llama a quién, degradación |
 | [`docs/architecture/rpc-coverage.md`](docs/architecture/rpc-coverage.md) | Cobertura de los 231 RPC contra cada SPEC §4 y los hallazgos de contrato (F03.1) |
+| [`docs/architecture/event-chains.md`](docs/architecture/event-chains.md) | Cadenas de reacción entre servicios: qué está construido y desplegado, huecos de diseño y orden de cierre (2026-10-20) |
 | [`docs/ux/screen-catalog.md`](docs/ux/screen-catalog.md) · [`docs/design-system.md`](docs/design-system.md) · [`docs/gravital-experience-ui.md`](docs/gravital-experience-ui.md) | Pantallas por módulo/rol, tokens base y regla estricta de diseño Flutter (`gravital-experience-ui`) |
 | [`docs/ux/functional-spec/`](docs/ux/functional-spec/README.md) | Requisitos funcionales y ficha de cada pantalla: elementos, textos, validaciones, flujos y conexiones entre módulos |
 | [`docs/compliance/regulatory-framework.md`](docs/compliance/regulatory-framework.md) | Normas de Panamá y estándares internacionales convertidos en reglas de negocio `N-…`, con fuentes y nivel de verificación |
