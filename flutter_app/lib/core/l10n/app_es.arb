@@ -694,5 +694,155 @@
   "actionAcceptAndCreate": "Aceptar y crear cuenta",
   "error_TOKEN_INVALID": "Esta invitación ya no es válida. Pide una nueva a tu negocio.",
   "error_ALREADY_USED": "Esta invitación ya se usó.",
-  "error_ALREADY_HAS_TENANT": "Esa cuenta ya pertenece a otro negocio."
+  "error_ALREADY_HAS_TENANT": "Esa cuenta ya pertenece a otro negocio.",
+  "homeGreeting": "Hola",
+  "homeNotifications": "Avisos",
+  "walletAvailable": "Saldo disponible",
+  "walletHeld": "Retenido: {amount}",
+  "@walletHeld": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletHeldExplain": "Dinero apartado para pagos en curso.",
+  "walletHideBalance": "Ocultar saldo",
+  "walletShowBalance": "Mostrar saldo",
+  "walletBalanceHidden": "Saldo oculto",
+  "walletReceive": "Recibir",
+  "walletPay": "Pagar",
+  "walletMovements": "Movimientos",
+  "walletEmpty": "Aún no tienes movimientos.",
+  "walletUnavailable": "Tu billetera todavía no está disponible. Intenta de nuevo más tarde.",
+  "walletSandbox": "Modo de prueba: no se mueve dinero real.",
+  "txType_WALLET_TOPUP": "Recarga",
+  "txType_WALLET_PAYMENT": "Pago",
+  "txType_P2P_TRANSFER": "Transferencia",
+  "txType_PAYOUT_TO_WALLET": "Liquidación a tu billetera",
+  "txType_REFUND": "Reembolso",
+  "txType_PAYROLL_PAYMENT": "Pago de nómina",
+  "txType_REVERSAL": "Corrección",
+  "txTypeOther": "Movimiento",
+  "txDetailTitle": "Detalle de movimiento",
+  "txStatusCompleted": "Completado",
+  "txFieldType": "Tipo",
+  "txFieldDate": "Fecha y hora",
+  "txFieldReference": "Referencia",
+  "txFieldConcept": "Concepto",
+  "txCopyReference": "Copiar referencia",
+  "txReferenceCopied": "Referencia copiada.",
+  "featureUnavailableTitle": "Todavía no disponible",
+  "topupUnavailable": "Las recargas todavía no están disponibles. Te avisaremos cuando puedas recargar.",
+  "sendUnavailable": "Los envíos entre personas todavía no están disponibles. Te avisaremos cuando puedas enviar dinero.",
+  "receiveUnavailable": "Tu código para recibir dinero todavía no está disponible.",
+  "payScanHint": "Apunta al código QR del comercio",
+  "payEnterCode": "Escribir código",
+  "payCodeLabel": "Código de cobro",
+  "actionContinue": "Continuar",
+  "payNotPlentyPay": "Este código no es de PlentyPay.",
+  "payInvalidCode": "Ese código de cobro no es válido.",
+  "payPointUnavailable": "Este punto de cobro no está disponible.",
+  "payCameraUnavailable": "No pudimos usar la cámara. Escribe el código impreso.",
+  "payVerifiedMerchant": "Comercio verificado",
+  "payWithBalance": "Pagar con: Saldo PlentyPay ({available})",
+  "@payWithBalance": {
+    "placeholders": {
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "payInsufficient": "Saldo insuficiente",
+  "payBreakdownPurchase": "Compra",
+  "payBreakdownFee": "Comisión de servicio",
+  "payBreakdownTax": "ITBMS",
+  "payBreakdownTotal": "Total",
+  "payButton": "Pagar {total}",
+  "@payButton": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "payStepUpTitle": "Confirmar pago a {merchant}",
+  "@payStepUpTitle": {
+    "placeholders": {
+      "merchant": {
+        "type": "String"
+      }
+    }
+  },
+  "payAmountInvalid": "Escribe un monto mayor que cero.",
+  "payResultSuccess": "Pago realizado",
+  "payResultReference": "Referencia {code}",
+  "@payResultReference": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "payResultFailed": "No se pudo completar el pago",
+  "payResultNotCharged": "No se te cobró nada.",
+  "payResultConfirming": "Estamos confirmando tu pago",
+  "payResultConfirmingBody": "Puede tardar unos minutos. No vuelvas a pagar: te avisaremos el resultado.",
+  "actionUnderstood": "Entendido",
+  "actionTryAgain": "Intentar de nuevo",
+  "error_INSUFFICIENT_FUNDS": "Saldo insuficiente.",
+  "error_TENANT_NOT_ACTIVE": "Este comercio todavía no puede cobrar.",
+  "error_TERMINAL_INACTIVE": "Este punto de cobro no está disponible.",
+  "error_AMOUNT_OUT_OF_RANGE": "El monto está fuera del límite permitido.",
+  "error_AMOUNT_BELOW_FEES": "El monto es muy bajo para este cobro.",
+  "error_FEE_POLICY_MISSING": "Este comercio todavía no puede cobrar.",
+  "error_RAIL_DISABLED": "Este medio de pago no está disponible.",
+  "error_INVALID_STATE_TRANSITION": "Este cobro ya no se puede pagar.",
+  "error_INVALID_LABEL": "El nombre debe tener de 1 a 60 caracteres.",
+  "error_DEPENDENCY_UNAVAILABLE": "El servicio no está disponible. Intenta de nuevo en un momento.",
+  "terminalsEmpty": "Todavía no tienes puntos de cobro.",
+  "terminalsCreate": "Nuevo punto de cobro",
+  "terminalNameLabel": "Nombre",
+  "terminalNameHint": "Por ejemplo: Caja 1",
+  "terminalActive": "Activo",
+  "terminalInactive": "Inactivo",
+  "terminalCopyLink": "Copiar enlace",
+  "terminalLinkCopied": "Enlace copiado.",
+  "terminalScanToPay": "Escanea para pagar con PlentyPay",
+  "terminalDeactivateConfirm": "¿Desactivar {name}? Nadie podrá pagar con este código hasta que lo vuelvas a activar.",
+  "@terminalDeactivateConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentsTitle": "Cobros",
+  "paymentsEmpty": "Aún no tienes cobros.",
+  "paymentsNet": "Recibes {amount}",
+  "@paymentsNet": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentStatus_CAPTURED": "Completado",
+  "paymentStatus_CONFIRMING": "Confirmando",
+  "paymentStatus_FAILED": "Rechazado",
+  "paymentStatus_CANCELLED": "Cancelado",
+  "paymentStatus_EXPIRED": "Vencido",
+  "paymentStatus_PENDING": "Pendiente",
+  "payTorch": "Linterna",
+  "payOpenSettings": "Abrir ajustes",
+  "financeTitle": "Finanzas",
+  "financeToday": "Hoy",
+  "finance7Days": "7 días",
+  "financeMonth": "Mes",
+  "financeCaptured": "Cobrado",
+  "financeFees": "Comisiones",
+  "financeRefunds": "Reembolsos",
+  "financeNet": "Neto",
+  "featureUnavailableBody": "Esta función todavía no está disponible. Te avisaremos cuando puedas usarla.",
+  "homeRegisterBusiness": "Registrar mi negocio"
 }

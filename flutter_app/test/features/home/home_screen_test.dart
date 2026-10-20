@@ -1,108 +1,83 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/testing.dart';
-import 'package:plentypay/core/api/api_client.dart';
-import 'package:plentypay/core/l10n/generated/app_localizations.dart';
-import 'package:plentypay/core/session/session_store.dart';
 import 'package:plentypay/features/home/home_screen.dart';
 import 'package:plentypay/features/modules/module_registry.dart';
+import 'package:plentypay/features/wallet/wallet_data.dart';
+
+import '../../support/fake_gateway.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  tearDown(() => hideWalletBalance.value = false);
 
-  Future<ApiClient> buildApi() async {
-    FlutterSecureStorage.setMockInitialValues({});
-    return ApiClient(
-      baseUrl: 'http://localhost:8080',
-      client: MockClient((_) async => throw UnimplementedError()),
-      session: SessionStore(),
-    );
-  }
+  Widget home(Map<String, FakeRoute> routes) => harness(HomeScreen(
+        api: fakeApi(routes),
+        modules: moduleRegistry,
+        onSelectModule: (_) {},
+        onSignOut: () {},
+      ));
 
-  Widget harness(
-    ApiClient api, {
-    required List<ModuleDef> modules,
-    required void Function(ModuleDef) onSelectModule,
-    VoidCallback? onSignOut,
-  }) =>
-      MaterialApp(
-        locale: const Locale('es', 'PA'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: HomeScreen(
-          api: api,
-          modules: modules,
-          onSelectModule: onSelectModule,
-          onSignOut: onSignOut ?? () {},
-        ),
-      );
+  final me = {
+    'GET /v1/me': (_) =>
+        json({'user_id': 'u-1', 'role': 'CUSTOMER', 'tenant_id': ''})
+  };
 
-  testWidgets('HomeScreen muestra saludo, billetera y modulos clickeables', (tester) async {
-    final api = await buildApi();
-    ModuleDef? selected;
-
-    await tester.pumpWidget(harness(
-      api,
-      modules: moduleRegistry,
-      onSelectModule: (m) => selected = m,
-    ));
+  testWidgets(
+      'S-GEN-05 e4: el saldo de la tarjeta es el del ledger, no un valor fijo',
+      (tester) async {
+    await tester.pumpWidget(
+        home({...me, 'GET /v1/wallet/balance': (_) => json(balance(12345))}));
     await tester.pumpAndSettle();
 
-    // Saludo y estado
-    expect(find.text('¡Hola de nuevo!'), findsOneWidget);
-    expect(find.textContaining('Comercio Activo'), findsOneWidget);
-
-    // Billetera y saldo
-    expect(find.text('Billetera'), findsWidgets);
-    expect(find.textContaining(r'B/.2,450.00'), findsOneWidget);
-
-    // Ventas de hoy
-    expect(find.text('Ventas de Hoy'), findsOneWidget);
-    expect(find.textContaining('18 ventas realizadas'), findsOneWidget);
-
-    // Desplazar hacia abajo para ver los módulos del sistema
-    await tester.drag(find.byType(ListView), const Offset(0, -600));
-    await tester.pumpAndSettle();
-
-    final posFinder = find.text('Caja');
-    expect(posFinder, findsWidgets);
-
-    // Tocar el módulo de Caja
-    await tester.tap(posFinder.first);
-    await tester.pumpAndSettle();
-
-    expect(selected, isNotNull);
-    expect(selected!.id, 'pos');
+    expect(find.text('Hola'), findsOneWidget);
+    expect(find.text(r'$123.45'), findsOneWidget);
+    expect(find.textContaining('2,450'), findsNothing);
+    expect(find.textContaining('ventas'), findsNothing);
+    expect(find.text('Registrar mi negocio'), findsOneWidget);
   });
 
-  testWidgets('HomeScreen oculta y muestra el saldo al tocar el icono de ojo', (tester) async {
-    final api = await buildApi();
-
-    await tester.pumpWidget(harness(
-      api,
-      modules: moduleRegistry,
-      onSelectModule: (_) {},
-    ));
+  testWidgets('S-GEN-05 e4: el ojo oculta y muestra el saldo', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+        home({...me, 'GET /v1/wallet/balance': (_) => json(balance(5000))}));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining(r'B/.2,450.00'), findsOneWidget);
+    await tester.tap(find.byTooltip('Ocultar saldo'));
+    await tester.pumpAndSettle();
+    expect(find.text(r'$50.00'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('Saldo oculto')), findsOneWidget);
 
-    // Ocultar saldo
-    final eyeIcon = find.byTooltip('Ocultar saldo');
-    expect(eyeIcon, findsOneWidget);
-    await tester.tap(eyeIcon);
+    await tester.tap(find.byTooltip('Mostrar saldo'));
+    await tester.pumpAndSettle();
+    expect(find.text(r'$50.00'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets(
+      'AGENTS §3.1: sin ledger desplegado se dice, no se inventa un saldo',
+      (tester) async {
+    await tester.pumpWidget(home({
+      ...me,
+      'GET /v1/wallet/balance': (_) => gatewayError(503, 'SERVICE_UNAVAILABLE')
+    }));
     await tester.pumpAndSettle();
 
-    expect(find.text('••••••••'), findsOneWidget);
-    expect(find.textContaining(r'B/.2,450.00'), findsNothing);
+    expect(
+        find.text(
+            'Tu billetera todavía no está disponible. Intenta de nuevo más tarde.'),
+        findsOneWidget);
+    expect(find.textContaining(r'$'), findsNothing);
+    expect(find.text('Reintentar'), findsOneWidget);
+  });
 
-    // Volver a mostrar saldo
-    final showIcon = find.byTooltip('Mostrar saldo');
-    expect(showIcon, findsOneWidget);
-    await tester.tap(showIcon);
+  testWidgets('quien ya tiene negocio no ve "Registrar mi negocio"',
+      (tester) async {
+    await tester.pumpWidget(home({
+      'GET /v1/me': (_) =>
+          json({'user_id': 'u-1', 'role': 'OWNER', 'tenant_id': 't-1'}),
+      'GET /v1/wallet/balance': (_) => json(balance(0)),
+    }));
     await tester.pumpAndSettle();
-
-    expect(find.textContaining(r'B/.2,450.00'), findsOneWidget);
+    expect(find.text('Registrar mi negocio'), findsNothing);
   });
 }

@@ -21,6 +21,18 @@ class MoneyText extends StatelessWidget {
     return '${negative ? '−' : ''}$symbol$whole.$cents';
   }
 
+  /// Lee un monto escrito por la persona (`12`, `12.5`, `1,234.56`) como centavos enteros, sin
+  /// pasar por `double` (flutter-standards.md §12, ADR 0013). `null` si no es un monto válido o
+  /// tiene más de 2 decimales.
+  static int? parse(String text) {
+    final clean = text.trim().replaceAll(',', '').replaceAll(' ', '');
+    final m = RegExp(r'^(\d{1,13})(?:\.(\d{0,2}))?$').firstMatch(clean);
+    if (m == null) return null;
+    final whole = int.parse(m.group(1)!);
+    final cents = (m.group(2) ?? '').padRight(2, '0');
+    return whole * 100 + int.parse(cents);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

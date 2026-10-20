@@ -1912,4 +1912,334 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get error_ALREADY_HAS_TENANT =>
       'That account already belongs to another business.';
+
+  @override
+  String get homeGreeting => 'Hello';
+
+  @override
+  String get homeNotifications => 'Notifications';
+
+  @override
+  String get walletAvailable => 'Available balance';
+
+  @override
+  String walletHeld(String amount) {
+    return 'On hold: $amount';
+  }
+
+  @override
+  String get walletHeldExplain => 'Money set aside for payments in progress.';
+
+  @override
+  String get walletHideBalance => 'Hide balance';
+
+  @override
+  String get walletShowBalance => 'Show balance';
+
+  @override
+  String get walletBalanceHidden => 'Balance hidden';
+
+  @override
+  String get walletReceive => 'Receive';
+
+  @override
+  String get walletPay => 'Pay';
+
+  @override
+  String get walletMovements => 'Activity';
+
+  @override
+  String get walletEmpty => 'You don\'t have any activity yet.';
+
+  @override
+  String get walletUnavailable =>
+      'Your wallet isn\'t available yet. Please try again later.';
+
+  @override
+  String get walletSandbox => 'Test mode: no real money is moved.';
+
+  @override
+  String get txType_WALLET_TOPUP => 'Top-up';
+
+  @override
+  String get txType_WALLET_PAYMENT => 'Payment';
+
+  @override
+  String get txType_P2P_TRANSFER => 'Transfer';
+
+  @override
+  String get txType_PAYOUT_TO_WALLET => 'Payout to your wallet';
+
+  @override
+  String get txType_REFUND => 'Refund';
+
+  @override
+  String get txType_PAYROLL_PAYMENT => 'Payroll payment';
+
+  @override
+  String get txType_REVERSAL => 'Correction';
+
+  @override
+  String get txTypeOther => 'Activity';
+
+  @override
+  String get txDetailTitle => 'Activity details';
+
+  @override
+  String get txStatusCompleted => 'Completed';
+
+  @override
+  String get txFieldType => 'Type';
+
+  @override
+  String get txFieldDate => 'Date and time';
+
+  @override
+  String get txFieldReference => 'Reference';
+
+  @override
+  String get txFieldConcept => 'Description';
+
+  @override
+  String get txCopyReference => 'Copy reference';
+
+  @override
+  String get txReferenceCopied => 'Reference copied.';
+
+  @override
+  String get featureUnavailableTitle => 'Not available yet';
+
+  @override
+  String get topupUnavailable =>
+      'Top-ups aren\'t available yet. We\'ll let you know when you can top up.';
+
+  @override
+  String get sendUnavailable =>
+      'Person-to-person transfers aren\'t available yet. We\'ll let you know when you can send money.';
+
+  @override
+  String get receiveUnavailable =>
+      'Your code for receiving money isn\'t available yet.';
+
+  @override
+  String get payScanHint => 'Point at the merchant\'s QR code';
+
+  @override
+  String get payEnterCode => 'Enter code';
+
+  @override
+  String get payCodeLabel => 'Payment code';
+
+  @override
+  String get actionContinue => 'Continue';
+
+  @override
+  String get payNotPlentyPay => 'This code isn\'t from PlentyPay.';
+
+  @override
+  String get payInvalidCode => 'That payment code isn\'t valid.';
+
+  @override
+  String get payPointUnavailable => 'This payment point isn\'t available.';
+
+  @override
+  String get payCameraUnavailable =>
+      'We couldn\'t use the camera. Enter the printed code instead.';
+
+  @override
+  String get payVerifiedMerchant => 'Verified merchant';
+
+  @override
+  String payWithBalance(String available) {
+    return 'Pay with: PlentyPay balance ($available)';
+  }
+
+  @override
+  String get payInsufficient => 'Insufficient balance';
+
+  @override
+  String get payBreakdownPurchase => 'Purchase';
+
+  @override
+  String get payBreakdownFee => 'Service fee';
+
+  @override
+  String get payBreakdownTax => 'ITBMS';
+
+  @override
+  String get payBreakdownTotal => 'Total';
+
+  @override
+  String payButton(String total) {
+    return 'Pay $total';
+  }
+
+  @override
+  String payStepUpTitle(String merchant) {
+    return 'Confirm payment to $merchant';
+  }
+
+  @override
+  String get payAmountInvalid => 'Enter an amount greater than zero.';
+
+  @override
+  String get payResultSuccess => 'Payment complete';
+
+  @override
+  String payResultReference(String code) {
+    return 'Reference $code';
+  }
+
+  @override
+  String get payResultFailed => 'We couldn\'t complete the payment';
+
+  @override
+  String get payResultNotCharged => 'You weren\'t charged.';
+
+  @override
+  String get payResultConfirming => 'We\'re confirming your payment';
+
+  @override
+  String get payResultConfirmingBody =>
+      'It may take a few minutes. Don\'t pay again: we\'ll let you know the result.';
+
+  @override
+  String get actionUnderstood => 'Got it';
+
+  @override
+  String get actionTryAgain => 'Try again';
+
+  @override
+  String get error_INSUFFICIENT_FUNDS => 'Insufficient balance.';
+
+  @override
+  String get error_TENANT_NOT_ACTIVE =>
+      'This merchant can\'t accept payments yet.';
+
+  @override
+  String get error_TERMINAL_INACTIVE => 'This payment point isn\'t available.';
+
+  @override
+  String get error_AMOUNT_OUT_OF_RANGE =>
+      'The amount is outside the allowed limit.';
+
+  @override
+  String get error_AMOUNT_BELOW_FEES =>
+      'The amount is too low for this payment.';
+
+  @override
+  String get error_FEE_POLICY_MISSING =>
+      'This merchant can\'t accept payments yet.';
+
+  @override
+  String get error_RAIL_DISABLED => 'This payment method isn\'t available.';
+
+  @override
+  String get error_INVALID_STATE_TRANSITION =>
+      'This payment can no longer be paid.';
+
+  @override
+  String get error_INVALID_LABEL => 'The name must be 1 to 60 characters long.';
+
+  @override
+  String get error_DEPENDENCY_UNAVAILABLE =>
+      'The service isn\'t available. Please try again in a moment.';
+
+  @override
+  String get terminalsEmpty => 'You don\'t have any payment points yet.';
+
+  @override
+  String get terminalsCreate => 'New payment point';
+
+  @override
+  String get terminalNameLabel => 'Name';
+
+  @override
+  String get terminalNameHint => 'For example: Register 1';
+
+  @override
+  String get terminalActive => 'Active';
+
+  @override
+  String get terminalInactive => 'Inactive';
+
+  @override
+  String get terminalCopyLink => 'Copy link';
+
+  @override
+  String get terminalLinkCopied => 'Link copied.';
+
+  @override
+  String get terminalScanToPay => 'Scan to pay with PlentyPay';
+
+  @override
+  String terminalDeactivateConfirm(String name) {
+    return 'Deactivate $name? Nobody will be able to pay with this code until you turn it back on.';
+  }
+
+  @override
+  String get paymentsTitle => 'Payments';
+
+  @override
+  String get paymentsEmpty => 'You don\'t have any payments yet.';
+
+  @override
+  String paymentsNet(String amount) {
+    return 'You receive $amount';
+  }
+
+  @override
+  String get paymentStatus_CAPTURED => 'Completed';
+
+  @override
+  String get paymentStatus_CONFIRMING => 'Confirming';
+
+  @override
+  String get paymentStatus_FAILED => 'Declined';
+
+  @override
+  String get paymentStatus_CANCELLED => 'Cancelled';
+
+  @override
+  String get paymentStatus_EXPIRED => 'Expired';
+
+  @override
+  String get paymentStatus_PENDING => 'Pending';
+
+  @override
+  String get payTorch => 'Flashlight';
+
+  @override
+  String get payOpenSettings => 'Open settings';
+
+  @override
+  String get financeTitle => 'Finance';
+
+  @override
+  String get financeToday => 'Today';
+
+  @override
+  String get finance7Days => '7 days';
+
+  @override
+  String get financeMonth => 'Month';
+
+  @override
+  String get financeCaptured => 'Collected';
+
+  @override
+  String get financeFees => 'Fees';
+
+  @override
+  String get financeRefunds => 'Refunds';
+
+  @override
+  String get financeNet => 'Net';
+
+  @override
+  String get featureUnavailableBody =>
+      'This feature isn\'t available yet. We\'ll let you know when you can use it.';
+
+  @override
+  String get homeRegisterBusiness => 'Register my business';
 }

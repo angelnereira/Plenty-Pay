@@ -5,7 +5,7 @@ import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
 import '../../core/widgets/pp_text_field.dart';
-import '../wallet/pay_result_screen.dart';
+import '../wallet/feature_unavailable.dart';
 
 /// S-MKT-05 · `/market/checkout` · Checkout multi-tienda.
 class CheckoutScreen extends StatefulWidget {
@@ -28,7 +28,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _address = TextEditingController(text: 'Calle 50 y Aquilino de la Guardia, PH Tower, Piso 14');
   final _phone = TextEditingController(text: '+507 6123-4567');
   final _notes = TextEditingController();
-  bool _processing = false;
+  final bool _processing = false;
 
   @override
   void dispose() {
@@ -38,16 +38,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
+  /// Los pedidos multi-comercio (orders, F15) aún no existen: no se simula un pago.
   Future<void> _placeOrder() async {
-    setState(() => _processing = true);
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => PayResultScreen(api: widget.api),
-      ),
-    );
+    final l10n = AppLocalizations.of(context);
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => FeatureUnavailableScreen(
+          title: l10n.checkoutTitle, message: l10n.featureUnavailableBody),
+    ));
   }
 
   @override

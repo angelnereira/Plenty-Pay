@@ -6,17 +6,27 @@ import '../../core/l10n/generated/app_localizations.dart';
 /// La app NO decide qué módulos ve un usuario: muestra la intersección entre este registro y
 /// `enabled_modules` que entrega identity (ADR 0009, identity/SPEC.md R10).
 class ModuleDef {
-  const ModuleDef({required this.id, required this.icon, required this.phase});
+  const ModuleDef(
+      {required this.id,
+      required this.icon,
+      required this.phase,
+      this.live = false});
   final String id;
   final IconData icon;
   final String phase; // paso del roadmap donde se construyen sus pantallas
+
+  /// El servicio que respalda el módulo está desplegado en producción (AGENTS.md §3.1). Un
+  /// módulo que no lo está abre «Disponible próximamente» en vez de pantallas con datos
+  /// inventados.
+  final bool live;
 }
 
 const List<ModuleDef> moduleRegistry = [
   ModuleDef(
       id: 'wallet',
       icon: Icons.account_balance_wallet_outlined,
-      phase: 'F11.9'),
+      phase: 'F11.9',
+      live: true),
   ModuleDef(
       id: 'marketplace', icon: Icons.storefront_outlined, phase: 'F15.10'),
   ModuleDef(id: 'pos', icon: Icons.point_of_sale_outlined, phase: 'F17.10'),
@@ -27,14 +37,16 @@ const List<ModuleDef> moduleRegistry = [
   ModuleDef(id: 'orders', icon: Icons.receipt_long_outlined, phase: 'F15.10'),
   ModuleDef(
       id: 'logistics', icon: Icons.local_shipping_outlined, phase: 'F18.7'),
-  ModuleDef(id: 'finance', icon: Icons.payments_outlined, phase: 'F12.8'),
+  ModuleDef(
+      id: 'finance', icon: Icons.payments_outlined, phase: 'F12.8', live: true),
   ModuleDef(id: 'payroll', icon: Icons.badge_outlined, phase: 'F19.8'),
   ModuleDef(id: 'analytics', icon: Icons.insights_outlined, phase: 'F21.10'),
-  ModuleDef(id: 'admin', icon: Icons.tune_outlined, phase: 'F08.8'),
+  ModuleDef(id: 'admin', icon: Icons.tune_outlined, phase: 'F08.8', live: true),
   ModuleDef(
       id: 'platform',
       icon: Icons.admin_panel_settings_outlined,
-      phase: 'F05.9'),
+      phase: 'F05.9',
+      live: true),
 ];
 
 /// Módulos visibles = registrados ∩ habilitados por el servidor, en el orden del registro.

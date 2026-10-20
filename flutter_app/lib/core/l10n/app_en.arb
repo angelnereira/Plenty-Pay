@@ -593,5 +593,155 @@
   "actionAcceptAndCreate": "Accept and create account",
   "error_TOKEN_INVALID": "This invitation is no longer valid. Ask your business for a new one.",
   "error_ALREADY_USED": "This invitation was already used.",
-  "error_ALREADY_HAS_TENANT": "That account already belongs to another business."
+  "error_ALREADY_HAS_TENANT": "That account already belongs to another business.",
+  "homeGreeting": "Hello",
+  "homeNotifications": "Notifications",
+  "walletAvailable": "Available balance",
+  "walletHeld": "On hold: {amount}",
+  "@walletHeld": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletHeldExplain": "Money set aside for payments in progress.",
+  "walletHideBalance": "Hide balance",
+  "walletShowBalance": "Show balance",
+  "walletBalanceHidden": "Balance hidden",
+  "walletReceive": "Receive",
+  "walletPay": "Pay",
+  "walletMovements": "Activity",
+  "walletEmpty": "You don't have any activity yet.",
+  "walletUnavailable": "Your wallet isn't available yet. Please try again later.",
+  "walletSandbox": "Test mode: no real money is moved.",
+  "txType_WALLET_TOPUP": "Top-up",
+  "txType_WALLET_PAYMENT": "Payment",
+  "txType_P2P_TRANSFER": "Transfer",
+  "txType_PAYOUT_TO_WALLET": "Payout to your wallet",
+  "txType_REFUND": "Refund",
+  "txType_PAYROLL_PAYMENT": "Payroll payment",
+  "txType_REVERSAL": "Correction",
+  "txTypeOther": "Activity",
+  "txDetailTitle": "Activity details",
+  "txStatusCompleted": "Completed",
+  "txFieldType": "Type",
+  "txFieldDate": "Date and time",
+  "txFieldReference": "Reference",
+  "txFieldConcept": "Description",
+  "txCopyReference": "Copy reference",
+  "txReferenceCopied": "Reference copied.",
+  "featureUnavailableTitle": "Not available yet",
+  "topupUnavailable": "Top-ups aren't available yet. We'll let you know when you can top up.",
+  "sendUnavailable": "Person-to-person transfers aren't available yet. We'll let you know when you can send money.",
+  "receiveUnavailable": "Your code for receiving money isn't available yet.",
+  "payScanHint": "Point at the merchant's QR code",
+  "payEnterCode": "Enter code",
+  "payCodeLabel": "Payment code",
+  "actionContinue": "Continue",
+  "payNotPlentyPay": "This code isn't from PlentyPay.",
+  "payInvalidCode": "That payment code isn't valid.",
+  "payPointUnavailable": "This payment point isn't available.",
+  "payCameraUnavailable": "We couldn't use the camera. Enter the printed code instead.",
+  "payVerifiedMerchant": "Verified merchant",
+  "payWithBalance": "Pay with: PlentyPay balance ({available})",
+  "@payWithBalance": {
+    "placeholders": {
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "payInsufficient": "Insufficient balance",
+  "payBreakdownPurchase": "Purchase",
+  "payBreakdownFee": "Service fee",
+  "payBreakdownTax": "ITBMS",
+  "payBreakdownTotal": "Total",
+  "payButton": "Pay {total}",
+  "@payButton": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "payStepUpTitle": "Confirm payment to {merchant}",
+  "@payStepUpTitle": {
+    "placeholders": {
+      "merchant": {
+        "type": "String"
+      }
+    }
+  },
+  "payAmountInvalid": "Enter an amount greater than zero.",
+  "payResultSuccess": "Payment complete",
+  "payResultReference": "Reference {code}",
+  "@payResultReference": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "payResultFailed": "We couldn't complete the payment",
+  "payResultNotCharged": "You weren't charged.",
+  "payResultConfirming": "We're confirming your payment",
+  "payResultConfirmingBody": "It may take a few minutes. Don't pay again: we'll let you know the result.",
+  "actionUnderstood": "Got it",
+  "actionTryAgain": "Try again",
+  "error_INSUFFICIENT_FUNDS": "Insufficient balance.",
+  "error_TENANT_NOT_ACTIVE": "This merchant can't accept payments yet.",
+  "error_TERMINAL_INACTIVE": "This payment point isn't available.",
+  "error_AMOUNT_OUT_OF_RANGE": "The amount is outside the allowed limit.",
+  "error_AMOUNT_BELOW_FEES": "The amount is too low for this payment.",
+  "error_FEE_POLICY_MISSING": "This merchant can't accept payments yet.",
+  "error_RAIL_DISABLED": "This payment method isn't available.",
+  "error_INVALID_STATE_TRANSITION": "This payment can no longer be paid.",
+  "error_INVALID_LABEL": "The name must be 1 to 60 characters long.",
+  "error_DEPENDENCY_UNAVAILABLE": "The service isn't available. Please try again in a moment.",
+  "terminalsEmpty": "You don't have any payment points yet.",
+  "terminalsCreate": "New payment point",
+  "terminalNameLabel": "Name",
+  "terminalNameHint": "For example: Register 1",
+  "terminalActive": "Active",
+  "terminalInactive": "Inactive",
+  "terminalCopyLink": "Copy link",
+  "terminalLinkCopied": "Link copied.",
+  "terminalScanToPay": "Scan to pay with PlentyPay",
+  "terminalDeactivateConfirm": "Deactivate {name}? Nobody will be able to pay with this code until you turn it back on.",
+  "@terminalDeactivateConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentsTitle": "Payments",
+  "paymentsEmpty": "You don't have any payments yet.",
+  "paymentsNet": "You receive {amount}",
+  "@paymentsNet": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentStatus_CAPTURED": "Completed",
+  "paymentStatus_CONFIRMING": "Confirming",
+  "paymentStatus_FAILED": "Declined",
+  "paymentStatus_CANCELLED": "Cancelled",
+  "paymentStatus_EXPIRED": "Expired",
+  "paymentStatus_PENDING": "Pending",
+  "payTorch": "Flashlight",
+  "payOpenSettings": "Open settings",
+  "financeTitle": "Finance",
+  "financeToday": "Today",
+  "finance7Days": "7 days",
+  "financeMonth": "Month",
+  "financeCaptured": "Collected",
+  "financeFees": "Fees",
+  "financeRefunds": "Refunds",
+  "financeNet": "Net",
+  "featureUnavailableBody": "This feature isn't available yet. We'll let you know when you can use it.",
+  "homeRegisterBusiness": "Register my business"
 }

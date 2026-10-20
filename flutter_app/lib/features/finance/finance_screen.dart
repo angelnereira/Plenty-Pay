@@ -1,246 +1,174 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/widgets/async_view.dart';
 import '../../core/widgets/money_text.dart';
-import '../../core/widgets/pp_button.dart';
-import '../fiscal/fiscal_profile_screen.dart';
-import '../fiscal/invoices_screen.dart';
-import 'payout_settings_screen.dart';
+import '../wallet/wallet_data.dart' show walletErrorMessage;
+import 'finance_data.dart';
 import 'payments_list_screen.dart';
-import 'settlements_screen.dart';
-import 'tax_report_screen.dart';
-import 'taxpayers_screen.dart';
 import 'terminals_screen.dart';
 
-/// S-FIN-01 · `/finance` · Resumen financiero y tesorería del comercio.
+/// S-FIN-01 · `/finance` · Resumen. Permiso `payments:read`.
 ///
-/// Permisos: `payments:read`, `settlement:read`.
-/// Centro de control para cobros, liquidaciones, facturación electrónica y cumplimiento fiscal DGI.
-class FinanceScreen extends StatelessWidget {
+/// e1 periodo (Hoy · 7 días · Mes) y e2 totales de los cobros reales de payments-core. Las
+/// tarjetas de liquidación (e3), facturas y folios (e4–e5), ITBMS (e6) y el gráfico (e7) llegan con
+/// settlement (F12) y fiscal-invoicing (F13): no se muestran mientras esos servicios no existan.
+class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key, required this.api});
-
   final ApiClient api;
 
   @override
+  State<FinanceScreen> createState() => _FinanceScreenState();
+}
+
+enum _Period { today, week, month }
+
+class _FinanceScreenState extends State<FinanceScreen> {
+  late Future<List<PaymentItem>> _future = loadPayments(widget.api);
+  _Period _period = _Period.today;
+
+  DateTime _since() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return switch (_period) {
+      _Period.today => today,
+      _Period.week => today.subtract(const Duration(days: 6)),
+      _Period.month => DateTime(now.year, now.month),
+    };
+  }
+
+  void _open(Widget screen) => Navigator.of(context)
+      .push(MaterialPageRoute<void>(builder: (_) => screen))
+      .then((_) => setState(() => _future = loadPayments(widget.api)));
+
+  @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-
+    final margin = WindowClass.of(context).horizontalMargin;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Finanzas y Facturación'),
-        actions: [
-          IconButton(
-            tooltip: 'Configuración de transferencias',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => PayoutSettingsScreen(api: api)),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTokens.spacingMd),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Balance summary card
-              Container(
-                padding: const EdgeInsets.all(AppTokens.spacingLg),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Por liquidar en próximo corte ACH',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    MoneyText(
-                      345000, // $3,450.00
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Próximo depósito: Hoy a las 5:00 PM · Banco General (**** 8912)',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // KPI Row
-              Row(
-                children: [
-                  Expanded(
-                    child: Card(
-                      elevation: 0,
-                      color: theme.colorScheme.surfaceContainerLow,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                        side: BorderSide(color: theme.colorScheme.outlineVariant),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
+      appBar: AppBar(title: Text(l10n.financeTitle)),
+      body: FutureBuilder<List<PaymentItem>>(
+        future: _future,
+        builder: (context, snap) => ListView(
+          padding: EdgeInsets.fromLTRB(
+              margin, AppTokens.spacingMd, margin, AppTokens.spacingLg),
+          children: [
+            SegmentedButton<_Period>(
+              segments: [
+                ButtonSegment(
+                    value: _Period.today, label: Text(l10n.financeToday)),
+                ButtonSegment(
+                    value: _Period.week, label: Text(l10n.finance7Days)),
+                ButtonSegment(
+                    value: _Period.month, label: Text(l10n.financeMonth)),
+              ],
+              selected: {_period},
+              onSelectionChanged: (s) => setState(() => _period = s.first),
+            ),
+            const SizedBox(height: AppTokens.spacingMd),
+            AsyncView<List<PaymentItem>>(
+              snapshot: snap,
+              errorMessage: snap.hasError
+                  ? walletErrorMessage(l10n, snap.error!)
+                  : l10n.errorNoConnection,
+              retryLabel: l10n.actionRetry,
+              onRetry: () => setState(() => _future = loadPayments(widget.api)),
+              emptyView: const SizedBox.shrink(),
+              builder: (context, payments) {
+                final t = FinanceTotals.of(payments, _since());
+                final cards = [
+                  for (final (label, minor) in [
+                    (l10n.financeCaptured, t.capturedMinor),
+                    (l10n.financeFees, t.feesMinor),
+                    (l10n.financeRefunds, t.refundedMinor),
+                    (l10n.financeNet, t.netMinor),
+                  ])
+                    _TotalCard(
+                        label: label,
+                        minor: minor,
+                        onTap: () =>
+                            _open(PaymentsListScreen(api: widget.api))),
+                ];
+                // Dos por fila en compact; las cuatro en una fila desde medium (§8.2).
+                final perRow =
+                    WindowClass.of(context) == WindowClass.compact ? 2 : 4;
+                return Column(children: [
+                  for (var i = 0; i < cards.length; i += perRow)
+                    Padding(
+                      padding:
+                          const EdgeInsets.only(bottom: AppTokens.spacingSm),
+                      child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Cobrado hoy', style: theme.textTheme.labelSmall),
-                            const SizedBox(height: 4),
-                            MoneyText(
-                              98450, // $984.50
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
+                            for (var k = i;
+                                k < i + perRow && k < cards.length;
+                                k++) ...[
+                              if (k > i)
+                                const SizedBox(width: AppTokens.spacingSm),
+                              Expanded(child: cards[k]),
+                            ],
+                          ]),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Card(
-                      elevation: 0,
-                      color: theme.colorScheme.surfaceContainerLow,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                        side: BorderSide(color: theme.colorScheme.outlineVariant),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Esta semana', style: theme.textTheme.labelSmall),
-                            const SizedBox(height: 4),
-                            MoneyText(
-                              512400, // $5,124.00
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              Text('Módulos y herramientas financieras', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 12),
-
-              _buildNavTile(
-                context,
-                icon: Icons.payments_outlined,
-                title: 'Cobros y transacciones',
-                subtitle: 'Historial por rieles: CLAVE, ACH, Yappy, Tarjetas',
-                destination: PaymentsListScreen(api: api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.account_balance_outlined,
-                title: 'Lotes de liquidación',
-                subtitle: 'Cortes y transferencias recibidas en tu cuenta bancaria',
-                destination: SettlementsScreen(api: api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.contactless_outlined,
-                title: 'Terminales QR y NFC',
-                subtitle: 'Mostradores de cobro, stickers NFC y dispositivos POS',
-                destination: TerminalsScreen(api: api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.receipt_long_outlined,
-                title: 'Facturación electrónica DGI',
-                subtitle: 'Facturas autorizadas, CUFE, XML firmado y notas de crédito',
-                destination: InvoicesScreen(api: api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.badge_outlined,
-                title: 'Perfil fiscal y PAC',
-                subtitle: 'RUC, DV, resolución DGI y credenciales del proveedor PAC',
-                destination: FiscalProfileScreen(api: api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.people_outline,
-                title: 'Receptores electrónicos',
-                subtitle: 'Directorio de clientes con RUC y correo para facturas',
-                destination: TaxpayersScreen(api: api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.description_outlined,
-                title: 'Informe mensual ITBMS (N-FIS-11)',
-                subtitle: 'Resumen por tarifas (7%, 10%, 15%, Exento) para formulario DGI',
-                destination: TaxReportScreen(api: api),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: PPButton.primary(
-            label: 'Ver todos los cobros del día',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => PaymentsListScreen(api: api)),
-              );
-            },
-          ),
+                ]);
+              },
+            ),
+            const SizedBox(height: AppTokens.spacingLg),
+            Card(
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              color: theme.colorScheme.surfaceContainerLow,
+              child: Column(children: [
+                ListTile(
+                  leading: const Icon(Icons.receipt_long_outlined),
+                  title: Text(l10n.paymentsTitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _open(PaymentsListScreen(api: widget.api)),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.qr_code_2),
+                  title: Text(l10n.terminalsTitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _open(TerminalsScreen(api: widget.api)),
+                ),
+              ]),
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildNavTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Widget destination,
-  }) {
+class _TotalCard extends StatelessWidget {
+  const _TotalCard(
+      {required this.label, required this.minor, required this.onTap});
+  final String label;
+  final int minor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
+      margin: EdgeInsets.zero,
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
+      color: theme.colorScheme.surfaceContainerHigh,
+      child: InkWell(
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          child: Icon(icon, color: theme.colorScheme.primary),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.spacingMd),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: theme.textTheme.labelLarge),
+            const SizedBox(height: AppTokens.spacingXs),
+            MoneyText(minor, style: theme.textTheme.titleLarge),
+          ]),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
-        },
       ),
     );
   }

@@ -126,7 +126,9 @@ class _ModuleBody extends StatelessWidget {
   final VoidCallback onSignOut;
 
   @override
-  Widget build(BuildContext context) => switch (module.id) {
+  Widget build(BuildContext context) => !module.live
+      ? _ModulePlaceholder(module: module)
+      : switch (module.id) {
         'wallet' => WalletScreen(api: api),
         'marketplace' => MarketDiscoverScreen(api: api),
         'pos' => PosScreen(api: api),

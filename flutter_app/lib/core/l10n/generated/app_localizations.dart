@@ -3662,6 +3662,612 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Esa cuenta ya pertenece a otro negocio.'**
   String get error_ALREADY_HAS_TENANT;
+
+  /// No description provided for @homeGreeting.
+  ///
+  /// In es, this message translates to:
+  /// **'Hola'**
+  String get homeGreeting;
+
+  /// No description provided for @homeNotifications.
+  ///
+  /// In es, this message translates to:
+  /// **'Avisos'**
+  String get homeNotifications;
+
+  /// No description provided for @walletAvailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Saldo disponible'**
+  String get walletAvailable;
+
+  /// No description provided for @walletHeld.
+  ///
+  /// In es, this message translates to:
+  /// **'Retenido: {amount}'**
+  String walletHeld(String amount);
+
+  /// No description provided for @walletHeldExplain.
+  ///
+  /// In es, this message translates to:
+  /// **'Dinero apartado para pagos en curso.'**
+  String get walletHeldExplain;
+
+  /// No description provided for @walletHideBalance.
+  ///
+  /// In es, this message translates to:
+  /// **'Ocultar saldo'**
+  String get walletHideBalance;
+
+  /// No description provided for @walletShowBalance.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar saldo'**
+  String get walletShowBalance;
+
+  /// No description provided for @walletBalanceHidden.
+  ///
+  /// In es, this message translates to:
+  /// **'Saldo oculto'**
+  String get walletBalanceHidden;
+
+  /// No description provided for @walletReceive.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibir'**
+  String get walletReceive;
+
+  /// No description provided for @walletPay.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar'**
+  String get walletPay;
+
+  /// No description provided for @walletMovements.
+  ///
+  /// In es, this message translates to:
+  /// **'Movimientos'**
+  String get walletMovements;
+
+  /// No description provided for @walletEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes movimientos.'**
+  String get walletEmpty;
+
+  /// No description provided for @walletUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu billetera todavía no está disponible. Intenta de nuevo más tarde.'**
+  String get walletUnavailable;
+
+  /// No description provided for @walletSandbox.
+  ///
+  /// In es, this message translates to:
+  /// **'Modo de prueba: no se mueve dinero real.'**
+  String get walletSandbox;
+
+  /// No description provided for @txType_WALLET_TOPUP.
+  ///
+  /// In es, this message translates to:
+  /// **'Recarga'**
+  String get txType_WALLET_TOPUP;
+
+  /// No description provided for @txType_WALLET_PAYMENT.
+  ///
+  /// In es, this message translates to:
+  /// **'Pago'**
+  String get txType_WALLET_PAYMENT;
+
+  /// No description provided for @txType_P2P_TRANSFER.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferencia'**
+  String get txType_P2P_TRANSFER;
+
+  /// No description provided for @txType_PAYOUT_TO_WALLET.
+  ///
+  /// In es, this message translates to:
+  /// **'Liquidación a tu billetera'**
+  String get txType_PAYOUT_TO_WALLET;
+
+  /// No description provided for @txType_REFUND.
+  ///
+  /// In es, this message translates to:
+  /// **'Reembolso'**
+  String get txType_REFUND;
+
+  /// No description provided for @txType_PAYROLL_PAYMENT.
+  ///
+  /// In es, this message translates to:
+  /// **'Pago de nómina'**
+  String get txType_PAYROLL_PAYMENT;
+
+  /// No description provided for @txType_REVERSAL.
+  ///
+  /// In es, this message translates to:
+  /// **'Corrección'**
+  String get txType_REVERSAL;
+
+  /// No description provided for @txTypeOther.
+  ///
+  /// In es, this message translates to:
+  /// **'Movimiento'**
+  String get txTypeOther;
+
+  /// No description provided for @txDetailTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalle de movimiento'**
+  String get txDetailTitle;
+
+  /// No description provided for @txStatusCompleted.
+  ///
+  /// In es, this message translates to:
+  /// **'Completado'**
+  String get txStatusCompleted;
+
+  /// No description provided for @txFieldType.
+  ///
+  /// In es, this message translates to:
+  /// **'Tipo'**
+  String get txFieldType;
+
+  /// No description provided for @txFieldDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha y hora'**
+  String get txFieldDate;
+
+  /// No description provided for @txFieldReference.
+  ///
+  /// In es, this message translates to:
+  /// **'Referencia'**
+  String get txFieldReference;
+
+  /// No description provided for @txFieldConcept.
+  ///
+  /// In es, this message translates to:
+  /// **'Concepto'**
+  String get txFieldConcept;
+
+  /// No description provided for @txCopyReference.
+  ///
+  /// In es, this message translates to:
+  /// **'Copiar referencia'**
+  String get txCopyReference;
+
+  /// No description provided for @txReferenceCopied.
+  ///
+  /// In es, this message translates to:
+  /// **'Referencia copiada.'**
+  String get txReferenceCopied;
+
+  /// No description provided for @featureUnavailableTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Todavía no disponible'**
+  String get featureUnavailableTitle;
+
+  /// No description provided for @topupUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Las recargas todavía no están disponibles. Te avisaremos cuando puedas recargar.'**
+  String get topupUnavailable;
+
+  /// No description provided for @sendUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Los envíos entre personas todavía no están disponibles. Te avisaremos cuando puedas enviar dinero.'**
+  String get sendUnavailable;
+
+  /// No description provided for @receiveUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu código para recibir dinero todavía no está disponible.'**
+  String get receiveUnavailable;
+
+  /// No description provided for @payScanHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Apunta al código QR del comercio'**
+  String get payScanHint;
+
+  /// No description provided for @payEnterCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribir código'**
+  String get payEnterCode;
+
+  /// No description provided for @payCodeLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Código de cobro'**
+  String get payCodeLabel;
+
+  /// No description provided for @actionContinue.
+  ///
+  /// In es, this message translates to:
+  /// **'Continuar'**
+  String get actionContinue;
+
+  /// No description provided for @payNotPlentyPay.
+  ///
+  /// In es, this message translates to:
+  /// **'Este código no es de PlentyPay.'**
+  String get payNotPlentyPay;
+
+  /// No description provided for @payInvalidCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese código de cobro no es válido.'**
+  String get payInvalidCode;
+
+  /// No description provided for @payPointUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Este punto de cobro no está disponible.'**
+  String get payPointUnavailable;
+
+  /// No description provided for @payCameraUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'No pudimos usar la cámara. Escribe el código impreso.'**
+  String get payCameraUnavailable;
+
+  /// No description provided for @payVerifiedMerchant.
+  ///
+  /// In es, this message translates to:
+  /// **'Comercio verificado'**
+  String get payVerifiedMerchant;
+
+  /// No description provided for @payWithBalance.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar con: Saldo PlentyPay ({available})'**
+  String payWithBalance(String available);
+
+  /// No description provided for @payInsufficient.
+  ///
+  /// In es, this message translates to:
+  /// **'Saldo insuficiente'**
+  String get payInsufficient;
+
+  /// No description provided for @payBreakdownPurchase.
+  ///
+  /// In es, this message translates to:
+  /// **'Compra'**
+  String get payBreakdownPurchase;
+
+  /// No description provided for @payBreakdownFee.
+  ///
+  /// In es, this message translates to:
+  /// **'Comisión de servicio'**
+  String get payBreakdownFee;
+
+  /// No description provided for @payBreakdownTax.
+  ///
+  /// In es, this message translates to:
+  /// **'ITBMS'**
+  String get payBreakdownTax;
+
+  /// No description provided for @payBreakdownTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Total'**
+  String get payBreakdownTotal;
+
+  /// No description provided for @payButton.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar {total}'**
+  String payButton(String total);
+
+  /// No description provided for @payStepUpTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar pago a {merchant}'**
+  String payStepUpTitle(String merchant);
+
+  /// No description provided for @payAmountInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe un monto mayor que cero.'**
+  String get payAmountInvalid;
+
+  /// No description provided for @payResultSuccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Pago realizado'**
+  String get payResultSuccess;
+
+  /// No description provided for @payResultReference.
+  ///
+  /// In es, this message translates to:
+  /// **'Referencia {code}'**
+  String payResultReference(String code);
+
+  /// No description provided for @payResultFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo completar el pago'**
+  String get payResultFailed;
+
+  /// No description provided for @payResultNotCharged.
+  ///
+  /// In es, this message translates to:
+  /// **'No se te cobró nada.'**
+  String get payResultNotCharged;
+
+  /// No description provided for @payResultConfirming.
+  ///
+  /// In es, this message translates to:
+  /// **'Estamos confirmando tu pago'**
+  String get payResultConfirming;
+
+  /// No description provided for @payResultConfirmingBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Puede tardar unos minutos. No vuelvas a pagar: te avisaremos el resultado.'**
+  String get payResultConfirmingBody;
+
+  /// No description provided for @actionUnderstood.
+  ///
+  /// In es, this message translates to:
+  /// **'Entendido'**
+  String get actionUnderstood;
+
+  /// No description provided for @actionTryAgain.
+  ///
+  /// In es, this message translates to:
+  /// **'Intentar de nuevo'**
+  String get actionTryAgain;
+
+  /// No description provided for @error_INSUFFICIENT_FUNDS.
+  ///
+  /// In es, this message translates to:
+  /// **'Saldo insuficiente.'**
+  String get error_INSUFFICIENT_FUNDS;
+
+  /// No description provided for @error_TENANT_NOT_ACTIVE.
+  ///
+  /// In es, this message translates to:
+  /// **'Este comercio todavía no puede cobrar.'**
+  String get error_TENANT_NOT_ACTIVE;
+
+  /// No description provided for @error_TERMINAL_INACTIVE.
+  ///
+  /// In es, this message translates to:
+  /// **'Este punto de cobro no está disponible.'**
+  String get error_TERMINAL_INACTIVE;
+
+  /// No description provided for @error_AMOUNT_OUT_OF_RANGE.
+  ///
+  /// In es, this message translates to:
+  /// **'El monto está fuera del límite permitido.'**
+  String get error_AMOUNT_OUT_OF_RANGE;
+
+  /// No description provided for @error_AMOUNT_BELOW_FEES.
+  ///
+  /// In es, this message translates to:
+  /// **'El monto es muy bajo para este cobro.'**
+  String get error_AMOUNT_BELOW_FEES;
+
+  /// No description provided for @error_FEE_POLICY_MISSING.
+  ///
+  /// In es, this message translates to:
+  /// **'Este comercio todavía no puede cobrar.'**
+  String get error_FEE_POLICY_MISSING;
+
+  /// No description provided for @error_RAIL_DISABLED.
+  ///
+  /// In es, this message translates to:
+  /// **'Este medio de pago no está disponible.'**
+  String get error_RAIL_DISABLED;
+
+  /// No description provided for @error_INVALID_STATE_TRANSITION.
+  ///
+  /// In es, this message translates to:
+  /// **'Este cobro ya no se puede pagar.'**
+  String get error_INVALID_STATE_TRANSITION;
+
+  /// No description provided for @error_INVALID_LABEL.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre debe tener de 1 a 60 caracteres.'**
+  String get error_INVALID_LABEL;
+
+  /// No description provided for @error_DEPENDENCY_UNAVAILABLE.
+  ///
+  /// In es, this message translates to:
+  /// **'El servicio no está disponible. Intenta de nuevo en un momento.'**
+  String get error_DEPENDENCY_UNAVAILABLE;
+
+  /// No description provided for @terminalsEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Todavía no tienes puntos de cobro.'**
+  String get terminalsEmpty;
+
+  /// No description provided for @terminalsCreate.
+  ///
+  /// In es, this message translates to:
+  /// **'Nuevo punto de cobro'**
+  String get terminalsCreate;
+
+  /// No description provided for @terminalNameLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre'**
+  String get terminalNameLabel;
+
+  /// No description provided for @terminalNameHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Por ejemplo: Caja 1'**
+  String get terminalNameHint;
+
+  /// No description provided for @terminalActive.
+  ///
+  /// In es, this message translates to:
+  /// **'Activo'**
+  String get terminalActive;
+
+  /// No description provided for @terminalInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'Inactivo'**
+  String get terminalInactive;
+
+  /// No description provided for @terminalCopyLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Copiar enlace'**
+  String get terminalCopyLink;
+
+  /// No description provided for @terminalLinkCopied.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlace copiado.'**
+  String get terminalLinkCopied;
+
+  /// No description provided for @terminalScanToPay.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanea para pagar con PlentyPay'**
+  String get terminalScanToPay;
+
+  /// No description provided for @terminalDeactivateConfirm.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Desactivar {name}? Nadie podrá pagar con este código hasta que lo vuelvas a activar.'**
+  String terminalDeactivateConfirm(String name);
+
+  /// No description provided for @paymentsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobros'**
+  String get paymentsTitle;
+
+  /// No description provided for @paymentsEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes cobros.'**
+  String get paymentsEmpty;
+
+  /// No description provided for @paymentsNet.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibes {amount}'**
+  String paymentsNet(String amount);
+
+  /// No description provided for @paymentStatus_CAPTURED.
+  ///
+  /// In es, this message translates to:
+  /// **'Completado'**
+  String get paymentStatus_CAPTURED;
+
+  /// No description provided for @paymentStatus_CONFIRMING.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmando'**
+  String get paymentStatus_CONFIRMING;
+
+  /// No description provided for @paymentStatus_FAILED.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazado'**
+  String get paymentStatus_FAILED;
+
+  /// No description provided for @paymentStatus_CANCELLED.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelado'**
+  String get paymentStatus_CANCELLED;
+
+  /// No description provided for @paymentStatus_EXPIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Vencido'**
+  String get paymentStatus_EXPIRED;
+
+  /// No description provided for @paymentStatus_PENDING.
+  ///
+  /// In es, this message translates to:
+  /// **'Pendiente'**
+  String get paymentStatus_PENDING;
+
+  /// No description provided for @payTorch.
+  ///
+  /// In es, this message translates to:
+  /// **'Linterna'**
+  String get payTorch;
+
+  /// No description provided for @payOpenSettings.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir ajustes'**
+  String get payOpenSettings;
+
+  /// No description provided for @financeTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Finanzas'**
+  String get financeTitle;
+
+  /// No description provided for @financeToday.
+  ///
+  /// In es, this message translates to:
+  /// **'Hoy'**
+  String get financeToday;
+
+  /// No description provided for @finance7Days.
+  ///
+  /// In es, this message translates to:
+  /// **'7 días'**
+  String get finance7Days;
+
+  /// No description provided for @financeMonth.
+  ///
+  /// In es, this message translates to:
+  /// **'Mes'**
+  String get financeMonth;
+
+  /// No description provided for @financeCaptured.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobrado'**
+  String get financeCaptured;
+
+  /// No description provided for @financeFees.
+  ///
+  /// In es, this message translates to:
+  /// **'Comisiones'**
+  String get financeFees;
+
+  /// No description provided for @financeRefunds.
+  ///
+  /// In es, this message translates to:
+  /// **'Reembolsos'**
+  String get financeRefunds;
+
+  /// No description provided for @financeNet.
+  ///
+  /// In es, this message translates to:
+  /// **'Neto'**
+  String get financeNet;
+
+  /// No description provided for @featureUnavailableBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta función todavía no está disponible. Te avisaremos cuando puedas usarla.'**
+  String get featureUnavailableBody;
+
+  /// No description provided for @homeRegisterBusiness.
+  ///
+  /// In es, this message translates to:
+  /// **'Registrar mi negocio'**
+  String get homeRegisterBusiness;
 }
 
 class _AppLocalizationsDelegate

@@ -1915,6 +1915,337 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get error_ALREADY_HAS_TENANT =>
       'Esa cuenta ya pertenece a otro negocio.';
+
+  @override
+  String get homeGreeting => 'Hola';
+
+  @override
+  String get homeNotifications => 'Avisos';
+
+  @override
+  String get walletAvailable => 'Saldo disponible';
+
+  @override
+  String walletHeld(String amount) {
+    return 'Retenido: $amount';
+  }
+
+  @override
+  String get walletHeldExplain => 'Dinero apartado para pagos en curso.';
+
+  @override
+  String get walletHideBalance => 'Ocultar saldo';
+
+  @override
+  String get walletShowBalance => 'Mostrar saldo';
+
+  @override
+  String get walletBalanceHidden => 'Saldo oculto';
+
+  @override
+  String get walletReceive => 'Recibir';
+
+  @override
+  String get walletPay => 'Pagar';
+
+  @override
+  String get walletMovements => 'Movimientos';
+
+  @override
+  String get walletEmpty => 'Aún no tienes movimientos.';
+
+  @override
+  String get walletUnavailable =>
+      'Tu billetera todavía no está disponible. Intenta de nuevo más tarde.';
+
+  @override
+  String get walletSandbox => 'Modo de prueba: no se mueve dinero real.';
+
+  @override
+  String get txType_WALLET_TOPUP => 'Recarga';
+
+  @override
+  String get txType_WALLET_PAYMENT => 'Pago';
+
+  @override
+  String get txType_P2P_TRANSFER => 'Transferencia';
+
+  @override
+  String get txType_PAYOUT_TO_WALLET => 'Liquidación a tu billetera';
+
+  @override
+  String get txType_REFUND => 'Reembolso';
+
+  @override
+  String get txType_PAYROLL_PAYMENT => 'Pago de nómina';
+
+  @override
+  String get txType_REVERSAL => 'Corrección';
+
+  @override
+  String get txTypeOther => 'Movimiento';
+
+  @override
+  String get txDetailTitle => 'Detalle de movimiento';
+
+  @override
+  String get txStatusCompleted => 'Completado';
+
+  @override
+  String get txFieldType => 'Tipo';
+
+  @override
+  String get txFieldDate => 'Fecha y hora';
+
+  @override
+  String get txFieldReference => 'Referencia';
+
+  @override
+  String get txFieldConcept => 'Concepto';
+
+  @override
+  String get txCopyReference => 'Copiar referencia';
+
+  @override
+  String get txReferenceCopied => 'Referencia copiada.';
+
+  @override
+  String get featureUnavailableTitle => 'Todavía no disponible';
+
+  @override
+  String get topupUnavailable =>
+      'Las recargas todavía no están disponibles. Te avisaremos cuando puedas recargar.';
+
+  @override
+  String get sendUnavailable =>
+      'Los envíos entre personas todavía no están disponibles. Te avisaremos cuando puedas enviar dinero.';
+
+  @override
+  String get receiveUnavailable =>
+      'Tu código para recibir dinero todavía no está disponible.';
+
+  @override
+  String get payScanHint => 'Apunta al código QR del comercio';
+
+  @override
+  String get payEnterCode => 'Escribir código';
+
+  @override
+  String get payCodeLabel => 'Código de cobro';
+
+  @override
+  String get actionContinue => 'Continuar';
+
+  @override
+  String get payNotPlentyPay => 'Este código no es de PlentyPay.';
+
+  @override
+  String get payInvalidCode => 'Ese código de cobro no es válido.';
+
+  @override
+  String get payPointUnavailable => 'Este punto de cobro no está disponible.';
+
+  @override
+  String get payCameraUnavailable =>
+      'No pudimos usar la cámara. Escribe el código impreso.';
+
+  @override
+  String get payVerifiedMerchant => 'Comercio verificado';
+
+  @override
+  String payWithBalance(String available) {
+    return 'Pagar con: Saldo PlentyPay ($available)';
+  }
+
+  @override
+  String get payInsufficient => 'Saldo insuficiente';
+
+  @override
+  String get payBreakdownPurchase => 'Compra';
+
+  @override
+  String get payBreakdownFee => 'Comisión de servicio';
+
+  @override
+  String get payBreakdownTax => 'ITBMS';
+
+  @override
+  String get payBreakdownTotal => 'Total';
+
+  @override
+  String payButton(String total) {
+    return 'Pagar $total';
+  }
+
+  @override
+  String payStepUpTitle(String merchant) {
+    return 'Confirmar pago a $merchant';
+  }
+
+  @override
+  String get payAmountInvalid => 'Escribe un monto mayor que cero.';
+
+  @override
+  String get payResultSuccess => 'Pago realizado';
+
+  @override
+  String payResultReference(String code) {
+    return 'Referencia $code';
+  }
+
+  @override
+  String get payResultFailed => 'No se pudo completar el pago';
+
+  @override
+  String get payResultNotCharged => 'No se te cobró nada.';
+
+  @override
+  String get payResultConfirming => 'Estamos confirmando tu pago';
+
+  @override
+  String get payResultConfirmingBody =>
+      'Puede tardar unos minutos. No vuelvas a pagar: te avisaremos el resultado.';
+
+  @override
+  String get actionUnderstood => 'Entendido';
+
+  @override
+  String get actionTryAgain => 'Intentar de nuevo';
+
+  @override
+  String get error_INSUFFICIENT_FUNDS => 'Saldo insuficiente.';
+
+  @override
+  String get error_TENANT_NOT_ACTIVE =>
+      'Este comercio todavía no puede cobrar.';
+
+  @override
+  String get error_TERMINAL_INACTIVE =>
+      'Este punto de cobro no está disponible.';
+
+  @override
+  String get error_AMOUNT_OUT_OF_RANGE =>
+      'El monto está fuera del límite permitido.';
+
+  @override
+  String get error_AMOUNT_BELOW_FEES => 'El monto es muy bajo para este cobro.';
+
+  @override
+  String get error_FEE_POLICY_MISSING =>
+      'Este comercio todavía no puede cobrar.';
+
+  @override
+  String get error_RAIL_DISABLED => 'Este medio de pago no está disponible.';
+
+  @override
+  String get error_INVALID_STATE_TRANSITION =>
+      'Este cobro ya no se puede pagar.';
+
+  @override
+  String get error_INVALID_LABEL =>
+      'El nombre debe tener de 1 a 60 caracteres.';
+
+  @override
+  String get error_DEPENDENCY_UNAVAILABLE =>
+      'El servicio no está disponible. Intenta de nuevo en un momento.';
+
+  @override
+  String get terminalsEmpty => 'Todavía no tienes puntos de cobro.';
+
+  @override
+  String get terminalsCreate => 'Nuevo punto de cobro';
+
+  @override
+  String get terminalNameLabel => 'Nombre';
+
+  @override
+  String get terminalNameHint => 'Por ejemplo: Caja 1';
+
+  @override
+  String get terminalActive => 'Activo';
+
+  @override
+  String get terminalInactive => 'Inactivo';
+
+  @override
+  String get terminalCopyLink => 'Copiar enlace';
+
+  @override
+  String get terminalLinkCopied => 'Enlace copiado.';
+
+  @override
+  String get terminalScanToPay => 'Escanea para pagar con PlentyPay';
+
+  @override
+  String terminalDeactivateConfirm(String name) {
+    return '¿Desactivar $name? Nadie podrá pagar con este código hasta que lo vuelvas a activar.';
+  }
+
+  @override
+  String get paymentsTitle => 'Cobros';
+
+  @override
+  String get paymentsEmpty => 'Aún no tienes cobros.';
+
+  @override
+  String paymentsNet(String amount) {
+    return 'Recibes $amount';
+  }
+
+  @override
+  String get paymentStatus_CAPTURED => 'Completado';
+
+  @override
+  String get paymentStatus_CONFIRMING => 'Confirmando';
+
+  @override
+  String get paymentStatus_FAILED => 'Rechazado';
+
+  @override
+  String get paymentStatus_CANCELLED => 'Cancelado';
+
+  @override
+  String get paymentStatus_EXPIRED => 'Vencido';
+
+  @override
+  String get paymentStatus_PENDING => 'Pendiente';
+
+  @override
+  String get payTorch => 'Linterna';
+
+  @override
+  String get payOpenSettings => 'Abrir ajustes';
+
+  @override
+  String get financeTitle => 'Finanzas';
+
+  @override
+  String get financeToday => 'Hoy';
+
+  @override
+  String get finance7Days => '7 días';
+
+  @override
+  String get financeMonth => 'Mes';
+
+  @override
+  String get financeCaptured => 'Cobrado';
+
+  @override
+  String get financeFees => 'Comisiones';
+
+  @override
+  String get financeRefunds => 'Reembolsos';
+
+  @override
+  String get financeNet => 'Neto';
+
+  @override
+  String get featureUnavailableBody =>
+      'Esta función todavía no está disponible. Te avisaremos cuando puedas usarla.';
+
+  @override
+  String get homeRegisterBusiness => 'Registrar mi negocio';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

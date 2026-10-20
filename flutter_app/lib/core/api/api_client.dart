@@ -236,6 +236,79 @@ class ApiClient {
     );
   }
 
+  /// S-WAL-01 e1/e2: saldo de la billetera de la persona del token (ledger.GetBalance vía gateway).
+  Future<Map<String, dynamic>> walletBalance({String currency = 'USD'}) =>
+      _get('/v1/wallet/balance', queryParameters: {'currency': currency});
+
+  /// S-WAL-01 e5: movimientos de la billetera en `[from, to)` (ledger.GetStatement, ≤ 366 días).
+  Future<Map<String, dynamic>> walletStatement(
+          {required DateTime from,
+          DateTime? to,
+          String currency = 'USD',
+          int pageSize = 50}) =>
+      _get('/v1/wallet/statement', queryParameters: {
+        'currency': currency,
+        'from': from.toUtc().toIso8601String(),
+        if (to != null) 'to': to.toUtc().toIso8601String(),
+        'page_size': '$pageSize',
+      });
+
+  // ── Pagos (F11.3, S-WAL-05/06/07, S-FIN-02/04) ─────────────────────────────
+
+  /// S-WAL-05: nombre VERIFICADO del comercio de un código de cobro (R16).
+  Future<Map<String, dynamic>> resolvePayLink(String code) =>
+      _get('/v1/pay-links/${Uri.encodeComponent(code)}');
+
+  /// N-CON-01: desglose antes de confirmar. El gateway completa moneda y riel (WALLET).
+  Future<Map<String, dynamic>> quoteFees(int amountMinor) =>
+      _get('/v1/payments/quote', queryParameters: {'amount': '$amountMinor'});
+
+  /// Intent de pago con wallet desde una terminal. La misma [idempotencyKey] se reutiliza al
+  /// reintentar la misma operación (grpc-conventions §3).
+  Future<Map<String, dynamic>> createPaymentIntent(
+          {required String terminalCode,
+          required int amountMinor,
+          required String idempotencyKey,
+          String currency = 'USD',
+          String? stepUpToken}) =>
+      _post('/v1/payments/intents',
+          data: {
+            'amount': {'amount_minor': '$amountMinor', 'currency': currency},
+            'rail': 'PAYMENT_RAIL_WALLET',
+            'terminal_code': terminalCode,
+          },
+          idempotencyKey: idempotencyKey,
+          headers: {if (stepUpToken != null) 'X-Step-Up-Token': stepUpToken});
+
+  Future<Map<String, dynamic>> confirmPaymentIntent(String intentId,
+          {required String idempotencyKey}) =>
+      _post('/v1/payments/intents/${Uri.encodeComponent(intentId)}/confirm',
+          data: const <String, dynamic>{}, idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> getPaymentIntent(String intentId) =>
+      _get('/v1/payments/intents/${Uri.encodeComponent(intentId)}');
+
+  /// S-FIN-02: cobros del negocio del token, más recientes primero.
+  Future<Map<String, dynamic>> listPayments(
+          {int pageSize = 50, String pageToken = ''}) =>
+      _get('/v1/payments', queryParameters: {
+        'page_size': '$pageSize',
+        if (pageToken.isNotEmpty) 'page_token': pageToken,
+      });
+
+  /// S-FIN-04: puntos de cobro del negocio del token.
+  Future<Map<String, dynamic>> listTerminals() => _get('/v1/terminals');
+
+  Future<Map<String, dynamic>> createTerminal(String label,
+          {required String idempotencyKey}) =>
+      _post('/v1/terminals',
+          data: {'label': label}, idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> setTerminalActive(
+          String terminalId, bool active) =>
+      _post('/v1/terminals/${Uri.encodeComponent(terminalId)}/active',
+          data: {'active': active});
+
   Future<Me> me() async {
     final body = await _get('/v1/me');
     return Me(
@@ -385,9 +458,17 @@ class ApiClient {
 
   /// Pide un token de confirmación fuerte para [operation] (security-standards.md §4). El reto
   /// queda atado al usuario del token; la verificación con passkey llega en F28.
-  Future<String> stepUp(String operation) async {
+  /// Pide y verifica un reto de confirmación fuerte. identity ata el token a la operación, al monto
+  /// y a la moneda exactos (`ConsumeStepUp` responde MISMATCH si cambian).
+  Future<String> stepUp(String operation,
+      {int amountMinor = 0, String currency = ''}) async {
     final challenge = await _post('/v1/step-up/challenge',
-        data: {'operation': operation}, skipIdempotency: true);
+        data: {
+          'operation': operation,
+          if (amountMinor > 0) 'amount_minor': '$amountMinor',
+          if (currency.isNotEmpty) 'currency': currency,
+        },
+        skipIdempotency: true);
     final verified = await _post('/v1/step-up/verify',
         data: {'challenge_id': challenge['challenge_id']},
         skipIdempotency: true);
