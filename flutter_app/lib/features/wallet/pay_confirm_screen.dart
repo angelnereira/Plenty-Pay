@@ -23,9 +23,19 @@ import 'wallet_data.dart';
 /// payments-core responde `STEP_UP_REQUIRED` (el umbral vive en infra-management, no en la app).
 /// e5 (factura con RUC) llega con F13.
 class PayConfirmScreen extends StatefulWidget {
-  const PayConfirmScreen({super.key, required this.api, required this.code});
+  const PayConfirmScreen(
+      {super.key,
+      required this.api,
+      required this.code,
+      this.saleId,
+      this.amountMinor});
   final ApiClient api;
   final String code;
+
+  /// QR de una venta de caja: el monto viene fijado por la caja y el pago lleva la referencia de
+  /// la venta (S-POS-03 e4).
+  final String? saleId;
+  final int? amountMinor;
 
   @override
   State<PayConfirmScreen> createState() => _PayConfirmScreenState();
@@ -48,6 +58,16 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   /// Una clave por intento de pago: se reutiliza al reintentar el mismo monto y se renueva al
   /// cambiarlo (grpc-conventions §3).
   String _createKey = newRequestId();
+
+  @override
+  void initState() {
+    super.initState();
+    final fixed = widget.amountMinor;
+    if (fixed != null) {
+      _amount.text = MoneyText.format(fixed, symbol: '');
+      _onAmountChanged(_amount.text);
+    }
+  }
 
   Future<_Loaded> _load() async {
     final results = await Future.wait(
@@ -91,7 +111,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
           terminalCode: widget.code,
           amountMinor: q.baseMinor,
           idempotencyKey: _createKey,
-          stepUpToken: token);
+          stepUpToken: token,
+          saleId: widget.saleId);
 
   Future<void> _pay(_Loaded data, PayQuote q) async {
     final l10n = AppLocalizations.of(context);
@@ -197,11 +218,13 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       // e2
       TextField(
         controller: _amount,
-        autofocus: true,
+        autofocus: widget.amountMinor == null,
+        readOnly: widget.amountMinor != null,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: l10n.fieldAmount,
           prefixText: r'$ ',
+          helperText: widget.saleId != null ? l10n.paySaleAt : null,
           errorText: _amount.text.isNotEmpty &&
                   (MoneyText.parse(_amount.text) ?? 0) <= 0
               ? l10n.payAmountInvalid

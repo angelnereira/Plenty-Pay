@@ -869,5 +869,372 @@
         "type": "String"
       }
     }
-  }
+  },
+  "catFilterActive": "Activos",
+  "catFilterArchived": "Archivados",
+  "catEmpty": "Aún no tienes productos.",
+  "catNewProduct": "Nuevo producto",
+  "catCategories": "Categorías",
+  "catSkuValue": "SKU {sku}",
+  "@catSkuValue": {
+    "placeholders": {
+      "sku": {
+        "type": "String"
+      }
+    }
+  },
+  "catArchivedChip": "Archivado",
+  "catLoadMore": "Cargar más",
+  "catUnavailable": "El catálogo no está disponible en este momento. Intenta de nuevo más tarde.",
+  "catEditTitle": "Editar producto",
+  "catSectionBasic": "Básico",
+  "catName": "Nombre",
+  "catNameError": "Escribe entre 2 y 120 caracteres.",
+  "catDescription": "Descripción",
+  "catCategory": "Categoría",
+  "catNoCategory": "Sin categoría",
+  "catPhotos": "Fotos",
+  "catAddPhoto": "Agregar foto",
+  "catRemovePhoto": "Quitar foto",
+  "catSectionId": "Identificación",
+  "catSkuLabel": "SKU",
+  "catSkuHelper": "Si lo dejas vacío, se genera uno.",
+  "catBarcode": "Código de barras",
+  "catBarcodeInvalid": "El código de barras no es válido.",
+  "catBarcodeInternal": "Este código es de uso interno de tienda; no identifica el producto fuera de tu negocio.",
+  "catGenerateInternal": "Generar código interno",
+  "catSectionSale": "Venta",
+  "catUnit": "Unidad de medida",
+  "unit_UNIT": "Unidad (ud)",
+  "unit_KG": "Kilogramo (kg)",
+  "unit_LITER": "Litro (L)",
+  "unit_METER": "Metro (m)",
+  "catUnitLocked": "La unidad no se cambia después de crear el producto.",
+  "catPrice": "Precio de venta",
+  "catPriceError": "El precio debe ser mayor que $0.00.",
+  "catPriceIncludesTax": "El precio incluye ITBMS.",
+  "catSectionTax": "Impuestos",
+  "catTaxTreatment": "Tratamiento",
+  "catTaxed": "Gravado",
+  "catExempt": "Exento",
+  "catTaxRate": "Tasa de ITBMS",
+  "taxKind_STANDARD": "General",
+  "taxKind_ALCOHOL": "Alcohol y hospedaje",
+  "taxKind_TOBACCO": "Tabaco",
+  "catTaxRateOption": "{kind} · {percent}",
+  "@catTaxRateOption": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "catTaxRatesUnavailable": "No pudimos cargar las tasas de ITBMS vigentes.",
+  "catSectionInventory": "Inventario",
+  "catTrackStock": "Controlar existencias",
+  "catArchive": "Archivar",
+  "catArchiveConfirmTitle": "¿Archivar {name}?",
+  "@catArchiveConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "catArchiveConfirmBody": "El producto deja de venderse. No se borra y su historial se conserva.",
+  "catReadyToSell": "Listo para vender",
+  "catMissingToSell": "Falta para vender: {missing}",
+  "@catMissingToSell": {
+    "placeholders": {
+      "missing": {
+        "type": "String"
+      }
+    }
+  },
+  "catSaved": "Producto guardado.",
+  "catCategoriesEmpty": "Aún no tienes categorías.",
+  "catNewCategory": "Nueva categoría",
+  "catParentCategory": "Categoría superior",
+  "catNoParent": "Ninguna (principal)",
+  "error_SKU_TAKEN": "Ya tienes un producto con ese SKU.",
+  "error_BARCODE_TAKEN": "Ya tienes un producto con ese código de barras.",
+  "error_INVALID_BARCODE": "El código de barras no es válido.",
+  "error_INVALID_TAX_RATE": "La tasa de ITBMS no es una tasa vigente.",
+  "error_TAX_TREATMENT_MISSING": "Indica el tratamiento de ITBMS.",
+  "error_CATEGORY_DEPTH_EXCEEDED": "Máximo 4 niveles de categorías.",
+  "error_VERSION_CONFLICT": "Alguien más cambió este registro. Vuelve a cargarlo.",
+  "invTitle": "Existencias",
+  "invLowCard": "{n} por agotarse",
+  "@invLowCard": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "invOutCard": "{n} agotados",
+  "@invOutCard": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "invAllWarehouses": "Todas las bodegas",
+  "invAvailable": "Disponible",
+  "invReserved": "Reservado",
+  "invMinimum": "Mínimo",
+  "invEmpty": "Aún no hay existencias registradas. Haz un ajuste de conteo para empezar.",
+  "invAdjust": "Ajustar",
+  "invTransfer": "Transferir",
+  "invWarehouses": "Bodegas",
+  "invUnknownProduct": "Producto no disponible",
+  "invByWarehouse": "Por bodega",
+  "invMovements": "Movimientos",
+  "invNoMovements": "Sin movimientos todavía.",
+  "mov_RECEIPT": "Recepción",
+  "mov_SALE": "Venta",
+  "mov_ADJUSTMENT": "Ajuste",
+  "mov_TRANSFER_OUT": "Transferencia (salida)",
+  "mov_TRANSFER_IN": "Transferencia (entrada)",
+  "mov_RETURN": "Devolución",
+  "mov_WRITE_OFF": "Baja",
+  "invAdjustTitle": "Ajuste de existencias",
+  "invWarehouse": "Bodega",
+  "invProduct": "Producto",
+  "invSelectProduct": "Elige un producto",
+  "invSystemQty": "Sistema {qty}",
+  "@invSystemQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "invCounted": "Contado",
+  "invDifferenceQty": "Diferencia {qty}",
+  "@invDifferenceQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "invReason": "Motivo",
+  "invReason_COUNT": "Conteo físico",
+  "invReason_DAMAGE": "Daño",
+  "invReason_EXPIRED": "Vencimiento",
+  "invReason_LOSS": "Robo o pérdida",
+  "invReason_ERROR": "Error de registro",
+  "invReason_OTHER": "Otro",
+  "invReasonOtherHint": "Describe el motivo",
+  "invApplyAdjust": "Aplicar ajuste",
+  "invAdjustConfirmTitle": "¿Aplicar el ajuste?",
+  "invAdjustConfirmBody": "Un ajuste no se edita ni se borra: se corrige con otro ajuste.",
+  "invAdjustDone": "Ajuste aplicado.",
+  "invNoDifference": "El conteo coincide con el sistema.",
+  "invTransferTitle": "Transferencia",
+  "invFrom": "Origen",
+  "invTo": "Destino",
+  "invQuantity": "Cantidad",
+  "invQtyError": "Escribe una cantidad mayor que 0.",
+  "invTransferDone": "Transferencia registrada.",
+  "invNeedTwoWarehouses": "Para transferir necesitas al menos dos bodegas.",
+  "invNewWarehouse": "Nueva bodega",
+  "invDefaultChip": "Principal",
+  "invActive": "Activa",
+  "invInactive": "Inactiva",
+  "error_OUT_OF_STOCK": "No hay existencia suficiente.",
+  "error_MOVEMENT_REASON_REQUIRED": "Indica el motivo del ajuste.",
+  "error_VARIANT_NOT_FOUND": "El producto no existe o está archivado.",
+  "error_INVENTORY_NOT_TRACKED": "Este producto no controla existencias.",
+  "error_SAME_WAREHOUSE": "Elige dos bodegas distintas.",
+  "error_INVALID_WAREHOUSE": "La bodega no es válida o está inactiva.",
+  "error_IDEMPOTENCY_KEY_REUSED": "Esta operación ya se registró con otros datos.",
+  "posOpenTitle": "Abrir caja",
+  "posTerminal": "Caja",
+  "posTerminalHelper": "Cada caja cobra en uno de tus puntos de cobro.",
+  "posNoTerminals": "Primero crea un punto de cobro en Finanzas.",
+  "posOpeningFloat": "Fondo inicial en efectivo",
+  "posOpen": "Abrir caja",
+  "posSearchHint": "Buscar o escanear",
+  "posTicket": "Ticket",
+  "posTicketEmpty": "Agrega productos a la venta.",
+  "posSubtotal": "Subtotal",
+  "posTaxLine": "ITBMS {percent}",
+  "@posTaxLine": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "posExempt": "Exento",
+  "posTotal": "Total",
+  "posCharge": "Cobrar {total}",
+  "@posCharge": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "posClear": "Vaciar",
+  "posClearConfirm": "¿Vaciar el ticket?",
+  "posCustomerFinal": "Consumidor final",
+  "posNotFound": "No encontramos un producto con ese código.",
+  "posQtyTitle": "Cantidad de {name}",
+  "@posQtyTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "posStockQty": "Existencias: {qty}",
+  "@posStockQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "posMenuSales": "Ventas del turno",
+  "posMenuCash": "Movimientos de caja",
+  "posMenuClose": "Cerrar caja",
+  "posProductsEmpty": "Aún no tienes productos en el catálogo.",
+  "posRemoveLine": "Quitar {name}",
+  "@posRemoveLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "posIncrease": "Sumar uno",
+  "posDecrease": "Restar uno",
+  "posPayTitle": "Cobro",
+  "posRemaining": "Falta {amount}",
+  "@posRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posMethodCash": "Efectivo",
+  "posMethodWallet": "Saldo PlentyPay",
+  "posReceived": "Recibido",
+  "posChange": "Vuelto {amount}",
+  "@posChange": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posExact": "Monto exacto",
+  "posWalletWaiting": "Esperando al cliente…",
+  "posWalletScan": "Escanea para pagar {amount}",
+  "@posWalletScan": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posFinish": "Finalizar venta",
+  "posConfirming": "Confirmando",
+  "posPaidChip": "Pagado",
+  "posLeaveWaiting": "Dejar la venta en espera",
+  "posWalletFailed": "El cliente no completó el pago. Elige otro medio.",
+  "posCashShort": "Lo recibido no cubre el monto.",
+  "posWalletAmount": "Monto con saldo PlentyPay",
+  "posReceiptTitle": "Recibo",
+  "posReceiptNumber": "Recibo {number}",
+  "@posReceiptNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "posInternalReceipt": "Recibo interno",
+  "posNotFiscal": "Este documento no es una factura fiscal.",
+  "posNewSale": "Nueva venta",
+  "posPayments": "Pagos",
+  "posSalesTitle": "Ventas del turno",
+  "posSalesEmpty": "Aún no hay ventas en este turno.",
+  "saleStatus_PAID": "Pagada",
+  "saleStatus_AWAITING_PAYMENT": "Por confirmar",
+  "saleStatus_VOIDED": "Anulada",
+  "saleStatus_OPEN": "Abierta",
+  "posSaleNumber": "N.º {number}",
+  "@posSaleNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "posCashTitle": "Movimientos de caja",
+  "posExpected": "Esperado en caja",
+  "posCashIn": "Entrada",
+  "posCashOut": "Salida",
+  "posAmount": "Monto",
+  "posReason_CHANGE": "Cambio",
+  "posReason_SUPPLIER": "Pago a proveedor",
+  "posReason_SAFE": "Retiro a caja fuerte",
+  "posReason_OTHER": "Otro",
+  "posCashRecorded": "Movimiento registrado.",
+  "posAmountError": "Escribe un monto mayor que $0.00.",
+  "posCloseTitle": "Cierre y arqueo",
+  "posCounted": "Efectivo contado",
+  "posConfirmCount": "Confirmar conteo",
+  "posExpectedValue": "Esperado {amount}",
+  "@posExpectedValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posCountedValue": "Contado {amount}",
+  "@posCountedValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posDifferenceValue": "Diferencia {amount}",
+  "@posDifferenceValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posCloseNotes": "Nota",
+  "posCloseNotesRequired": "Explica la diferencia.",
+  "posCloseDo": "Cerrar caja",
+  "posClosed": "Caja cerrada.",
+  "posVoid": "Anular venta",
+  "posVoidReason": "Motivo de la anulación",
+  "error_SESSION_ALREADY_OPEN": "Esta caja ya tiene una sesión abierta.",
+  "error_SESSION_CLOSED": "La sesión de caja está cerrada.",
+  "error_NOT_SESSION_OWNER": "La sesión es de otro cajero.",
+  "error_SALES_PENDING": "Tienes ventas estacionadas o por confirmar.",
+  "error_EMPTY_SALE": "Agrega productos a la venta.",
+  "error_TENDERS_MISMATCH": "Los pagos no suman el total.",
+  "error_RAIL_NOT_SUPPORTED": "Ese medio de pago aún no está disponible en caja.",
+  "error_PRODUCT_NOT_FOUND": "El producto no existe o está archivado.",
+  "error_DISCOUNT_EXCEEDS_LIMIT": "El descuento supera el máximo permitido.",
+  "error_HAS_CAPTURED_PAYMENTS": "La venta ya tiene cobros; haz una devolución.",
+  "error_REASON_REQUIRED": "Indica el motivo.",
+  "error_TENANT_REQUIRED": "Necesitas un negocio activo.",
+  "paySaleAt": "Pago de una venta en caja"
 }

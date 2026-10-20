@@ -325,12 +325,15 @@ class ApiClient {
           required int amountMinor,
           required String idempotencyKey,
           String currency = 'USD',
-          String? stepUpToken}) =>
+          String? stepUpToken,
+          String? saleId}) =>
       _post('/v1/payments/intents',
           data: {
             'amount': {'amount_minor': '$amountMinor', 'currency': currency},
             'rail': 'PAYMENT_RAIL_WALLET',
             'terminal_code': terminalCode,
+            // Pago de una venta de caja: pos lo concilia por esta referencia (SPEC pos R4).
+            if (saleId != null) 'reference': {'type': 'sale', 'id': saleId},
           },
           idempotencyKey: idempotencyKey,
           headers: {if (stepUpToken != null) 'X-Step-Up-Token': stepUpToken});
@@ -376,6 +379,256 @@ class ApiClient {
           String terminalId, bool active) =>
       _post('/v1/terminals/${Uri.encodeComponent(terminalId)}/active',
           data: {'active': active});
+
+  // ── Catálogo (F15, S-CAT-01/02/04) ──────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> listProducts(
+          {String query = '',
+          String categoryId = '',
+          bool archived = false,
+          int pageSize = 50,
+          String pageToken = ''}) =>
+      _get('/v1/catalog/products', queryParameters: {
+        if (query.isNotEmpty) 'q': query,
+        if (categoryId.isNotEmpty) 'category_id': categoryId,
+        'status':
+            archived ? 'PRODUCT_STATUS_ARCHIVED' : 'PRODUCT_STATUS_ACTIVE',
+        'page_size': '$pageSize',
+        if (pageToken.isNotEmpty) 'page_token': pageToken,
+      });
+
+  Future<Map<String, dynamic>> getProduct(String productId) =>
+      _get('/v1/catalog/products/${Uri.encodeComponent(productId)}');
+
+  Future<Map<String, dynamic>> lookupBarcode(String barcode) =>
+      _get('/v1/catalog/barcodes/${Uri.encodeComponent(barcode)}');
+
+  Future<Map<String, dynamic>> createProduct(Map<String, Object?> product,
+          {required String idempotencyKey}) =>
+      _post('/v1/catalog/products',
+          data: {'product': product}, idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> updateProduct(
+          String productId, Map<String, Object?> product, List<String> mask,
+          {required String idempotencyKey}) =>
+      _patch('/v1/catalog/products/${Uri.encodeComponent(productId)}',
+          data: {'product': product, 'update_mask': mask},
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> archiveProduct(String productId,
+          {required String idempotencyKey}) =>
+      _post('/v1/catalog/products/${Uri.encodeComponent(productId)}/archive',
+          data: const <String, Object>{}, idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> listCategories() =>
+      _get('/v1/catalog/categories');
+
+  /// Tasas de ITBMS vigentes (`legal.pa.itbms.*`): la app nunca las lleva en su código.
+  Future<Map<String, dynamic>> getTaxRates() => _get('/v1/catalog/tax-rates');
+
+  Future<Map<String, dynamic>> upsertCategory(
+          {String id = '', required String name, String parentId = ''}) =>
+      _post('/v1/catalog/categories',
+          data: {
+            'category': {
+              if (id.isNotEmpty) 'category_id': id,
+              'name': name,
+              if (parentId.isNotEmpty) 'parent_id': parentId,
+            }
+          },
+          skipIdempotency: true);
+
+  // ── Inventario (F16, S-INV-01/02/03/04/09) ──────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> listWarehouses() =>
+      _get('/v1/inventory/warehouses');
+
+  Future<Map<String, dynamic>> upsertWarehouse(
+          {String id = '', required String name, bool active = true}) =>
+      _post('/v1/inventory/warehouses',
+          data: {
+            'warehouse': {
+              if (id.isNotEmpty) 'warehouse_id': id,
+              'name': name,
+              'active': active,
+            }
+          },
+          skipIdempotency: true);
+
+  Future<Map<String, dynamic>> listStock(
+          {String warehouseId = '',
+          bool onlyLow = false,
+          int pageSize = 200,
+          String pageToken = ''}) =>
+      _get('/v1/inventory/stock', queryParameters: {
+        if (warehouseId.isNotEmpty) 'warehouse_id': warehouseId,
+        if (onlyLow) 'only_low': 'true',
+        'page_size': '$pageSize',
+        if (pageToken.isNotEmpty) 'page_token': pageToken,
+      });
+
+  Future<Map<String, dynamic>> getStock(String productId,
+          {String warehouseId = ''}) =>
+      _get('/v1/inventory/stock/${Uri.encodeComponent(productId)}',
+          queryParameters: {
+            if (warehouseId.isNotEmpty) 'warehouse_id': warehouseId,
+          });
+
+  /// `type`: MOVEMENT_TYPE_RECEIPT | MOVEMENT_TYPE_ADJUSTMENT | MOVEMENT_TYPE_WRITE_OFF.
+  Future<Map<String, dynamic>> adjustStock(
+          {required String productId,
+          String warehouseId = '',
+          required int deltaMilli,
+          required String type,
+          String reason = '',
+          required String idempotencyKey}) =>
+      _post('/v1/inventory/adjustments',
+          data: {
+            'product_id': productId,
+            if (warehouseId.isNotEmpty) 'warehouse_id': warehouseId,
+            'delta_milli': '$deltaMilli',
+            'type': type,
+            if (reason.isNotEmpty) 'reason': reason,
+          },
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> transferStock(
+          {required String productId,
+          required String fromWarehouseId,
+          required String toWarehouseId,
+          required int quantityMilli,
+          String reason = '',
+          required String idempotencyKey}) =>
+      _post('/v1/inventory/transfers',
+          data: {
+            'product_id': productId,
+            'from_warehouse_id': fromWarehouseId,
+            'to_warehouse_id': toWarehouseId,
+            'quantity_milli': '$quantityMilli',
+            if (reason.isNotEmpty) 'reason': reason,
+          },
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> listMovements(
+          {String productId = '',
+          String warehouseId = '',
+          int pageSize = 50}) =>
+      _get('/v1/inventory/movements', queryParameters: {
+        if (productId.isNotEmpty) 'product_id': productId,
+        if (warehouseId.isNotEmpty) 'warehouse_id': warehouseId,
+        'page_size': '$pageSize',
+      });
+
+  // ── Caja (F17, S-POS-01/02/03/05/07/09/10) ──────────────────────────────────────────────
+
+  /// Sesión abierta del cajero; 404 NOT_FOUND si no tiene.
+  Future<Map<String, dynamic>> currentCashSession() =>
+      _get('/v1/pos/sessions/current');
+
+  Future<Map<String, dynamic>> getCashSession(String sessionId) =>
+      _get('/v1/pos/sessions/${Uri.encodeComponent(sessionId)}');
+
+  /// `terminalCode` es el código público del punto de cobro (S-FIN-04) en que cobra la caja.
+  Future<Map<String, dynamic>> openCashSession(
+          {required String terminalCode,
+          required int openingFloatMinor,
+          required String idempotencyKey}) =>
+      _post('/v1/pos/sessions',
+          data: {
+            'terminal_label': terminalCode,
+            'opening_float': {
+              'amount_minor': '$openingFloatMinor',
+              'currency': 'USD'
+            },
+          },
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> closeCashSession(String sessionId,
+          {required int countedMinor,
+          String notes = '',
+          required String idempotencyKey}) =>
+      _post('/v1/pos/sessions/${Uri.encodeComponent(sessionId)}/close',
+          data: {
+            'counted_cash': {
+              'amount_minor': '$countedMinor',
+              'currency': 'USD'
+            },
+            if (notes.isNotEmpty) 'notes': notes,
+          },
+          idempotencyKey: idempotencyKey);
+
+  /// `direction`: IN | OUT.
+  Future<Map<String, dynamic>> recordCashMovement(String sessionId,
+          {required String direction,
+          required int amountMinor,
+          required String reason,
+          required String idempotencyKey}) =>
+      _post('/v1/pos/sessions/${Uri.encodeComponent(sessionId)}/movements',
+          data: {
+            'direction': direction,
+            'amount': {'amount_minor': '$amountMinor', 'currency': 'USD'},
+            'reason': reason,
+          },
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> createSale(String sessionId,
+          {required String clientSaleId, required String idempotencyKey}) =>
+      _post('/v1/pos/sales',
+          data: {'session_id': sessionId, 'client_sale_id': clientSaleId},
+          idempotencyKey: idempotencyKey);
+
+  /// Reemplaza las líneas; el precio lo pone el servidor desde el catálogo.
+  Future<Map<String, dynamic>> updateSale(
+          String saleId, List<({String productId, int qtyMilli})> lines,
+          {required String idempotencyKey}) =>
+      _put('/v1/pos/sales/${Uri.encodeComponent(saleId)}',
+          data: {
+            'lines': [
+              for (final l in lines)
+                {'product_id': l.productId, 'quantity_milli': '${l.qtyMilli}'}
+            ],
+          },
+          idempotencyKey: idempotencyKey);
+
+  /// `tenders`: rail (PAYMENT_RAIL_CASH | PAYMENT_RAIL_WALLET), monto y, en efectivo, lo recibido.
+  Future<Map<String, dynamic>> checkoutSale(String saleId,
+          List<({String rail, int amountMinor, int cashTenderedMinor})> tenders,
+          {required String idempotencyKey}) =>
+      _post('/v1/pos/sales/${Uri.encodeComponent(saleId)}/checkout',
+          data: {
+            'tenders': [
+              for (final t in tenders)
+                {
+                  'rail': t.rail,
+                  'amount': {
+                    'amount_minor': '${t.amountMinor}',
+                    'currency': 'USD'
+                  },
+                  if (t.cashTenderedMinor > 0)
+                    'cash_tendered': {
+                      'amount_minor': '${t.cashTenderedMinor}',
+                      'currency': 'USD'
+                    },
+                }
+            ],
+          },
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> voidSale(String saleId,
+          {required String reason, required String idempotencyKey}) =>
+      _post('/v1/pos/sales/${Uri.encodeComponent(saleId)}/void',
+          data: {'reason': reason}, idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> getSale(String saleId) =>
+      _get('/v1/pos/sales/${Uri.encodeComponent(saleId)}');
+
+  Future<Map<String, dynamic>> listSales(
+          {String sessionId = '', DateTime? from, int pageSize = 100}) =>
+      _get('/v1/pos/sales', queryParameters: {
+        if (sessionId.isNotEmpty) 'session_id': sessionId,
+        if (from != null) 'from': from.toUtc().toIso8601String(),
+        'page_size': '$pageSize',
+      });
 
   Future<Me> me() async {
     final body = await _get('/v1/me');
@@ -802,10 +1055,30 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _put(String path,
-      {Object? data, Map<String, String>? headers}) async {
+      {Object? data,
+      Map<String, String>? headers,
+      String? idempotencyKey}) async {
     try {
       final res = await _dio.put<dynamic>(path,
-          data: data, options: Options(headers: headers));
+          data: data,
+          options: Options(headers: {
+            if (headers != null) ...headers,
+            if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
+          }));
+      return _extractData(res);
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> _patch(String path,
+      {Object? data, String? idempotencyKey}) async {
+    try {
+      final res = await _dio.patch<dynamic>(path,
+          data: data,
+          options: Options(headers: {
+            if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
+          }));
       return _extractData(res);
     } on DioException catch (e) {
       throw _toApiException(e);

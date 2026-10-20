@@ -116,6 +116,7 @@ void main() {
       'AGENTS §3.1: solo los módulos con servicio desplegado abren sus pantallas',
       () {
     final live = moduleRegistry.where((m) => m.live).map((m) => m.id).toSet();
-    expect(live, {'wallet', 'finance', 'admin', 'platform'});
+    expect(live,
+        {'wallet', 'finance', 'admin', 'platform', 'catalog', 'inventory', 'pos'});
   });
 }

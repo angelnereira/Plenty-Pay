@@ -1,611 +1,536 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
-import '../../core/widgets/pp_button.dart';
-import '../../core/widgets/pp_text_field.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/observability/app_logger.dart' show newRequestId;
+import '../../core/theme/tokens.dart';
 import '../../core/widgets/barcode_scanner_dialog.dart';
+import '../../core/widgets/money_text.dart';
+import '../../core/widgets/pp_button.dart';
+import 'catalog_data.dart';
+import 'catalog_errors.dart';
+import 'product_image.dart';
 
-/// S-CAT-02 · `/catalog/new`, `/catalog/:id` · Editor de producto.
+/// S-CAT-02 · `/catalog/new`, `/catalog/:id` · Editor de producto. `catalog:write`.
 ///
-/// `catalog:write` · Reglas: N-FIS-01, N-FIS-02, N-FIS-13, N-CON-02, N-CON-03,
-/// N-CON-07, N-LOG-01, N-LOG-04, N-LOG-05, N-LOG-07, N-FMT-08, N-FMT-09.
-/// Un solo botón filled ("Guardar"); "Archivar" es la acción secundaria.
+/// Secciones con servicio hoy: Básico (nombre, descripción, categoría, fotos), Identificación
+/// (SKU generado si se deja vacío, GTIN con dígito de control, código interno N-STD-24/26),
+/// Venta (unidad, precio con ITBMS incluido), Impuestos (Gravado/Exento y la tasa vigente que da
+/// el servidor, N-FIS-01) e Inventario (controlar existencias). Variantes, precios por sucursal,
+/// lotes, garantía, restricciones y ofertas llegan con F15.1b–F15.5 y F16.4.
 class ProductScreen extends StatefulWidget {
-  const ProductScreen({super.key, required this.api, this.productId});
-
+  const ProductScreen({super.key, required this.api, this.product});
   final ApiClient api;
-  final String? productId;
+
+  /// null = producto nuevo.
+  final ProductItem? product;
 
   @override
   State<ProductScreen> createState() => _ProductScreenState();
 }
 
+const _units = ['UNIT', 'KG', 'LITER', 'METER'];
+const _maxPhotos = 8;
+
 class _ProductScreenState extends State<ProductScreen> {
-  final _name = TextEditingController();
-  final _description = TextEditingController();
-  final _sku = TextEditingController();
-  final _barcode = TextEditingController();
-  final _price = TextEditingController();
-  final _cost = TextEditingController();
-  final _minStock = TextEditingController();
-  final _warrantyDays = TextEditingController();
-  String _unit = 'ud';
-  String _taxTreatment = 'gravado';
-  String _taxRate = '7';
-  bool _sellByWeight = false;
-  bool _trackStock = true;
-  bool _trackLot = false;
-  bool _onlyAdults = false;
-  bool _requiresPrescription = false;
-  String? _productImageUrl;
-  bool _uploadingImage = false;
+  late final _name = TextEditingController(text: widget.product?.name ?? '');
+  late final _description =
+      TextEditingController(text: widget.product?.description ?? '');
+  late final _sku = TextEditingController(text: widget.product?.sku ?? '');
+  late final _barcode =
+      TextEditingController(text: widget.product?.barcode ?? '');
+  late final _price = TextEditingController(
+      text: widget.product == null
+          ? ''
+          : MoneyText.format(widget.product!.priceMinor, symbol: ''));
+  late String _unit = widget.product?.unitType ?? 'UNIT';
+  late String _categoryId = widget.product?.categoryId ?? '';
+  late bool _exempt = widget.product?.taxExempt ?? false;
+  late int _rateBps = widget.product?.taxRateBps ?? 0;
+  late bool _track = widget.product?.tracksInventory ?? true;
+  late final List<String> _photos = [...?widget.product?.imageUrls];
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final picker = ImagePicker();
-      final photo = await picker.pickImage(
-        source: source,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-      if (!mounted || photo == null) return;
+  late final Future<(List<CategoryItem>, List<TaxRateItem>)> _refs =
+      _loadRefs();
+  String _key = newRequestId();
+  bool _saving = false;
+  bool _uploading = false;
+  bool _submitted = false;
+  String? _error;
 
-      setState(() => _uploadingImage = true);
+  bool get _isNew => widget.product == null;
 
-      final bytes = await photo.readAsBytes();
-      final filename = photo.name.isNotEmpty ? photo.name : 'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final mimeType = photo.mimeType ?? 'image/jpeg';
-
-      String imageUrl;
-      try {
-        final serverUrl = await widget.api.uploadMedia(
-          bytes: bytes,
-          filename: filename,
-          mimeType: mimeType,
-        );
-        if (serverUrl.startsWith('/')) {
-          final base = widget.api.baseUrl.endsWith('/')
-              ? widget.api.baseUrl.substring(0, widget.api.baseUrl.length - 1)
-              : widget.api.baseUrl;
-          imageUrl = '$base$serverUrl';
-        } else {
-          imageUrl = serverUrl;
-        }
-      } catch (_) {
-        imageUrl = photo.path;
+  Future<(List<CategoryItem>, List<TaxRateItem>)> _loadRefs() async {
+    final cats = await loadCategories(widget.api);
+    final rates = await loadTaxRates(widget.api);
+    // Producto nuevo y gravado: la tasa general vigente es la sugerida (S-CAT-02).
+    if (_isNew && _rateBps == 0 && !_exempt) {
+      final standard = rates.where((r) => r.kind == 'STANDARD');
+      if (standard.isNotEmpty && mounted) {
+        setState(() => _rateBps = standard.first.rateBps);
       }
-
-      if (!mounted) return;
-      setState(() {
-        _productImageUrl = imageUrl;
-        _uploadingImage = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            imageUrl.startsWith('http')
-                ? '✓ Foto capturada y guardada en almacenamiento de objetos (Garage S3).'
-                : '✓ Foto capturada en dispositivo.',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _uploadingImage = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No fue posible abrir la cámara o procesar la foto: $e')),
-      );
     }
-  }
-
-  Widget _buildProductImagePreview(BuildContext context, String pathOrUrl) {
-    final cs = Theme.of(context).colorScheme;
-    final isRemote = pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
-
-    Widget img;
-    if (isRemote) {
-      img = Image.network(
-        pathOrUrl,
-        height: 160,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _imageErrorPlaceholder(cs),
-      );
-    } else if (!kIsWeb) {
-      img = Image.file(
-        File(pathOrUrl),
-        height: 160,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _imageErrorPlaceholder(cs),
-      );
-    } else {
-      img = Image.network(
-        pathOrUrl,
-        height: 160,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _imageErrorPlaceholder(cs),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          img,
-          if (_uploadingImage)
-            Container(
-              height: 160,
-              color: Colors.black54,
-              child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.white),
-                    SizedBox(height: 8),
-                    Text('Subiendo al almacenamiento...', style: TextStyle(color: Colors.white, fontSize: 12)),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _imageErrorPlaceholder(ColorScheme cs) {
-    return Container(
-      height: 160,
-      color: cs.surfaceContainerHighest,
-      child: const Center(child: Icon(Icons.broken_image, size: 48)),
-    );
-  }
-
-  void _showImageSourceDialog() {
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Text(
-                'Fotografía del Producto',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: const Text('Tomar foto con la cámara'),
-                subtitle: const Text('Abre la cámara del dispositivo para capturar el producto'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Seleccionar de galería o archivo'),
-                subtitle: const Text('Carga una imagen JPG / PNG desde tus fotos'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.link),
-                title: const Text('Ingresar URL de imagen'),
-                subtitle: const Text('Enlace directo HTTPS a la imagen'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  final urlCtrl = TextEditingController(text: _productImageUrl ?? '');
-                  showDialog<void>(
-                    context: context,
-                    builder: (dCtx) => AlertDialog(
-                      title: const Text('URL de la Imagen'),
-                      content: TextField(
-                        controller: urlCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'URL de la imagen (HTTPS)',
-                          hintText: 'https://...',
-                        ),
-                      ),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.of(dCtx).pop(), child: const Text('Cancelar')),
-                        FilledButton(
-                          onPressed: () {
-                            final val = urlCtrl.text.trim();
-                            if (val.isNotEmpty) {
-                              setState(() => _productImageUrl = val);
-                            }
-                            Navigator.of(dCtx).pop();
-                          },
-                          child: const Text('Guardar'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              if (_productImageUrl != null)
-                ListTile(
-                  leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-                  title: Text('Eliminar foto actual', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    setState(() => _productImageUrl = null);
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return (cats, rates);
   }
 
   @override
   void dispose() {
-    _name.dispose();
-    _description.dispose();
-    _sku.dispose();
-    _barcode.dispose();
-    _price.dispose();
-    _cost.dispose();
-    _minStock.dispose();
-    _warrantyDays.dispose();
+    for (final c in [_name, _description, _sku, _barcode, _price]) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  String? get _nameError {
+    final n = _name.text.trim().length;
+    return n < 2 || n > 120 ? AppLocalizations.of(context).catNameError : null;
+  }
+
+  int? get _priceMinor => MoneyText.parse(_price.text);
+
+  String? get _priceError {
+    final p = _priceMinor;
+    return p == null || p <= 0
+        ? AppLocalizations.of(context).catPriceError
+        : null;
+  }
+
+  String? get _barcodeError {
+    final b = _barcode.text.trim();
+    return b.isNotEmpty && !validGtin(b)
+        ? AppLocalizations.of(context).catBarcodeInvalid
+        : null;
+  }
+
+  /// "Listo para vender": lo que falta, en el orden de la ficha.
+  List<String> _missing(AppLocalizations l10n) => [
+        if (_nameError != null) l10n.catName,
+        if (_priceError != null) l10n.catPrice,
+        if (_barcodeError != null) l10n.catBarcode,
+        if (!_exempt && _rateBps == 0) l10n.catTaxRate,
+      ];
+
+  Future<void> _pickPhoto() async {
+    final l10n = AppLocalizations.of(context);
+    final photo = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85);
+    if (photo == null || !mounted) return;
+    setState(() => _uploading = true);
+    try {
+      final bytes = await photo.readAsBytes();
+      final url = await widget.api.uploadMedia(
+          bytes: bytes,
+          filename: photo.name.isEmpty ? 'producto.jpg' : photo.name,
+          mimeType: photo.mimeType ?? 'image/jpeg');
+      if (mounted) setState(() => _photos.add(url));
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'catalog.photo', e is ApiException ? e.reason : 'network');
+      if (mounted) setState(() => _error = catalogErrorMessage(l10n, e));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _scanBarcode() async {
+    final l10n = AppLocalizations.of(context);
+    final code = await BarcodeScannerDialog.scan(context,
+        title: l10n.scanBarcode, subtitle: l10n.catBarcode);
+    if (code != null && mounted) setState(() => _barcode.text = code.trim());
+  }
+
+  Map<String, Object?> _body() {
+    final seed = DateTime.now().microsecondsSinceEpoch;
+    final sku = _sku.text.trim().isEmpty
+        ? generateSku(_name.text, seed)
+        : _sku.text.trim();
+    return {
+      'sku': sku,
+      'barcode': _barcode.text.trim(),
+      'name': _name.text.trim(),
+      'description': _description.text.trim(),
+      'category_id': _categoryId,
+      'unit_type': _unit,
+      'price': {'amount_minor': '${_priceMinor ?? 0}', 'currency': 'USD'},
+      'tax_rate_bps': _exempt ? 0 : _rateBps,
+      'tax_exempt': _exempt,
+      'tracks_inventory': _track,
+      'image_object_keys': _photos,
+      if (!_isNew) 'version': widget.product!.version,
+    };
+  }
+
+  Future<void> _save() async {
+    final l10n = AppLocalizations.of(context);
+    setState(() => _submitted = true);
+    if (_missing(l10n).isNotEmpty) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      if (_isNew) {
+        await widget.api.createProduct(_body(), idempotencyKey: _key);
+      } else {
+        await widget.api.updateProduct(
+            widget.product!.id,
+            _body(),
+            const [
+              'sku',
+              'barcode',
+              'name',
+              'description',
+              'category_id',
+              'price',
+              'tax_rate_bps',
+              'tracks_inventory',
+              'image_object_keys',
+            ],
+            idempotencyKey: _key);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.catSaved)));
+      Navigator.of(context).pop(true);
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'catalog.save', e is ApiException ? e.reason : 'network');
+      // El servidor respondió: el reintento lleva otro contenido y necesita otra clave.
+      if (e is ApiException) _key = newRequestId();
+      if (mounted) setState(() => _error = catalogErrorMessage(l10n, e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _archive() async {
+    final l10n = AppLocalizations.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.catArchiveConfirmTitle(widget.product!.name)),
+        content: Text(l10n.catArchiveConfirmBody),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.actionCancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.catArchive)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _saving = true);
+    try {
+      await widget.api
+          .archiveProduct(widget.product!.id, idempotencyKey: newRequestId());
+      if (mounted) Navigator.of(context).pop(true);
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'catalog.archive', e is ApiException ? e.reason : 'network');
+      if (mounted) setState(() => _error = catalogErrorMessage(l10n, e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Widget _section(BuildContext context, String title, List<Widget> children) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spacingMd),
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        color: theme.colorScheme.surfaceContainerLow,
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.spacingMd),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Semantics(
+                header: true,
+                child: Text(title, style: theme.textTheme.titleMedium)),
+            const SizedBox(height: AppTokens.spacingSm),
+            ...children,
+          ]),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final margin = WindowClass.of(context).horizontalMargin;
+    final barcode = _barcode.text.trim();
+    final missing = _missing(l10n);
+    const gap = SizedBox(height: AppTokens.spacingSm);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.productId == null ? l10n.newProduct : l10n.editProduct),
-        actions: [
-          if (widget.productId != null)
-            TextButton(
-              onPressed: () {},
-              child: Text(l10n.archiveProduct, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Fotografía del Producto
-            const _Section(title: 'Fotografía del Producto'),
-            Card(
-              elevation: 0,
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4)),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: _productImageUrl != null
-                    ? Column(
-                        children: [
-                          _buildProductImagePreview(context, _productImageUrl!),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton.icon(
-                                icon: const Icon(Icons.edit, size: 16),
-                                label: const Text('Cambiar'),
-                                onPressed: _showImageSourceDialog,
-                              ),
-                              TextButton.icon(
-                                icon: Icon(Icons.delete_outline, size: 16, color: Theme.of(context).colorScheme.error),
-                                label: Text('Eliminar', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                                onPressed: () => setState(() => _productImageUrl = null),
-                              ),
-                            ],
-                          ),
-                        ],
-                      )
-                    : InkWell(
-                        onTap: _showImageSourceDialog,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          width: double.infinity,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_a_photo_outlined, size: 42, color: Theme.of(context).colorScheme.primary),
-                              const SizedBox(height: 8),
-                              const Text('Tomar foto o subir imagen del producto', style: TextStyle(fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Text(
-                                'JPG, PNG o HTTPS (Cámara / Galería)',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Básico
-            _Section(title: l10n.sectionBasic),
-            PPTextField(label: l10n.fieldProductName, controller: _name, hint: '2–120 caracteres'),
-            const SizedBox(height: 12),
-            PPTextField(label: l10n.fieldDescription, controller: _description, hint: '≤ 4 000 caracteres'),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: null,
-              decoration: InputDecoration(labelText: l10n.fieldCategory),
-              items: const [],
-              onChanged: (_) {},
-            ),
-            const SizedBox(height: 16),
-            // Identificación
-            _Section(title: l10n.sectionIdentification),
-            PPTextField(label: l10n.fieldSku, controller: _sku, hint: 'Se genera si se deja vacío'),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: PPTextField(label: l10n.fieldBarcode, controller: _barcode, hint: 'EAN-13, UPC o QR')),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  tooltip: 'Escanear código de barra',
-                  onPressed: () async {
-                    final code = await BarcodeScannerDialog.scan(
-                      context,
-                      title: 'Escanear Código de Barra',
-                      subtitle: 'Apunta la cámara al código del producto para asignarlo',
-                    );
-                    if (!context.mounted) return;
-                    if (code != null && code.isNotEmpty) {
-                      setState(() => _barcode.text = code);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('✓ Código escaneado: $code')),
-                      );
-                    }
-                  },
+      appBar:
+          AppBar(title: Text(_isNew ? l10n.catNewProduct : l10n.catEditTitle)),
+      body: FutureBuilder<(List<CategoryItem>, List<TaxRateItem>)>(
+        future: _refs,
+        builder: (context, snap) {
+          final cats = snap.data?.$1 ?? const <CategoryItem>[];
+          final rates = snap.data?.$2 ?? const <TaxRateItem>[];
+          return ListView(
+            padding: EdgeInsets.fromLTRB(
+                margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
+            children: [
+              _section(context, l10n.catSectionBasic, [
+                TextField(
+                  controller: _name,
+                  maxLength: 120,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                      labelText: l10n.catName,
+                      errorText: _submitted ? _nameError : null),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Card(
-              elevation: 0,
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: QrImageView(
-                        data: 'plentypay://product/${_barcode.text.isNotEmpty ? _barcode.text : (_sku.text.isNotEmpty ? _sku.text : "PROD-${widget.productId ?? 'NEW'}")}',
-                        version: QrVersions.auto,
-                        size: 64.0,
-                        backgroundColor: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Código QR del Producto', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 2),
-                          Text(
-                            _barcode.text.isNotEmpty
-                                ? 'Código: ${_barcode.text}'
-                                : (_sku.text.isNotEmpty ? 'SKU: ${_sku.text}' : 'Identificador escaneable PlentyPay'),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                gap,
+                TextField(
+                  controller: _description,
+                  maxLength: 4000,
+                  minLines: 2,
+                  maxLines: 5,
+                  decoration: InputDecoration(labelText: l10n.catDescription),
+                ),
+                gap,
+                DropdownButtonFormField<String>(
+                  initialValue:
+                      cats.any((c) => c.id == _categoryId) ? _categoryId : '',
+                  isExpanded: true,
+                  decoration: InputDecoration(labelText: l10n.catCategory),
+                  items: [
+                    DropdownMenuItem(
+                        value: '', child: Text(l10n.catNoCategory)),
+                    for (final c in cats)
+                      DropdownMenuItem(value: c.id, child: Text(c.name)),
+                  ],
+                  onChanged: (v) => setState(() => _categoryId = v ?? ''),
+                ),
+                gap,
+                Text(l10n.catPhotos, style: theme.textTheme.labelLarge),
+                gap,
+                Wrap(
+                    spacing: AppTokens.spacingSm,
+                    runSpacing: AppTokens.spacingSm,
+                    children: [
+                      for (final (i, p) in _photos.indexed)
+                        Stack(children: [
+                          ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(AppTokens.radiusSm),
+                            child: Image.network(mediaUrl(widget.api, p),
+                                width: 72,
+                                height: 72,
+                                fit: BoxFit.cover,
+                                semanticLabel: '${l10n.catPhotos} ${i + 1}',
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox(width: 72, height: 72)),
                           ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.fullscreen),
-                      tooltip: 'Ver QR en grande',
-                      onPressed: () {
-                        final payload = 'plentypay://product/${_barcode.text.isNotEmpty ? _barcode.text : (_sku.text.isNotEmpty ? _sku.text : "PROD-${widget.productId ?? 'NEW'}")}';
-                        showDialog<void>(
-                          context: context,
-                          builder: (dCtx) => AlertDialog(
-                            title: Text(_name.text.isNotEmpty ? _name.text : 'Código QR del Producto'),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                                  child: QrImageView(data: payload, size: 220),
-                                ),
-                                const SizedBox(height: 12),
-                                SelectableText(payload, style: const TextStyle(fontSize: 12)),
-                              ],
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: IconButton.filledTonal(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: l10n.catRemovePhoto,
+                              icon: const Icon(Icons.close, size: 16),
+                              onPressed: () =>
+                                  setState(() => _photos.removeAt(i)),
                             ),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.of(dCtx).pop(), child: const Text('Cerrar')),
-                            ],
                           ),
-                        );
-                      },
+                        ]),
+                      if (_photos.length < _maxPhotos)
+                        OutlinedButton.icon(
+                          onPressed: _uploading ? null : _pickPhoto,
+                          icon: _uploading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.add_a_photo_outlined),
+                          label: Text(l10n.catAddPhoto),
+                        ),
+                    ]),
+              ]),
+              _section(context, l10n.catSectionId, [
+                TextField(
+                  controller: _sku,
+                  maxLength: 64,
+                  decoration: InputDecoration(
+                      labelText: l10n.catSkuLabel,
+                      helperText: l10n.catSkuHelper),
+                ),
+                gap,
+                TextField(
+                  controller: _barcode,
+                  keyboardType: TextInputType.number,
+                  maxLength: 14,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: l10n.catBarcode,
+                    errorText: _barcodeError,
+                    helperText: barcode.isNotEmpty &&
+                            _barcodeError == null &&
+                            isInternalCode(barcode)
+                        ? l10n.catBarcodeInternal
+                        : null,
+                    helperMaxLines: 3,
+                    suffixIcon: IconButton(
+                      tooltip: l10n.scanBarcode,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      onPressed: _scanBarcode,
                     ),
+                  ),
+                ),
+                if (barcode.isEmpty)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton(
+                      onPressed: () => setState(() => _barcode.text =
+                          generateInternalCode(
+                              DateTime.now().microsecondsSinceEpoch)),
+                      child: Text(l10n.catGenerateInternal),
+                    ),
+                  ),
+              ]),
+              _section(context, l10n.catSectionSale, [
+                DropdownButtonFormField<String>(
+                  initialValue: _unit,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                      labelText: l10n.catUnit,
+                      helperText: _isNew ? null : l10n.catUnitLocked,
+                      helperMaxLines: 2),
+                  items: [
+                    for (final u in _units)
+                      DropdownMenuItem(
+                          value: u,
+                          child: Text(switch (u) {
+                            'KG' => l10n.unit_KG,
+                            'LITER' => l10n.unit_LITER,
+                            'METER' => l10n.unit_METER,
+                            _ => l10n.unit_UNIT,
+                          })),
                   ],
+                  onChanged: _isNew
+                      ? (v) => setState(() => _unit = v ?? 'UNIT')
+                      : null,
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Venta
-            _Section(title: l10n.sectionSale),
-            DropdownButtonFormField<String>(
-              initialValue: _unit,
-              decoration: InputDecoration(labelText: l10n.fieldUnit),
-              items: const [
-                DropdownMenuItem(value: 'ud', child: Text('Unidad (ud)')),
-                DropdownMenuItem(value: 'kg', child: Text('kg')),
-                DropdownMenuItem(value: 'g', child: Text('g')),
-                DropdownMenuItem(value: 'L', child: Text('L')),
-                DropdownMenuItem(value: 'mL', child: Text('mL')),
-                DropdownMenuItem(value: 'm', child: Text('m')),
-                DropdownMenuItem(value: 'cm', child: Text('cm')),
-                DropdownMenuItem(value: 'm2', child: Text('m²')),
-              ],
-              onChanged: (v) => setState(() => _unit = v ?? 'ud'),
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              title: Text(l10n.sellByWeight),
-              value: _sellByWeight,
-              onChanged: (v) => setState(() => _sellByWeight = v),
-            ),
-            PPTextField(label: l10n.fieldPrice, controller: _price, keyboardType: TextInputType.number),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              title: Text(l10n.priceIncludesTax),
-              value: true,
-              onChanged: (_) {},
-            ),
-            PPTextField(label: l10n.fieldCost, controller: _cost, keyboardType: TextInputType.number),
-            const SizedBox(height: 16),
-            // Impuestos
-            _Section(title: l10n.sectionTaxes),
-            DropdownButtonFormField<String>(
-              initialValue: _taxTreatment,
-              decoration: InputDecoration(labelText: l10n.fieldTaxTreatment),
-              items: const [
-                DropdownMenuItem(value: 'gravado', child: Text('Gravado')),
-                DropdownMenuItem(value: 'exento', child: Text('Exento')),
-                DropdownMenuItem(value: 'no_sujeto', child: Text('No sujeto')),
-              ],
-              onChanged: (v) => setState(() => _taxTreatment = v ?? 'gravado'),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _taxRate,
-              decoration: InputDecoration(labelText: l10n.fieldTaxRate),
-              items: const [
-                DropdownMenuItem(value: '7', child: Text('7 %')),
-                DropdownMenuItem(value: '10', child: Text('10 %')),
-                DropdownMenuItem(value: '15', child: Text('15 %')),
-                DropdownMenuItem(value: '0', child: Text('0 %')),
-              ],
-              onChanged: (v) => setState(() => _taxRate = v ?? '7'),
-            ),
-            const SizedBox(height: 16),
-            // Inventario
-            _Section(title: l10n.sectionInventory),
-            SwitchListTile(title: Text(l10n.trackStock), value: _trackStock, onChanged: (v) => setState(() => _trackStock = v)),
-            SwitchListTile(title: Text(l10n.trackLot), value: _trackLot, onChanged: (v) => setState(() => _trackLot = v)),
-            PPTextField(label: l10n.fieldMinStock, controller: _minStock, keyboardType: TextInputType.number),
-            const SizedBox(height: 16),
-            // Restricciones
-            _Section(title: l10n.sectionRestrictions),
-            SwitchListTile(title: Text(l10n.onlyAdults), value: _onlyAdults, onChanged: (v) => setState(() => _onlyAdults = v)),
-            SwitchListTile(title: Text(l10n.requiresPrescription), value: _requiresPrescription, onChanged: (v) => setState(() => _requiresPrescription = v)),
-            const SizedBox(height: 16),
-            // Garantía
-            _Section(title: l10n.sectionWarranty),
-            PPTextField(label: l10n.fieldWarrantyDays, controller: _warrantyDays, keyboardType: TextInputType.number),
-            const SizedBox(height: 16),
-            // Panel de readiness
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.readinessTitle, style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 4),
-                    Text(l10n.readinessReadyToSell, style: Theme.of(context).textTheme.bodySmall),
-                    Text(l10n.readinessReadyToPublish, style: Theme.of(context).textTheme.bodySmall),
+                gap,
+                TextField(
+                  controller: _price,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: l10n.catPrice,
+                    prefixText: r'$ ',
+                    errorText: _submitted ? _priceError : null,
+                    helperText: l10n.catPriceIncludesTax,
+                  ),
+                ),
+              ]),
+              _section(context, l10n.catSectionTax, [
+                Text(l10n.catTaxTreatment, style: theme.textTheme.labelLarge),
+                gap,
+                SegmentedButton<bool>(
+                  segments: [
+                    ButtonSegment(value: false, label: Text(l10n.catTaxed)),
+                    ButtonSegment(value: true, label: Text(l10n.catExempt)),
                   ],
+                  selected: {_exempt},
+                  onSelectionChanged: (s) => setState(() => _exempt = s.first),
                 ),
+                if (!_exempt) ...[
+                  gap,
+                  if (snap.hasError)
+                    Text(l10n.catTaxRatesUnavailable,
+                        style: TextStyle(color: theme.colorScheme.error))
+                  else
+                    DropdownButtonFormField<int>(
+                      initialValue: rates.any((r) => r.rateBps == _rateBps)
+                          ? _rateBps
+                          : null,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                          labelText: l10n.catTaxRate,
+                          errorText: _submitted && _rateBps == 0
+                              ? l10n.error_TAX_TREATMENT_MISSING
+                              : null),
+                      items: [
+                        for (final r in rates)
+                          DropdownMenuItem(
+                            value: r.rateBps,
+                            child: Text(l10n.catTaxRateOption(
+                                switch (r.kind) {
+                                  'ALCOHOL' => l10n.taxKind_ALCOHOL,
+                                  'TOBACCO' => l10n.taxKind_TOBACCO,
+                                  _ => l10n.taxKind_STANDARD,
+                                },
+                                percentOf(r.rateBps))),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() => _rateBps = v ?? 0),
+                    ),
+                ],
+              ]),
+              _section(context, l10n.catSectionInventory, [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l10n.catTrackStock),
+                  value: _track,
+                  onChanged: (v) => setState(() => _track = v),
+                ),
+              ]),
+              Semantics(
+                liveRegion: true,
+                child: Row(children: [
+                  Icon(
+                      missing.isEmpty
+                          ? Icons.check_circle_outline
+                          : Icons.info_outline,
+                      color: missing.isEmpty
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant),
+                  const SizedBox(width: AppTokens.spacingSm),
+                  Expanded(
+                    child: Text(
+                        missing.isEmpty
+                            ? l10n.catReadyToSell
+                            : l10n.catMissingToSell(missing.join(', ')),
+                        style: theme.textTheme.bodyMedium),
+                  ),
+                ]),
               ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: PPButton.primary(
-            label: l10n.actionSave,
-            onPressed: () {
-              final name = _name.text.trim();
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Por favor ingresa el nombre del producto.')),
-                );
-                return;
-              }
-              final price = _price.text.trim();
-              if (price.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Por favor ingresa el precio de venta.')),
-                );
-                return;
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('✓ Producto "$name" registrado exitosamente.'),
-                  behavior: SnackBarBehavior.floating,
+              if (_error != null) ...[
+                const SizedBox(height: AppTokens.spacingMd),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(_error!,
+                      style: TextStyle(color: theme.colorScheme.error)),
                 ),
-              );
-              Navigator.of(context).pop();
-            },
-          ),
-        ),
+              ],
+              const SizedBox(height: AppTokens.spacingLg),
+              PPButton.primary(
+                  label: l10n.actionSave, loading: _saving, onPressed: _save),
+              if (!_isNew && !widget.product!.archived) ...[
+                const SizedBox(height: AppTokens.spacingSm),
+                PPButton.text(
+                    label: l10n.catArchive,
+                    onPressed: _saving ? null : _archive),
+              ],
+            ],
+          );
+        },
       ),
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
-      child: Text(title, style: Theme.of(context).textTheme.titleSmall),
     );
   }
 }

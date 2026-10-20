@@ -4334,6 +4334,1308 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Recarga desde {rail}'**
   String topupResult(String rail);
+
+  /// No description provided for @catFilterActive.
+  ///
+  /// In es, this message translates to:
+  /// **'Activos'**
+  String get catFilterActive;
+
+  /// No description provided for @catFilterArchived.
+  ///
+  /// In es, this message translates to:
+  /// **'Archivados'**
+  String get catFilterArchived;
+
+  /// No description provided for @catEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes productos.'**
+  String get catEmpty;
+
+  /// No description provided for @catNewProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Nuevo producto'**
+  String get catNewProduct;
+
+  /// No description provided for @catCategories.
+  ///
+  /// In es, this message translates to:
+  /// **'Categorías'**
+  String get catCategories;
+
+  /// No description provided for @catSkuValue.
+  ///
+  /// In es, this message translates to:
+  /// **'SKU {sku}'**
+  String catSkuValue(String sku);
+
+  /// No description provided for @catArchivedChip.
+  ///
+  /// In es, this message translates to:
+  /// **'Archivado'**
+  String get catArchivedChip;
+
+  /// No description provided for @catLoadMore.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargar más'**
+  String get catLoadMore;
+
+  /// No description provided for @catUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'El catálogo no está disponible en este momento. Intenta de nuevo más tarde.'**
+  String get catUnavailable;
+
+  /// No description provided for @catEditTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar producto'**
+  String get catEditTitle;
+
+  /// No description provided for @catSectionBasic.
+  ///
+  /// In es, this message translates to:
+  /// **'Básico'**
+  String get catSectionBasic;
+
+  /// No description provided for @catName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre'**
+  String get catName;
+
+  /// No description provided for @catNameError.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe entre 2 y 120 caracteres.'**
+  String get catNameError;
+
+  /// No description provided for @catDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Descripción'**
+  String get catDescription;
+
+  /// No description provided for @catCategory.
+  ///
+  /// In es, this message translates to:
+  /// **'Categoría'**
+  String get catCategory;
+
+  /// No description provided for @catNoCategory.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin categoría'**
+  String get catNoCategory;
+
+  /// No description provided for @catPhotos.
+  ///
+  /// In es, this message translates to:
+  /// **'Fotos'**
+  String get catPhotos;
+
+  /// No description provided for @catAddPhoto.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar foto'**
+  String get catAddPhoto;
+
+  /// No description provided for @catRemovePhoto.
+  ///
+  /// In es, this message translates to:
+  /// **'Quitar foto'**
+  String get catRemovePhoto;
+
+  /// No description provided for @catSectionId.
+  ///
+  /// In es, this message translates to:
+  /// **'Identificación'**
+  String get catSectionId;
+
+  /// No description provided for @catSkuLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'SKU'**
+  String get catSkuLabel;
+
+  /// No description provided for @catSkuHelper.
+  ///
+  /// In es, this message translates to:
+  /// **'Si lo dejas vacío, se genera uno.'**
+  String get catSkuHelper;
+
+  /// No description provided for @catBarcode.
+  ///
+  /// In es, this message translates to:
+  /// **'Código de barras'**
+  String get catBarcode;
+
+  /// No description provided for @catBarcodeInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'El código de barras no es válido.'**
+  String get catBarcodeInvalid;
+
+  /// No description provided for @catBarcodeInternal.
+  ///
+  /// In es, this message translates to:
+  /// **'Este código es de uso interno de tienda; no identifica el producto fuera de tu negocio.'**
+  String get catBarcodeInternal;
+
+  /// No description provided for @catGenerateInternal.
+  ///
+  /// In es, this message translates to:
+  /// **'Generar código interno'**
+  String get catGenerateInternal;
+
+  /// No description provided for @catSectionSale.
+  ///
+  /// In es, this message translates to:
+  /// **'Venta'**
+  String get catSectionSale;
+
+  /// No description provided for @catUnit.
+  ///
+  /// In es, this message translates to:
+  /// **'Unidad de medida'**
+  String get catUnit;
+
+  /// No description provided for @unit_UNIT.
+  ///
+  /// In es, this message translates to:
+  /// **'Unidad (ud)'**
+  String get unit_UNIT;
+
+  /// No description provided for @unit_KG.
+  ///
+  /// In es, this message translates to:
+  /// **'Kilogramo (kg)'**
+  String get unit_KG;
+
+  /// No description provided for @unit_LITER.
+  ///
+  /// In es, this message translates to:
+  /// **'Litro (L)'**
+  String get unit_LITER;
+
+  /// No description provided for @unit_METER.
+  ///
+  /// In es, this message translates to:
+  /// **'Metro (m)'**
+  String get unit_METER;
+
+  /// No description provided for @catUnitLocked.
+  ///
+  /// In es, this message translates to:
+  /// **'La unidad no se cambia después de crear el producto.'**
+  String get catUnitLocked;
+
+  /// No description provided for @catPrice.
+  ///
+  /// In es, this message translates to:
+  /// **'Precio de venta'**
+  String get catPrice;
+
+  /// No description provided for @catPriceError.
+  ///
+  /// In es, this message translates to:
+  /// **'El precio debe ser mayor que \$0.00.'**
+  String get catPriceError;
+
+  /// No description provided for @catPriceIncludesTax.
+  ///
+  /// In es, this message translates to:
+  /// **'El precio incluye ITBMS.'**
+  String get catPriceIncludesTax;
+
+  /// No description provided for @catSectionTax.
+  ///
+  /// In es, this message translates to:
+  /// **'Impuestos'**
+  String get catSectionTax;
+
+  /// No description provided for @catTaxTreatment.
+  ///
+  /// In es, this message translates to:
+  /// **'Tratamiento'**
+  String get catTaxTreatment;
+
+  /// No description provided for @catTaxed.
+  ///
+  /// In es, this message translates to:
+  /// **'Gravado'**
+  String get catTaxed;
+
+  /// No description provided for @catExempt.
+  ///
+  /// In es, this message translates to:
+  /// **'Exento'**
+  String get catExempt;
+
+  /// No description provided for @catTaxRate.
+  ///
+  /// In es, this message translates to:
+  /// **'Tasa de ITBMS'**
+  String get catTaxRate;
+
+  /// No description provided for @taxKind_STANDARD.
+  ///
+  /// In es, this message translates to:
+  /// **'General'**
+  String get taxKind_STANDARD;
+
+  /// No description provided for @taxKind_ALCOHOL.
+  ///
+  /// In es, this message translates to:
+  /// **'Alcohol y hospedaje'**
+  String get taxKind_ALCOHOL;
+
+  /// No description provided for @taxKind_TOBACCO.
+  ///
+  /// In es, this message translates to:
+  /// **'Tabaco'**
+  String get taxKind_TOBACCO;
+
+  /// No description provided for @catTaxRateOption.
+  ///
+  /// In es, this message translates to:
+  /// **'{kind} · {percent}'**
+  String catTaxRateOption(String kind, String percent);
+
+  /// No description provided for @catTaxRatesUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'No pudimos cargar las tasas de ITBMS vigentes.'**
+  String get catTaxRatesUnavailable;
+
+  /// No description provided for @catSectionInventory.
+  ///
+  /// In es, this message translates to:
+  /// **'Inventario'**
+  String get catSectionInventory;
+
+  /// No description provided for @catTrackStock.
+  ///
+  /// In es, this message translates to:
+  /// **'Controlar existencias'**
+  String get catTrackStock;
+
+  /// No description provided for @catArchive.
+  ///
+  /// In es, this message translates to:
+  /// **'Archivar'**
+  String get catArchive;
+
+  /// No description provided for @catArchiveConfirmTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Archivar {name}?'**
+  String catArchiveConfirmTitle(String name);
+
+  /// No description provided for @catArchiveConfirmBody.
+  ///
+  /// In es, this message translates to:
+  /// **'El producto deja de venderse. No se borra y su historial se conserva.'**
+  String get catArchiveConfirmBody;
+
+  /// No description provided for @catReadyToSell.
+  ///
+  /// In es, this message translates to:
+  /// **'Listo para vender'**
+  String get catReadyToSell;
+
+  /// No description provided for @catMissingToSell.
+  ///
+  /// In es, this message translates to:
+  /// **'Falta para vender: {missing}'**
+  String catMissingToSell(String missing);
+
+  /// No description provided for @catSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto guardado.'**
+  String get catSaved;
+
+  /// No description provided for @catCategoriesEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes categorías.'**
+  String get catCategoriesEmpty;
+
+  /// No description provided for @catNewCategory.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva categoría'**
+  String get catNewCategory;
+
+  /// No description provided for @catParentCategory.
+  ///
+  /// In es, this message translates to:
+  /// **'Categoría superior'**
+  String get catParentCategory;
+
+  /// No description provided for @catNoParent.
+  ///
+  /// In es, this message translates to:
+  /// **'Ninguna (principal)'**
+  String get catNoParent;
+
+  /// No description provided for @error_SKU_TAKEN.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya tienes un producto con ese SKU.'**
+  String get error_SKU_TAKEN;
+
+  /// No description provided for @error_BARCODE_TAKEN.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya tienes un producto con ese código de barras.'**
+  String get error_BARCODE_TAKEN;
+
+  /// No description provided for @error_INVALID_BARCODE.
+  ///
+  /// In es, this message translates to:
+  /// **'El código de barras no es válido.'**
+  String get error_INVALID_BARCODE;
+
+  /// No description provided for @error_INVALID_TAX_RATE.
+  ///
+  /// In es, this message translates to:
+  /// **'La tasa de ITBMS no es una tasa vigente.'**
+  String get error_INVALID_TAX_RATE;
+
+  /// No description provided for @error_TAX_TREATMENT_MISSING.
+  ///
+  /// In es, this message translates to:
+  /// **'Indica el tratamiento de ITBMS.'**
+  String get error_TAX_TREATMENT_MISSING;
+
+  /// No description provided for @error_CATEGORY_DEPTH_EXCEEDED.
+  ///
+  /// In es, this message translates to:
+  /// **'Máximo 4 niveles de categorías.'**
+  String get error_CATEGORY_DEPTH_EXCEEDED;
+
+  /// No description provided for @error_VERSION_CONFLICT.
+  ///
+  /// In es, this message translates to:
+  /// **'Alguien más cambió este registro. Vuelve a cargarlo.'**
+  String get error_VERSION_CONFLICT;
+
+  /// No description provided for @invTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Existencias'**
+  String get invTitle;
+
+  /// No description provided for @invLowCard.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} por agotarse'**
+  String invLowCard(String n);
+
+  /// No description provided for @invOutCard.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} agotados'**
+  String invOutCard(String n);
+
+  /// No description provided for @invAllWarehouses.
+  ///
+  /// In es, this message translates to:
+  /// **'Todas las bodegas'**
+  String get invAllWarehouses;
+
+  /// No description provided for @invAvailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Disponible'**
+  String get invAvailable;
+
+  /// No description provided for @invReserved.
+  ///
+  /// In es, this message translates to:
+  /// **'Reservado'**
+  String get invReserved;
+
+  /// No description provided for @invMinimum.
+  ///
+  /// In es, this message translates to:
+  /// **'Mínimo'**
+  String get invMinimum;
+
+  /// No description provided for @invEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no hay existencias registradas. Haz un ajuste de conteo para empezar.'**
+  String get invEmpty;
+
+  /// No description provided for @invAdjust.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajustar'**
+  String get invAdjust;
+
+  /// No description provided for @invTransfer.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferir'**
+  String get invTransfer;
+
+  /// No description provided for @invWarehouses.
+  ///
+  /// In es, this message translates to:
+  /// **'Bodegas'**
+  String get invWarehouses;
+
+  /// No description provided for @invUnknownProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto no disponible'**
+  String get invUnknownProduct;
+
+  /// No description provided for @invByWarehouse.
+  ///
+  /// In es, this message translates to:
+  /// **'Por bodega'**
+  String get invByWarehouse;
+
+  /// No description provided for @invMovements.
+  ///
+  /// In es, this message translates to:
+  /// **'Movimientos'**
+  String get invMovements;
+
+  /// No description provided for @invNoMovements.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin movimientos todavía.'**
+  String get invNoMovements;
+
+  /// No description provided for @mov_RECEIPT.
+  ///
+  /// In es, this message translates to:
+  /// **'Recepción'**
+  String get mov_RECEIPT;
+
+  /// No description provided for @mov_SALE.
+  ///
+  /// In es, this message translates to:
+  /// **'Venta'**
+  String get mov_SALE;
+
+  /// No description provided for @mov_ADJUSTMENT.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajuste'**
+  String get mov_ADJUSTMENT;
+
+  /// No description provided for @mov_TRANSFER_OUT.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferencia (salida)'**
+  String get mov_TRANSFER_OUT;
+
+  /// No description provided for @mov_TRANSFER_IN.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferencia (entrada)'**
+  String get mov_TRANSFER_IN;
+
+  /// No description provided for @mov_RETURN.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolución'**
+  String get mov_RETURN;
+
+  /// No description provided for @mov_WRITE_OFF.
+  ///
+  /// In es, this message translates to:
+  /// **'Baja'**
+  String get mov_WRITE_OFF;
+
+  /// No description provided for @invAdjustTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajuste de existencias'**
+  String get invAdjustTitle;
+
+  /// No description provided for @invWarehouse.
+  ///
+  /// In es, this message translates to:
+  /// **'Bodega'**
+  String get invWarehouse;
+
+  /// No description provided for @invProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto'**
+  String get invProduct;
+
+  /// No description provided for @invSelectProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige un producto'**
+  String get invSelectProduct;
+
+  /// No description provided for @invSystemQty.
+  ///
+  /// In es, this message translates to:
+  /// **'Sistema {qty}'**
+  String invSystemQty(String qty);
+
+  /// No description provided for @invCounted.
+  ///
+  /// In es, this message translates to:
+  /// **'Contado'**
+  String get invCounted;
+
+  /// No description provided for @invDifferenceQty.
+  ///
+  /// In es, this message translates to:
+  /// **'Diferencia {qty}'**
+  String invDifferenceQty(String qty);
+
+  /// No description provided for @invReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo'**
+  String get invReason;
+
+  /// No description provided for @invReason_COUNT.
+  ///
+  /// In es, this message translates to:
+  /// **'Conteo físico'**
+  String get invReason_COUNT;
+
+  /// No description provided for @invReason_DAMAGE.
+  ///
+  /// In es, this message translates to:
+  /// **'Daño'**
+  String get invReason_DAMAGE;
+
+  /// No description provided for @invReason_EXPIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Vencimiento'**
+  String get invReason_EXPIRED;
+
+  /// No description provided for @invReason_LOSS.
+  ///
+  /// In es, this message translates to:
+  /// **'Robo o pérdida'**
+  String get invReason_LOSS;
+
+  /// No description provided for @invReason_ERROR.
+  ///
+  /// In es, this message translates to:
+  /// **'Error de registro'**
+  String get invReason_ERROR;
+
+  /// No description provided for @invReason_OTHER.
+  ///
+  /// In es, this message translates to:
+  /// **'Otro'**
+  String get invReason_OTHER;
+
+  /// No description provided for @invReasonOtherHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Describe el motivo'**
+  String get invReasonOtherHint;
+
+  /// No description provided for @invApplyAdjust.
+  ///
+  /// In es, this message translates to:
+  /// **'Aplicar ajuste'**
+  String get invApplyAdjust;
+
+  /// No description provided for @invAdjustConfirmTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Aplicar el ajuste?'**
+  String get invAdjustConfirmTitle;
+
+  /// No description provided for @invAdjustConfirmBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Un ajuste no se edita ni se borra: se corrige con otro ajuste.'**
+  String get invAdjustConfirmBody;
+
+  /// No description provided for @invAdjustDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajuste aplicado.'**
+  String get invAdjustDone;
+
+  /// No description provided for @invNoDifference.
+  ///
+  /// In es, this message translates to:
+  /// **'El conteo coincide con el sistema.'**
+  String get invNoDifference;
+
+  /// No description provided for @invTransferTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferencia'**
+  String get invTransferTitle;
+
+  /// No description provided for @invFrom.
+  ///
+  /// In es, this message translates to:
+  /// **'Origen'**
+  String get invFrom;
+
+  /// No description provided for @invTo.
+  ///
+  /// In es, this message translates to:
+  /// **'Destino'**
+  String get invTo;
+
+  /// No description provided for @invQuantity.
+  ///
+  /// In es, this message translates to:
+  /// **'Cantidad'**
+  String get invQuantity;
+
+  /// No description provided for @invQtyError.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe una cantidad mayor que 0.'**
+  String get invQtyError;
+
+  /// No description provided for @invTransferDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferencia registrada.'**
+  String get invTransferDone;
+
+  /// No description provided for @invNeedTwoWarehouses.
+  ///
+  /// In es, this message translates to:
+  /// **'Para transferir necesitas al menos dos bodegas.'**
+  String get invNeedTwoWarehouses;
+
+  /// No description provided for @invNewWarehouse.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva bodega'**
+  String get invNewWarehouse;
+
+  /// No description provided for @invDefaultChip.
+  ///
+  /// In es, this message translates to:
+  /// **'Principal'**
+  String get invDefaultChip;
+
+  /// No description provided for @invActive.
+  ///
+  /// In es, this message translates to:
+  /// **'Activa'**
+  String get invActive;
+
+  /// No description provided for @invInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'Inactiva'**
+  String get invInactive;
+
+  /// No description provided for @error_OUT_OF_STOCK.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay existencia suficiente.'**
+  String get error_OUT_OF_STOCK;
+
+  /// No description provided for @error_MOVEMENT_REASON_REQUIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Indica el motivo del ajuste.'**
+  String get error_MOVEMENT_REASON_REQUIRED;
+
+  /// No description provided for @error_VARIANT_NOT_FOUND.
+  ///
+  /// In es, this message translates to:
+  /// **'El producto no existe o está archivado.'**
+  String get error_VARIANT_NOT_FOUND;
+
+  /// No description provided for @error_INVENTORY_NOT_TRACKED.
+  ///
+  /// In es, this message translates to:
+  /// **'Este producto no controla existencias.'**
+  String get error_INVENTORY_NOT_TRACKED;
+
+  /// No description provided for @error_SAME_WAREHOUSE.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige dos bodegas distintas.'**
+  String get error_SAME_WAREHOUSE;
+
+  /// No description provided for @error_INVALID_WAREHOUSE.
+  ///
+  /// In es, this message translates to:
+  /// **'La bodega no es válida o está inactiva.'**
+  String get error_INVALID_WAREHOUSE;
+
+  /// No description provided for @error_IDEMPOTENCY_KEY_REUSED.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta operación ya se registró con otros datos.'**
+  String get error_IDEMPOTENCY_KEY_REUSED;
+
+  /// No description provided for @posOpenTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir caja'**
+  String get posOpenTitle;
+
+  /// No description provided for @posTerminal.
+  ///
+  /// In es, this message translates to:
+  /// **'Caja'**
+  String get posTerminal;
+
+  /// No description provided for @posTerminalHelper.
+  ///
+  /// In es, this message translates to:
+  /// **'Cada caja cobra en uno de tus puntos de cobro.'**
+  String get posTerminalHelper;
+
+  /// No description provided for @posNoTerminals.
+  ///
+  /// In es, this message translates to:
+  /// **'Primero crea un punto de cobro en Finanzas.'**
+  String get posNoTerminals;
+
+  /// No description provided for @posOpeningFloat.
+  ///
+  /// In es, this message translates to:
+  /// **'Fondo inicial en efectivo'**
+  String get posOpeningFloat;
+
+  /// No description provided for @posOpen.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir caja'**
+  String get posOpen;
+
+  /// No description provided for @posSearchHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar o escanear'**
+  String get posSearchHint;
+
+  /// No description provided for @posTicket.
+  ///
+  /// In es, this message translates to:
+  /// **'Ticket'**
+  String get posTicket;
+
+  /// No description provided for @posTicketEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Agrega productos a la venta.'**
+  String get posTicketEmpty;
+
+  /// No description provided for @posSubtotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Subtotal'**
+  String get posSubtotal;
+
+  /// No description provided for @posTaxLine.
+  ///
+  /// In es, this message translates to:
+  /// **'ITBMS {percent}'**
+  String posTaxLine(String percent);
+
+  /// No description provided for @posExempt.
+  ///
+  /// In es, this message translates to:
+  /// **'Exento'**
+  String get posExempt;
+
+  /// No description provided for @posTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Total'**
+  String get posTotal;
+
+  /// No description provided for @posCharge.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobrar {total}'**
+  String posCharge(String total);
+
+  /// No description provided for @posClear.
+  ///
+  /// In es, this message translates to:
+  /// **'Vaciar'**
+  String get posClear;
+
+  /// No description provided for @posClearConfirm.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Vaciar el ticket?'**
+  String get posClearConfirm;
+
+  /// No description provided for @posCustomerFinal.
+  ///
+  /// In es, this message translates to:
+  /// **'Consumidor final'**
+  String get posCustomerFinal;
+
+  /// No description provided for @posNotFound.
+  ///
+  /// In es, this message translates to:
+  /// **'No encontramos un producto con ese código.'**
+  String get posNotFound;
+
+  /// No description provided for @posQtyTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Cantidad de {name}'**
+  String posQtyTitle(String name);
+
+  /// No description provided for @posStockQty.
+  ///
+  /// In es, this message translates to:
+  /// **'Existencias: {qty}'**
+  String posStockQty(String qty);
+
+  /// No description provided for @posMenuSales.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas del turno'**
+  String get posMenuSales;
+
+  /// No description provided for @posMenuCash.
+  ///
+  /// In es, this message translates to:
+  /// **'Movimientos de caja'**
+  String get posMenuCash;
+
+  /// No description provided for @posMenuClose.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar caja'**
+  String get posMenuClose;
+
+  /// No description provided for @posProductsEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes productos en el catálogo.'**
+  String get posProductsEmpty;
+
+  /// No description provided for @posRemoveLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Quitar {name}'**
+  String posRemoveLine(String name);
+
+  /// No description provided for @posIncrease.
+  ///
+  /// In es, this message translates to:
+  /// **'Sumar uno'**
+  String get posIncrease;
+
+  /// No description provided for @posDecrease.
+  ///
+  /// In es, this message translates to:
+  /// **'Restar uno'**
+  String get posDecrease;
+
+  /// No description provided for @posPayTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobro'**
+  String get posPayTitle;
+
+  /// No description provided for @posRemaining.
+  ///
+  /// In es, this message translates to:
+  /// **'Falta {amount}'**
+  String posRemaining(String amount);
+
+  /// No description provided for @posMethodCash.
+  ///
+  /// In es, this message translates to:
+  /// **'Efectivo'**
+  String get posMethodCash;
+
+  /// No description provided for @posMethodWallet.
+  ///
+  /// In es, this message translates to:
+  /// **'Saldo PlentyPay'**
+  String get posMethodWallet;
+
+  /// No description provided for @posReceived.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibido'**
+  String get posReceived;
+
+  /// No description provided for @posChange.
+  ///
+  /// In es, this message translates to:
+  /// **'Vuelto {amount}'**
+  String posChange(String amount);
+
+  /// No description provided for @posExact.
+  ///
+  /// In es, this message translates to:
+  /// **'Monto exacto'**
+  String get posExact;
+
+  /// No description provided for @posWalletWaiting.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperando al cliente…'**
+  String get posWalletWaiting;
+
+  /// No description provided for @posWalletScan.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanea para pagar {amount}'**
+  String posWalletScan(String amount);
+
+  /// No description provided for @posFinish.
+  ///
+  /// In es, this message translates to:
+  /// **'Finalizar venta'**
+  String get posFinish;
+
+  /// No description provided for @posConfirming.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmando'**
+  String get posConfirming;
+
+  /// No description provided for @posPaidChip.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagado'**
+  String get posPaidChip;
+
+  /// No description provided for @posLeaveWaiting.
+  ///
+  /// In es, this message translates to:
+  /// **'Dejar la venta en espera'**
+  String get posLeaveWaiting;
+
+  /// No description provided for @posWalletFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'El cliente no completó el pago. Elige otro medio.'**
+  String get posWalletFailed;
+
+  /// No description provided for @posCashShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Lo recibido no cubre el monto.'**
+  String get posCashShort;
+
+  /// No description provided for @posWalletAmount.
+  ///
+  /// In es, this message translates to:
+  /// **'Monto con saldo PlentyPay'**
+  String get posWalletAmount;
+
+  /// No description provided for @posReceiptTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibo'**
+  String get posReceiptTitle;
+
+  /// No description provided for @posReceiptNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibo {number}'**
+  String posReceiptNumber(String number);
+
+  /// No description provided for @posInternalReceipt.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibo interno'**
+  String get posInternalReceipt;
+
+  /// No description provided for @posNotFiscal.
+  ///
+  /// In es, this message translates to:
+  /// **'Este documento no es una factura fiscal.'**
+  String get posNotFiscal;
+
+  /// No description provided for @posNewSale.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva venta'**
+  String get posNewSale;
+
+  /// No description provided for @posPayments.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagos'**
+  String get posPayments;
+
+  /// No description provided for @posSalesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas del turno'**
+  String get posSalesTitle;
+
+  /// No description provided for @posSalesEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no hay ventas en este turno.'**
+  String get posSalesEmpty;
+
+  /// No description provided for @saleStatus_PAID.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagada'**
+  String get saleStatus_PAID;
+
+  /// No description provided for @saleStatus_AWAITING_PAYMENT.
+  ///
+  /// In es, this message translates to:
+  /// **'Por confirmar'**
+  String get saleStatus_AWAITING_PAYMENT;
+
+  /// No description provided for @saleStatus_VOIDED.
+  ///
+  /// In es, this message translates to:
+  /// **'Anulada'**
+  String get saleStatus_VOIDED;
+
+  /// No description provided for @saleStatus_OPEN.
+  ///
+  /// In es, this message translates to:
+  /// **'Abierta'**
+  String get saleStatus_OPEN;
+
+  /// No description provided for @posSaleNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'N.º {number}'**
+  String posSaleNumber(String number);
+
+  /// No description provided for @posCashTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Movimientos de caja'**
+  String get posCashTitle;
+
+  /// No description provided for @posExpected.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperado en caja'**
+  String get posExpected;
+
+  /// No description provided for @posCashIn.
+  ///
+  /// In es, this message translates to:
+  /// **'Entrada'**
+  String get posCashIn;
+
+  /// No description provided for @posCashOut.
+  ///
+  /// In es, this message translates to:
+  /// **'Salida'**
+  String get posCashOut;
+
+  /// No description provided for @posAmount.
+  ///
+  /// In es, this message translates to:
+  /// **'Monto'**
+  String get posAmount;
+
+  /// No description provided for @posReason_CHANGE.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambio'**
+  String get posReason_CHANGE;
+
+  /// No description provided for @posReason_SUPPLIER.
+  ///
+  /// In es, this message translates to:
+  /// **'Pago a proveedor'**
+  String get posReason_SUPPLIER;
+
+  /// No description provided for @posReason_SAFE.
+  ///
+  /// In es, this message translates to:
+  /// **'Retiro a caja fuerte'**
+  String get posReason_SAFE;
+
+  /// No description provided for @posReason_OTHER.
+  ///
+  /// In es, this message translates to:
+  /// **'Otro'**
+  String get posReason_OTHER;
+
+  /// No description provided for @posCashRecorded.
+  ///
+  /// In es, this message translates to:
+  /// **'Movimiento registrado.'**
+  String get posCashRecorded;
+
+  /// No description provided for @posAmountError.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe un monto mayor que \$0.00.'**
+  String get posAmountError;
+
+  /// No description provided for @posCloseTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Cierre y arqueo'**
+  String get posCloseTitle;
+
+  /// No description provided for @posCounted.
+  ///
+  /// In es, this message translates to:
+  /// **'Efectivo contado'**
+  String get posCounted;
+
+  /// No description provided for @posConfirmCount.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar conteo'**
+  String get posConfirmCount;
+
+  /// No description provided for @posExpectedValue.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperado {amount}'**
+  String posExpectedValue(String amount);
+
+  /// No description provided for @posCountedValue.
+  ///
+  /// In es, this message translates to:
+  /// **'Contado {amount}'**
+  String posCountedValue(String amount);
+
+  /// No description provided for @posDifferenceValue.
+  ///
+  /// In es, this message translates to:
+  /// **'Diferencia {amount}'**
+  String posDifferenceValue(String amount);
+
+  /// No description provided for @posCloseNotes.
+  ///
+  /// In es, this message translates to:
+  /// **'Nota'**
+  String get posCloseNotes;
+
+  /// No description provided for @posCloseNotesRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Explica la diferencia.'**
+  String get posCloseNotesRequired;
+
+  /// No description provided for @posCloseDo.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar caja'**
+  String get posCloseDo;
+
+  /// No description provided for @posClosed.
+  ///
+  /// In es, this message translates to:
+  /// **'Caja cerrada.'**
+  String get posClosed;
+
+  /// No description provided for @posVoid.
+  ///
+  /// In es, this message translates to:
+  /// **'Anular venta'**
+  String get posVoid;
+
+  /// No description provided for @posVoidReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo de la anulación'**
+  String get posVoidReason;
+
+  /// No description provided for @error_SESSION_ALREADY_OPEN.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta caja ya tiene una sesión abierta.'**
+  String get error_SESSION_ALREADY_OPEN;
+
+  /// No description provided for @error_SESSION_CLOSED.
+  ///
+  /// In es, this message translates to:
+  /// **'La sesión de caja está cerrada.'**
+  String get error_SESSION_CLOSED;
+
+  /// No description provided for @error_NOT_SESSION_OWNER.
+  ///
+  /// In es, this message translates to:
+  /// **'La sesión es de otro cajero.'**
+  String get error_NOT_SESSION_OWNER;
+
+  /// No description provided for @error_SALES_PENDING.
+  ///
+  /// In es, this message translates to:
+  /// **'Tienes ventas estacionadas o por confirmar.'**
+  String get error_SALES_PENDING;
+
+  /// No description provided for @error_EMPTY_SALE.
+  ///
+  /// In es, this message translates to:
+  /// **'Agrega productos a la venta.'**
+  String get error_EMPTY_SALE;
+
+  /// No description provided for @error_TENDERS_MISMATCH.
+  ///
+  /// In es, this message translates to:
+  /// **'Los pagos no suman el total.'**
+  String get error_TENDERS_MISMATCH;
+
+  /// No description provided for @error_RAIL_NOT_SUPPORTED.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese medio de pago aún no está disponible en caja.'**
+  String get error_RAIL_NOT_SUPPORTED;
+
+  /// No description provided for @error_PRODUCT_NOT_FOUND.
+  ///
+  /// In es, this message translates to:
+  /// **'El producto no existe o está archivado.'**
+  String get error_PRODUCT_NOT_FOUND;
+
+  /// No description provided for @error_DISCOUNT_EXCEEDS_LIMIT.
+  ///
+  /// In es, this message translates to:
+  /// **'El descuento supera el máximo permitido.'**
+  String get error_DISCOUNT_EXCEEDS_LIMIT;
+
+  /// No description provided for @error_HAS_CAPTURED_PAYMENTS.
+  ///
+  /// In es, this message translates to:
+  /// **'La venta ya tiene cobros; haz una devolución.'**
+  String get error_HAS_CAPTURED_PAYMENTS;
+
+  /// No description provided for @error_REASON_REQUIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Indica el motivo.'**
+  String get error_REASON_REQUIRED;
+
+  /// No description provided for @error_TENANT_REQUIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Necesitas un negocio activo.'**
+  String get error_TENANT_REQUIRED;
+
+  /// No description provided for @paySaleAt.
+  ///
+  /// In es, this message translates to:
+  /// **'Pago de una venta en caja'**
+  String get paySaleAt;
 }
 
 class _AppLocalizationsDelegate

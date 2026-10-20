@@ -26,13 +26,25 @@ enum QrRejection {
 }
 
 class QrPaymentLink {
-  const QrPaymentLink({required this.code, required this.host});
+  const QrPaymentLink(
+      {required this.code, required this.host, this.saleId, this.amountMinor});
 
   /// Código opaco `^[A-Za-z0-9_-]{8,64}$`. Se envía al servidor; nunca se registra
   /// en claro ni se incluye en un mensaje de error.
   final String code;
   final String host;
+
+  /// QR de cobro de una venta de caja (S-POS-03 e4): `?sale=<uuid>&amount=<centavos>`. El monto
+  /// lo fija la caja; el pago lleva la referencia `{sale, id}` y pos lo verifica contra la venta.
+  final String? saleId;
+  final int? amountMinor;
 }
+
+final RegExp _uuidPattern = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+/// Tope de cordura del monto de un QR de venta (100 000.00); el límite real lo aplica el servidor.
+const int maxQrAmountMinor = 10000000;
 
 /// Resultado del escaneo: o bien el enlace, o bien el motivo del rechazo con un
 /// mensaje ya traducido.
@@ -110,7 +122,25 @@ QrScanResult parsePaymentQr(String raw, {Set<String>? allowedHosts}) {
     );
   }
 
-  return QrScanResult.accepted(QrPaymentLink(code: code, host: host));
+  final sale = uri.queryParameters['sale'];
+  final amountText = uri.queryParameters['amount'];
+  if (sale == null && amountText == null) {
+    return QrScanResult.accepted(QrPaymentLink(code: code, host: host));
+  }
+  final amount = int.tryParse(amountText ?? '');
+  if (sale == null ||
+      !_uuidPattern.hasMatch(sale) ||
+      amount == null ||
+      amount <= 0 ||
+      amount > maxQrAmountMinor ||
+      (uri.queryParameters['currency'] ?? 'USD') != 'USD') {
+    return const QrScanResult.rejected(
+      QrRejection.invalidCode,
+      'Ese código de cobro no es válido.',
+    );
+  }
+  return QrScanResult.accepted(QrPaymentLink(
+      code: code, host: host, saleId: sale.toLowerCase(), amountMinor: amount));
 }
 
 /// F23.2 · NFC NDEF.

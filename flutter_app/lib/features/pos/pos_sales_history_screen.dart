@@ -1,79 +1,122 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/async_view.dart';
 import '../../core/widgets/money_text.dart';
 import '../../core/widgets/status_chip.dart';
+import '../catalog/catalog_errors.dart';
+import '../wallet/wallet_data.dart' show walletDateTime;
+import 'pos_data.dart';
 import 'pos_receipt_screen.dart';
-import 'pos_refund_screen.dart';
 
-/// S-POS-07 · `/pos/sales` · Ventas del turno / historial.
-class PosSalesHistoryScreen extends StatelessWidget {
-  const PosSalesHistoryScreen({super.key, required this.api});
+/// Etiqueta y tono del estado de una venta (S-POS-07).
+(String, StatusTone) saleStatusChip(AppLocalizations l10n, String status) =>
+    switch (status) {
+      'PAID' => (l10n.saleStatus_PAID, StatusTone.success),
+      'AWAITING_PAYMENT' => (
+          l10n.saleStatus_AWAITING_PAYMENT,
+          StatusTone.warning
+        ),
+      'VOIDED' => (l10n.saleStatus_VOIDED, StatusTone.neutral),
+      _ => (l10n.saleStatus_OPEN, StatusTone.info),
+    };
 
+/// S-POS-07 · `/pos/sales` · Ventas del turno. Número, hora, total y estado; toca → recibo.
+/// Filtros por rango, caja, cajero y medio, y "Devolver" llegan con F17.9.
+class PosSalesHistoryScreen extends StatefulWidget {
+  const PosSalesHistoryScreen(
+      {super.key,
+      required this.api,
+      required this.session,
+      this.terminalLabel = ''});
   final ApiClient api;
+  final SessionItem session;
+  final String terminalLabel;
+
+  @override
+  State<PosSalesHistoryScreen> createState() => _PosSalesHistoryScreenState();
+}
+
+class _PosSalesHistoryScreenState extends State<PosSalesHistoryScreen> {
+  late Future<List<SaleItem>> _future = _load();
+
+  Future<List<SaleItem>> _load() async =>
+      (await loadSessionSales(widget.api, widget.session.id))
+          .where((s) => s.status != 'OPEN')
+          .toList();
+
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   @override
   Widget build(BuildContext context) {
-    final sales = [
-      {'id': 'SALE-8921', 'time': '10:45 a. m.', 'method': 'Efectivo', 'totalMinor': 2450, 'status': 'Cobrada', 'tone': StatusTone.success},
-      {'id': 'SALE-8920', 'time': '10:32 a. m.', 'method': 'Tarjeta', 'totalMinor': 1200, 'status': 'Cobrada', 'tone': StatusTone.success},
-      {'id': 'SALE-8919', 'time': '10:15 a. m.', 'method': 'QR PlentyPay', 'totalMinor': 450, 'status': 'Cobrada', 'tone': StatusTone.success},
-      {'id': 'SALE-8918', 'time': '09:40 a. m.', 'method': 'Efectivo', 'totalMinor': 890, 'status': 'Devuelta', 'tone': StatusTone.error},
-    ];
-
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final locale = Localizations.localeOf(context).toString();
+    final margin = WindowClass.of(context).horizontalMargin;
     return Scaffold(
-      appBar: AppBar(title: const Text('Ventas del turno')),
-      body: SafeArea(
-        child: ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: sales.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, i) {
-            final sale = sales[i];
-            return Card(
-              child: ListTile(
-                title: Row(
-                  children: [
-                    Text(sale['id'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 8),
-                    StatusChip(label: sale['status'] as String, tone: sale['tone'] as StatusTone),
-                  ],
+      appBar: AppBar(title: Text(l10n.posSalesTitle)),
+      body: FutureBuilder<List<SaleItem>>(
+        future: _future,
+        builder: (context, snap) => RefreshIndicator(
+          onRefresh: () async => _reload(),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+                margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
+            children: [
+              AsyncView<List<SaleItem>>(
+                snapshot: snap,
+                errorMessage: snap.hasError
+                    ? catalogErrorMessage(l10n, snap.error!)
+                    : l10n.errorNoConnection,
+                retryLabel: l10n.actionRetry,
+                onRetry: _reload,
+                isEmpty: (l) => l.isEmpty,
+                emptyView: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppTokens.spacingXl),
+                  child: Text(l10n.posSalesEmpty, textAlign: TextAlign.center),
                 ),
-                subtitle: Text('${sale['time']} · ${sale['method']}'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    MoneyText(sale['totalMinor'] as int, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    PopupMenuButton<String>(
-                      onSelected: (action) {
-                        if (action == 'receipt') {
-                          Navigator.of(context).push(MaterialPageRoute<void>(
-                            builder: (_) => PosReceiptScreen(
-                              api: api,
-                              saleId: sale['id'] as String,
-                              totalMinor: sale['totalMinor'] as int,
-                            ),
-                          ));
-                        } else if (action == 'refund') {
-                          Navigator.of(context).push(MaterialPageRoute<void>(
-                            builder: (_) => PosRefundScreen(
-                              api: api,
-                              saleId: sale['id'] as String,
-                              totalMinor: sale['totalMinor'] as int,
-                            ),
-                          ));
-                        }
-                      },
-                      itemBuilder: (ctx) => [
-                        const PopupMenuItem(value: 'receipt', child: Text('Ver comprobante')),
-                        const PopupMenuItem(value: 'refund', child: Text('Emitir devolución')),
-                      ],
-                    ),
-                  ],
+                builder: (context, sales) => Card(
+                  margin: EdgeInsets.zero,
+                  elevation: 0,
+                  color: theme.colorScheme.surfaceContainerLow,
+                  child: Column(children: [
+                    for (final s in sales)
+                      Builder(builder: (context) {
+                        final (label, tone) = saleStatusChip(l10n, s.status);
+                        return ListTile(
+                          title: Text(s.receiptNumber.isEmpty
+                              ? walletDateTime(s.createdAt, locale)
+                              : l10n.posSaleNumber(s.receiptNumber)),
+                          subtitle: Text(walletDateTime(s.createdAt, locale)),
+                          trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                MoneyText(s.totalMinor,
+                                    style: theme.textTheme.titleMedium),
+                                StatusChip(label: label, tone: tone),
+                              ]),
+                          onTap: s.isPaid
+                              ? () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                      builder: (_) => PosReceiptScreen(
+                                          api: widget.api,
+                                          sale: s,
+                                          terminalLabel: widget.terminalLabel)))
+                              : null,
+                        );
+                      }),
+                  ]),
                 ),
               ),
-            );
-          },
+            ],
+          ),
         ),
       ),
     );

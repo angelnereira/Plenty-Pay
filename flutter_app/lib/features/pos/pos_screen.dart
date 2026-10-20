@@ -2,22 +2,33 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/observability/app_logger.dart' show newRequestId;
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/async_view.dart';
+import '../../core/widgets/barcode_scanner_dialog.dart';
 import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
-import 'customer_display_screen.dart';
+import '../catalog/catalog_data.dart';
+import '../catalog/catalog_errors.dart';
+import '../catalog/product_image.dart';
+import '../finance/terminals_screen.dart' show TerminalItem;
 import 'pos_cash_movements_screen.dart';
 import 'pos_checkout_screen.dart';
 import 'pos_close_session_screen.dart';
-import 'pos_parked_screen.dart';
+import 'pos_data.dart';
 import 'pos_sales_history_screen.dart';
-import 'pos_settings_screen.dart';
-import '../../core/widgets/barcode_scanner_dialog.dart';
 
-/// S-POS-01 / S-POS-02 · `/pos` · Venta en 2 paneles.
-/// Cumple con docs/gravital-experience-ui.md (M3 Expressive) y docs/ux/functional-spec/03-pos.md.
+/// Estado de entrada a la caja: sesión abierta (o null) y los puntos de cobro del negocio.
+class _PosEntry {
+  const _PosEntry(this.session, this.terminals);
+  final SessionItem? session;
+  final List<TerminalItem> terminals;
+}
+
+/// Módulo `pos`. Sin sesión abierta muestra S-POS-01 (abrir caja); con sesión, S-POS-02 (venta).
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key, required this.api});
-
   final ApiClient api;
 
   @override
@@ -25,209 +36,526 @@ class PosScreen extends StatefulWidget {
 }
 
 class _PosScreenState extends State<PosScreen> {
-  final List<_PosLine> _lines = [
-    const _PosLine(name: 'Café Geisha Especial 250g', quantity: 1, unitPriceMinor: 1850),
-    const _PosLine(name: 'Croissant de Almendras', quantity: 2, unitPriceMinor: 425),
-  ];
+  late Future<_PosEntry> _future = _load();
 
-  String _customerName = 'Consumidor Final';
-  String _customerRuc = '';
-  int _discountPercent = 0; // 0 a 100
-
-  int get _subtotalMinor => _lines.fold(0, (a, l) => a + l.lineTotalMinor);
-  int get _discountMinor => (_subtotalMinor * _discountPercent) ~/ 100;
-  int get _netSubtotalMinor => _subtotalMinor - _discountMinor;
-  int get _taxMinor => (_netSubtotalMinor * 7) ~/ 100;
-  int get _totalMinor => _netSubtotalMinor + _taxMinor;
-
-  void _addLine(String name, int priceMinor) {
-    setState(() {
-      final existingIndex = _lines.indexWhere((l) => l.name == name);
-      if (existingIndex >= 0) {
-        final current = _lines[existingIndex];
-        _lines[existingIndex] = _PosLine(
-          name: current.name,
-          quantity: current.quantity + 1,
-          unitPriceMinor: current.unitPriceMinor,
-        );
-      } else {
-        _lines.add(_PosLine(name: name, quantity: 1, unitPriceMinor: priceMinor));
-      }
-    });
+  Future<_PosEntry> _load() async {
+    final session = await loadCurrentSession(widget.api);
+    final body = await widget.api.listTerminals();
+    final terminals = [
+      for (final t in (body['terminals'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>())
+        TerminalItem.fromJson(t),
+    ];
+    return _PosEntry(session, terminals);
   }
 
-  static const Map<String, ({String name, int priceMinor})> _catalogByBarcode = {
-    '7451000100018': (name: 'Café Geisha Especial 250g', priceMinor: 1850),
-    '7451000100025': (name: 'Croissant de Almendras', priceMinor: 425),
-    '7451000100032': (name: 'Espresso Doble Selección', priceMinor: 350),
-    '7451000100049': (name: 'Jugo de Naranja Natural', priceMinor: 300),
-    '7451000100056': (name: 'Empanada de Pollo Criolla', priceMinor: 275),
-    '7451000100063': (name: 'Pastel de Tres Leches Artesanal', priceMinor: 500),
-  };
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
-  Future<void> _scanBarcode() async {
-    final scanned = await BarcodeScannerDialog.scan(
-      context,
-      title: 'Escanear Producto POS',
-      subtitle: 'Apunta al código de barra o QR para agregarlo a la venta',
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return FutureBuilder<_PosEntry>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.hasData) {
+          final e = snap.data!;
+          return e.session == null
+              ? PosOpenView(
+                  api: widget.api,
+                  terminals: e.terminals.where((t) => t.active).toList(),
+                  onOpened: _reload)
+              : PosSellView(
+                  api: widget.api,
+                  session: e.session!,
+                  terminals: e.terminals,
+                  onClosed: _reload);
+        }
+        return Scaffold(
+          appBar: AppBar(title: Text(l10n.posOpenTitle)),
+          body: Padding(
+            padding: EdgeInsets.all(WindowClass.of(context).horizontalMargin),
+            child: AsyncView<_PosEntry>(
+              snapshot: snap,
+              errorMessage: snap.hasError
+                  ? catalogErrorMessage(l10n, snap.error!)
+                  : l10n.errorNoConnection,
+              retryLabel: l10n.actionRetry,
+              onRetry: _reload,
+              emptyView: const SizedBox.shrink(),
+              builder: (_, __) => const SizedBox.shrink(),
+            ),
+          ),
+        );
+      },
     );
-    if (scanned != null && scanned.isNotEmpty && mounted) {
-      final product = _catalogByBarcode[scanned];
-      if (product != null) {
-        _addLine(product.name, product.priceMinor);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Escaneado: ${product.name} (B/. ${(product.priceMinor / 100).toStringAsFixed(2)})'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        final newName = 'Producto SKU: $scanned';
-        _addLine(newName, 450);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Escaneado código nuevo: $scanned'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+  }
+}
+
+/// S-POS-01 · `/pos` · Abrir caja. `pos:session:manage` · `POST /v1/pos/sessions`.
+///
+/// e1 caja = uno de los puntos de cobro activos del negocio (S-FIN-04): por él cobra la billetera.
+/// e2 fondo inicial ≥ $0.00. e4 "Abrir caja"; `SESSION_ALREADY_OPEN` lo dice. El conteo por
+/// denominación (e3) y el selector de sucursal llegan con F17.3b.
+class PosOpenView extends StatefulWidget {
+  const PosOpenView(
+      {super.key,
+      required this.api,
+      required this.terminals,
+      required this.onOpened});
+  final ApiClient api;
+  final List<TerminalItem> terminals;
+  final VoidCallback onOpened;
+
+  @override
+  State<PosOpenView> createState() => _PosOpenViewState();
+}
+
+class _PosOpenViewState extends State<PosOpenView> {
+  late String? _terminal =
+      widget.terminals.isEmpty ? null : widget.terminals.first.code;
+  final _float = TextEditingController(text: '0.00');
+  final _key = newRequestId();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _float.dispose();
+    super.dispose();
+  }
+
+  Future<void> _open() async {
+    final l10n = AppLocalizations.of(context);
+    final float = MoneyText.parse(_float.text);
+    if (_terminal == null || float == null || float < 0) {
+      setState(() => _error = l10n.posAmountError);
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.api.openCashSession(
+          terminalCode: _terminal!,
+          openingFloatMinor: float,
+          idempotencyKey: _key);
+      widget.onOpened();
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'pos.open', e is ApiException ? e.reason : 'network');
+      if (mounted) setState(() => _error = catalogErrorMessage(l10n, e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  void _incrementLine(int index) {
-    setState(() {
-      final current = _lines[index];
-      _lines[index] = _PosLine(
-        name: current.name,
-        quantity: current.quantity + 1,
-        unitPriceMinor: current.unitPriceMinor,
-      );
-    });
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final margin = WindowClass.of(context).horizontalMargin;
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.posOpenTitle)),
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(
+            margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
+        children: [
+          if (widget.terminals.isEmpty)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: AppTokens.spacingXl),
+              child: Text(l10n.posNoTerminals,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge),
+            )
+          else ...[
+            DropdownButtonFormField<String>(
+              initialValue: _terminal,
+              isExpanded: true,
+              decoration: InputDecoration(
+                  labelText: l10n.posTerminal,
+                  helperText: l10n.posTerminalHelper,
+                  helperMaxLines: 2),
+              items: [
+                for (final t in widget.terminals)
+                  DropdownMenuItem(value: t.code, child: Text(t.label))
+              ],
+              onChanged: (v) => setState(() => _terminal = v),
+            ),
+            const SizedBox(height: AppTokens.spacingMd),
+            TextField(
+              controller: _float,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                  labelText: l10n.posOpeningFloat, prefixText: r'$ '),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: AppTokens.spacingMd),
+              Semantics(
+                  liveRegion: true,
+                  child: Text(_error!,
+                      style: TextStyle(color: theme.colorScheme.error))),
+            ],
+            const SizedBox(height: AppTokens.spacingLg),
+            PPButton.primary(
+                label: l10n.posOpen, loading: _saving, onPressed: _open),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// S-POS-02 · `/pos/sell` · Venta. `pos:sell`.
+///
+/// e1 buscador y escáner (código exacto agrega 1), e3 lista de productos con precio, e5 líneas con
+/// cantidad ±, e8 totales con una fila de ITBMS por tasa y Exento, e9 "Cobrar {total}", e10 "Vaciar".
+/// En ≥ expanded, dos paneles (catálogo | ticket). Cliente, descuentos, descuento de ley, entrega a
+/// domicilio, estacionar y modo sin conexión llegan con F17.4b–F17.7 (no se muestran).
+class PosSellView extends StatefulWidget {
+  const PosSellView(
+      {super.key,
+      required this.api,
+      required this.session,
+      required this.terminals,
+      required this.onClosed});
+  final ApiClient api;
+  final SessionItem session;
+  final List<TerminalItem> terminals;
+  final VoidCallback onClosed;
+
+  @override
+  State<PosSellView> createState() => _PosSellViewState();
+}
+
+class _PosSellViewState extends State<PosSellView> {
+  late final Future<Map<String, ProductItem>> _products =
+      loadProductIndex(widget.api);
+  final _search = TextEditingController();
+  final List<TicketLine> _lines = [];
+  bool _charging = false;
+
+  /// Una venta por ticket: el reintento usa el mismo `client_sale_id` y no crea otra (R7).
+  String _clientSaleId = newRequestId();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
-  void _decrementLine(int index) {
+  String get _terminalLabel {
+    final t =
+        widget.terminals.where((t) => t.code == widget.session.terminalCode);
+    return t.isEmpty ? widget.session.terminalCode : t.first.label;
+  }
+
+  void _add(ProductItem p) {
     setState(() {
-      final current = _lines[index];
-      if (current.quantity > 1) {
-        _lines[index] = _PosLine(
-          name: current.name,
-          quantity: current.quantity - 1,
-          unitPriceMinor: current.unitPriceMinor,
-        );
+      final existing = _lines.where((l) => l.product.id == p.id);
+      if (existing.isNotEmpty) {
+        existing.first.qtyMilli += 1000;
       } else {
-        _lines.removeAt(index);
+        _lines.add(TicketLine(p, 1000));
       }
     });
   }
 
-  void _showCustomerDialog() {
-    final nameCtrl = TextEditingController(text: _customerName == 'Consumidor Final' ? '' : _customerName);
-    final rucCtrl = TextEditingController(text: _customerRuc);
-
-    showDialog<void>(
+  Future<void> _addBulk(ProductItem p) async {
+    final l10n = AppLocalizations.of(context);
+    final ctrl = TextEditingController();
+    final qty = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Datos del Cliente'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Nombre / Razón Social',
-                hintText: 'Ej. Juan Pérez o Empresa S.A.',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: rucCtrl,
-              decoration: const InputDecoration(
-                labelText: 'RUC / Cédula (con DV opcional)',
-                hintText: 'Ej. 8-765-4321 DV 09',
-              ),
-            ),
-          ],
+        title: Text(l10n.posQtyTitle(p.name)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+              labelText: l10n.invQuantity,
+              suffixText:
+                  formatQty(1000, p.unitType).replaceFirst('1', '').trim()),
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              setState(() {
-                _customerName = 'Consumidor Final';
-                _customerRuc = '';
-              });
-              Navigator.of(ctx).pop();
-            },
-            child: const Text('Consumidor Final'),
-          ),
-          FilledButton(
-            onPressed: () {
-              setState(() {
-                _customerName = nameCtrl.text.trim().isEmpty ? 'Consumidor Final' : nameCtrl.text.trim();
-                _customerRuc = rucCtrl.text.trim();
-              });
-              Navigator.of(ctx).pop();
-            },
-            child: const Text('Guardar'),
-          ),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.actionCancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, parseQtyMilli(ctrl.text)),
+              child: Text(l10n.actionSave)),
         ],
       ),
     );
+    ctrl.dispose();
+    if (qty == null || qty <= 0 || !mounted) return;
+    setState(() => _lines.add(TicketLine(p, qty)));
   }
 
-  void _showDiscountDialog() {
-    showModalBottomSheet<void>(
+  void _tap(ProductItem p) => p.isBulk ? _addBulk(p) : _add(p);
+
+  Future<void> _scan(Map<String, ProductItem> products) async {
+    final l10n = AppLocalizations.of(context);
+    final code = await BarcodeScannerDialog.scan(context,
+        title: l10n.scanBarcode, subtitle: l10n.posSearchHint);
+    if (code == null || !mounted) return;
+    _addByCode(products, code.trim());
+  }
+
+  void _addByCode(Map<String, ProductItem> products, String code) {
+    final l10n = AppLocalizations.of(context);
+    final match =
+        products.values.where((p) => p.barcode == code || p.sku == code);
+    if (match.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.posNotFound)));
+      return;
+    }
+    _tap(match.first);
+    _search.clear();
+    setState(() {});
+  }
+
+  Future<void> _clear() async {
+    final l10n = AppLocalizations.of(context);
+    final ok = await showDialog<bool>(
       context: context,
-      showDragHandle: true,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Aplicar Descuento a la Venta', style: Theme.of(ctx).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ChoiceChip(
-                  label: const Text('Sin descuento (0%)'),
-                  selected: _discountPercent == 0,
-                  onSelected: (_) {
-                    setState(() => _discountPercent = 0);
-                    Navigator.of(ctx).pop();
-                  },
-                ),
-                ChoiceChip(
-                  label: const Text('Comercial 5%'),
-                  selected: _discountPercent == 5,
-                  onSelected: (_) {
-                    setState(() => _discountPercent = 5);
-                    Navigator.of(ctx).pop();
-                  },
-                ),
-                ChoiceChip(
-                  label: const Text('Comercial 10%'),
-                  selected: _discountPercent == 10,
-                  onSelected: (_) {
-                    setState(() => _discountPercent = 10);
-                    Navigator.of(ctx).pop();
-                  },
-                ),
-                ChoiceChip(
-                  label: const Text('Jubilado 25% (Ley 6)'),
-                  selected: _discountPercent == 25,
-                  onSelected: (_) {
-                    setState(() => _discountPercent = 25);
-                    Navigator.of(ctx).pop();
-                  },
-                ),
-              ],
-            ),
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.posClearConfirm),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.actionCancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.posClear)),
+        ],
+      ),
+    );
+    if (ok == true) setState(_lines.clear);
+  }
+
+  Future<void> _charge() async {
+    final l10n = AppLocalizations.of(context);
+    setState(() => _charging = true);
+    try {
+      final created = SaleItem.fromJson(await widget.api.createSale(
+          widget.session.id,
+          clientSaleId: _clientSaleId,
+          idempotencyKey: 'create-$_clientSaleId'));
+      final sale = SaleItem.fromJson(await widget.api.updateSale(
+          created.id,
+          [
+            for (final l in _lines)
+              (productId: l.product.id, qtyMilli: l.qtyMilli)
           ],
+          idempotencyKey: newRequestId()));
+      if (!mounted) return;
+      final done = await Navigator.of(context).push<bool>(MaterialPageRoute(
+          builder: (_) => PosCheckoutScreen(
+              api: widget.api, sale: sale, terminalLabel: _terminalLabel)));
+      if (done == true && mounted) {
+        setState(() {
+          _lines.clear();
+          _clientSaleId = newRequestId();
+        });
+      }
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'pos.charge', e is ApiException ? e.reason : 'network');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(catalogErrorMessage(l10n, e))));
+      }
+    } finally {
+      if (mounted) setState(() => _charging = false);
+    }
+  }
+
+  Future<void> _menu(String action) async {
+    final screen = switch (action) {
+      'sales' => PosSalesHistoryScreen(api: widget.api, session: widget.session)
+          as Widget,
+      'cash' =>
+        PosCashMovementsScreen(api: widget.api, sessionId: widget.session.id),
+      _ => PosCloseSessionScreen(api: widget.api, sessionId: widget.session.id),
+    };
+    final closed = await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => screen));
+    if (action == 'close' && closed == true) widget.onClosed();
+  }
+
+  Widget _catalogPanel(
+      BuildContext context, Map<String, ProductItem> products) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final q = _search.text.trim().toLowerCase();
+    final shown = products.values
+        .where((p) =>
+            q.isEmpty ||
+            p.name.toLowerCase().contains(q) ||
+            p.sku.toLowerCase().contains(q) ||
+            p.barcode == q)
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      TextField(
+        controller: _search,
+        textInputAction: TextInputAction.done,
+        onChanged: (_) => setState(() {}),
+        onSubmitted: (code) => _addByCode(products, code.trim()),
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search),
+          hintText: l10n.posSearchHint,
+          suffixIcon: IconButton(
+              tooltip: l10n.scanBarcode,
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: () => _scan(products)),
         ),
+      ),
+      const SizedBox(height: AppTokens.spacingSm),
+      Expanded(
+        child: products.isEmpty
+            ? Center(
+                child: Text(l10n.posProductsEmpty, textAlign: TextAlign.center))
+            : ListView.builder(
+                itemCount: shown.length,
+                itemBuilder: (context, i) {
+                  final p = shown[i];
+                  return ListTile(
+                    leading: ProductThumb(api: widget.api, product: p),
+                    title: Text(p.name),
+                    trailing: MoneyText(p.priceMinor,
+                        style: theme.textTheme.titleMedium),
+                    onTap: () => _tap(p),
+                  );
+                },
+              ),
+      ),
+    ]);
+  }
+
+  Widget _chargeButton(BuildContext context, TicketTotals totals) =>
+      PPButton.primary(
+        label: AppLocalizations.of(context)
+            .posCharge(MoneyText.format(totals.totalMinor)),
+        loading: _charging,
+        onPressed: _lines.isEmpty ? null : _charge,
+      );
+
+  Widget _ticketPanel(BuildContext context, {bool withCharge = true}) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final totals = TicketTotals.of(_lines);
+    Widget row(String label, int minor, {bool strong = false}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(children: [
+            Expanded(
+                child: Text(label,
+                    style: strong
+                        ? theme.textTheme.titleLarge
+                        : theme.textTheme.bodyMedium)),
+            MoneyText(minor,
+                style: strong
+                    ? theme.textTheme.titleLarge
+                    : theme.textTheme.bodyMedium),
+          ]),
+        );
+    final rates = totals.taxByRate.keys.toList()..sort();
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(AppTokens.spacingMd),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Wrap(
+                  spacing: AppTokens.spacingSm,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Semantics(
+                        header: true,
+                        child: Text(l10n.posTicket,
+                            style: theme.textTheme.titleMedium)),
+                    Text(l10n.posCustomerFinal,
+                        style: theme.textTheme.labelLarge),
+                  ]),
+              const SizedBox(height: AppTokens.spacingSm),
+              if (_lines.isEmpty)
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppTokens.spacingMd),
+                  child: Text(l10n.posTicketEmpty, textAlign: TextAlign.center),
+                )
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 260),
+                  child: ListView(shrinkWrap: true, children: [
+                    for (final l in _lines)
+                      Dismissible(
+                        key: ObjectKey(l),
+                        direction: DismissDirection.endToStart,
+                        onDismissed: (_) => setState(() => _lines.remove(l)),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(l.product.name),
+                          subtitle: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                    '${formatQty(l.qtyMilli, l.product.unitType)} × ${MoneyText.format(l.product.priceMinor)}'),
+                                if (!l.product.isBulk) ...[
+                                  IconButton(
+                                    tooltip: l10n.posDecrease,
+                                    icon:
+                                        const Icon(Icons.remove_circle_outline),
+                                    onPressed: () => setState(() {
+                                      if (l.qtyMilli > 1000) {
+                                        l.qtyMilli -= 1000;
+                                      } else {
+                                        _lines.remove(l);
+                                      }
+                                    }),
+                                  ),
+                                  IconButton(
+                                    tooltip: l10n.posIncrease,
+                                    icon: const Icon(Icons.add_circle_outline),
+                                    onPressed: () =>
+                                        setState(() => l.qtyMilli += 1000),
+                                  ),
+                                ] else
+                                  IconButton(
+                                    tooltip: l10n.posRemoveLine(l.product.name),
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () =>
+                                        setState(() => _lines.remove(l)),
+                                  ),
+                              ]),
+                          trailing: MoneyText(l.totalMinor),
+                        ),
+                      ),
+                  ]),
+                ),
+              const Divider(),
+              row(l10n.posSubtotal, totals.subtotalMinor),
+              for (final r in rates)
+                row(l10n.posTaxLine(percentOf(r)), totals.taxByRate[r]!),
+              if (totals.exemptMinor > 0)
+                row(l10n.posExempt, totals.exemptMinor),
+              row(l10n.posTotal, totals.totalMinor, strong: true),
+              const SizedBox(height: AppTokens.spacingMd),
+              if (withCharge) _chargeButton(context, totals),
+              if (_lines.isNotEmpty)
+                PPButton.text(label: l10n.posClear, onPressed: _clear),
+            ]),
       ),
     );
   }
@@ -235,480 +563,87 @@ class _PosScreenState extends State<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final wc = WindowClass.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.posTitle),
+        title: Text(_terminalLabel),
         actions: [
-          IconButton(
-            tooltip: l10n.parkSale,
-            icon: const Icon(Icons.pause),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => PosParkedScreen(api: widget.api),
-            )),
-          ),
-          IconButton(
-            tooltip: l10n.voidSale,
-            icon: const Icon(Icons.cancel_outlined),
-            onPressed: () {
-              if (_lines.isNotEmpty) {
-                setState(() {
-                  _lines.clear();
-                  _discountPercent = 0;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Venta actual anulada.')),
-                );
-              }
-            },
-          ),
-          IconButton(
-            tooltip: 'Escanear producto (Cámara / Láser)',
-            icon: const Icon(Icons.qr_code_scanner),
-            onPressed: _scanBarcode,
-          ),
           PopupMenuButton<String>(
-            onSelected: (val) {
-              switch (val) {
-                case 'history':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => PosSalesHistoryScreen(api: widget.api),
-                  ));
-                  break;
-                case 'cash':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => PosCashMovementsScreen(api: widget.api),
-                  ));
-                  break;
-                case 'close':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => PosCloseSessionScreen(api: widget.api),
-                  ));
-                  break;
-                case 'display':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => const CustomerDisplayScreen(pairingCode: 'POS-8921'),
-                  ));
-                  break;
-                case 'settings':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => PosSettingsScreen(api: widget.api),
-                  ));
-                  break;
-              }
-            },
-            itemBuilder: (ctx) => const [
-              PopupMenuItem(value: 'history', child: Text('Ventas del turno')),
-              PopupMenuItem(value: 'cash', child: Text('Movimientos de caja')),
-              PopupMenuItem(value: 'close', child: Text('Cierre y arqueo Z')),
-              PopupMenuItem(value: 'display', child: Text('Pantalla del cliente')),
-              PopupMenuItem(value: 'settings', child: Text('Configuración POS')),
+            onSelected: _menu,
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'sales', child: Text(l10n.posMenuSales)),
+              PopupMenuItem(value: 'cash', child: Text(l10n.posMenuCash)),
+              PopupMenuItem(value: 'close', child: Text(l10n.posMenuClose)),
             ],
           ),
         ],
       ),
-      body: SafeArea(
-        child: LayoutBuilder(builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 900;
-          final left = _LinesPanel(
-            lines: _lines,
-            customerName: _customerName,
-            customerRuc: _customerRuc,
-            onEditCustomer: _showCustomerDialog,
-            onAdd: _addLine,
-            onIncrement: _incrementLine,
-            onDecrement: _decrementLine,
-            onRemove: (i) => setState(() => _lines.removeAt(i)),
-            onScan: _scanBarcode,
-          );
-          final right = _TotalsPanel(
-            subtotalMinor: _subtotalMinor,
-            discountPercent: _discountPercent,
-            discountMinor: _discountMinor,
-            taxMinor: _taxMinor,
-            totalMinor: _totalMinor,
-            onDiscount: _showDiscountDialog,
-            onPay: _lines.isEmpty
-                ? null
-                : () => Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => PosCheckoutScreen(api: widget.api, totalMinor: _totalMinor),
-                    )),
-          );
-          if (wide) {
-            return Row(
-              children: [
-                Expanded(flex: 3, child: left),
-                const VerticalDivider(width: 1),
-                Expanded(flex: 2, child: right),
-              ],
+      body: FutureBuilder<Map<String, ProductItem>>(
+        future: _products,
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return Padding(
+              padding: EdgeInsets.all(wc.horizontalMargin),
+              child: AsyncView<Map<String, ProductItem>>(
+                snapshot: snap,
+                errorMessage: snap.hasError
+                    ? catalogErrorMessage(l10n, snap.error!)
+                    : l10n.errorNoConnection,
+                retryLabel: l10n.actionRetry,
+                onRetry: widget.onClosed,
+                emptyView: const SizedBox.shrink(),
+                builder: (_, __) => const SizedBox.shrink(),
+              ),
             );
           }
+          final products = snap.data!;
+          final pad = EdgeInsets.fromLTRB(wc.horizontalMargin,
+              AppTokens.spacingSm, wc.horizontalMargin, AppTokens.spacingMd);
+          if (wc.twoPanes) {
+            return Padding(
+              padding: pad,
+              child:
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(flex: 3, child: _catalogPanel(context, products)),
+                const SizedBox(width: AppTokens.spacingMd),
+                Expanded(
+                    flex: 2,
+                    child: SingleChildScrollView(child: _ticketPanel(context))),
+              ]),
+            );
+          }
+          // Compact: el ticket se desplaza y "Cobrar" queda fijo abajo, siempre visible.
           return Column(
-            children: [
-              Expanded(flex: 3, child: left),
-              const Divider(height: 1),
-              Expanded(flex: 2, child: right),
-            ],
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _LinesPanel extends StatelessWidget {
-  const _LinesPanel({
-    required this.lines,
-    required this.customerName,
-    required this.customerRuc,
-    required this.onEditCustomer,
-    required this.onAdd,
-    required this.onIncrement,
-    required this.onDecrement,
-    required this.onRemove,
-    required this.onScan,
-  });
-
-  final List<_PosLine> lines;
-  final String customerName;
-  final String customerRuc;
-  final VoidCallback onEditCustomer;
-  final void Function(String name, int priceMinor) onAdd;
-  final void Function(int) onIncrement;
-  final void Function(int) onDecrement;
-  final void Function(int) onRemove;
-  final VoidCallback onScan;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Column(
-      children: [
-        // Buscador de productos
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: TextField(
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.qr_code_scanner),
-                tooltip: 'Escanear producto',
-                onPressed: onScan,
-              ),
-              hintText: l10n.searchProduct,
-            ),
-            onSubmitted: (txt) {
-              if (txt.trim().isNotEmpty) onAdd(txt.trim(), 500);
-            },
-          ),
-        ),
-
-        // Barra de Cliente
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: onEditCustomer,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.person_outline, size: 18, color: cs.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      customerRuc.isEmpty ? customerName : '$customerName ($customerRuc)',
-                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    'Cambiar',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Acceso rápido a favoritos
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
-            children: [
-              ActionChip(
-                avatar: const Icon(Icons.coffee, size: 16),
-                label: const Text('Café Geisha B/.18.50'),
-                onPressed: () => onAdd('Café Geisha Especial 250g', 1850),
-              ),
-              const SizedBox(width: 6),
-              ActionChip(
-                avatar: const Icon(Icons.bakery_dining, size: 16),
-                label: const Text('Croissant B/.4.25'),
-                onPressed: () => onAdd('Croissant de Almendras', 425),
-              ),
-              const SizedBox(width: 6),
-              ActionChip(
-                avatar: const Icon(Icons.water_drop, size: 16),
-                label: const Text('Agua B/.1.50'),
-                onPressed: () => onAdd('Agua Mineral 500mL', 150),
-              ),
-              const SizedBox(width: 6),
-              ActionChip(
-                avatar: const Icon(Icons.lunch_dining, size: 16),
-                label: const Text('Empanada B/.2.50'),
-                onPressed: () => onAdd('Empanada Gallega', 250),
-              ),
-              const SizedBox(width: 6),
-              ActionChip(
-                avatar: const Icon(Icons.local_drink, size: 16),
-                label: const Text('Jugo B/.3.00'),
-                onPressed: () => onAdd('Jugo de Naranja Natural', 300),
-              ),
-            ],
-          ),
-        ),
-
-        // Lista de líneas de venta en el ticket
-        Expanded(
-          child: lines.isEmpty
-              ? Center(
-                  child: Text(l10n.emptySale, style: theme.textTheme.bodyLarge),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  itemCount: lines.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (context, i) => _LineTile(
-                    line: lines[i],
-                    onIncrement: () => onIncrement(i),
-                    onDecrement: () => onDecrement(i),
-                    onRemove: () => onRemove(i),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: pad,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                              flex: 3, child: _catalogPanel(context, products)),
+                          const SizedBox(height: AppTokens.spacingSm),
+                          Expanded(
+                              flex: 2,
+                              child: SingleChildScrollView(
+                                  child: _ticketPanel(context,
+                                      withCharge: false))),
+                        ]),
                   ),
                 ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LineTile extends StatelessWidget {
-  const _LineTile({
-    required this.line,
-    required this.onIncrement,
-    required this.onDecrement,
-    required this.onRemove,
-  });
-
-  final _PosLine line;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Card(
-      elevation: 0,
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.6),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.4)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    line.name,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(wc.horizontalMargin, 0,
+                        wc.horizontalMargin, AppTokens.spacingMd),
+                    child: _chargeButton(context, TicketTotals.of(_lines)),
                   ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Text('Unit: ', style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                      MoneyText(line.unitPriceMinor, symbol: r'B/.', style: theme.textTheme.bodySmall),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            // Controles de cantidad (+ / -)
-            Container(
-              decoration: BoxDecoration(
-                color: cs.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove, size: 16),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Reducir',
-                    onPressed: onDecrement,
-                  ),
-                  Text(
-                    '${line.quantity}',
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add, size: 16),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Aumentar',
-                    onPressed: onIncrement,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            MoneyText(
-              line.lineTotalMinor,
-              symbol: r'B/.',
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close, size: 18),
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Eliminar línea',
-              onPressed: onRemove,
-            ),
-          ],
-        ),
+                ),
+              ]);
+        },
       ),
     );
   }
-}
-
-class _TotalsPanel extends StatelessWidget {
-  const _TotalsPanel({
-    required this.subtotalMinor,
-    required this.discountPercent,
-    required this.discountMinor,
-    required this.taxMinor,
-    required this.totalMinor,
-    required this.onDiscount,
-    required this.onPay,
-  });
-
-  final int subtotalMinor;
-  final int discountPercent;
-  final int discountMinor;
-  final int taxMinor;
-  final int totalMinor;
-  final VoidCallback onDiscount;
-  final VoidCallback? onPay;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Descuentos y Beneficios', style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-              TextButton.icon(
-                icon: const Icon(Icons.percent, size: 16),
-                label: Text(discountPercent > 0 ? '$discountPercent% aplicado' : 'Aplicar Descuento'),
-                onPressed: onDiscount,
-              ),
-            ],
-          ),
-          _TotalRow(label: l10n.subtotal, minor: subtotalMinor),
-          if (discountMinor > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Descuento ($discountPercent%)',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: cs.primary),
-                    ),
-                  ),
-                  MoneyText(-discountMinor, symbol: r'B/.', style: TextStyle(color: cs.primary)),
-                ],
-              ),
-            ),
-          _TotalRow(label: 'ITBMS (7%)', minor: taxMinor),
-          const Divider(),
-          _TotalRow(label: l10n.total, minor: totalMinor, emphasize: true),
-          const Spacer(),
-          PPButton.primary(
-            label: '${l10n.actionPay}  ${MoneyText.format(totalMinor, symbol: r'B/.')}',
-            onPressed: onPay,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TotalRow extends StatelessWidget {
-  const _TotalRow({required this.label, required this.minor, this.emphasize = false});
-
-  final String label;
-  final int minor;
-  final bool emphasize;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    final labelStyle = emphasize
-        ? theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: cs.onSurface)
-        : theme.textTheme.bodyMedium;
-
-    final moneyStyle = emphasize
-        ? theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: cs.onSurface,
-          )
-        : theme.textTheme.bodyMedium;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: labelStyle)),
-          MoneyText(minor, symbol: r'B/.', style: moneyStyle),
-        ],
-      ),
-    );
-  }
-}
-
-class _PosLine {
-  const _PosLine({required this.name, required this.quantity, required this.unitPriceMinor});
-  final String name;
-  final int quantity;
-  final int unitPriceMinor;
-  int get lineTotalMinor => quantity * unitPriceMinor;
 }

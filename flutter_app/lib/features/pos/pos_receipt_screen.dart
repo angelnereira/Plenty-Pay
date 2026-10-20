@@ -1,119 +1,141 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
-import '../wallet/receipt.dart';
+import '../../core/widgets/status_chip.dart';
+import '../catalog/catalog_data.dart';
+import '../wallet/wallet_data.dart' show walletDateTime;
+import 'pos_data.dart';
 
-/// S-POS-05 · `/pos/receipt/:id` · Recibo y comprobante de venta POS.
-class PosReceiptScreen extends StatefulWidget {
-  const PosReceiptScreen({
-    super.key,
-    required this.api,
-    required this.saleId,
-    required this.totalMinor,
-  });
-
+/// S-POS-05 · `/pos/receipt/:id` · Recibo. `pos:sell`.
+///
+/// e1 recibo de 80 mm con número, fecha y hora (mes en texto, N-STD-10), caja, líneas (cantidad,
+/// descripción, precio unitario, total), subtotal, ITBMS por tasa, exento, total, pagos por medio
+/// y vuelto; e2 "Recibo interno" con su leyenda "Este documento no es una factura fiscal."; e3
+/// "Nueva venta". Imprimir, enviar y la factura electrónica llegan con F24.1 y F13.
+class PosReceiptScreen extends StatelessWidget {
+  const PosReceiptScreen(
+      {super.key,
+      required this.api,
+      required this.sale,
+      required this.terminalLabel,
+      this.closeReturns = false});
   final ApiClient api;
-  final String saleId;
-  final int totalMinor;
+  final SaleItem sale;
+  final String terminalLabel;
 
-  @override
-  State<PosReceiptScreen> createState() => _PosReceiptScreenState();
-}
-
-class _PosReceiptScreenState extends State<PosReceiptScreen> {
-  String _docType = 'electronic_invoice';
+  /// Al venir del cobro, "Nueva venta" devuelve `true` para vaciar el ticket.
+  final bool closeReturns;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-
+    final locale = Localizations.localeOf(context).toString();
+    final margin = WindowClass.of(context).horizontalMargin;
+    final rates = sale.taxByRate.keys.toList()..sort();
+    Widget row(String label, int minor, {bool strong = false}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(children: [
+            Expanded(
+                child: Text(label,
+                    style: strong
+                        ? theme.textTheme.titleMedium
+                        : theme.textTheme.bodyMedium)),
+            MoneyText(minor,
+                style: strong
+                    ? theme.textTheme.titleMedium
+                    : theme.textTheme.bodyMedium),
+          ]),
+        );
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Venta completada'),
-        automaticallyImplyLeading: false,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
+      appBar: AppBar(title: Text(l10n.posReceiptTitle)),
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(
+            margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              // 80 mm de papel ≈ 302 dp a 96 dpi: el recibo conserva ese ancho en pantallas grandes.
+              constraints:
+                  const BoxConstraints(maxWidth: AppTokens.spacingXl * 12),
+              child: Card(
+                margin: EdgeInsets.zero,
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainerLow,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppTokens.spacingMd),
                   child: Column(
-                    children: [
-                      Icon(Icons.check_circle, size: 48, color: theme.colorScheme.primary),
-                      const SizedBox(height: 8),
-                      Text('¡Cobro exitoso!', style: theme.textTheme.headlineSmall),
-                      const SizedBox(height: 4),
-                      Text('Operación: ${widget.saleId}', style: theme.textTheme.bodySmall),
-                      const SizedBox(height: 16),
-
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'electronic_invoice', label: Text('Factura electrónica DGI')),
-                          ButtonSegment(value: 'internal_ticket', label: Text('Recibo interno')),
-                        ],
-                        selected: {_docType},
-                        onSelectionChanged: (set) => setState(() => _docType = set.first),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Vista previa de recibo 80mm
-                      ReceiptView(
-                        data: ReceiptData(
-                          merchantName: 'Mi Negocio POS',
-                          merchantTaxId: '155689432-2-2022',
-                          paidAt: DateTime.now(),
-                          operationCode: widget.saleId,
-                          paymentMethodLabel: 'Efectivo / Tarjeta',
-                          currencySymbol: r'$',
-                          lines: [
-                            ReceiptLine(label: 'Venta en mostrador', minor: widget.totalMinor),
-                          ],
-                          totalMinor: widget.totalMinor,
-                        ),
-                      ),
-                    ],
-                  ),
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Wrap(
+                            spacing: AppTokens.spacingSm,
+                            runSpacing: AppTokens.spacingXs,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(l10n.posReceiptNumber(sale.receiptNumber),
+                                  style: theme.textTheme.titleMedium),
+                              StatusChip(
+                                  label: l10n.posInternalReceipt,
+                                  tone: StatusTone.neutral),
+                            ]),
+                        const SizedBox(height: AppTokens.spacingXs),
+                        Text(
+                            '${walletDateTime(sale.createdAt, locale)} · $terminalLabel',
+                            style: theme.textTheme.bodySmall),
+                        const Divider(height: AppTokens.spacingLg),
+                        for (final l in sale.lines)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                        '${formatQty(l.qtyMilli, 'UNIT')} × ${l.description}\n${MoneyText.format(l.unitPriceMinor)}',
+                                        style: theme.textTheme.bodyMedium),
+                                  ),
+                                  MoneyText(l.totalMinor),
+                                ]),
+                          ),
+                        const Divider(height: AppTokens.spacingLg),
+                        row(l10n.posSubtotal, sale.subtotalMinor),
+                        for (final r in rates)
+                          row(l10n.posTaxLine(percentOf(r)),
+                              sale.taxByRate[r]!),
+                        if (sale.exemptMinor > 0)
+                          row(l10n.posExempt, sale.exemptMinor),
+                        row(l10n.posTotal, sale.totalMinor, strong: true),
+                        const Divider(height: AppTokens.spacingLg),
+                        Text(l10n.posPayments,
+                            style: theme.textTheme.labelLarge),
+                        for (final t in sale.tenders)
+                          row(
+                              t.rail == 'CASH'
+                                  ? l10n.posMethodCash
+                                  : l10n.posMethodWallet,
+                              t.amountMinor),
+                        if (sale.changeMinor > 0)
+                          row(l10n.posChange(''), sale.changeMinor),
+                        const SizedBox(height: AppTokens.spacingMd),
+                        Text(l10n.posNotFiscal,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall),
+                      ]),
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.print),
-                      label: const Text('Imprimir (80mm)'),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Enviando comando de impresión ESC/POS...')),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.send),
-                      label: const Text('Enviar digital'),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Recibo digital enviado al cliente.')),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              PPButton.primary(
-                label: 'Nueva venta',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: AppTokens.spacingLg),
+          if (closeReturns)
+            PPButton.primary(
+                label: l10n.posNewSale,
+                onPressed: () => Navigator.of(context).pop(true)),
+        ],
       ),
     );
   }

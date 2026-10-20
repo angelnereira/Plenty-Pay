@@ -1,107 +1,248 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/observability/app_logger.dart' show newRequestId;
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/async_view.dart';
 import '../../core/widgets/pp_button.dart';
-import '../../core/widgets/pp_text_field.dart';
+import '../catalog/catalog_data.dart';
+import '../catalog/catalog_errors.dart';
+import 'inventory_data.dart';
 
-/// S-INV-04 · `/inventory/transfer` · Transferencia entre bodegas.
+class _TransferRefs {
+  const _TransferRefs(this.warehouses, this.products);
+  final List<WarehouseItem> warehouses;
+  final List<ProductItem> products;
+}
+
+/// S-INV-04 · `/inventory/transfer` · Transferencia. `inventory:adjust`.
+///
+/// Origen, destino distinto, producto y cantidad ≤ disponible en origen: la salida y la entrada se
+/// registran juntas en el servidor (o ninguna). El estado "En tránsito → Recibida" con confirmación
+/// de la bodega destino y los lotes llegan con F16.4b.
 class StockTransferScreen extends StatefulWidget {
-  const StockTransferScreen({super.key, required this.api, this.productName});
-
+  const StockTransferScreen({super.key, required this.api});
   final ApiClient api;
-  final String? productName;
 
   @override
   State<StockTransferScreen> createState() => _StockTransferScreenState();
 }
 
 class _StockTransferScreenState extends State<StockTransferScreen> {
-  late final _productController = TextEditingController(text: widget.productName ?? 'Café Geisha Especial 250g');
-  final _qtyController = TextEditingController();
-  String _sourceWarehouse = 'central';
-  String _targetWarehouse = 'calle50';
+  late final Future<_TransferRefs> _refs = _load();
+  String? _from;
+  String? _to;
+  ProductItem? _product;
+  int? _availableMilli;
+  final _qty = TextEditingController();
+  String _key = newRequestId();
+  bool _saving = false;
+  bool _submitted = false;
+  String? _error;
+
+  Future<_TransferRefs> _load() async {
+    final warehouses =
+        (await loadWarehouses(widget.api)).where((w) => w.active).toList();
+    final products = (await loadProductIndex(widget.api))
+        .values
+        .where((p) => p.tracksInventory)
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return _TransferRefs(warehouses, products);
+  }
+
+  Future<void> _refreshAvailable() async {
+    final p = _product;
+    final from = _from;
+    if (p == null || from == null) return;
+    try {
+      final body = await widget.api.getStock(p.id, warehouseId: from);
+      if (mounted) {
+        setState(
+            () => _availableMilli = StockItem.fromJson(body).availableMilli);
+      }
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb('ui', 'inventory.available',
+          e is ApiException ? e.reason : 'network');
+      if (mounted) {
+        setState(() =>
+            _error = catalogErrorMessage(AppLocalizations.of(context), e));
+      }
+    }
+  }
 
   @override
   void dispose() {
-    _productController.dispose();
-    _qtyController.dispose();
+    _qty.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    if (_sourceWarehouse == _targetWarehouse || _qtyController.text.trim().isEmpty) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Transferencia entre bodegas registrada.')),
-    );
-    Navigator.of(context).pop();
+  Future<void> _transfer() async {
+    final l10n = AppLocalizations.of(context);
+    setState(() => _submitted = true);
+    final qty = parseQtyMilli(_qty.text);
+    if (_from == null ||
+        _to == null ||
+        _product == null ||
+        qty == null ||
+        qty <= 0) {
+      return;
+    }
+    if (_from == _to) {
+      setState(() => _error = l10n.error_SAME_WAREHOUSE);
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.api.transferStock(
+          productId: _product!.id,
+          fromWarehouseId: _from!,
+          toWarehouseId: _to!,
+          quantityMilli: qty,
+          idempotencyKey: _key);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.invTransferDone)));
+      Navigator.of(context).pop(true);
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'inventory.transfer', e is ApiException ? e.reason : 'network');
+      if (e is ApiException) _key = newRequestId();
+      if (mounted) setState(() => _error = catalogErrorMessage(l10n, e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final isValid = _sourceWarehouse != _targetWarehouse && _qtyController.text.trim().isNotEmpty;
-
+    final margin = WindowClass.of(context).horizontalMargin;
+    const gap = SizedBox(height: AppTokens.spacingMd);
     return Scaffold(
-      appBar: AppBar(title: const Text('Transferir existencias')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              PPTextField(
-                controller: _productController,
-                labelText: 'Producto / Variante',
-              ),
-              const SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                initialValue: _sourceWarehouse,
-                decoration: const InputDecoration(labelText: 'Bodega de origen'),
-                items: const [
-                  DropdownMenuItem(value: 'central', child: Text('Bodega Central (Disponible: 40 ud)')),
-                  DropdownMenuItem(value: 'calle50', child: Text('Sucursal Calle 50 (Disponible: 12 ud)')),
-                ],
-                onChanged: (v) => setState(() => _sourceWarehouse = v ?? 'central'),
-              ),
-              const SizedBox(height: 12),
-              const Center(child: Icon(Icons.arrow_downward)),
-              const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                initialValue: _targetWarehouse,
-                decoration: const InputDecoration(labelText: 'Bodega de destino'),
-                items: const [
-                  DropdownMenuItem(value: 'central', child: Text('Bodega Central')),
-                  DropdownMenuItem(value: 'calle50', child: Text('Sucursal Calle 50')),
-                ],
-                onChanged: (v) => setState(() => _targetWarehouse = v ?? 'calle50'),
-              ),
-              const SizedBox(height: 16),
-
-              if (_sourceWarehouse == _targetWarehouse)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    'Las bodegas de origen y destino deben ser distintas.',
-                    style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
-                  ),
-                ),
-
-              PPTextField(
-                controller: _qtyController,
-                labelText: 'Cantidad a transferir (unidades)',
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-              ),
-              const Spacer(),
-
-              PPButton.primary(
-                label: 'Confirmar transferencia',
-                onPressed: isValid ? _submit : null,
-              ),
-            ],
-          ),
+      appBar: AppBar(title: Text(l10n.invTransferTitle)),
+      body: FutureBuilder<_TransferRefs>(
+        future: _refs,
+        builder: (context, snap) => ListView(
+          padding: EdgeInsets.fromLTRB(
+              margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
+          children: [
+            AsyncView<_TransferRefs>(
+              snapshot: snap,
+              errorMessage: snap.hasError
+                  ? catalogErrorMessage(l10n, snap.error!)
+                  : l10n.errorNoConnection,
+              retryLabel: l10n.actionRetry,
+              onRetry: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute<bool>(
+                      builder: (_) => StockTransferScreen(api: widget.api))),
+              emptyView: const SizedBox.shrink(),
+              builder: (context, refs) {
+                if (refs.warehouses.length < 2) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppTokens.spacingXl),
+                    child: Text(l10n.invNeedTwoWarehouses,
+                        textAlign: TextAlign.center),
+                  );
+                }
+                final qty = parseQtyMilli(_qty.text);
+                return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        initialValue: _from,
+                        isExpanded: true,
+                        decoration: InputDecoration(labelText: l10n.invFrom),
+                        items: [
+                          for (final w in refs.warehouses)
+                            DropdownMenuItem(value: w.id, child: Text(w.name))
+                        ],
+                        onChanged: (id) {
+                          setState(() => _from = id);
+                          _refreshAvailable();
+                        },
+                      ),
+                      gap,
+                      DropdownButtonFormField<String>(
+                        initialValue: _to,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                            labelText: l10n.invTo,
+                            errorText: _to != null && _to == _from
+                                ? l10n.error_SAME_WAREHOUSE
+                                : null),
+                        items: [
+                          for (final w in refs.warehouses)
+                            DropdownMenuItem(value: w.id, child: Text(w.name))
+                        ],
+                        onChanged: (id) => setState(() => _to = id),
+                      ),
+                      gap,
+                      DropdownButtonFormField<String>(
+                        initialValue: _product?.id,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                            labelText: l10n.invProduct,
+                            errorText: _submitted && _product == null
+                                ? l10n.invSelectProduct
+                                : null),
+                        items: [
+                          for (final p in refs.products)
+                            DropdownMenuItem(value: p.id, child: Text(p.name))
+                        ],
+                        onChanged: (id) {
+                          setState(() => _product =
+                              refs.products.firstWhere((p) => p.id == id));
+                          _refreshAvailable();
+                        },
+                      ),
+                      if (_availableMilli != null && _product != null) ...[
+                        const SizedBox(height: AppTokens.spacingSm),
+                        Text(
+                            '${l10n.invAvailable}: ${formatQty(_availableMilli!, _product!.unitType)}',
+                            style: theme.textTheme.bodyLarge),
+                      ],
+                      gap,
+                      TextField(
+                        controller: _qty,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          labelText: l10n.invQuantity,
+                          errorText: _submitted && (qty == null || qty <= 0)
+                              ? l10n.invQtyError
+                              : (qty != null &&
+                                      _availableMilli != null &&
+                                      qty > _availableMilli!)
+                                  ? l10n.error_OUT_OF_STOCK
+                                  : null,
+                        ),
+                      ),
+                      if (_error != null) ...[
+                        gap,
+                        Semantics(
+                            liveRegion: true,
+                            child: Text(_error!,
+                                style:
+                                    TextStyle(color: theme.colorScheme.error))),
+                      ],
+                      const SizedBox(height: AppTokens.spacingLg),
+                      PPButton.primary(
+                          label: l10n.invTransfer,
+                          loading: _saving,
+                          onPressed: _transfer),
+                    ]);
+              },
+            ),
+          ],
         ),
       ),
     );

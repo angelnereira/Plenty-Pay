@@ -2279,4 +2279,720 @@ class AppLocalizationsEn extends AppLocalizations {
   String topupResult(String rail) {
     return 'Top-up from $rail';
   }
+
+  @override
+  String get catFilterActive => 'Active';
+
+  @override
+  String get catFilterArchived => 'Archived';
+
+  @override
+  String get catEmpty => 'You have no products yet.';
+
+  @override
+  String get catNewProduct => 'New product';
+
+  @override
+  String get catCategories => 'Categories';
+
+  @override
+  String catSkuValue(String sku) {
+    return 'SKU $sku';
+  }
+
+  @override
+  String get catArchivedChip => 'Archived';
+
+  @override
+  String get catLoadMore => 'Load more';
+
+  @override
+  String get catUnavailable =>
+      'The catalog is not available right now. Try again later.';
+
+  @override
+  String get catEditTitle => 'Edit product';
+
+  @override
+  String get catSectionBasic => 'Basics';
+
+  @override
+  String get catName => 'Name';
+
+  @override
+  String get catNameError => 'Use 2 to 120 characters.';
+
+  @override
+  String get catDescription => 'Description';
+
+  @override
+  String get catCategory => 'Category';
+
+  @override
+  String get catNoCategory => 'No category';
+
+  @override
+  String get catPhotos => 'Photos';
+
+  @override
+  String get catAddPhoto => 'Add photo';
+
+  @override
+  String get catRemovePhoto => 'Remove photo';
+
+  @override
+  String get catSectionId => 'Identification';
+
+  @override
+  String get catSkuLabel => 'SKU';
+
+  @override
+  String get catSkuHelper => 'Leave it empty to generate one.';
+
+  @override
+  String get catBarcode => 'Barcode';
+
+  @override
+  String get catBarcodeInvalid => 'The barcode is not valid.';
+
+  @override
+  String get catBarcodeInternal =>
+      'This is an in-store code; it does not identify the product outside your business.';
+
+  @override
+  String get catGenerateInternal => 'Generate in-store code';
+
+  @override
+  String get catSectionSale => 'Sale';
+
+  @override
+  String get catUnit => 'Unit of measure';
+
+  @override
+  String get unit_UNIT => 'Unit (ea)';
+
+  @override
+  String get unit_KG => 'Kilogram (kg)';
+
+  @override
+  String get unit_LITER => 'Liter (L)';
+
+  @override
+  String get unit_METER => 'Meter (m)';
+
+  @override
+  String get catUnitLocked =>
+      'The unit cannot change after the product is created.';
+
+  @override
+  String get catPrice => 'Sale price';
+
+  @override
+  String get catPriceError => 'The price must be greater than \$0.00.';
+
+  @override
+  String get catPriceIncludesTax => 'The price includes ITBMS.';
+
+  @override
+  String get catSectionTax => 'Taxes';
+
+  @override
+  String get catTaxTreatment => 'Treatment';
+
+  @override
+  String get catTaxed => 'Taxed';
+
+  @override
+  String get catExempt => 'Exempt';
+
+  @override
+  String get catTaxRate => 'ITBMS rate';
+
+  @override
+  String get taxKind_STANDARD => 'Standard';
+
+  @override
+  String get taxKind_ALCOHOL => 'Alcohol and lodging';
+
+  @override
+  String get taxKind_TOBACCO => 'Tobacco';
+
+  @override
+  String catTaxRateOption(String kind, String percent) {
+    return '$kind · $percent';
+  }
+
+  @override
+  String get catTaxRatesUnavailable =>
+      'We could not load the current ITBMS rates.';
+
+  @override
+  String get catSectionInventory => 'Inventory';
+
+  @override
+  String get catTrackStock => 'Track stock';
+
+  @override
+  String get catArchive => 'Archive';
+
+  @override
+  String catArchiveConfirmTitle(String name) {
+    return 'Archive $name?';
+  }
+
+  @override
+  String get catArchiveConfirmBody =>
+      'The product stops being sold. It is not deleted and its history is kept.';
+
+  @override
+  String get catReadyToSell => 'Ready to sell';
+
+  @override
+  String catMissingToSell(String missing) {
+    return 'Missing to sell: $missing';
+  }
+
+  @override
+  String get catSaved => 'Product saved.';
+
+  @override
+  String get catCategoriesEmpty => 'You have no categories yet.';
+
+  @override
+  String get catNewCategory => 'New category';
+
+  @override
+  String get catParentCategory => 'Parent category';
+
+  @override
+  String get catNoParent => 'None (top level)';
+
+  @override
+  String get error_SKU_TAKEN => 'You already have a product with that SKU.';
+
+  @override
+  String get error_BARCODE_TAKEN =>
+      'You already have a product with that barcode.';
+
+  @override
+  String get error_INVALID_BARCODE => 'The barcode is not valid.';
+
+  @override
+  String get error_INVALID_TAX_RATE => 'The ITBMS rate is not a current rate.';
+
+  @override
+  String get error_TAX_TREATMENT_MISSING => 'Choose the ITBMS treatment.';
+
+  @override
+  String get error_CATEGORY_DEPTH_EXCEEDED => 'Up to 4 category levels.';
+
+  @override
+  String get error_VERSION_CONFLICT =>
+      'Someone else changed this record. Reload it.';
+
+  @override
+  String get invTitle => 'Stock';
+
+  @override
+  String invLowCard(String n) {
+    return '$n running low';
+  }
+
+  @override
+  String invOutCard(String n) {
+    return '$n out of stock';
+  }
+
+  @override
+  String get invAllWarehouses => 'All warehouses';
+
+  @override
+  String get invAvailable => 'Available';
+
+  @override
+  String get invReserved => 'Reserved';
+
+  @override
+  String get invMinimum => 'Minimum';
+
+  @override
+  String get invEmpty =>
+      'No stock recorded yet. Make a count adjustment to start.';
+
+  @override
+  String get invAdjust => 'Adjust';
+
+  @override
+  String get invTransfer => 'Transfer';
+
+  @override
+  String get invWarehouses => 'Warehouses';
+
+  @override
+  String get invUnknownProduct => 'Product unavailable';
+
+  @override
+  String get invByWarehouse => 'By warehouse';
+
+  @override
+  String get invMovements => 'Movements';
+
+  @override
+  String get invNoMovements => 'No movements yet.';
+
+  @override
+  String get mov_RECEIPT => 'Receipt';
+
+  @override
+  String get mov_SALE => 'Sale';
+
+  @override
+  String get mov_ADJUSTMENT => 'Adjustment';
+
+  @override
+  String get mov_TRANSFER_OUT => 'Transfer (out)';
+
+  @override
+  String get mov_TRANSFER_IN => 'Transfer (in)';
+
+  @override
+  String get mov_RETURN => 'Return';
+
+  @override
+  String get mov_WRITE_OFF => 'Write-off';
+
+  @override
+  String get invAdjustTitle => 'Stock adjustment';
+
+  @override
+  String get invWarehouse => 'Warehouse';
+
+  @override
+  String get invProduct => 'Product';
+
+  @override
+  String get invSelectProduct => 'Choose a product';
+
+  @override
+  String invSystemQty(String qty) {
+    return 'System $qty';
+  }
+
+  @override
+  String get invCounted => 'Counted';
+
+  @override
+  String invDifferenceQty(String qty) {
+    return 'Difference $qty';
+  }
+
+  @override
+  String get invReason => 'Reason';
+
+  @override
+  String get invReason_COUNT => 'Physical count';
+
+  @override
+  String get invReason_DAMAGE => 'Damage';
+
+  @override
+  String get invReason_EXPIRED => 'Expiry';
+
+  @override
+  String get invReason_LOSS => 'Theft or loss';
+
+  @override
+  String get invReason_ERROR => 'Recording error';
+
+  @override
+  String get invReason_OTHER => 'Other';
+
+  @override
+  String get invReasonOtherHint => 'Describe the reason';
+
+  @override
+  String get invApplyAdjust => 'Apply adjustment';
+
+  @override
+  String get invAdjustConfirmTitle => 'Apply the adjustment?';
+
+  @override
+  String get invAdjustConfirmBody =>
+      'An adjustment is never edited or deleted: it is corrected with another adjustment.';
+
+  @override
+  String get invAdjustDone => 'Adjustment applied.';
+
+  @override
+  String get invNoDifference => 'The count matches the system.';
+
+  @override
+  String get invTransferTitle => 'Transfer';
+
+  @override
+  String get invFrom => 'From';
+
+  @override
+  String get invTo => 'To';
+
+  @override
+  String get invQuantity => 'Quantity';
+
+  @override
+  String get invQtyError => 'Enter a quantity greater than 0.';
+
+  @override
+  String get invTransferDone => 'Transfer recorded.';
+
+  @override
+  String get invNeedTwoWarehouses =>
+      'You need at least two warehouses to transfer.';
+
+  @override
+  String get invNewWarehouse => 'New warehouse';
+
+  @override
+  String get invDefaultChip => 'Main';
+
+  @override
+  String get invActive => 'Active';
+
+  @override
+  String get invInactive => 'Inactive';
+
+  @override
+  String get error_OUT_OF_STOCK => 'Not enough stock.';
+
+  @override
+  String get error_MOVEMENT_REASON_REQUIRED =>
+      'Give the reason for the adjustment.';
+
+  @override
+  String get error_VARIANT_NOT_FOUND =>
+      'The product does not exist or is archived.';
+
+  @override
+  String get error_INVENTORY_NOT_TRACKED =>
+      'This product does not track stock.';
+
+  @override
+  String get error_SAME_WAREHOUSE => 'Choose two different warehouses.';
+
+  @override
+  String get error_INVALID_WAREHOUSE => 'The warehouse is invalid or inactive.';
+
+  @override
+  String get error_IDEMPOTENCY_KEY_REUSED =>
+      'This operation was already recorded with other data.';
+
+  @override
+  String get posOpenTitle => 'Open register';
+
+  @override
+  String get posTerminal => 'Register';
+
+  @override
+  String get posTerminalHelper =>
+      'Each register collects through one of your payment points.';
+
+  @override
+  String get posNoTerminals => 'First create a payment point in Finance.';
+
+  @override
+  String get posOpeningFloat => 'Opening cash float';
+
+  @override
+  String get posOpen => 'Open register';
+
+  @override
+  String get posSearchHint => 'Search or scan';
+
+  @override
+  String get posTicket => 'Ticket';
+
+  @override
+  String get posTicketEmpty => 'Add products to the sale.';
+
+  @override
+  String get posSubtotal => 'Subtotal';
+
+  @override
+  String posTaxLine(String percent) {
+    return 'ITBMS $percent';
+  }
+
+  @override
+  String get posExempt => 'Exempt';
+
+  @override
+  String get posTotal => 'Total';
+
+  @override
+  String posCharge(String total) {
+    return 'Charge $total';
+  }
+
+  @override
+  String get posClear => 'Clear';
+
+  @override
+  String get posClearConfirm => 'Clear the ticket?';
+
+  @override
+  String get posCustomerFinal => 'Walk-in customer';
+
+  @override
+  String get posNotFound => 'No product matches that code.';
+
+  @override
+  String posQtyTitle(String name) {
+    return 'Quantity of $name';
+  }
+
+  @override
+  String posStockQty(String qty) {
+    return 'Stock: $qty';
+  }
+
+  @override
+  String get posMenuSales => 'Shift sales';
+
+  @override
+  String get posMenuCash => 'Cash movements';
+
+  @override
+  String get posMenuClose => 'Close register';
+
+  @override
+  String get posProductsEmpty => 'You have no products in the catalog yet.';
+
+  @override
+  String posRemoveLine(String name) {
+    return 'Remove $name';
+  }
+
+  @override
+  String get posIncrease => 'Add one';
+
+  @override
+  String get posDecrease => 'Remove one';
+
+  @override
+  String get posPayTitle => 'Payment';
+
+  @override
+  String posRemaining(String amount) {
+    return 'Remaining $amount';
+  }
+
+  @override
+  String get posMethodCash => 'Cash';
+
+  @override
+  String get posMethodWallet => 'PlentyPay balance';
+
+  @override
+  String get posReceived => 'Received';
+
+  @override
+  String posChange(String amount) {
+    return 'Change $amount';
+  }
+
+  @override
+  String get posExact => 'Exact amount';
+
+  @override
+  String get posWalletWaiting => 'Waiting for the customer…';
+
+  @override
+  String posWalletScan(String amount) {
+    return 'Scan to pay $amount';
+  }
+
+  @override
+  String get posFinish => 'Finish sale';
+
+  @override
+  String get posConfirming => 'Confirming';
+
+  @override
+  String get posPaidChip => 'Paid';
+
+  @override
+  String get posLeaveWaiting => 'Leave the sale pending';
+
+  @override
+  String get posWalletFailed =>
+      'The customer did not complete the payment. Choose another method.';
+
+  @override
+  String get posCashShort => 'The amount received does not cover the total.';
+
+  @override
+  String get posWalletAmount => 'Amount with PlentyPay balance';
+
+  @override
+  String get posReceiptTitle => 'Receipt';
+
+  @override
+  String posReceiptNumber(String number) {
+    return 'Receipt $number';
+  }
+
+  @override
+  String get posInternalReceipt => 'Internal receipt';
+
+  @override
+  String get posNotFiscal => 'This document is not a tax invoice.';
+
+  @override
+  String get posNewSale => 'New sale';
+
+  @override
+  String get posPayments => 'Payments';
+
+  @override
+  String get posSalesTitle => 'Shift sales';
+
+  @override
+  String get posSalesEmpty => 'No sales in this shift yet.';
+
+  @override
+  String get saleStatus_PAID => 'Paid';
+
+  @override
+  String get saleStatus_AWAITING_PAYMENT => 'Pending confirmation';
+
+  @override
+  String get saleStatus_VOIDED => 'Voided';
+
+  @override
+  String get saleStatus_OPEN => 'Open';
+
+  @override
+  String posSaleNumber(String number) {
+    return 'No. $number';
+  }
+
+  @override
+  String get posCashTitle => 'Cash movements';
+
+  @override
+  String get posExpected => 'Expected in drawer';
+
+  @override
+  String get posCashIn => 'Cash in';
+
+  @override
+  String get posCashOut => 'Cash out';
+
+  @override
+  String get posAmount => 'Amount';
+
+  @override
+  String get posReason_CHANGE => 'Change';
+
+  @override
+  String get posReason_SUPPLIER => 'Supplier payment';
+
+  @override
+  String get posReason_SAFE => 'Safe drop';
+
+  @override
+  String get posReason_OTHER => 'Other';
+
+  @override
+  String get posCashRecorded => 'Movement recorded.';
+
+  @override
+  String get posAmountError => 'Enter an amount greater than \$0.00.';
+
+  @override
+  String get posCloseTitle => 'Close and count';
+
+  @override
+  String get posCounted => 'Counted cash';
+
+  @override
+  String get posConfirmCount => 'Confirm count';
+
+  @override
+  String posExpectedValue(String amount) {
+    return 'Expected $amount';
+  }
+
+  @override
+  String posCountedValue(String amount) {
+    return 'Counted $amount';
+  }
+
+  @override
+  String posDifferenceValue(String amount) {
+    return 'Difference $amount';
+  }
+
+  @override
+  String get posCloseNotes => 'Note';
+
+  @override
+  String get posCloseNotesRequired => 'Explain the difference.';
+
+  @override
+  String get posCloseDo => 'Close register';
+
+  @override
+  String get posClosed => 'Register closed.';
+
+  @override
+  String get posVoid => 'Void sale';
+
+  @override
+  String get posVoidReason => 'Reason for voiding';
+
+  @override
+  String get error_SESSION_ALREADY_OPEN =>
+      'This register already has an open session.';
+
+  @override
+  String get error_SESSION_CLOSED => 'The register session is closed.';
+
+  @override
+  String get error_NOT_SESSION_OWNER =>
+      'The session belongs to another cashier.';
+
+  @override
+  String get error_SALES_PENDING => 'You have parked or unconfirmed sales.';
+
+  @override
+  String get error_EMPTY_SALE => 'Add products to the sale.';
+
+  @override
+  String get error_TENDERS_MISMATCH =>
+      'The payments do not add up to the total.';
+
+  @override
+  String get error_RAIL_NOT_SUPPORTED =>
+      'That payment method is not available at the register yet.';
+
+  @override
+  String get error_PRODUCT_NOT_FOUND =>
+      'The product does not exist or is archived.';
+
+  @override
+  String get error_DISCOUNT_EXCEEDS_LIMIT =>
+      'The discount exceeds the allowed maximum.';
+
+  @override
+  String get error_HAS_CAPTURED_PAYMENTS =>
+      'The sale already has payments; make a return.';
+
+  @override
+  String get error_REASON_REQUIRED => 'Give the reason.';
+
+  @override
+  String get error_TENANT_REQUIRED => 'You need an active business.';
+
+  @override
+  String get paySaleAt => 'Payment for a register sale';
 }

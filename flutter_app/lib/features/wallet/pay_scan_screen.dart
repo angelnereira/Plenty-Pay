@@ -70,13 +70,17 @@ class _PayScanScreenState extends State<PayScanScreen> {
         QrRejection.invalidCode || QrRejection.malformed => l10n.payInvalidCode,
       };
 
-  Future<void> _open(String code) async {
+  Future<void> _open(String code, {String? saleId, int? amountMinor}) async {
     if (_opening) return;
     _opening = true;
     await _scanner?.stop();
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => PayConfirmScreen(api: widget.api, code: code)));
+        builder: (_) => PayConfirmScreen(
+            api: widget.api,
+            code: code,
+            saleId: saleId,
+            amountMinor: amountMinor)));
     _opening = false;
     await _scanner?.start();
   }
@@ -85,7 +89,8 @@ class _PayScanScreenState extends State<PayScanScreen> {
     final l10n = AppLocalizations.of(context);
     final result = parsePaymentQr(raw);
     if (result.isAccepted) {
-      _open(result.link!.code);
+      final link = result.link!;
+      _open(link.code, saleId: link.saleId, amountMinor: link.amountMinor);
     } else {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()

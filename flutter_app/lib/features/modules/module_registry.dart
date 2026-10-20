@@ -29,11 +29,23 @@ const List<ModuleDef> moduleRegistry = [
       live: true),
   ModuleDef(
       id: 'marketplace', icon: Icons.storefront_outlined, phase: 'F15.10'),
-  ModuleDef(id: 'pos', icon: Icons.point_of_sale_outlined, phase: 'F17.10'),
+  ModuleDef(
+      id: 'pos',
+      icon: Icons.point_of_sale_outlined,
+      phase: 'F17.10',
+      live: true),
   ModuleDef(
       id: 'appointments', icon: Icons.event_available_outlined, phase: 'F31.6'),
-  ModuleDef(id: 'catalog', icon: Icons.inventory_2_outlined, phase: 'F15.10'),
-  ModuleDef(id: 'inventory', icon: Icons.warehouse_outlined, phase: 'F16.7'),
+  ModuleDef(
+      id: 'catalog',
+      icon: Icons.inventory_2_outlined,
+      phase: 'F15.10',
+      live: true),
+  ModuleDef(
+      id: 'inventory',
+      icon: Icons.warehouse_outlined,
+      phase: 'F16.7',
+      live: true),
   ModuleDef(id: 'orders', icon: Icons.receipt_long_outlined, phase: 'F15.10'),
   ModuleDef(
       id: 'logistics', icon: Icons.local_shipping_outlined, phase: 'F18.7'),

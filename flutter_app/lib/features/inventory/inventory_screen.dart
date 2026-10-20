@@ -2,245 +2,230 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
-import '../../core/widgets/status_chip.dart';
-
-import 'purchase_orders_screen.dart';
-import 'reorder_suggestions_screen.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/async_view.dart';
+import '../catalog/catalog_data.dart';
+import '../catalog/catalog_errors.dart';
+import 'inventory_data.dart';
 import 'stock_adjust_screen.dart';
 import 'stock_detail_screen.dart';
 import 'stock_transfer_screen.dart';
-import 'suppliers_screen.dart';
 import 'warehouses_screen.dart';
-import '../catalog/product_screen.dart';
-import '../../core/widgets/barcode_scanner_dialog.dart';
 
-/// S-INV-01 · `/inventory` · Existencias.
+/// Lo que la pantalla de existencias necesita de una vez.
+class InventoryView {
+  const InventoryView(
+      {required this.warehouses, required this.levels, required this.products});
+  final List<WarehouseItem> warehouses;
+  final List<StockItem> levels;
+  final Map<String, ProductItem> products;
+}
+
+/// S-INV-01 · `/inventory` · Existencias. `inventory:read` · `GET /v1/inventory/stock`.
 ///
-/// `inventory:read` · `/v1/inventory/stock`. Tarjetas de alerta, selector de bodega,
-/// buscador + escáner, tabla con cantidades en su unidad SI.
+/// e1 tarjetas "por agotarse" y "agotados" (filtran), e2 bodega ("Todas" suma), e4 lista con
+/// disponible (negativo en `error`), reservado y mínimo, e5 Ajustar · Transferir. "En camino",
+/// días de cobertura y lotes por vencer llegan con las órdenes de compra y los lotes (F16.4–F16.6).
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key, required this.api});
-
   final ApiClient api;
 
   @override
   State<InventoryScreen> createState() => _InventoryScreenState();
 }
 
-class _InventoryScreenState extends State<InventoryScreen> {
-  String _warehouse = 'all';
-  final _search = TextEditingController();
+enum _Filter { all, low, out }
 
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
+class _InventoryScreenState extends State<InventoryScreen> {
+  String _warehouse = '';
+  _Filter _filter = _Filter.all;
+  late Future<InventoryView> _future = _load();
+
+  Future<InventoryView> _load() async {
+    final warehouses = await loadWarehouses(widget.api);
+    final levels = await loadStock(widget.api, warehouseId: _warehouse);
+    final products = await loadProductIndex(widget.api);
+    return InventoryView(
+        warehouses: warehouses,
+        levels: _warehouse.isEmpty ? sumByProduct(levels) : levels,
+        products: products);
+  }
+
+  void _reload() => setState(() {
+        _future = _load();
+      });
+
+  Future<void> _go(Widget screen) async {
+    final changed = await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => screen));
+    if (changed == true) _reload();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final margin = WindowClass.of(context).horizontalMargin;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.inventoryTitle),
+        title: Text(l10n.invTitle),
         actions: [
           IconButton(
-            tooltip: l10n.adjustStock,
-            icon: const Icon(Icons.tune),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => StockAdjustScreen(api: widget.api),
-            )),
+            tooltip: l10n.invTransfer,
+            icon: const Icon(Icons.swap_horiz),
+            onPressed: () => _go(StockTransferScreen(api: widget.api)),
           ),
           IconButton(
-            tooltip: l10n.transferStock,
-            icon: const Icon(Icons.swap_horiz),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => StockTransferScreen(api: widget.api),
-            )),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (val) {
-              switch (val) {
-                case 'purchases':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => PurchaseOrdersScreen(api: widget.api),
-                  ));
-                  break;
-                case 'suggestions':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => ReorderSuggestionsScreen(api: widget.api),
-                  ));
-                  break;
-                case 'suppliers':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => SuppliersScreen(api: widget.api),
-                  ));
-                  break;
-                case 'warehouses':
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => WarehousesScreen(api: widget.api),
-                  ));
-                  break;
-              }
-            },
-            itemBuilder: (ctx) => const [
-              PopupMenuItem(value: 'purchases', child: Text('Órdenes de compra')),
-              PopupMenuItem(value: 'suggestions', child: Text('Sugerencias de reorden')),
-              PopupMenuItem(value: 'suppliers', child: Text('Proveedores')),
-              PopupMenuItem(value: 'warehouses', child: Text('Bodegas y sucursales')),
-            ],
+            tooltip: l10n.invWarehouses,
+            icon: const Icon(Icons.warehouse_outlined),
+            onPressed: () => _go(WarehousesScreen(api: widget.api)),
           ),
         ],
       ),
-
-      body: SafeArea(
-        child: Column(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _go(StockAdjustScreen(api: widget.api)),
+        icon: const Icon(Icons.tune),
+        label: Text(l10n.invAdjust),
+      ),
+      body: FutureBuilder<InventoryView>(
+        future: _future,
+        builder: (context, snap) => ListView(
+          padding: EdgeInsets.fromLTRB(
+              margin, AppTokens.spacingMd, margin, AppTokens.spacingXl * 3),
           children: [
-            // Tarjetas de alerta: filtran la lista.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Row(
-                children: [
-                  _AlertCard(label: l10n.lowStock, count: 0, tone: StatusTone.warning, onTap: () {}),
-                  const SizedBox(width: 8),
-                  _AlertCard(label: l10n.outOfStock, count: 0, tone: StatusTone.error, onTap: () {}),
-                  const SizedBox(width: 8),
-                  _AlertCard(label: l10n.expiringSoon, count: 0, tone: StatusTone.neutral, onTap: () {}),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _warehouse,
-                      decoration: InputDecoration(labelText: l10n.warehouse),
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('Todas')),
-                      ],
-                      onChanged: (v) => setState(() => _warehouse = v ?? 'all'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _search,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.qr_code_scanner),
-                          tooltip: 'Escanear código de barra',
-                          onPressed: () async {
-                            final code = await BarcodeScannerDialog.scan(
-                              context,
-                              title: 'Buscar Producto por Escaneo',
-                              subtitle: 'Escanea el código de barra para localizarlo en existencias',
-                            );
-                            if (code != null && code.isNotEmpty && mounted) {
-                              setState(() => _search.text = code);
-                            }
-                          },
-                        ),
-                        hintText: l10n.searchProductsHint,
+            AsyncView<InventoryView>(
+              snapshot: snap,
+              errorMessage: snap.hasError
+                  ? catalogErrorMessage(l10n, snap.error!)
+                  : l10n.errorNoConnection,
+              retryLabel: l10n.actionRetry,
+              onRetry: _reload,
+              emptyView: const SizedBox.shrink(),
+              builder: (context, v) {
+                final low = v.levels.where((l) => l.isLow).length;
+                final out = v.levels.where((l) => l.isOut).length;
+                final rows = switch (_filter) {
+                  _Filter.low => v.levels.where((l) => l.isLow),
+                  _Filter.out => v.levels.where((l) => l.isOut),
+                  _Filter.all => v.levels,
+                }
+                    .toList()
+                  ..sort((a, b) => (v.products[a.productId]?.name ?? '')
+                      .compareTo(v.products[b.productId]?.name ?? ''));
+                return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Wrap(
+                          spacing: AppTokens.spacingSm,
+                          runSpacing: AppTokens.spacingSm,
+                          children: [
+                            FilterChip(
+                              avatar: Icon(Icons.trending_down,
+                                  color: theme.colorScheme.tertiary),
+                              label: Text(l10n.invLowCard('$low')),
+                              selected: _filter == _Filter.low,
+                              onSelected: (s) => setState(() =>
+                                  _filter = s ? _Filter.low : _Filter.all),
+                            ),
+                            FilterChip(
+                              avatar: Icon(Icons.remove_shopping_cart_outlined,
+                                  color: theme.colorScheme.error),
+                              label: Text(l10n.invOutCard('$out')),
+                              selected: _filter == _Filter.out,
+                              onSelected: (s) => setState(() =>
+                                  _filter = s ? _Filter.out : _Filter.all),
+                            ),
+                          ]),
+                      const SizedBox(height: AppTokens.spacingSm),
+                      DropdownButtonFormField<String>(
+                        initialValue: _warehouse,
+                        isExpanded: true,
+                        decoration:
+                            InputDecoration(labelText: l10n.invWarehouse),
+                        items: [
+                          DropdownMenuItem(
+                              value: '', child: Text(l10n.invAllWarehouses)),
+                          for (final w in v.warehouses)
+                            DropdownMenuItem(value: w.id, child: Text(w.name)),
+                        ],
+                        onChanged: (id) {
+                          _warehouse = id ?? '';
+                          _reload();
+                        },
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.inventory_2_outlined),
-                      title: const Text('Café Geisha Especial 250g'),
-                      subtitle: const Text('SKU: CAF-GEI-001 · Bodega Central'),
-                      trailing: const Text('40 ud disponibles', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) => StockDetailScreen(
-                          api: widget.api,
-                          name: 'Café Geisha Especial 250g',
-                          sku: 'CAF-GEI-001',
-                          totalStock: 45,
-                          reservedStock: 5,
-                          availableStock: 40,
+                      const SizedBox(height: AppTokens.spacingMd),
+                      if (rows.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTokens.spacingXl),
+                          child:
+                              Text(l10n.invEmpty, textAlign: TextAlign.center),
+                        )
+                      else
+                        Card(
+                          margin: EdgeInsets.zero,
+                          elevation: 0,
+                          color: theme.colorScheme.surfaceContainerLow,
+                          child: Column(children: [
+                            for (final l in rows)
+                              _StockTile(
+                                  api: widget.api,
+                                  level: l,
+                                  product: v.products[l.productId],
+                                  onChanged: _reload),
+                          ]),
                         ),
-                      )),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.inventory_2_outlined),
-                      title: const Text('Croissant de Almendras'),
-                      subtitle: const Text('SKU: BAK-CRO-002 · Sucursal Calle 50'),
-                      trailing: const Text('8 ud (Bajo stock)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) => StockDetailScreen(
-                          api: widget.api,
-                          name: 'Croissant de Almendras',
-                          sku: 'BAK-CRO-002',
-                          totalStock: 10,
-                          reservedStock: 2,
-                          availableStock: 8,
-                        ),
-                      )),
-                    ),
-                  ),
-                ],
-              ),
+                    ]);
+              },
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Producto'),
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => ProductScreen(api: widget.api),
-        )),
       ),
     );
   }
 }
 
-
-class _AlertCard extends StatelessWidget {
-  const _AlertCard({required this.label, required this.count, required this.tone, required this.onTap});
-
-  final String label;
-  final int count;
-  final StatusTone tone;
-  final VoidCallback onTap;
+class _StockTile extends StatelessWidget {
+  const _StockTile(
+      {required this.api,
+      required this.level,
+      required this.product,
+      required this.onChanged});
+  final ApiClient api;
+  final StockItem level;
+  final ProductItem? product;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('$count', style: Theme.of(context).textTheme.headlineSmall),
-                Text(label, style: Theme.of(context).textTheme.bodySmall, maxLines: 2),
-              ],
-            ),
-          ),
-        ),
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final unit = product?.unitType ?? 'UNIT';
+    final negative = level.availableMilli < 0;
+    return ListTile(
+      title: Text(product?.name ?? l10n.invUnknownProduct),
+      subtitle: Text([
+        '${l10n.invAvailable}: ${formatQty(level.availableMilli, unit)}',
+        '${l10n.invReserved}: ${formatQty(level.reservedMilli, unit)}',
+        if (level.reorderPointMilli > 0)
+          '${l10n.invMinimum}: ${formatQty(level.reorderPointMilli, unit)}',
+      ].join(' · ')),
+      trailing: Semantics(
+        label: l10n.invAvailable,
+        child: Text(formatQty(level.availableMilli, unit),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(color: negative ? theme.colorScheme.error : null)),
       ),
+      onTap: product == null
+          ? null
+          : () async {
+              final changed = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          StockDetailScreen(api: api, product: product!)));
+              if (changed == true) onChanged();
+            },
     );
   }
 }
