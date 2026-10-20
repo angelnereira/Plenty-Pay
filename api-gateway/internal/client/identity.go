@@ -63,6 +63,10 @@ type ValidatedSession struct {
 	TenantID  string
 	Role      string
 	SessionID string
+	// Permiso efectivo calculado por identity (ADR 0018): viaja a los servicios como x-pp-*.
+	Permissions  []string
+	BranchScope  string // "*" (TENANT), ids separados por coma, o "" (sin sucursales / sin negocio)
+	Capabilities []string
 }
 
 type AuthResult struct {
@@ -88,6 +92,8 @@ type Permissions struct {
 	Role           string
 	EnabledModules []string
 	Permissions    []string
+	BranchScope    string
+	Capabilities   []string
 }
 
 func withDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -102,7 +108,8 @@ func (c *IdentityClient) ValidateToken(ctx context.Context, accessToken string) 
 		return nil, c.fail(ctx, "identity.ValidateToken", err)
 	}
 	return &ValidatedSession{Valid: res.Valid, UserID: res.UserId, TenantID: res.TenantId,
-		Role: res.Role.String(), SessionID: res.SessionId}, nil
+		Role: res.Role.String(), SessionID: res.SessionId,
+		Permissions: res.Permissions, BranchScope: res.BranchScope, Capabilities: res.Capabilities}, nil
 }
 
 func toAuthResult(res *pb.AuthResult) *AuthResult {
@@ -163,7 +170,8 @@ func (c *IdentityClient) GetPermissions(ctx context.Context, userID string) (*Pe
 	if err != nil {
 		return nil, c.fail(ctx, "identity.GetUserPermissions", err)
 	}
-	return &Permissions{Role: res.Role.String(), EnabledModules: res.EnabledModules, Permissions: res.Permissions}, nil
+	return &Permissions{Role: res.Role.String(), EnabledModules: res.EnabledModules, Permissions: res.Permissions,
+		BranchScope: res.BranchScope, Capabilities: res.Capabilities}, nil
 }
 
 // fail registra una sola vez el fallo de identity como dependencia (reintentable) y devuelve el

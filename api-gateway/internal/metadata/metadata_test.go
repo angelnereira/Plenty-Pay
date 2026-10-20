@@ -175,3 +175,25 @@ func TestCallerEmpty(t *testing.T) {
 		t.Error("un caller con usuario no es Empty")
 	}
 }
+
+// ADR 0018: el alcance por sucursal y las capacidades del token validado viajan como
+// x-pp-branch-scope y x-pp-capabilities; un alcance vacío no se envía (el servicio lo lee como
+// "ninguna sucursal", nunca como "todas").
+func TestR24_OutgoingBranchScopeAndCapabilities(t *testing.T) {
+	ctx := gwmeta.NewContext(context.Background(), gwmeta.Caller{
+		UserID: "user-1", TenantID: "tenant-1", Role: "BUSINESS_STAFF",
+		BranchScope: "b1,b2", Capabilities: []string{"pos.counter", "pos.tables"},
+	})
+	md := outgoing(ctx, gwmeta.ActorServiceGateway)
+	if got := md.Get(gwmeta.HeaderBranchScope); len(got) != 1 || got[0] != "b1,b2" {
+		t.Errorf("x-pp-branch-scope = %v", got)
+	}
+	if got := md.Get(gwmeta.HeaderCapabilities); len(got) != 1 || got[0] != "pos.counter,pos.tables" {
+		t.Errorf("x-pp-capabilities = %v", got)
+	}
+
+	empty := outgoing(gwmeta.NewContext(context.Background(), gwmeta.Caller{UserID: "u", TenantID: "t"}), gwmeta.ActorServiceGateway)
+	if got := empty.Get(gwmeta.HeaderBranchScope); len(got) != 0 {
+		t.Errorf("un alcance vacío no se envía: %v", got)
+	}
+}

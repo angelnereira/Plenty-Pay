@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/pb"
 )
 
@@ -164,6 +166,12 @@ func (r Route) newResponse() proto.Message {
 // Handler construye el http.Handler genérico de una ruta.
 func Handler(conn *grpc.ClientConn, r Route) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		// Primera barrera (SPEC §3.8): permiso de la ruta contra el permiso efectivo de la sesión.
+		// El servicio vuelve a verificar (security-standards.md §3, defensa en profundidad).
+		if r.Permission != "" && !slices.Contains(metadata.FromContext(req.Context()).Permissions, r.Permission) {
+			writeError(w, http.StatusForbidden, "PERMISSION_DENIED", "no tienes permiso para esta operación")
+			return
+		}
 		var in proto.Message
 		if r.NewRequest != nil {
 			var err error
@@ -258,12 +266,24 @@ func setField(msg proto.Message, field, value string) error {
 	switch fd.Kind() {
 	case protoreflect.StringKind:
 		m.Set(fd, protoreflect.ValueOfString(value))
-	case protoreflect.Int32Kind, protoreflect.Int64Kind:
+	case protoreflect.Int32Kind:
+		n, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("campo %s: %q no es un entero", field, value)
+		}
+		m.Set(fd, protoreflect.ValueOfInt32(int32(n)))
+	case protoreflect.Int64Kind:
 		n, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return fmt.Errorf("campo %s: %q no es un entero", field, value)
 		}
 		m.Set(fd, protoreflect.ValueOfInt64(n))
+	case protoreflect.BoolKind:
+		b, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("campo %s: %q no es booleano", field, value)
+		}
+		m.Set(fd, protoreflect.ValueOfBool(b))
 	default:
 		return fmt.Errorf("campo %s: tipo %s no soportado", field, fd.Kind())
 	}

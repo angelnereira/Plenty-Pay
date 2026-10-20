@@ -22,6 +22,8 @@ const (
 	HeaderTenantID      = "x-pp-tenant-id"
 	HeaderRole          = "x-pp-role"
 	HeaderPermissions   = "x-pp-permissions"
+	HeaderBranchScope   = "x-pp-branch-scope"
+	HeaderCapabilities  = "x-pp-capabilities"
 	HeaderActorService  = "x-pp-actor-service"
 	HeaderStepUp        = "x-pp-step-up"
 	HeaderTraceParent   = "traceparent"
@@ -40,6 +42,8 @@ type Caller struct {
 	TenantID     string
 	Role         string
 	Permissions  []string
+	BranchScope  string   // "*" o ids de sucursal; vacío con tenant = ninguna sucursal (R24)
+	Capabilities []string // capacidades encendidas del negocio (R21)
 	ActorService string
 	StepUp       string
 }
@@ -130,6 +134,14 @@ func OutgoingInterceptor(actorService string) grpc.UnaryClientInterceptor {
 		}
 		if perms := strings.Join(c.Permissions, ","); perms != "" && len(perms) <= maxPermissionsMetadata {
 			md.Set(HeaderPermissions, perms)
+		}
+		// Alcance y capacidades (ADR 0018). Un alcance vacío no se envía: el servicio lo lee como
+		// "ninguna sucursal" cuando hay tenant, nunca como "todas".
+		if c.BranchScope != "" && len(c.BranchScope) <= maxPermissionsMetadata {
+			md.Set(HeaderBranchScope, c.BranchScope)
+		}
+		if caps := strings.Join(c.Capabilities, ","); caps != "" && len(caps) <= maxPermissionsMetadata {
+			md.Set(HeaderCapabilities, caps)
 		}
 		if tp := mdFromIncoming(ctx)[HeaderTraceParent]; len(tp) > 0 {
 			md.Set(HeaderTraceParent, tp[0])

@@ -167,5 +167,12 @@ func (h *AuthHandlers) Permissions(w http.ResponseWriter, r *http.Request) {
 	if permissions == nil {
 		permissions = []string{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"role": perms.Role, "enabled_modules": modules, "permissions": permissions})
+	capabilities := perms.Capabilities
+	if capabilities == nil {
+		capabilities = []string{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"role": perms.Role, "enabled_modules": modules, "permissions": permissions,
+		"branch_scope": perms.BranchScope, "capabilities": capabilities,
+	})
 }

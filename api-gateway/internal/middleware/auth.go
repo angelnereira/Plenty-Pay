@@ -14,6 +14,9 @@ type contextKey string
 
 const sessionContextKey contextKey = "session"
 
+// HeaderStepUpToken es la cabecera HTTP del token de confirmación fuerte (SPEC §3.9 → x-pp-step-up).
+const HeaderStepUpToken = "X-Step-Up-Token"
+
 // TokenValidator: lo único que el middleware necesita de identity (Segregación de Interfaces).
 type TokenValidator interface {
 	ValidateToken(ctx context.Context, accessToken string) (*client.ValidatedSession, error)
@@ -42,6 +45,9 @@ func RequireAuth(validator TokenValidator) func(http.Handler) http.Handler {
 			// R5: el caller de los metadatos sale del token validado, nunca del cliente.
 			ctx = metadata.NewContext(ctx, metadata.Caller{
 				UserID: session.UserID, TenantID: session.TenantID, Role: session.Role,
+				Permissions: session.Permissions, BranchScope: session.BranchScope, Capabilities: session.Capabilities,
+				// El token de step-up lo valida y consume el servicio (security-standards.md §4).
+				StepUp: r.Header.Get(HeaderStepUpToken),
 			})
 			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, sessionContextKey, session)))
 		})

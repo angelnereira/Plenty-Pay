@@ -78,6 +78,131 @@ var Table = []Route{
 		NewResponse: func() proto.Message { return &pb.StepUpToken{} },
 	},
 
+	// ── Modelo de acceso (ADR 0018, SPEC §4.1). Van antes de /v1/business/{tenant_id}: Find
+	// recorre la tabla en orden y los segmentos literales deben ganar al comodín. ──────────
+	{
+		Method: "GET", Path: "/v1/access/catalog", RPC: "/plentypay.identity.v1.Identity/GetAccessCatalog", RequireAuth: true,
+		NewRequest:  func() proto.Message { return &pb.GetAccessCatalogRequest{} },
+		NewResponse: func() proto.Message { return &pb.AccessCatalog{} },
+	},
+	{
+		Method: "GET", Path: "/v1/verticals", RPC: "/plentypay.identity.v1.Identity/ListVerticals", RequireAuth: true,
+		NewRequest:  func() proto.Message { return &pb.ListVerticalsRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListVerticalsResult{} },
+	},
+	{
+		Method: "GET", Path: "/v1/role-templates", RPC: "/plentypay.identity.v1.Identity/ListRoleTemplates", RequireAuth: true,
+		NewRequest:  func() proto.Message { return &pb.ListRoleTemplatesRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListRoleTemplatesResult{} },
+	},
+	{
+		Method: "GET", Path: "/v1/business/profile", RPC: "/plentypay.identity.v1.Identity/GetBusinessProfile", RequireAuth: true,
+		NewRequest:  func() proto.Message { return &pb.GetBusinessProfileRequest{} },
+		NewResponse: func() proto.Message { return &pb.BusinessProfile{} },
+	},
+	{
+		Method: "PUT", Path: "/v1/business/profile", RPC: "/plentypay.identity.v1.Identity/UpdateBusinessProfile",
+		RequireAuth: true, Idempotency: true, Permission: "admin:business:manage",
+		NewRequest:  func() proto.Message { return &pb.UpdateBusinessProfileRequest{} },
+		NewResponse: func() proto.Message { return &pb.BusinessProfile{} },
+	},
+	{
+		// 🔒 al apagar Finanzas o Equipo (identity consume el step-up, OpCapabilitiesSet).
+		Method: "PUT", Path: "/v1/business/capabilities", RPC: "/plentypay.identity.v1.Identity/SetCapabilities",
+		RequireAuth: true, Idempotency: true, StepUp: true, Permission: "admin:business:manage",
+		NewRequest:  func() proto.Message { return &pb.SetCapabilitiesRequest{} },
+		NewResponse: func() proto.Message { return &pb.BusinessProfile{} },
+	},
+	{
+		Method: "GET", Path: "/v1/business/branches", RPC: "/plentypay.identity.v1.Identity/ListBranches", RequireAuth: true,
+		QueryParams: map[string]string{"include_inactive": "include_inactive"},
+		NewRequest:  func() proto.Message { return &pb.ListBranchesRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListBranchesResult{} },
+	},
+	{
+		Method: "POST", Path: "/v1/business/branches", RPC: "/plentypay.identity.v1.Identity/UpsertBranch",
+		RequireAuth: true, Idempotency: true, Permission: "admin:business:manage",
+		NewRequest:  func() proto.Message { return &pb.UpsertBranchRequest{} },
+		NewResponse: func() proto.Message { return &pb.Branch{} },
+	},
+	{
+		Method: "POST", Path: "/v1/business/branches/{branch_id}/deactivate", RPC: "/plentypay.identity.v1.Identity/DeactivateBranch",
+		RequireAuth: true, Idempotency: true, Permission: "admin:business:manage",
+		PathParams:  map[string]string{"branch_id": "branch_id"},
+		NewRequest:  func() proto.Message { return &pb.BranchRef{} },
+		NewResponse: func() proto.Message { return &pb.Branch{} },
+	},
+	{
+		Method: "POST", Path: "/v1/business/branches/{branch_id}/reactivate", RPC: "/plentypay.identity.v1.Identity/ReactivateBranch",
+		RequireAuth: true, Idempotency: true, Permission: "admin:business:manage",
+		PathParams:  map[string]string{"branch_id": "branch_id"},
+		NewRequest:  func() proto.Message { return &pb.BranchRef{} },
+		NewResponse: func() proto.Message { return &pb.Branch{} },
+	},
+	{
+		Method: "GET", Path: "/v1/business/staff", RPC: "/plentypay.identity.v1.Identity/ListUsers",
+		RequireAuth: true, Permission: "admin:users:manage",
+		QueryParams: map[string]string{"page_size": "page_size", "page_token": "page_token"},
+		NewRequest:  func() proto.Message { return &pb.ListUsersRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListUsersResult{} },
+	},
+	{
+		// 🔒 si el cambio suma permisos de dinero (identity consume el step-up, OpMembershipUpdate).
+		Method: "PUT", Path: "/v1/business/staff/{user_id}/membership", RPC: "/plentypay.identity.v1.Identity/UpdateMembership",
+		RequireAuth: true, Idempotency: true, StepUp: true, Permission: "admin:users:manage",
+		PathParams:  map[string]string{"user_id": "user_id"},
+		NewRequest:  func() proto.Message { return &pb.UpdateMembershipRequest{} },
+		NewResponse: func() proto.Message { return &pb.UserSummary{} },
+	},
+	{
+		Method: "POST", Path: "/v1/business/staff/{user_id}/suspend", RPC: "/plentypay.identity.v1.Identity/SuspendUser",
+		RequireAuth: true, Idempotency: true, Permission: "admin:users:manage",
+		PathParams:  map[string]string{"user_id": "user_id"},
+		NewRequest:  func() proto.Message { return &pb.SetUserStatusRequest{} },
+		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
+	},
+	{
+		Method: "POST", Path: "/v1/business/staff/{user_id}/reactivate", RPC: "/plentypay.identity.v1.Identity/ReactivateUser",
+		RequireAuth: true, Idempotency: true, Permission: "admin:users:manage",
+		PathParams:  map[string]string{"user_id": "user_id"},
+		NewRequest:  func() proto.Message { return &pb.SetUserStatusRequest{} },
+		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
+	},
+	{
+		Method: "GET", Path: "/v1/business/invitations", RPC: "/plentypay.identity.v1.Identity/ListInvitations",
+		RequireAuth: true, Permission: "admin:users:manage",
+		QueryParams: map[string]string{"page_size": "page_size", "page_token": "page_token"},
+		NewRequest:  func() proto.Message { return &pb.ListInvitationsRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListInvitationsResult{} },
+	},
+	{
+		Method: "POST", Path: "/v1/business/invitations/{invitation_id}/resend", RPC: "/plentypay.identity.v1.Identity/ResendInvitation",
+		RequireAuth: true, Idempotency: true, Permission: "admin:users:manage",
+		PathParams:  map[string]string{"invitation_id": "invitation_id"},
+		NewRequest:  func() proto.Message { return &pb.InvitationRef{} },
+		NewResponse: func() proto.Message { return &pb.Invitation{} },
+	},
+	{
+		Method: "DELETE", Path: "/v1/business/invitations/{invitation_id}", RPC: "/plentypay.identity.v1.Identity/RevokeInvitation",
+		RequireAuth: true, Idempotency: true, Permission: "admin:users:manage",
+		PathParams:  map[string]string{"invitation_id": "invitation_id"},
+		NewRequest:  func() proto.Message { return &pb.InvitationRef{} },
+		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
+	},
+	{
+		// ListRoles lo necesitan admin:roles:manage y admin:users:manage (invitar): identity verifica.
+		Method: "GET", Path: "/v1/business/roles", RPC: "/plentypay.identity.v1.Identity/ListRoles", RequireAuth: true,
+		NewRequest:  func() proto.Message { return &pb.ListRolesRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListRolesResult{} },
+	},
+	{
+		Method: "DELETE", Path: "/v1/business/roles/{role_id}", RPC: "/plentypay.identity.v1.Identity/ArchiveRole",
+		RequireAuth: true, Idempotency: true, Permission: "admin:roles:manage",
+		PathParams:  map[string]string{"role_id": "role_id"},
+		NewRequest:  func() proto.Message { return &pb.ArchiveRoleRequest{} },
+		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
+	},
+
 	// ── Negocio (tenant) ───────────────────────────────────────────────────────
 	{
 		Method: "POST", Path: "/v1/business", RPC: "/plentypay.identity.v1.Identity/CreateBusiness",
@@ -93,22 +218,24 @@ var Table = []Route{
 		NewResponse: func() proto.Message { return &pb.Tenant{} },
 	},
 	{
+		// Compatibilidad: el tenant_id del path se ignora; identity usa el del token (ADR 0011).
 		Method: "GET", Path: "/v1/business/staff/{tenant_id}", RPC: "/plentypay.identity.v1.Identity/ListUsers",
-		RequireAuth: true,
+		RequireAuth: true, Permission: "admin:users:manage",
 		PathParams:  map[string]string{"tenant_id": "tenant_id"},
 		QueryParams: map[string]string{"page_size": "page_size", "page_token": "page_token"},
 		NewRequest:  func() proto.Message { return &pb.ListUsersRequest{} },
 		NewResponse: func() proto.Message { return &pb.ListUsersResult{} },
 	},
 	{
+		// 🔒 si el rol mueve dinero (identity consume el step-up, OpStaffInvite).
 		Method: "POST", Path: "/v1/business/staff", RPC: "/plentypay.identity.v1.Identity/InviteStaff",
-		RequireAuth: true, Idempotency: true,
+		RequireAuth: true, Idempotency: true, StepUp: true, Permission: "admin:users:manage",
 		NewRequest:  func() proto.Message { return &pb.InviteStaffRequest{} },
 		NewResponse: func() proto.Message { return &pb.Invitation{} },
 	},
 	{
 		Method: "DELETE", Path: "/v1/business/staff/{user_id}", RPC: "/plentypay.identity.v1.Identity/DeactivateUser",
-		RequireAuth: true, Idempotency: true,
+		RequireAuth: true, Idempotency: true, Permission: "admin:users:manage",
 		PathParams:  map[string]string{"user_id": "user_id"},
 		NewRequest:  func() proto.Message { return &pb.DeactivateUserRequest{} },
 		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
@@ -122,13 +249,13 @@ var Table = []Route{
 	},
 	{
 		Method: "POST", Path: "/v1/business/roles", RPC: "/plentypay.identity.v1.Identity/UpsertRole",
-		RequireAuth: true, StepUp: true, Idempotency: true,
+		RequireAuth: true, StepUp: true, Idempotency: true, Permission: "admin:roles:manage",
 		NewRequest:  func() proto.Message { return &pb.UpsertRoleRequest{} },
 		NewResponse: func() proto.Message { return &pb.Role{} },
 	},
 	{
 		Method: "POST", Path: "/v1/business/roles/{user_id}/assign", RPC: "/plentypay.identity.v1.Identity/AssignRole",
-		RequireAuth: true, StepUp: true, Idempotency: true,
+		RequireAuth: true, StepUp: true, Idempotency: true, Permission: "admin:roles:manage",
 		PathParams:  map[string]string{"user_id": "user_id"},
 		NewRequest:  func() proto.Message { return &pb.AssignRoleRequest{} },
 		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
