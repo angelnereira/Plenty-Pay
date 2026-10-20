@@ -122,7 +122,8 @@ Diferencias de la migración `0001_initial.sql` con el modelo de arriba, decidid
 - **R4** `Σ splits = amount`; cada `merchant_party_id` de un split debe ser un tenant ACTIVE.
 - **R5** Step-up obligatorio (consumido con `identity.ConsumeStepUp`) para pagos y transferencias ≥ umbral (`stepup.threshold_minor` de infra-management) y para todo reembolso. Operaciones del reto:
   - `payments.intent.create`: paga la persona del contexto, por ejemplo con una terminal;
-  - `payments.intent.confirm`: el cobro lo creó el comercio y la persona confirma.
+  - `payments.intent.confirm`: el cobro lo creó el comercio y la persona confirma;
+  - `payments.refund`: una persona del comercio reembolsa (con monto explícito y solo su propio split). El token se consume ANTES de crear el reembolso: un token inválido no deja un reembolso FAILED bajo la clave. Los reembolsos que origina `orders` (rechazo, vencimiento del plazo, cancelación, cobro tardío) no llevan step-up: van con una clave determinista auditada.
 
   El token llega en `step_up_token` o `confirmation_data["step_up_token"]`, o en el metadato `x-pp-step-up` (cabecera `X-Step-Up-Token` del gateway, igual que identity R14).
 - **R6** Ninguna transacción de BD abarca la llamada al riel (persistir PROCESSING → llamar → persistir resultado).

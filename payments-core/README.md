@@ -20,7 +20,9 @@ Orquestador de cobros: intents, pagos, intentos por riel, comisiones, reembolsos
 | Proyección de `TenantStatusChanged` (R2) | ✅ L2 · ⏳ en vivo | `r2_tenant_projection_suspends_charges`; el consumidor durable de NATS aún no corre en producción |
 | Rieles externos sandbox, recargas T1, cobros T2, job UNKNOWN, ResolveUnknownPayment (F11.7) | ✅ L2 · ✅ producción | `f11_7_*` y `chain_topup_then_pay_*` en L2; recorrido real por el gateway el 2026-10-20 (ver `status.md`) |
 | Worker de asiento R8 (F11.4) | ✅ L2 | T1/T2 con clave determinista; idempotente al repetirse |
-| Reembolsos, webhooks, P2P, PostMemoEntry | 📋 | responden `UNIMPLEMENTED`. Un webhook nunca se acepta (fail-closed, R12) |
+| Reembolsos por split con asiento T7 (F11.6, R5, R11) | ✅ L2 | 5 pruebas `f11_6_*` en `tests/l2_payments.rs` (comisiones exactas, solo el split del comercio, sin saldo → `MERCHANT_BALANCE_INSUFFICIENT`, step-up `payments.refund`, cobro no capturado → `PAYMENT_NOT_CAPTURED`); job `resume_refunds` cada 10 s; migración 0003 en producción |
+| Cobro de marketplace con un split por comercio (orders, R4) | ✅ L2 | `orders_marketplace_intent_splits_to_each_merchant_and_only_buyer_pays` |
+| Webhooks, P2P, PostMemoEntry | 📋 | responden `UNIMPLEMENTED`. Un webhook nunca se acepta (fail-closed, R12) |
 | Observabilidad | ◐ parcial | logs JSON, métricas de SPEC §10, prueba de no-fuga (`obs_defect_does_not_leak_its_cause`). **Faltan**: trazas OTel con `traceparent`, reglas de alerta y `pp_payments_unknown_age_seconds_max` |
 | Imagen Docker | ✅ | distroless `cc-debian12:nonroot`, 53 MB. Probada con migración, arranque en solo lectura sin capabilities, healthcheck rc=0 y apagado ordenado con exit 0 |
 | Despliegue en producción | ✅ 2026-10-20 | esquema recreado con respaldo (`payments-reset.sh`), migraciones 0001–0002, política global de comisión 3 % + ITBMS 7 % (MERCHANT) creada por `PUT /v1/fee-policies` |

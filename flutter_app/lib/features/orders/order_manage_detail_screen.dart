@@ -1,188 +1,243 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/observability/app_logger.dart' show newRequestId;
+import '../../core/theme/tokens.dart';
 import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
-import '../../core/widgets/pp_text_field.dart';
 import '../../core/widgets/status_chip.dart';
+import '../marketplace/market_data.dart';
+import '../marketplace/market_widgets.dart' show formatQtyLabel, subTone;
+import 'orders_manage_screen.dart' show deadlineTone;
 
-/// S-ORD-02 · `/orders/:id` · Detalle y preparación del sub-pedido del comercio.
+/// Motivos de rechazo (S-ORD-02 e6). "No entrego en esa zona" llega con la entrega a domicilio.
+const rejectReasons = ['OUT_OF_STOCK', 'STORE_CLOSED', 'OTHER'];
+
+/// S-ORD-02 · `/orders/:id` · Detalle del sub-pedido. `orders:manage` ·
+/// `POST /v1/merchant/sub-orders/{id}/{accept|ready|complete|reject}`.
+///
+/// e1 número, estado y cuenta regresiva · e2 retiro en tienda · e3 productos · e4 total · e5 la
+/// acción del estado (Aceptar pedido → Marcar listo → Entregar al cliente) · e6 "Rechazar" con
+/// motivo obligatorio y C-05 "Rechazar y reembolsar {monto}" · e7 código del cliente (6 dígitos).
+/// Datos del cliente, existencias por línea, desglose de comisión y factura (e2–e4, e8) llegan con
+/// sus servicios.
 class OrderManageDetailScreen extends StatefulWidget {
-  const OrderManageDetailScreen({
-    super.key,
-    required this.api,
-    required this.orderId,
-    required this.customer,
-    required this.fulfillment,
-    required this.items,
-    required this.totalMinor,
-    required this.initialStatus,
-  });
-
+  const OrderManageDetailScreen(
+      {super.key, required this.api, required this.sub});
   final ApiClient api;
-  final String orderId;
-  final String customer;
-  final String fulfillment;
-  final String items;
-  final int totalMinor;
-  final String initialStatus;
+  final SubOrderItem sub;
 
   @override
-  State<OrderManageDetailScreen> createState() => _OrderManageDetailScreenState();
+  State<OrderManageDetailScreen> createState() =>
+      _OrderManageDetailScreenState();
 }
 
 class _OrderManageDetailScreenState extends State<OrderManageDetailScreen> {
-  late String _status = widget.initialStatus;
+  late SubOrderItem _sub = widget.sub;
+  final _code = TextEditingController();
+  bool _busy = false;
+  Timer? _tick;
 
-  void _showRejectDialog() {
-    final reason = TextEditingController();
-    showDialog<void>(
+  @override
+  void initState() {
+    super.initState();
+    if (_sub.status == 'AWAITING_ACCEPTANCE') {
+      _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<Map<String, dynamic>> Function() call) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final updated = SubOrderItem.fromJson(await call());
+      if (!mounted) return;
+      if (updated.status != 'AWAITING_ACCEPTANCE') _tick?.cancel();
+      setState(() => _sub = updated);
+      messenger.showSnackBar(SnackBar(content: Text(l10n.ordDone)));
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'orders.action', e is ApiException ? e.reason : 'network');
+      messenger
+          .showSnackBar(SnackBar(content: Text(marketErrorMessage(l10n, e))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _primary() {
+    switch (_sub.status) {
+      case 'AWAITING_ACCEPTANCE':
+        _run(() => widget.api
+            .subOrderAction(_sub.id, 'accept', idempotencyKey: newRequestId()));
+      case 'ACCEPTED':
+        _run(() => widget.api
+            .subOrderAction(_sub.id, 'ready', idempotencyKey: newRequestId()));
+      case 'READY':
+        _run(() => widget.api.subOrderAction(_sub.id, 'complete',
+            pickupCode: _code.text.trim(), idempotencyKey: newRequestId()));
+    }
+  }
+
+  String _reasonLabel(AppLocalizations l10n, String r) => switch (r) {
+        'OUT_OF_STOCK' => l10n.ordReason_STOCK,
+        'STORE_CLOSED' => l10n.ordReason_CLOSED,
+        _ => l10n.ordReason_OTHER,
+      };
+
+  Future<void> _reject() async {
+    final l10n = AppLocalizations.of(context);
+    var reason = '';
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rechazar pedido'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Conforme a la regla de SLA, se reembolsará inmediatamente al cliente.'),
-            const SizedBox(height: 12),
-            PPTextField(controller: reason, labelText: 'Motivo del rechazo (ej. sin existencias)'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(l10n.ordRejectReason),
+          content: RadioGroup<String>(
+            groupValue: reason,
+            onChanged: (v) => setLocal(() => reason = v ?? ''),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              for (final r in rejectReasons)
+                RadioListTile<String>(
+                    value: r, title: Text(_reasonLabel(l10n, r))),
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(l10n.actionClose)),
+            TextButton(
+                onPressed:
+                    reason.isEmpty ? null : () => Navigator.of(ctx).pop(true),
+                child: Text(
+                    l10n.ordRejectConfirm(MoneyText.format(_sub.totalMinor)))),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () {
-              if (reason.text.trim().isNotEmpty) {
-                setState(() => _status = 'rejected');
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Pedido rechazado y reembolso procesado.')),
-                );
-              }
-            },
-            child: const Text('Confirmar rechazo'),
-          ),
-        ],
       ),
     );
+    if (ok != true || !mounted) return;
+    await _run(() => widget.api.rejectSubOrder(_sub.id,
+        reason: reason, idempotencyKey: newRequestId()));
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-
+    final margin = WindowClass.of(context).horizontalMargin;
+    final s = _sub;
+    final left = s.deadline?.difference(DateTime.now());
+    final primaryLabel = switch (s.status) {
+      'AWAITING_ACCEPTANCE' => l10n.ordAccept,
+      'ACCEPTED' => l10n.ordMarkReady,
+      'READY' => l10n.ordHandOver,
+      _ => null,
+    };
+    final canReject =
+        s.status == 'AWAITING_ACCEPTANCE' || s.status == 'ACCEPTED';
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Pedido ${widget.orderId}'),
-        actions: [
-          if (_status == 'pending')
-            TextButton(
-              onPressed: _showRejectDialog,
-              child: const Text('Rechazar', style: TextStyle(color: Colors.red)),
+      appBar: AppBar(title: Text(l10n.mktOrderNumber(orderNumber(s.orderId)))),
+      bottomNavigationBar: primaryLabel == null && !canReject
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                    margin, AppTokens.spacingSm, margin, AppTokens.spacingSm),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  if (primaryLabel != null)
+                    ListenableBuilder(
+                      listenable: _code,
+                      builder: (context, _) => PPButton.primary(
+                        label: primaryLabel,
+                        loading: _busy,
+                        onPressed:
+                            s.status == 'READY' && _code.text.trim().length != 6
+                                ? null
+                                : _primary,
+                      ),
+                    ),
+                  if (canReject) ...[
+                    const SizedBox(height: AppTokens.spacingSm),
+                    PPButton.secondary(
+                        label: l10n.ordReject,
+                        onPressed: _busy ? null : _reject),
+                  ],
+                ]),
+              ),
             ),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Card(
-                color: theme.colorScheme.surfaceContainerLow,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(widget.customer, style: theme.textTheme.titleMedium),
-                          StatusChip(
-                            label: _status.toUpperCase(),
-                            tone: _status == 'ready' ? StatusTone.success : StatusTone.warning,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(widget.fulfillment, style: theme.textTheme.bodyMedium),
-                    ],
-                  ),
-                ),
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(
+            margin, AppTokens.spacingSm, margin, AppTokens.spacingXl),
+        children: [
+          Wrap(
+              spacing: AppTokens.spacingSm,
+              runSpacing: AppTokens.spacingXs,
+              children: [
+                StatusChip(
+                    label: subStatusLabel(l10n, s.status),
+                    tone: subTone(s.status)),
+                if (s.status == 'AWAITING_ACCEPTANCE' && left != null)
+                  StatusChip(label: countdown(left), tone: deadlineTone(left)),
+              ]),
+          const SizedBox(height: AppTokens.spacingMd),
+          Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            color: theme.colorScheme.surfaceContainerLow,
+            child: Column(children: [
+              ListTile(
+                leading: const Icon(Icons.store_mall_directory_outlined),
+                title: Text(l10n.ordPickupLabel),
               ),
-              const SizedBox(height: 16),
-
-              Text('Artículos a preparar', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text('1x Café Geisha Especial 250g'),
-                          MoneyText(1850),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text('2x Croissant de Almendras'),
-                          MoneyText(850),
-                        ],
-                      ),
-                      const Divider(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Total neto de la venta:', style: TextStyle(fontWeight: FontWeight.bold)),
-                          MoneyText(widget.totalMinor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                        ],
-                      ),
-                    ],
-                  ),
+              for (final l in s.lines)
+                ListTile(
+                  title: Text(l.name),
+                  subtitle: Text(
+                      '${formatQtyLabel(l.qtyMilli, 'UNIT')} · ${MoneyText.format(l.totalMinor)}'),
                 ),
+              ListTile(
+                title:
+                    Text(l10n.orderSummary, style: theme.textTheme.titleMedium),
+                subtitle: MoneyText(s.totalMinor,
+                    style: theme.textTheme.headlineSmall),
               ),
-              const Spacer(),
-
-              if (_status == 'pending')
-                PPButton.primary(
-                  label: 'Aceptar pedido e iniciar preparación',
-                  onPressed: () {
-                    setState(() => _status = 'preparing');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Pedido en preparación.')),
-                    );
-                  },
-                )
-              else if (_status == 'preparing')
-                PPButton.primary(
-                  label: 'Marcar listo para entrega / repartidor',
-                  onPressed: () {
-                    setState(() => _status = 'ready');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Pedido marcado listo. Se ha asignado repartidor.')),
-                    );
-                  },
-                )
-              else if (_status == 'ready')
-                PPButton.primary(
-                  label: 'Entregar paquete (código o escaneo)',
-                  onPressed: () {
-                    setState(() => _status = 'delivered');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Pedido entregado con éxito.')),
-                    );
-                    Navigator.of(context).pop();
-                  },
-                ),
-            ],
+            ]),
           ),
-        ),
+          if (s.status == 'READY') ...[
+            const SizedBox(height: AppTokens.spacingMd),
+            TextField(
+              key: const Key('pickup-code-field'),
+              controller: _code,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: InputDecoration(labelText: l10n.ordCustomerCode),
+            ),
+          ],
+          if (s.rejectionReason.isNotEmpty) ...[
+            const SizedBox(height: AppTokens.spacingMd),
+            Text(
+                s.rejectionReason == 'ACCEPTANCE_TIMEOUT'
+                    ? l10n.error_ACCEPT_DEADLINE_PASSED
+                    : _reasonLabel(l10n, s.rejectionReason),
+                style: theme.textTheme.bodyMedium),
+          ],
+        ],
       ),
     );
   }

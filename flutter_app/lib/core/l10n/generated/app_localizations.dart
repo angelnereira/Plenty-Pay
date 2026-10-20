@@ -5636,6 +5636,600 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Pago de una venta en caja'**
   String get paySaleAt;
+
+  /// No description provided for @mktSearchHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Busca productos o tiendas'**
+  String get mktSearchHint;
+
+  /// No description provided for @mktNoResults.
+  ///
+  /// In es, this message translates to:
+  /// **'No encontramos resultados para “{query}”.'**
+  String mktNoResults(String query);
+
+  /// No description provided for @mktEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Todavía no hay productos publicados.'**
+  String get mktEmpty;
+
+  /// No description provided for @mktSoldOut.
+  ///
+  /// In es, this message translates to:
+  /// **'Agotado'**
+  String get mktSoldOut;
+
+  /// No description provided for @mktTaxIncluded.
+  ///
+  /// In es, this message translates to:
+  /// **'ITBMS incluido'**
+  String get mktTaxIncluded;
+
+  /// No description provided for @mktPerUnit.
+  ///
+  /// In es, this message translates to:
+  /// **'por {unit}'**
+  String mktPerUnit(String unit);
+
+  /// No description provided for @mktSoldBy.
+  ///
+  /// In es, this message translates to:
+  /// **'Vendido por {store}'**
+  String mktSoldBy(String store);
+
+  /// No description provided for @mktSeeStore.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver tienda'**
+  String get mktSeeStore;
+
+  /// No description provided for @mktPickupFree.
+  ///
+  /// In es, this message translates to:
+  /// **'Retiro en tienda gratis'**
+  String get mktPickupFree;
+
+  /// No description provided for @mktAddToCart.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar al carrito'**
+  String get mktAddToCart;
+
+  /// No description provided for @mktAdded.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregado al carrito.'**
+  String get mktAdded;
+
+  /// No description provided for @mktQuantity.
+  ///
+  /// In es, this message translates to:
+  /// **'Cantidad'**
+  String get mktQuantity;
+
+  /// No description provided for @mktCart.
+  ///
+  /// In es, this message translates to:
+  /// **'Carrito'**
+  String get mktCart;
+
+  /// No description provided for @mktCartEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu carrito está vacío.'**
+  String get mktCartEmpty;
+
+  /// No description provided for @mktExplore.
+  ///
+  /// In es, this message translates to:
+  /// **'Explorar tiendas'**
+  String get mktExplore;
+
+  /// No description provided for @mktSubtotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Subtotal {amount}'**
+  String mktSubtotal(String amount);
+
+  /// No description provided for @mktItemsTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Total de productos {amount}'**
+  String mktItemsTotal(String amount);
+
+  /// No description provided for @mktShippingNext.
+  ///
+  /// In es, this message translates to:
+  /// **'El envío se calcula en el siguiente paso.'**
+  String get mktShippingNext;
+
+  /// No description provided for @mktContinue.
+  ///
+  /// In es, this message translates to:
+  /// **'Continuar'**
+  String get mktContinue;
+
+  /// No description provided for @mktRemoved.
+  ///
+  /// In es, this message translates to:
+  /// **'{name} quitado del carrito.'**
+  String mktRemoved(String name);
+
+  /// No description provided for @mktUndo.
+  ///
+  /// In es, this message translates to:
+  /// **'Deshacer'**
+  String get mktUndo;
+
+  /// No description provided for @mktCheckoutTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar el pedido'**
+  String get mktCheckoutTitle;
+
+  /// No description provided for @mktPickup.
+  ///
+  /// In es, this message translates to:
+  /// **'Retiro en tienda'**
+  String get mktPickup;
+
+  /// No description provided for @mktDeliverySoon.
+  ///
+  /// In es, this message translates to:
+  /// **'La entrega a domicilio llega pronto.'**
+  String get mktDeliverySoon;
+
+  /// No description provided for @mktPayMethod.
+  ///
+  /// In es, this message translates to:
+  /// **'Método de pago'**
+  String get mktPayMethod;
+
+  /// No description provided for @mktProducts.
+  ///
+  /// In es, this message translates to:
+  /// **'Productos {amount}'**
+  String mktProducts(String amount);
+
+  /// No description provided for @mktTaxIncludedAmount.
+  ///
+  /// In es, this message translates to:
+  /// **'ITBMS incluido {amount}'**
+  String mktTaxIncludedAmount(String amount);
+
+  /// No description provided for @mktTotalToPay.
+  ///
+  /// In es, this message translates to:
+  /// **'Total a pagar'**
+  String get mktTotalToPay;
+
+  /// No description provided for @mktAcceptNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'Cada tienda tiene 15 minutos para aceptar tu pedido. Si una no lo acepta, te devolvemos su parte.'**
+  String get mktAcceptNotice;
+
+  /// No description provided for @mktPay.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar {total}'**
+  String mktPay(String total);
+
+  /// No description provided for @mktPriceChangedTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'El total cambió'**
+  String get mktPriceChangedTitle;
+
+  /// No description provided for @mktPriceChangedBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Los precios cambiaron desde que abriste el carrito. Revisa el nuevo total.'**
+  String get mktPriceChangedBody;
+
+  /// No description provided for @mktReviewCart.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisar carrito'**
+  String get mktReviewCart;
+
+  /// No description provided for @mktMyOrders.
+  ///
+  /// In es, this message translates to:
+  /// **'Mis pedidos'**
+  String get mktMyOrders;
+
+  /// No description provided for @mktOrdersEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no has hecho pedidos.'**
+  String get mktOrdersEmpty;
+
+  /// No description provided for @mktInProgress.
+  ///
+  /// In es, this message translates to:
+  /// **'En curso'**
+  String get mktInProgress;
+
+  /// No description provided for @mktPast.
+  ///
+  /// In es, this message translates to:
+  /// **'Anteriores'**
+  String get mktPast;
+
+  /// No description provided for @mktOrderNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedido {number}'**
+  String mktOrderNumber(String number);
+
+  /// No description provided for @mktStores.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} tiendas'**
+  String mktStores(String n);
+
+  /// No description provided for @orderStatus_PENDING_PAYMENT.
+  ///
+  /// In es, this message translates to:
+  /// **'Por pagar'**
+  String get orderStatus_PENDING_PAYMENT;
+
+  /// No description provided for @orderStatus_PAID.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagado'**
+  String get orderStatus_PAID;
+
+  /// No description provided for @orderStatus_PARTIALLY_FULFILLED.
+  ///
+  /// In es, this message translates to:
+  /// **'Entrega parcial'**
+  String get orderStatus_PARTIALLY_FULFILLED;
+
+  /// No description provided for @orderStatus_COMPLETED.
+  ///
+  /// In es, this message translates to:
+  /// **'Completado'**
+  String get orderStatus_COMPLETED;
+
+  /// No description provided for @orderStatus_CANCELLED.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelado'**
+  String get orderStatus_CANCELLED;
+
+  /// No description provided for @orderStatus_REFUNDED.
+  ///
+  /// In es, this message translates to:
+  /// **'Reembolsado'**
+  String get orderStatus_REFUNDED;
+
+  /// No description provided for @subStatus_PENDING_PAYMENT.
+  ///
+  /// In es, this message translates to:
+  /// **'Por pagar'**
+  String get subStatus_PENDING_PAYMENT;
+
+  /// No description provided for @subStatus_AWAITING_ACCEPTANCE.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperando a la tienda'**
+  String get subStatus_AWAITING_ACCEPTANCE;
+
+  /// No description provided for @subStatus_ACCEPTED.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptado'**
+  String get subStatus_ACCEPTED;
+
+  /// No description provided for @subStatus_READY.
+  ///
+  /// In es, this message translates to:
+  /// **'Listo para retirar'**
+  String get subStatus_READY;
+
+  /// No description provided for @subStatus_IN_DELIVERY.
+  ///
+  /// In es, this message translates to:
+  /// **'En camino'**
+  String get subStatus_IN_DELIVERY;
+
+  /// No description provided for @subStatus_COMPLETED.
+  ///
+  /// In es, this message translates to:
+  /// **'Entregado'**
+  String get subStatus_COMPLETED;
+
+  /// No description provided for @subStatus_REJECTED.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazado'**
+  String get subStatus_REJECTED;
+
+  /// No description provided for @subStatus_CANCELLED.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelado'**
+  String get subStatus_CANCELLED;
+
+  /// No description provided for @mktPickupCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Muestra este código al retirar: {code}'**
+  String mktPickupCode(String code);
+
+  /// No description provided for @mktRejectedRefund.
+  ///
+  /// In es, this message translates to:
+  /// **'{store} no pudo aceptar tu pedido. Te devolvimos {amount}.'**
+  String mktRejectedRefund(String store, String amount);
+
+  /// No description provided for @mktCancelOrder.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelar pedido'**
+  String get mktCancelOrder;
+
+  /// No description provided for @mktCancelConfirm.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cancelar el pedido? Si ya lo pagaste, te devolvemos el dinero.'**
+  String get mktCancelConfirm;
+
+  /// No description provided for @mktCountdown.
+  ///
+  /// In es, this message translates to:
+  /// **'Quedan {time} para que la tienda acepte'**
+  String mktCountdown(String time);
+
+  /// No description provided for @mktOrderPaying.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmando el pago…'**
+  String get mktOrderPaying;
+
+  /// No description provided for @mktStoreFallback.
+  ///
+  /// In es, this message translates to:
+  /// **'Tienda'**
+  String get mktStoreFallback;
+
+  /// No description provided for @error_LISTING_UNAVAILABLE.
+  ///
+  /// In es, this message translates to:
+  /// **'El producto ya no está disponible.'**
+  String get error_LISTING_UNAVAILABLE;
+
+  /// No description provided for @error_CART_LIMIT.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu carrito llegó al máximo de productos.'**
+  String get error_CART_LIMIT;
+
+  /// No description provided for @error_PRICE_CHANGED.
+  ///
+  /// In es, this message translates to:
+  /// **'Los precios cambiaron; revisa tu carrito.'**
+  String get error_PRICE_CHANGED;
+
+  /// No description provided for @error_DELIVERY_UNAVAILABLE.
+  ///
+  /// In es, this message translates to:
+  /// **'La entrega a domicilio aún no está disponible.'**
+  String get error_DELIVERY_UNAVAILABLE;
+
+  /// No description provided for @error_EMPTY_CART.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu carrito está vacío.'**
+  String get error_EMPTY_CART;
+
+  /// No description provided for @error_ACCEPT_DEADLINE_PASSED.
+  ///
+  /// In es, this message translates to:
+  /// **'El plazo para aceptar terminó. El pedido fue reembolsado.'**
+  String get error_ACCEPT_DEADLINE_PASSED;
+
+  /// No description provided for @error_PICKUP_CODE_MISMATCH.
+  ///
+  /// In es, this message translates to:
+  /// **'El código no coincide.'**
+  String get error_PICKUP_CODE_MISMATCH;
+
+  /// No description provided for @error_LISTING_INCOMPLETE.
+  ///
+  /// In es, this message translates to:
+  /// **'Al producto le falta foto o precio para publicarse.'**
+  String get error_LISTING_INCOMPLETE;
+
+  /// No description provided for @ordTabToAccept.
+  ///
+  /// In es, this message translates to:
+  /// **'Por aceptar ({n})'**
+  String ordTabToAccept(String n);
+
+  /// No description provided for @ordTabPreparing.
+  ///
+  /// In es, this message translates to:
+  /// **'En preparación ({n})'**
+  String ordTabPreparing(String n);
+
+  /// No description provided for @ordTabReady.
+  ///
+  /// In es, this message translates to:
+  /// **'Listos ({n})'**
+  String ordTabReady(String n);
+
+  /// No description provided for @ordTabHistory.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial'**
+  String get ordTabHistory;
+
+  /// No description provided for @ordEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay pedidos aquí.'**
+  String get ordEmpty;
+
+  /// No description provided for @ordItems.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} productos'**
+  String ordItems(String n);
+
+  /// No description provided for @ordAccept.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar pedido'**
+  String get ordAccept;
+
+  /// No description provided for @ordMarkReady.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcar listo'**
+  String get ordMarkReady;
+
+  /// No description provided for @ordHandOver.
+  ///
+  /// In es, this message translates to:
+  /// **'Entregar al cliente'**
+  String get ordHandOver;
+
+  /// No description provided for @ordReject.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazar'**
+  String get ordReject;
+
+  /// No description provided for @ordRejectReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo del rechazo'**
+  String get ordRejectReason;
+
+  /// No description provided for @ordReason_STOCK.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin existencias'**
+  String get ordReason_STOCK;
+
+  /// No description provided for @ordReason_CLOSED.
+  ///
+  /// In es, this message translates to:
+  /// **'Tienda cerrada'**
+  String get ordReason_CLOSED;
+
+  /// No description provided for @ordReason_OTHER.
+  ///
+  /// In es, this message translates to:
+  /// **'Otro'**
+  String get ordReason_OTHER;
+
+  /// No description provided for @ordRejectConfirm.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazar y reembolsar {amount}'**
+  String ordRejectConfirm(String amount);
+
+  /// No description provided for @ordCustomerCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Código del cliente'**
+  String get ordCustomerCode;
+
+  /// No description provided for @ordPickupLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Retiro en tienda'**
+  String get ordPickupLabel;
+
+  /// No description provided for @ordDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedido actualizado.'**
+  String get ordDone;
+
+  /// No description provided for @sfTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi tienda en línea'**
+  String get sfTitle;
+
+  /// No description provided for @sfVisible.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu tienda está visible'**
+  String get sfVisible;
+
+  /// No description provided for @sfHidden.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu tienda está oculta'**
+  String get sfHidden;
+
+  /// No description provided for @sfName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre de la tienda'**
+  String get sfName;
+
+  /// No description provided for @sfDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Descripción'**
+  String get sfDescription;
+
+  /// No description provided for @sfPublishStore.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar mi tienda en el marketplace'**
+  String get sfPublishStore;
+
+  /// No description provided for @sfProducts.
+  ///
+  /// In es, this message translates to:
+  /// **'Productos publicados'**
+  String get sfProducts;
+
+  /// No description provided for @sfPublish.
+  ///
+  /// In es, this message translates to:
+  /// **'Publicar'**
+  String get sfPublish;
+
+  /// No description provided for @sfSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Tienda guardada.'**
+  String get sfSaved;
+
+  /// No description provided for @sfNoProducts.
+  ///
+  /// In es, this message translates to:
+  /// **'Primero crea productos en tu catálogo.'**
+  String get sfNoProducts;
+
+  /// No description provided for @mktVerified.
+  ///
+  /// In es, this message translates to:
+  /// **'Comercio verificado'**
+  String get mktVerified;
+
+  /// No description provided for @mktAcceptNewTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar nuevo total'**
+  String get mktAcceptNewTotal;
+
+  /// No description provided for @mktPriceChangedFromTo.
+  ///
+  /// In es, this message translates to:
+  /// **'El total cambió de {from} a {to}.'**
+  String mktPriceChangedFromTo(String from, String to);
 }
 
 class _AppLocalizationsDelegate

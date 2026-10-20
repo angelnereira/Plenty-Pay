@@ -5,7 +5,7 @@ Módulos `marketplace` y `orders`. Paso F15.10 salvo indicación. Convenciones: 
 ## Comprar (cliente)
 
 ### S-MKT-01 · `/market` · Descubrir
-`orders:create:self` · `/v1/market/search`
+`orders:create:self` · `GET /v1/marketplace/search`
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
@@ -19,7 +19,7 @@ Módulos `marketplace` y `orders`. Paso F15.10 salvo indicación. Convenciones: 
 El precio de cada tarjeta es el total con impuestos (N-CON-01). Vacío: "No encontramos resultados para “{texto}”."
 
 ### S-MKT-02 · `/market/p/:id` · Producto
-`orders:create:self` · `/v1/market/products/:id` · Reglas: N-CON-01 a N-CON-03, N-CON-07, N-LOG-01, N-LOG-04
+`orders:create:self` · `GET /v1/marketplace/products/:id` · Reglas: N-CON-01 a N-CON-03, N-CON-07, N-LOG-01, N-LOG-04
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
@@ -37,7 +37,7 @@ El precio de cada tarjeta es el total con impuestos (N-CON-01). Vacío: "No enco
 | e12 | `PPButton.primary` | Agregar al carrito | Agotado: deshabilitado "Agotado" |
 
 ### S-MKT-03 · `/market/s/:slug` · Tienda
-Cabecera (logo, nombre, RUC, corregimiento, horario, "Abierto"/"Cerrado"), políticas de entrega y devolución, y la cuadrícula de S-MKT-01 e5 filtrada a la tienda. Buscador dentro de la tienda.
+`GET /v1/marketplace/storefronts/:tenant_id`. Cabecera (logo, nombre, RUC, corregimiento, horario, "Abierto"/"Cerrado"), políticas de entrega y devolución, y la cuadrícula de S-MKT-01 e5 filtrada a la tienda. Buscador dentro de la tienda.
 
 ### S-MKT-04 · `/market/cart` · Carrito
 `orders:create:self` · `/v1/cart`
@@ -54,7 +54,7 @@ Cabecera (logo, nombre, RUC, corregimiento, horario, "Abierto"/"Cerrado"), polí
 Vacío: "Tu carrito está vacío." con "Explorar tiendas". Límite `CART_LIMIT`: "Tu carrito llegó al máximo de productos."
 
 ### S-MKT-05 · `/market/checkout` · Pagar el pedido
-`orders:create:self` · `/v1/checkout/quote`, `/v1/checkout` · 🔒 desde el umbral · Reglas: N-CON-01, N-PAG-06
+`orders:create:self` · `POST /v1/orders/quote`, `POST /v1/orders` y `POST /v1/payments/intents/:id/confirm` · 🔒 desde el umbral · Reglas: N-CON-01, N-PAG-06
 
 Una sola pantalla con secciones plegables, en este orden.
 
@@ -72,7 +72,7 @@ Una sola pantalla con secciones plegables, en este orden.
 Flujo: 1) cotiza al abrir y al cambiar e1, e2 o e4; 2) al pagar, si el total recotizado difiere → `PRICE_CHANGED`: diálogo "El total cambió de {x} a {y}." con "Aceptar nuevo total" y "Revisar carrito", sin cobrar; 3) existencias insuficientes → vuelve a S-MKT-04 con la línea marcada; 4) pago → S-WAL-07 → S-MKT-07.
 
 ### S-MKT-06 · `/market/orders` · Mis pedidos
-`orders:read:self` · `/v1/orders/mine`. Lista: número de pedido, fecha, tiendas, total, `StatusChip` (Por pagar, Pagado, En camino, Completado, Cancelado, Reembolsado). Filtro "En curso / Anteriores". Vacío: "Aún no has hecho pedidos."
+`orders:read:self` · `GET /v1/orders`. Lista: número de pedido, fecha, tiendas, total, `StatusChip` (Por pagar, Pagado, En camino, Completado, Cancelado, Reembolsado). Filtro "En curso / Anteriores". Vacío: "Aún no has hecho pedidos."
 
 ### S-MKT-07 · `/market/orders/:id` · Detalle del pedido
 `orders:read:self` · `/v1/orders/:id`, WebSocket `delivery` · Pasos F15.10, F18.7 · Reglas: N-CON-03, N-CON-08

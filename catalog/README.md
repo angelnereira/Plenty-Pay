@@ -1,6 +1,6 @@
 # catalog
 
-Productos, categorías y tasas de ITBMS vigentes; listados del marketplace y búsqueda llegan con F15.4–F15.5. Especificación completa: [`SPEC.md`](SPEC.md).
+Productos, categorías, tasas de ITBMS vigentes, vitrina, publicación en el marketplace y su búsqueda. Especificación completa: [`SPEC.md`](SPEC.md).
 
 | | |
 |---|---|
@@ -18,11 +18,13 @@ Productos, categorías y tasas de ITBMS vigentes; listados del marketplace y bú
 | Atomicidad: producto y `ProductChanged` en la misma transacción; alta fallida sin evento | ✅ L2 | `TestAtomicity_ProductAndOutboxCommitTogether` |
 | RLS por `app.tenant_id` y rol sin DELETE | ✅ L2 | `TestRLS_TenantCannotSeeOthersProducts`, `TestPrivileges_ServiceRoleCannotDelete` |
 | Relay del outbox a `PP_COMMERCE` | ✅ L1 · ⏳ en vivo | `TestADR0012_EnvelopeCarriesTypedPayload` |
-| Importación masiva, URL prefirmadas, listados, vitrina y búsqueda del marketplace (F15.3–F15.5) | 📋 | responden `UNIMPLEMENTED` |
+| Vitrina y publicación (F15.4, R4): solo negocios ACTIVE; suspensión despublica todo; producto incompleto → `LISTING_INCOMPLETE` | ✅ L2 | `TestR4_OnlyActiveTenantsPublishAndSuspensionUnlistsEverything`, `TestStorefront_PublishingRequiresActiveTenant`, `TestSPEC_SetListing_IncompleteProductIsRejected` |
+| Búsqueda del marketplace (F15.5, R7) con `in_stock` proyectado de inventory | ✅ L2 | `TestR7_ArchivedProductsNeverAppear`, `TestSearchMarketplace_PriceFilterAndSort`, `TestR5_InStockIsProjectedFromInventoryAndIdempotent`; `./catalog/test/test_l2.sh` 15/15 |
+| Importación masiva, URL prefirmadas, atributos en Scylla y búsqueda por cercanía (F15.3, F15.5, F14) | 📋 | `BulkImportProducts` responde `UNIMPLEMENTED` |
 | Variantes múltiples y precio por sucursal | 📋 | el contrato es plano (una variante por producto) |
 | Observabilidad | ◐ | interceptor con request_id, pánico y defecto sin fuga; métricas `pp_rpc_*`, `pp_outbox_*`. **Faltan** `pp_catalog_search_duration_seconds` y `pp_catalog_import_rows_total` (con F15.3/F15.5) |
 | Imagen Docker | ✅ | distroless `static-debian12:nonroot` |
-| Despliegue en producción | ⏳ | requiere quitar las tablas de esbozo vacías: `~/plentypay-backups/commerce-reset.sh` (respalda antes) |
+| Despliegue en producción | ⏳ | requiere quitar las tablas de esbozo vacías: `~/plentypay-backups/stubs-reset.sh` (respalda antes y despliega) |
 
 ## Pruebas
 ```bash

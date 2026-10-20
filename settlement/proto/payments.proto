@@ -172,6 +172,7 @@ message RefundPaymentRequest {
   string reason = 3;
   string idempotency_key = 4;
   string step_up_token = 5;
+  string merchant_party_id = 6;          // split a reembolsar; obligatorio si el pago tiene más de un comercio (marketplace)
 }
 message Refund {
   string refund_id = 1;
@@ -180,6 +181,8 @@ message Refund {
   RefundStatus status = 4;
   string reason = 5;
   google.protobuf.Timestamp created_at = 6;
+  string merchant_party_id = 7;          // comercio cuyo split se reembolsó
+  plentypay.common.v1.Money payer_credit = 8; // lo que vuelve al pagador (con portador CUSTOMER incluye sus comisiones)
 }
 message GetRefundRequest { string refund_id = 1; }
 

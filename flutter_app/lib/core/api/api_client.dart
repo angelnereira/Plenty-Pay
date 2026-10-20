@@ -438,6 +438,116 @@ class ApiClient {
           },
           skipIdempotency: true);
 
+  // ── Marketplace y vitrina (F15.4–F15.5, S-MKT-01/02/03, S-CAT-05) ───────────────────────
+
+  Future<Map<String, dynamic>> marketplaceSearch(
+          {String query = '',
+          String merchant = '',
+          String sort = '',
+          int pageSize = 20,
+          String pageToken = ''}) =>
+      _get('/v1/marketplace/search', queryParameters: {
+        if (query.isNotEmpty) 'q': query,
+        if (merchant.isNotEmpty) 'merchant': merchant,
+        if (sort.isNotEmpty) 'sort': sort,
+        'page_size': '$pageSize',
+        if (pageToken.isNotEmpty) 'page_token': pageToken,
+      });
+
+  Future<Map<String, dynamic>> marketplaceProduct(String productId) =>
+      _get('/v1/marketplace/products/${Uri.encodeComponent(productId)}');
+
+  Future<Map<String, dynamic>> storefront(String tenantId) =>
+      _get('/v1/marketplace/storefronts/${Uri.encodeComponent(tenantId)}');
+
+  Future<Map<String, dynamic>> myStorefront() => _get('/v1/catalog/storefront');
+
+  Future<Map<String, dynamic>> updateStorefront(
+          {required String displayName,
+          String description = '',
+          required bool published,
+          required String idempotencyKey}) =>
+      _put('/v1/catalog/storefront',
+          data: {
+            'storefront': {
+              'display_name': displayName,
+              'description': description,
+              'published': published,
+            }
+          },
+          idempotencyKey: idempotencyKey);
+
+  /// Publica o despublica un producto en el marketplace (retiro en tienda por ahora).
+  Future<Map<String, dynamic>> setListing(String productId,
+          {required bool listed, required String idempotencyKey}) =>
+      _put('/v1/catalog/products/${Uri.encodeComponent(productId)}/listing',
+          data: {
+            'listing': {'listed': listed, 'pickup_available': true}
+          },
+          idempotencyKey: idempotencyKey);
+
+  // ── Carrito y pedidos (F15.6–F15.9, S-MKT-04/05/06/07, S-ORD-01/02) ───────────────────
+
+  Future<Map<String, dynamic>> getCart() => _get('/v1/cart');
+
+  /// `qtyMilli` = 0 quita el producto.
+  Future<Map<String, dynamic>> setCartItem(String productId, int qtyMilli,
+          {required String idempotencyKey}) =>
+      _put('/v1/cart/items/${Uri.encodeComponent(productId)}',
+          data: {'quantity_milli': '$qtyMilli'},
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> clearCart({required String idempotencyKey}) =>
+      _post('/v1/cart/clear',
+          data: const <String, Object>{}, idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> quoteOrder() => _post('/v1/orders/quote',
+      data: {'fulfillment': 'FULFILLMENT_METHOD_PICKUP'},
+      skipIdempotency: true);
+
+  /// Saga de checkout (orders R3). Con step-up, la misma clave retoma el mismo pedido.
+  Future<Map<String, dynamic>> checkoutOrder(String quoteId,
+          {required String idempotencyKey, String? stepUpToken}) =>
+      _post('/v1/orders',
+          data: {
+            'quote_id': quoteId,
+            'fulfillment': 'FULFILLMENT_METHOD_PICKUP',
+            'rail': 'PAYMENT_RAIL_WALLET',
+          },
+          idempotencyKey: idempotencyKey,
+          headers: {if (stepUpToken != null) 'X-Step-Up-Token': stepUpToken});
+
+  Future<Map<String, dynamic>> myOrders({int pageSize = 50}) =>
+      _get('/v1/orders', queryParameters: {'page_size': '$pageSize'});
+
+  Future<Map<String, dynamic>> getOrder(String orderId) =>
+      _get('/v1/orders/${Uri.encodeComponent(orderId)}');
+
+  Future<Map<String, dynamic>> cancelOrder(String orderId,
+          {required String idempotencyKey}) =>
+      _post('/v1/orders/${Uri.encodeComponent(orderId)}/cancel',
+          data: const <String, Object>{}, idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> merchantOrders(
+          {String status = '', int pageSize = 100}) =>
+      _get('/v1/merchant/orders', queryParameters: {
+        if (status.isNotEmpty) 'status': status,
+        'page_size': '$pageSize',
+      });
+
+  /// `action`: accept | ready | complete.
+  Future<Map<String, dynamic>> subOrderAction(String subOrderId, String action,
+          {String pickupCode = '', required String idempotencyKey}) =>
+      _post(
+          '/v1/merchant/sub-orders/${Uri.encodeComponent(subOrderId)}/$action',
+          data: {if (pickupCode.isNotEmpty) 'pickup_code': pickupCode},
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> rejectSubOrder(String subOrderId,
+          {required String reason, required String idempotencyKey}) =>
+      _post('/v1/merchant/sub-orders/${Uri.encodeComponent(subOrderId)}/reject',
+          data: {'reason': reason}, idempotencyKey: idempotencyKey);
+
   // ── Inventario (F16, S-INV-01/02/03/04/09) ──────────────────────────────────────────────
 
   Future<Map<String, dynamic>> listWarehouses() =>

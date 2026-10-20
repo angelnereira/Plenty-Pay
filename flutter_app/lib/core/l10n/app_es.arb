@@ -1236,5 +1236,250 @@
   "error_HAS_CAPTURED_PAYMENTS": "La venta ya tiene cobros; haz una devolución.",
   "error_REASON_REQUIRED": "Indica el motivo.",
   "error_TENANT_REQUIRED": "Necesitas un negocio activo.",
-  "paySaleAt": "Pago de una venta en caja"
+  "paySaleAt": "Pago de una venta en caja",
+  "mktSearchHint": "Busca productos o tiendas",
+  "mktNoResults": "No encontramos resultados para “{query}”.",
+  "@mktNoResults": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "mktEmpty": "Todavía no hay productos publicados.",
+  "mktSoldOut": "Agotado",
+  "mktTaxIncluded": "ITBMS incluido",
+  "mktPerUnit": "por {unit}",
+  "@mktPerUnit": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "mktSoldBy": "Vendido por {store}",
+  "@mktSoldBy": {
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "mktSeeStore": "Ver tienda",
+  "mktPickupFree": "Retiro en tienda gratis",
+  "mktAddToCart": "Agregar al carrito",
+  "mktAdded": "Agregado al carrito.",
+  "mktQuantity": "Cantidad",
+  "mktCart": "Carrito",
+  "mktCartEmpty": "Tu carrito está vacío.",
+  "mktExplore": "Explorar tiendas",
+  "mktSubtotal": "Subtotal {amount}",
+  "@mktSubtotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "mktItemsTotal": "Total de productos {amount}",
+  "@mktItemsTotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "mktShippingNext": "El envío se calcula en el siguiente paso.",
+  "mktContinue": "Continuar",
+  "mktRemoved": "{name} quitado del carrito.",
+  "@mktRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mktUndo": "Deshacer",
+  "mktCheckoutTitle": "Pagar el pedido",
+  "mktPickup": "Retiro en tienda",
+  "mktDeliverySoon": "La entrega a domicilio llega pronto.",
+  "mktPayMethod": "Método de pago",
+  "mktProducts": "Productos {amount}",
+  "@mktProducts": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "mktTaxIncludedAmount": "ITBMS incluido {amount}",
+  "@mktTaxIncludedAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "mktTotalToPay": "Total a pagar",
+  "mktAcceptNotice": "Cada tienda tiene 15 minutos para aceptar tu pedido. Si una no lo acepta, te devolvemos su parte.",
+  "mktPay": "Pagar {total}",
+  "@mktPay": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "mktPriceChangedTitle": "El total cambió",
+  "mktPriceChangedBody": "Los precios cambiaron desde que abriste el carrito. Revisa el nuevo total.",
+  "mktReviewCart": "Revisar carrito",
+  "mktMyOrders": "Mis pedidos",
+  "mktOrdersEmpty": "Aún no has hecho pedidos.",
+  "mktInProgress": "En curso",
+  "mktPast": "Anteriores",
+  "mktOrderNumber": "Pedido {number}",
+  "@mktOrderNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "mktStores": "{n} tiendas",
+  "@mktStores": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "orderStatus_PENDING_PAYMENT": "Por pagar",
+  "orderStatus_PAID": "Pagado",
+  "orderStatus_PARTIALLY_FULFILLED": "Entrega parcial",
+  "orderStatus_COMPLETED": "Completado",
+  "orderStatus_CANCELLED": "Cancelado",
+  "orderStatus_REFUNDED": "Reembolsado",
+  "subStatus_PENDING_PAYMENT": "Por pagar",
+  "subStatus_AWAITING_ACCEPTANCE": "Esperando a la tienda",
+  "subStatus_ACCEPTED": "Aceptado",
+  "subStatus_READY": "Listo para retirar",
+  "subStatus_IN_DELIVERY": "En camino",
+  "subStatus_COMPLETED": "Entregado",
+  "subStatus_REJECTED": "Rechazado",
+  "subStatus_CANCELLED": "Cancelado",
+  "mktPickupCode": "Muestra este código al retirar: {code}",
+  "@mktPickupCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "mktRejectedRefund": "{store} no pudo aceptar tu pedido. Te devolvimos {amount}.",
+  "@mktRejectedRefund": {
+    "placeholders": {
+      "store": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "mktCancelOrder": "Cancelar pedido",
+  "mktCancelConfirm": "¿Cancelar el pedido? Si ya lo pagaste, te devolvemos el dinero.",
+  "mktCountdown": "Quedan {time} para que la tienda acepte",
+  "@mktCountdown": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "mktOrderPaying": "Confirmando el pago…",
+  "mktStoreFallback": "Tienda",
+  "error_LISTING_UNAVAILABLE": "El producto ya no está disponible.",
+  "error_CART_LIMIT": "Tu carrito llegó al máximo de productos.",
+  "error_PRICE_CHANGED": "Los precios cambiaron; revisa tu carrito.",
+  "error_DELIVERY_UNAVAILABLE": "La entrega a domicilio aún no está disponible.",
+  "error_EMPTY_CART": "Tu carrito está vacío.",
+  "error_ACCEPT_DEADLINE_PASSED": "El plazo para aceptar terminó. El pedido fue reembolsado.",
+  "error_PICKUP_CODE_MISMATCH": "El código no coincide.",
+  "error_LISTING_INCOMPLETE": "Al producto le falta foto o precio para publicarse.",
+  "ordTabToAccept": "Por aceptar ({n})",
+  "@ordTabToAccept": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "ordTabPreparing": "En preparación ({n})",
+  "@ordTabPreparing": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "ordTabReady": "Listos ({n})",
+  "@ordTabReady": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "ordTabHistory": "Historial",
+  "ordEmpty": "No hay pedidos aquí.",
+  "ordItems": "{n} productos",
+  "@ordItems": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "ordAccept": "Aceptar pedido",
+  "ordMarkReady": "Marcar listo",
+  "ordHandOver": "Entregar al cliente",
+  "ordReject": "Rechazar",
+  "ordRejectReason": "Motivo del rechazo",
+  "ordReason_STOCK": "Sin existencias",
+  "ordReason_CLOSED": "Tienda cerrada",
+  "ordReason_OTHER": "Otro",
+  "ordRejectConfirm": "Rechazar y reembolsar {amount}",
+  "@ordRejectConfirm": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ordCustomerCode": "Código del cliente",
+  "ordPickupLabel": "Retiro en tienda",
+  "ordDone": "Pedido actualizado.",
+  "sfTitle": "Mi tienda en línea",
+  "sfVisible": "Tu tienda está visible",
+  "sfHidden": "Tu tienda está oculta",
+  "sfName": "Nombre de la tienda",
+  "sfDescription": "Descripción",
+  "sfPublishStore": "Mostrar mi tienda en el marketplace",
+  "sfProducts": "Productos publicados",
+  "sfPublish": "Publicar",
+  "sfSaved": "Tienda guardada.",
+  "sfNoProducts": "Primero crea productos en tu catálogo.",
+  "mktVerified": "Comercio verificado",
+  "mktAcceptNewTotal": "Aceptar nuevo total",
+  "mktPriceChangedFromTo": "El total cambió de {from} a {to}.",
+  "@mktPriceChangedFromTo": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  }
 }

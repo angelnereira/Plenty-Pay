@@ -1,193 +1,151 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/widgets/money_text.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/async_view.dart';
 import '../../core/widgets/status_chip.dart';
-import 'cart_screen.dart';
+import 'market_data.dart';
 import 'market_product_screen.dart';
+import 'market_widgets.dart';
 
-/// S-MKT-02 · `/market/s/:slug` · Vitrina del comercio.
-class StorefrontScreen extends StatelessWidget {
-  const StorefrontScreen({
-    super.key,
-    required this.api,
-    required this.storeSlug,
-    required this.storeName,
-  });
-
+/// S-MKT-03 · `/market/s/:id` · Tienda. `GET /v1/marketplace/storefronts/{id}` y la búsqueda
+/// filtrada al comercio. Cabecera con nombre, "Verificado" y descripción; buscador dentro de la
+/// tienda. Horario, RUC y dirección llegan cuando la vitrina los guarde (S-CAT-05 e2–e3).
+class StorefrontScreen extends StatefulWidget {
+  const StorefrontScreen(
+      {super.key,
+      required this.api,
+      required this.tenantId,
+      required this.name});
   final ApiClient api;
-  final String storeSlug;
-  final String storeName;
+  final String tenantId;
+  final String name;
+
+  @override
+  State<StorefrontScreen> createState() => _StorefrontScreenState();
+}
+
+class _StorefrontScreenState extends State<StorefrontScreen> {
+  final _search = TextEditingController();
+  StorefrontInfo? _store;
+  late Future<List<MarketProduct>> _future = _load();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStore();
+  }
+
+  Future<void> _loadStore() async {
+    try {
+      final s =
+          StorefrontInfo.fromJson(await widget.api.storefront(widget.tenantId));
+      if (mounted) setState(() => _store = s);
+    } on ApiException catch (e) {
+      widget.api.logger.breadcrumb('ui', 'market.storefront', e.reason);
+    }
+  }
+
+  Future<List<MarketProduct>> _load() async {
+    final (items, _) = await searchMarket(widget.api,
+        query: _search.text.trim(), merchant: widget.tenantId);
+    return items;
+  }
+
+  void _reload() => setState(() {
+        _future = _load();
+      });
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-
+    final margin = WindowClass.of(context).horizontalMargin;
+    final store = _store;
+    final name = store?.displayName.isNotEmpty == true
+        ? store!.displayName
+        : widget.name;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(storeName),
-        actions: [
-          IconButton(
-            tooltip: 'Carrito',
-            icon: Badge(
-              label: const Text('2'),
-              child: const Icon(Icons.shopping_cart_outlined),
-            ),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => CartScreen(api: api),
-            )),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      appBar: AppBar(title: Text(name)),
+      body: FutureBuilder<List<MarketProduct>>(
+        future: _future,
+        builder: (context, snap) => ListView(
+          padding: EdgeInsets.fromLTRB(
+              margin, AppTokens.spacingSm, margin, AppTokens.spacingXl),
           children: [
-            // Encabezado de la tienda
             Card(
-              color: theme.colorScheme.surfaceContainerLow,
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              color: theme.colorScheme.surfaceContainer,
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
+                padding: const EdgeInsets.all(AppTokens.spacingMd),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      child: Icon(Icons.store, size: 30, color: theme.colorScheme.onPrimaryContainer),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(storeName, style: theme.textTheme.titleMedium),
-                              const SizedBox(width: 4),
-                              Icon(Icons.verified, size: 16, color: theme.colorScheme.primary),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          const Text('RUC: 155689432-2-2022 DV 45', style: TextStyle(fontSize: 12)),
-                          const SizedBox(height: 6),
-                          const Row(
-                            children: [
-                              Icon(Icons.star, size: 14, color: Colors.amber),
-                              SizedBox(width: 4),
-                              Text('4.9 · Abierto hasta las 8:00 p. m.', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                    Text(name, style: theme.textTheme.titleLarge),
+                    if (store?.verified == true) ...[
+                      const SizedBox(height: AppTokens.spacingXs),
+                      StatusChip(
+                          label: l10n.mktVerified, tone: StatusTone.success),
+                    ],
+                    if (store != null && store.description.isNotEmpty) ...[
+                      const SizedBox(height: AppTokens.spacingSm),
+                      Text(store.description,
+                          style: theme.textTheme.bodyMedium),
+                    ],
+                    const SizedBox(height: AppTokens.spacingSm),
+                    Text(l10n.mktPickupFree, style: theme.textTheme.bodySmall),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Opciones de despacho
-            Row(
-              children: [
-                const StatusChip(label: 'Entrega en 25 min', tone: StatusTone.success),
-                const SizedBox(width: 8),
-                const StatusChip(label: 'Retiro en tienda', tone: StatusTone.info),
-                const Spacer(),
-                TextButton.icon(
-                  icon: const Icon(Icons.info_outline, size: 16),
-                  label: const Text('Políticas'),
-                  onPressed: () {},
-                ),
-              ],
+            const SizedBox(height: AppTokens.spacingMd),
+            TextField(
+              controller: _search,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _reload(),
+              decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search),
+                  hintText: l10n.mktSearchHint),
             ),
-            const SizedBox(height: 16),
-
-            Text('Catálogo de la tienda', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-
-            _StoreProductTile(
-              name: 'Cappuccino Artesanal 12oz',
-              description: 'Espresso doble con leche texturizada al punto.',
-              priceMinor: 375,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => MarketProductScreen(
-                  api: api,
-                  productId: 'p-cap',
-                  name: 'Cappuccino Artesanal 12oz',
-                  storeName: storeName,
-                  priceMinor: 375,
-                ),
-              )),
-            ),
-            _StoreProductTile(
-              name: 'Croissant de Almendras',
-              description: 'Masa hojaldrada rellena de crema de almendras tostadas.',
-              priceMinor: 425,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => MarketProductScreen(
-                  api: api,
-                  productId: 'p-cro',
-                  name: 'Croissant de Almendras',
-                  storeName: storeName,
-                  priceMinor: 425,
-                ),
-              )),
-            ),
-            _StoreProductTile(
-              name: 'Cold Brew Botella 500mL',
-              description: 'Extracción en frío durante 18 horas. Sin azúcar.',
-              priceMinor: 500,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => MarketProductScreen(
-                  api: api,
-                  productId: 'p-cb',
-                  name: 'Cold Brew Botella 500mL',
-                  storeName: storeName,
-                  priceMinor: 500,
-                ),
-              )),
+            const SizedBox(height: AppTokens.spacingMd),
+            AsyncView<List<MarketProduct>>(
+              snapshot: snap,
+              errorMessage: snap.hasError
+                  ? marketErrorMessage(l10n, snap.error!)
+                  : l10n.errorNoConnection,
+              retryLabel: l10n.actionRetry,
+              onRetry: _reload,
+              isEmpty: (list) => list.isEmpty,
+              emptyView: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: AppTokens.spacingXl),
+                child: Text(
+                    _search.text.trim().isEmpty
+                        ? l10n.mktEmpty
+                        : l10n.mktNoResults(_search.text.trim()),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge),
+              ),
+              builder: (context, items) => MarketGrid(
+                api: widget.api,
+                items: items,
+                onTap: (p) => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                        builder: (_) =>
+                            MarketProductScreen(api: widget.api, product: p))),
+              ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StoreProductTile extends StatelessWidget {
-  const _StoreProductTile({
-    required this.name,
-    required this.description,
-    required this.priceMinor,
-    required this.onTap,
-  });
-
-  final String name;
-  final String description;
-  final int priceMinor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        title: Text(name, style: theme.textTheme.titleSmall),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(description, style: theme.textTheme.bodySmall),
-            const SizedBox(height: 6),
-            MoneyText(priceMinor, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
-          ],
-        ),
-        trailing: FilledButton.tonal(
-          onPressed: onTap,
-          child: const Text('Agregar'),
-        ),
-        onTap: onTap,
       ),
     );
   }

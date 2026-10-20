@@ -75,3 +75,107 @@ final terminalsBody = {
 };
 
 http.Response notFound(http.Request _) => gatewayError(404, 'NOT_FOUND');
+
+// ── Marketplace y pedidos ───────────────────────────────────────────────────────────────────
+const storeA = '01900000-0000-7000-8000-0000000000a1';
+const storeB = '01900000-0000-7000-8000-0000000000b1';
+const orderId = '01900000-0000-7000-8000-0000000000d1';
+const subA = '01900000-0000-7000-8000-0000000000f1';
+const subB = '01900000-0000-7000-8000-0000000000f2';
+const intentId = '01900000-0000-7000-8000-0000000000i1';
+
+Map<String, Object> listing(String id, String name, int price, String tenant, String store,
+        {bool inStock = true}) =>
+    {
+      'product': {...product(id, name, price), 'tenant_id': tenant},
+      'storefront': {'tenant_id': tenant, 'display_name': store, 'verified': true, 'published': true},
+      'in_stock': inStock,
+      'listing': {
+        'product_id': id,
+        'listed': true,
+        'marketplace_price': {'amount_minor': '$price', 'currency': 'USD'},
+        'pickup_available': true,
+      },
+    };
+
+final searchBody = {
+  'results': [
+    listing(cafeId, 'Café 250 g', 1850, storeA, 'Café La Esquina'),
+    listing(panId, 'Croissant', 425, storeB, 'Panadería Sol', inStock: false),
+  ],
+  'page': {'next_page_token': ''},
+};
+
+Map<String, Object> cartItem(String id, String tenant, String name, int price, int qty) => {
+      'product_id': id,
+      'merchant_tenant_id': tenant,
+      'quantity_milli': '$qty',
+      'unit_price_snapshot': {'amount_minor': '$price', 'currency': 'USD'},
+      'name_snapshot': name,
+    };
+
+final cartBody = {
+  'items': [
+    cartItem(cafeId, storeA, 'Café 250 g', 1850, 2000),
+    cartItem(panId, storeB, 'Croissant', 425, 1000),
+  ],
+};
+
+Map<String, Object> money(int minor) => {'amount_minor': '$minor', 'currency': 'USD'};
+
+Map<String, Object> quoteBody({int total = 4125, List<String> unavailable = const []}) => {
+      'quote_id': 'q-1',
+      'merchants': [
+        {
+          'merchant_tenant_id': storeA,
+          'merchant_name': 'Café La Esquina',
+          'items_total': money(3700),
+          'tax': money(242),
+          'all_in_stock': true,
+        },
+        {
+          'merchant_tenant_id': storeB,
+          'merchant_name': 'Panadería Sol',
+          'items_total': money(425),
+          'tax': money(0),
+          'all_in_stock': unavailable.isEmpty,
+          'unavailable_product_ids': unavailable,
+        },
+      ],
+      'grand_total': money(total),
+      'customer_fees': money(0),
+    };
+
+Map<String, Object> subOrder(String id, String tenant, String status,
+        {String code = '', String reason = '', String? deadline, int total = 3700}) =>
+    {
+      'sub_order_id': id,
+      'order_id': orderId,
+      'merchant_tenant_id': tenant,
+      'status': 'SUB_ORDER_STATUS_$status',
+      'lines': [
+        {
+          'product_id': cafeId,
+          'name': 'Café 250 g',
+          'quantity_milli': '2000',
+          'line_total': money(total),
+        }
+      ],
+      'total': money(total),
+      'fulfillment': 'FULFILLMENT_METHOD_PICKUP',
+      if (reason.isNotEmpty) 'rejection_reason': reason,
+      if (deadline != null) 'acceptance_deadline': deadline,
+      if (code.isNotEmpty) 'pickup_code': code,
+    };
+
+Map<String, Object> orderBody(String status, List<Map<String, Object>> subs, {int total = 4125}) => {
+      'order_id': orderId,
+      'status': 'ORDER_STATUS_$status',
+      'sub_orders': subs,
+      'grand_total': money(total),
+      'payment_intent_id': intentId,
+      'created_at': '2026-10-20T15:30:00Z',
+    };
+
+Map<String, Object> storefrontBody(String tenant, String name) =>
+    {'tenant_id': tenant, 'display_name': name, 'verified': true, 'published': true};

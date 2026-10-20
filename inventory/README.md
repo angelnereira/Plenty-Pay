@@ -1,6 +1,6 @@
 # inventory
 
-Bodegas, existencias y movimientos inmutables; reservas, lotes, compras y reorden llegan con F16.3–F16.6. Especificación completa: [`SPEC.md`](SPEC.md).
+Bodegas, existencias, movimientos inmutables y reservas con TTL; lotes, compras y reorden llegan con F16.4–F16.6. Especificación completa: [`SPEC.md`](SPEC.md).
 
 | | |
 |---|---|
@@ -19,7 +19,8 @@ Bodegas, existencias y movimientos inmutables; reservas, lotes, compras y reorde
 | Bodegas y bodega por defecto (una por tenant, también con altas concurrentes) | ✅ L2 | `TestDefaultWarehouseIsCreatedOnce` |
 | RLS y aislamiento entre comercios | ✅ L2 | `TestRLS_TenantsAreIsolated` |
 | `StockChanged` y `StockLow` en la misma transacción del movimiento | ✅ L2 · ⏳ en vivo | `TestOutbox_EveryMovementEmitsStockChanged`, `TestR2_*` |
-| Reservas, lotes FEFO, proveedores, órdenes de compra, recepción y reorden | 📋 | responden `UNIMPLEMENTED` |
+| Reservas con TTL (F16.3, R4): todo o nada, solo pos y orders, confirmación = venta, vencimiento cada 30 s | ✅ L2 | `TestSPEC11_100ConcurrentReservationsOver50Units`, `TestR4_ReservationIsAllOrNothing`, `TestR4_ExpiredReservationsReturnStockAndCannotBeCommitted`, `TestReservation_CommitIsASaleAndReleaseReturns`, `TestReservation_IdempotentAndServiceOnly`; `./inventory/test/test_l2.sh` 17/17 |
+| Lotes FEFO, proveedores, órdenes de compra, recepción y reorden | 📋 | responden `UNIMPLEMENTED` |
 | Observabilidad | ◐ | interceptor, métricas `pp_rpc_*` y `pp_outbox_*` |
 | Despliegue en producción | ⏳ | `~/plentypay-backups/commerce-reset.sh` |
 

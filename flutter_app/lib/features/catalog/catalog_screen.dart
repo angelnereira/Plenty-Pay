@@ -13,12 +13,13 @@ import 'catalog_errors.dart';
 import 'categories_screen.dart';
 import 'product_image.dart';
 import 'product_screen.dart';
+import 'storefront_settings_screen.dart';
 
 /// S-CAT-01 · `/catalog` · Lista de productos. `catalog:read` · `GET /v1/catalog/products`.
 ///
 /// Buscador (nombre, SKU o código; con escáner), filtro Activos/Archivados, lista con foto,
-/// nombre, SKU y precio, y "Nuevo producto". Importar, exportar, publicación en tiendas y
-/// variantes llegan con F15.3–F15.5 (sin servicio todavía: no se muestran).
+/// nombre, SKU y precio, "Nuevo producto" y "Mi tienda en línea" (S-CAT-05). Importar, exportar y
+/// variantes llegan con F15.3 (sin servicio todavía: no se muestran).
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key, required this.api});
   final ApiClient api;
@@ -102,6 +103,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
       appBar: AppBar(
         title: Text(l10n.catalogTitle),
         actions: [
+          IconButton(
+            tooltip: l10n.sfTitle,
+            icon: const Icon(Icons.storefront_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => StorefrontSettingsScreen(api: widget.api))),
+          ),
           IconButton(
             tooltip: l10n.catCategories,
             icon: const Icon(Icons.category_outlined),

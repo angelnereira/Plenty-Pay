@@ -2995,4 +2995,348 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paySaleAt => 'Payment for a register sale';
+
+  @override
+  String get mktSearchHint => 'Search products or stores';
+
+  @override
+  String mktNoResults(String query) {
+    return 'We found no results for “$query”.';
+  }
+
+  @override
+  String get mktEmpty => 'No products are published yet.';
+
+  @override
+  String get mktSoldOut => 'Sold out';
+
+  @override
+  String get mktTaxIncluded => 'ITBMS included';
+
+  @override
+  String mktPerUnit(String unit) {
+    return 'per $unit';
+  }
+
+  @override
+  String mktSoldBy(String store) {
+    return 'Sold by $store';
+  }
+
+  @override
+  String get mktSeeStore => 'See store';
+
+  @override
+  String get mktPickupFree => 'Free in-store pickup';
+
+  @override
+  String get mktAddToCart => 'Add to cart';
+
+  @override
+  String get mktAdded => 'Added to cart.';
+
+  @override
+  String get mktQuantity => 'Quantity';
+
+  @override
+  String get mktCart => 'Cart';
+
+  @override
+  String get mktCartEmpty => 'Your cart is empty.';
+
+  @override
+  String get mktExplore => 'Explore stores';
+
+  @override
+  String mktSubtotal(String amount) {
+    return 'Subtotal $amount';
+  }
+
+  @override
+  String mktItemsTotal(String amount) {
+    return 'Products total $amount';
+  }
+
+  @override
+  String get mktShippingNext => 'Shipping is calculated in the next step.';
+
+  @override
+  String get mktContinue => 'Continue';
+
+  @override
+  String mktRemoved(String name) {
+    return '$name removed from the cart.';
+  }
+
+  @override
+  String get mktUndo => 'Undo';
+
+  @override
+  String get mktCheckoutTitle => 'Pay for the order';
+
+  @override
+  String get mktPickup => 'In-store pickup';
+
+  @override
+  String get mktDeliverySoon => 'Home delivery is coming soon.';
+
+  @override
+  String get mktPayMethod => 'Payment method';
+
+  @override
+  String mktProducts(String amount) {
+    return 'Products $amount';
+  }
+
+  @override
+  String mktTaxIncludedAmount(String amount) {
+    return 'ITBMS included $amount';
+  }
+
+  @override
+  String get mktTotalToPay => 'Total to pay';
+
+  @override
+  String get mktAcceptNotice =>
+      'Each store has 15 minutes to accept your order. If one does not, we refund its part.';
+
+  @override
+  String mktPay(String total) {
+    return 'Pay $total';
+  }
+
+  @override
+  String get mktPriceChangedTitle => 'The total changed';
+
+  @override
+  String get mktPriceChangedBody =>
+      'Prices changed since you opened the cart. Review the new total.';
+
+  @override
+  String get mktReviewCart => 'Review cart';
+
+  @override
+  String get mktMyOrders => 'My orders';
+
+  @override
+  String get mktOrdersEmpty => 'You have not placed any orders yet.';
+
+  @override
+  String get mktInProgress => 'In progress';
+
+  @override
+  String get mktPast => 'Past';
+
+  @override
+  String mktOrderNumber(String number) {
+    return 'Order $number';
+  }
+
+  @override
+  String mktStores(String n) {
+    return '$n stores';
+  }
+
+  @override
+  String get orderStatus_PENDING_PAYMENT => 'To pay';
+
+  @override
+  String get orderStatus_PAID => 'Paid';
+
+  @override
+  String get orderStatus_PARTIALLY_FULFILLED => 'Partly fulfilled';
+
+  @override
+  String get orderStatus_COMPLETED => 'Completed';
+
+  @override
+  String get orderStatus_CANCELLED => 'Cancelled';
+
+  @override
+  String get orderStatus_REFUNDED => 'Refunded';
+
+  @override
+  String get subStatus_PENDING_PAYMENT => 'To pay';
+
+  @override
+  String get subStatus_AWAITING_ACCEPTANCE => 'Waiting for the store';
+
+  @override
+  String get subStatus_ACCEPTED => 'Accepted';
+
+  @override
+  String get subStatus_READY => 'Ready for pickup';
+
+  @override
+  String get subStatus_IN_DELIVERY => 'On the way';
+
+  @override
+  String get subStatus_COMPLETED => 'Delivered';
+
+  @override
+  String get subStatus_REJECTED => 'Rejected';
+
+  @override
+  String get subStatus_CANCELLED => 'Cancelled';
+
+  @override
+  String mktPickupCode(String code) {
+    return 'Show this code at pickup: $code';
+  }
+
+  @override
+  String mktRejectedRefund(String store, String amount) {
+    return '$store could not accept your order. We refunded $amount.';
+  }
+
+  @override
+  String get mktCancelOrder => 'Cancel order';
+
+  @override
+  String get mktCancelConfirm =>
+      'Cancel the order? If you already paid, we refund the money.';
+
+  @override
+  String mktCountdown(String time) {
+    return '$time left for the store to accept';
+  }
+
+  @override
+  String get mktOrderPaying => 'Confirming the payment…';
+
+  @override
+  String get mktStoreFallback => 'Store';
+
+  @override
+  String get error_LISTING_UNAVAILABLE => 'The product is no longer available.';
+
+  @override
+  String get error_CART_LIMIT =>
+      'Your cart reached the maximum number of products.';
+
+  @override
+  String get error_PRICE_CHANGED => 'Prices changed; review your cart.';
+
+  @override
+  String get error_DELIVERY_UNAVAILABLE =>
+      'Home delivery is not available yet.';
+
+  @override
+  String get error_EMPTY_CART => 'Your cart is empty.';
+
+  @override
+  String get error_ACCEPT_DEADLINE_PASSED =>
+      'The time to accept ended. The order was refunded.';
+
+  @override
+  String get error_PICKUP_CODE_MISMATCH => 'The code does not match.';
+
+  @override
+  String get error_LISTING_INCOMPLETE =>
+      'The product needs a photo and a price to be published.';
+
+  @override
+  String ordTabToAccept(String n) {
+    return 'To accept ($n)';
+  }
+
+  @override
+  String ordTabPreparing(String n) {
+    return 'Preparing ($n)';
+  }
+
+  @override
+  String ordTabReady(String n) {
+    return 'Ready ($n)';
+  }
+
+  @override
+  String get ordTabHistory => 'History';
+
+  @override
+  String get ordEmpty => 'No orders here.';
+
+  @override
+  String ordItems(String n) {
+    return '$n products';
+  }
+
+  @override
+  String get ordAccept => 'Accept order';
+
+  @override
+  String get ordMarkReady => 'Mark ready';
+
+  @override
+  String get ordHandOver => 'Hand over to the customer';
+
+  @override
+  String get ordReject => 'Reject';
+
+  @override
+  String get ordRejectReason => 'Reason for rejecting';
+
+  @override
+  String get ordReason_STOCK => 'Out of stock';
+
+  @override
+  String get ordReason_CLOSED => 'Store closed';
+
+  @override
+  String get ordReason_OTHER => 'Other';
+
+  @override
+  String ordRejectConfirm(String amount) {
+    return 'Reject and refund $amount';
+  }
+
+  @override
+  String get ordCustomerCode => 'Customer code';
+
+  @override
+  String get ordPickupLabel => 'In-store pickup';
+
+  @override
+  String get ordDone => 'Order updated.';
+
+  @override
+  String get sfTitle => 'My online store';
+
+  @override
+  String get sfVisible => 'Your store is visible';
+
+  @override
+  String get sfHidden => 'Your store is hidden';
+
+  @override
+  String get sfName => 'Store name';
+
+  @override
+  String get sfDescription => 'Description';
+
+  @override
+  String get sfPublishStore => 'Show my store in the marketplace';
+
+  @override
+  String get sfProducts => 'Published products';
+
+  @override
+  String get sfPublish => 'Publish';
+
+  @override
+  String get sfSaved => 'Store saved.';
+
+  @override
+  String get sfNoProducts => 'First create products in your catalog.';
+
+  @override
+  String get mktVerified => 'Verified business';
+
+  @override
+  String get mktAcceptNewTotal => 'Accept new total';
+
+  @override
+  String mktPriceChangedFromTo(String from, String to) {
+    return 'The total changed from $from to $to.';
+  }
 }

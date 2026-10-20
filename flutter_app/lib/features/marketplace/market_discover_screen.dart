@@ -1,20 +1,26 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/widgets/money_text.dart';
-import '../../core/widgets/status_chip.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/async_view.dart';
 import 'cart_screen.dart';
-import 'complaints_screen.dart';
+import 'market_data.dart';
 import 'market_orders_screen.dart';
 import 'market_product_screen.dart';
-import 'storefront_screen.dart';
+import 'market_widgets.dart';
 
-/// S-MKT-01 · `/market` · Descubrir (Marketplace).
+/// S-MKT-01 · `/market` · Descubrir. `orders:create:self` · `GET /v1/marketplace/search`.
 ///
-/// Búsqueda, categorías, tiendas destacadas cerca de ti y grilla de productos.
+/// e1 buscador (al enviar o tras 400 ms con ≥ 2 caracteres) · e5 cuadrícula con precio total
+/// (ITBMS incluido, N-CON-01), tienda y "Agotado" · e6 carrito con contador. Categorías, "Cerca
+/// de mí" y filtros (e2–e4) llegan con geolocation (F14) y las categorías públicas: sin servicio no
+/// se muestran.
 class MarketDiscoverScreen extends StatefulWidget {
   const MarketDiscoverScreen({super.key, required this.api});
-
   final ApiClient api;
 
   @override
@@ -22,294 +28,180 @@ class MarketDiscoverScreen extends StatefulWidget {
 }
 
 class _MarketDiscoverScreenState extends State<MarketDiscoverScreen> {
-  final _searchController = TextEditingController();
-  String _selectedCategory = 'all';
+  final _search = TextEditingController();
+  Timer? _debounce;
+  String _query = '';
+  late Future<List<MarketProduct>> _future = _load();
+  List<MarketProduct> _items = const [];
+  String _next = '';
+  bool _loadingMore = false;
+  int _cartCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshCart());
+  }
+
+  Future<List<MarketProduct>> _load() async {
+    final (items, next) = await searchMarket(widget.api, query: _query);
+    _items = items;
+    _next = next;
+    return items;
+  }
+
+  Future<void> _refreshCart() async {
+    try {
+      final n = cartLines(await widget.api.getCart()).length;
+      if (mounted) setState(() => _cartCount = n);
+    } on ApiException catch (e) {
+      // El contador es informativo: sin carrito se muestra 0.
+      widget.api.logger.breadcrumb('ui', 'market.cart_count', e.reason);
+    }
+  }
+
+  void _onQuery(String text) {
+    _debounce?.cancel();
+    final q = text.trim();
+    if (q.isNotEmpty && q.length < 2) return;
+    _debounce = Timer(const Duration(milliseconds: 400), () => _submit(q));
+  }
+
+  void _submit(String q) {
+    _debounce?.cancel();
+    if (q == _query) return;
+    setState(() {
+      _query = q;
+      _future = _load();
+    });
+  }
+
+  void _reload() => setState(() {
+        _future = _load();
+      });
+
+  Future<void> _loadMore() async {
+    setState(() => _loadingMore = true);
+    try {
+      final (more, next) =
+          await searchMarket(widget.api, query: _query, pageToken: _next);
+      if (!mounted) return;
+      setState(() {
+        _items = [..._items, ...more];
+        _next = next;
+        _future = Future.value(_items);
+      });
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'market.load_more', e is ApiException ? e.reason : 'network');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text(marketErrorMessage(AppLocalizations.of(context), e))));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  Future<void> _open(MarketProduct p) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => MarketProductScreen(api: widget.api, product: p)));
+    unawaited(_refreshCart());
+  }
+
+  Future<void> _openCart() async {
+    await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => CartScreen(api: widget.api)));
+    unawaited(_refreshCart());
+  }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _debounce?.cancel();
+    _search.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-
+    final margin = WindowClass.of(context).horizontalMargin;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Comprar'),
+        title: Text(l10n.moduleMarketplace),
         actions: [
           IconButton(
-            tooltip: 'Mis pedidos',
+            tooltip: l10n.mktMyOrders,
             icon: const Icon(Icons.receipt_long_outlined),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => MarketOrdersScreen(api: widget.api),
-            )),
+                builder: (_) => MarketOrdersScreen(api: widget.api))),
           ),
           IconButton(
-            tooltip: 'Ayuda y reclamos',
-            icon: const Icon(Icons.help_outline),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => ComplaintsScreen(api: widget.api),
-            )),
-          ),
-          IconButton(
-            tooltip: 'Carrito',
+            key: const Key('market-cart'),
+            tooltip: l10n.mktCart,
             icon: Badge(
-              label: const Text('2'),
+              isLabelVisible: _cartCount > 0,
+              label: Text('$_cartCount'),
               child: const Icon(Icons.shopping_cart_outlined),
             ),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => CartScreen(api: widget.api),
-            )),
+            onPressed: _openCart,
           ),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Buscador
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Buscar en tiendas y restaurantes...',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.tune),
-                  onPressed: () {},
+      body: RefreshIndicator(
+        onRefresh: () async {
+          _reload();
+          await _refreshCart();
+        },
+        child: FutureBuilder<List<MarketProduct>>(
+          future: _future,
+          builder: (context, snap) => ListView(
+            padding: EdgeInsets.fromLTRB(
+                margin, AppTokens.spacingSm, margin, AppTokens.spacingXl),
+            children: [
+              TextField(
+                controller: _search,
+                textInputAction: TextInputAction.search,
+                onChanged: _onQuery,
+                onSubmitted: (t) => _submit(t.trim()),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search),
+                  hintText: l10n.mktSearchHint,
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // Categorías
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final cat in const [
-                    ('all', 'Todos', Icons.grid_view),
-                    ('food', 'Comida', Icons.restaurant),
-                    ('groceries', 'Supermercado', Icons.local_grocery_store),
-                    ('pharmacy', 'Farmacia', Icons.local_pharmacy),
-                    ('tech', 'Tecnología', Icons.devices),
-                  ])
+              const SizedBox(height: AppTokens.spacingMd),
+              AsyncView<List<MarketProduct>>(
+                snapshot: snap,
+                errorMessage: snap.hasError
+                    ? marketErrorMessage(l10n, snap.error!)
+                    : l10n.errorNoConnection,
+                retryLabel: l10n.actionRetry,
+                onRetry: _reload,
+                isEmpty: (list) => list.isEmpty,
+                emptyView: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppTokens.spacingXl),
+                  child: Text(
+                      _query.isEmpty
+                          ? l10n.mktEmpty
+                          : l10n.mktNoResults(_query),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge),
+                ),
+                builder: (context, items) => Column(children: [
+                  MarketGrid(api: widget.api, items: items, onTap: _open),
+                  if (_next.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        avatar: Icon(cat.$3, size: 16),
-                        label: Text(cat.$2),
-                        selected: _selectedCategory == cat.$1,
-                        onSelected: (_) => setState(() => _selectedCategory = cat.$1),
+                      padding: const EdgeInsets.all(AppTokens.spacingSm),
+                      child: TextButton(
+                        onPressed: _loadingMore ? null : _loadMore,
+                        child: Text(l10n.catLoadMore),
                       ),
                     ),
-                ],
+                ]),
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Comercios cerca de ti
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Tiendas cerca de ti', style: theme.textTheme.titleMedium),
-                TextButton(onPressed: () {}, child: const Text('Ver más')),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 140,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _StoreCard(
-                    name: 'Supermercado Rey',
-                    category: 'Supermercado · 1.2 km',
-                    rating: '4.8 (210)',
-                    eta: '25-35 min',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => StorefrontScreen(
-                        api: widget.api,
-                        storeSlug: 'super-rey',
-                        storeName: 'Supermercado Rey',
-                      ),
-                    )),
-                  ),
-                  const SizedBox(width: 12),
-                  _StoreCard(
-                    name: 'Café Unido',
-                    category: 'Cafetería · 0.8 km',
-                    rating: '4.9 (95)',
-                    eta: '15-25 min',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => StorefrontScreen(
-                        api: widget.api,
-                        storeSlug: 'cafe-unido',
-                        storeName: 'Café Unido',
-                      ),
-                    )),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Productos populares
-            Text('Productos populares', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.78,
-              children: [
-                _ProductGridTile(
-                  name: 'Café Geisha Especial 250g',
-                  store: 'Café Unido',
-                  priceMinor: 1850,
-                  warranty: '30 días garantía',
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => MarketProductScreen(
-                      api: widget.api,
-                      productId: 'prod-1',
-                      name: 'Café Geisha Especial 250g',
-                      storeName: 'Café Unido',
-                      priceMinor: 1850,
-                    ),
-                  )),
-                ),
-                _ProductGridTile(
-                  name: 'Canasta Frutas Frescas',
-                  store: 'Supermercado Rey',
-                  priceMinor: 975,
-                  warranty: 'Garantía de frescura',
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => MarketProductScreen(
-                      api: widget.api,
-                      productId: 'prod-2',
-                      name: 'Canasta Frutas Frescas',
-                      storeName: 'Supermercado Rey',
-                      priceMinor: 975,
-                    ),
-                  )),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StoreCard extends StatelessWidget {
-  const _StoreCard({
-    required this.name,
-    required this.category,
-    required this.rating,
-    required this.eta,
-    required this.onTap,
-  });
-
-  final String name;
-  final String category;
-  final String rating;
-  final String eta;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      color: theme.colorScheme.surfaceContainerLow,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          width: 220,
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    child: Icon(Icons.store, size: 18, color: theme.colorScheme.onPrimaryContainer),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Text(category, style: theme.textTheme.bodySmall),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.star, size: 14, color: Colors.amber),
-                  const SizedBox(width: 4),
-                  Text(rating, style: const TextStyle(fontSize: 12)),
-                  const Spacer(),
-                  StatusChip(label: eta, tone: StatusTone.neutral),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProductGridTile extends StatelessWidget {
-  const _ProductGridTile({
-    required this.name,
-    required this.store,
-    required this.priceMinor,
-    required this.warranty,
-    required this.onTap,
-  });
-
-  final String name;
-  final String store;
-  final int priceMinor;
-  final String warranty;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 80,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Center(child: Icon(Icons.inventory_2_outlined, size: 36)),
-              ),
-              const SizedBox(height: 8),
-              Text(name, style: theme.textTheme.bodyMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 2),
-              Text(store, style: TextStyle(fontSize: 11, color: theme.colorScheme.primary)),
-              const Spacer(),
-              MoneyText(priceMinor, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
-              Text(warranty, style: const TextStyle(fontSize: 10, color: Colors.grey)),
             ],
           ),
         ),

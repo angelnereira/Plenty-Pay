@@ -117,6 +117,6 @@ void main() {
       () {
     final live = moduleRegistry.where((m) => m.live).map((m) => m.id).toSet();
     expect(live,
-        {'wallet', 'finance', 'admin', 'platform', 'catalog', 'inventory', 'pos'});
+        {'wallet', 'finance', 'admin', 'platform', 'catalog', 'inventory', 'pos', 'marketplace', 'orders'});
   });
 }
