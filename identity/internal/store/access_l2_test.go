@@ -70,7 +70,7 @@ func (f *accessL2) staff(t *testing.T, roleID, scope string, branchIDs []string)
 		t.Fatalf("CreateInvitation: %v", err)
 	}
 	hash, _ := auth.HashPassword("una-clave-muy-larga")
-	u, err := f.rs.AcceptInvitation(ctx, token, "", hash)
+	u, err := f.rs.AcceptInvitation(ctx, store.AcceptInvitationInput{Token: token, PasswordHash: hash, Consents: l2Consents()})
 	if err != nil {
 		t.Fatalf("AcceptInvitation %s: %v", inv.Email, err)
 	}
@@ -249,7 +249,7 @@ func TestL2_H8_InvitationWithScopeAndExistingAccount(t *testing.T) {
 	}
 
 	hash, _ := auth.HashPassword("una-clave-muy-larga")
-	u, err := f.rs.AcceptInvitation(ctx, token, "", hash)
+	u, err := f.rs.AcceptInvitation(ctx, store.AcceptInvitationInput{Token: token, PasswordHash: hash, Consents: l2Consents()})
 	if err != nil {
 		t.Fatalf("AcceptInvitation: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestL2_H8_InvitationWithScopeAndExistingAccount(t *testing.T) {
 	if u.Role != "BUSINESS_STAFF" || u.RoleID != role.ID || u.Scope != domain.ScopeBranches || u.JobTitle != "Cajera" {
 		t.Fatalf("staff creado: %+v", u)
 	}
-	if _, err := f.rs.AcceptInvitation(ctx, token, "", hash); !errors.Is(err, domain.ErrInvitationUsed) {
+	if _, err := f.rs.AcceptInvitation(ctx, store.AcceptInvitationInput{Token: token, PasswordHash: hash}); !errors.Is(err, domain.ErrInvitationUsed) {
 		t.Fatalf("token de un solo uso: %v", err)
 	}
 	m, err := f.rs.MembershipForUser(ctx, u.ID)
@@ -271,6 +271,10 @@ func TestL2_H8_InvitationWithScopeAndExistingAccount(t *testing.T) {
 	if !slices.Contains(outboxTypes(t, f.dsn, u.ID), store.EventMembershipChanged) {
 		t.Fatal("aceptar escribe MembershipChanged")
 	}
+	// R18: la cuenta nueva nace con sus aceptaciones (misma transacción que el alta).
+	if staff, err := f.st.FindByID(ctx, u.ID); err != nil || len(staff.Consents) != len(l2Consents()) {
+		t.Fatalf("consentimientos de la cuenta nueva: %v %+v", err, staff)
+	}
 
 	// H8: un cliente con billetera acepta con su cuenta.
 	customer := newUser("cliente+" + randSuffix() + "@example.com")
@@ -282,7 +286,7 @@ func TestL2_H8_InvitationWithScopeAndExistingAccount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateInvitation existente: %v", err)
 	}
-	linked, err := f.rs.AcceptInvitation(ctx, token2, customer.ID, "")
+	linked, err := f.rs.AcceptInvitation(ctx, store.AcceptInvitationInput{Token: token2, ExistingUserID: customer.ID})
 	if err != nil || linked.ID != customer.ID || linked.Role != "BUSINESS_STAFF" {
 		t.Fatalf("vincular cuenta existente: %v %+v", err, linked)
 	}
@@ -423,5 +427,14 @@ func TestL2_Idempotency_ReserveCompleteReleasePurge(t *testing.T) {
 
 	if n, err := st.Purge(ctx, time.Now().UTC().Add(time.Minute)); err != nil || n < 2 {
 		t.Fatalf("Purge: %v n=%d", err, n)
+	}
+}
+
+func l2Consents() []domain.ConsentRecord {
+	now := time.Now().UTC()
+	return []domain.ConsentRecord{
+		{Purpose: "AGE_CONFIRMATION", TextVersion: "2026-10-20", Granted: true, RecordedAt: now, Channel: "invitation"},
+		{Purpose: "TERMS", TextVersion: "2026-10-20", Granted: true, RecordedAt: now, Channel: "invitation"},
+		{Purpose: "PRIVACY_DATA_PROCESSING", TextVersion: "2026-10-20", Granted: true, RecordedAt: now, Channel: "invitation"},
 	}
 }

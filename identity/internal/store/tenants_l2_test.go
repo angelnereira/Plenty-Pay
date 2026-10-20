@@ -12,8 +12,8 @@ package store_test
 
 import (
 	"context"
-	"os"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 

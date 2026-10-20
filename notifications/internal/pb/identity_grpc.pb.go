@@ -36,6 +36,7 @@ const (
 	Identity_ListTenants_FullMethodName               = "/plentypay.identity.v1.Identity/ListTenants"
 	Identity_InviteStaff_FullMethodName               = "/plentypay.identity.v1.Identity/InviteStaff"
 	Identity_AcceptInvitation_FullMethodName          = "/plentypay.identity.v1.Identity/AcceptInvitation"
+	Identity_PreviewInvitation_FullMethodName         = "/plentypay.identity.v1.Identity/PreviewInvitation"
 	Identity_ListUsers_FullMethodName                 = "/plentypay.identity.v1.Identity/ListUsers"
 	Identity_DeactivateUser_FullMethodName            = "/plentypay.identity.v1.Identity/DeactivateUser"
 	Identity_GetUserContacts_FullMethodName           = "/plentypay.identity.v1.Identity/GetUserContacts"
@@ -97,6 +98,7 @@ type IdentityClient interface {
 	// Equipo del comercio
 	InviteStaff(ctx context.Context, in *InviteStaffRequest, opts ...grpc.CallOption) (*Invitation, error)
 	AcceptInvitation(ctx context.Context, in *AcceptInvitationRequest, opts ...grpc.CallOption) (*AuthResult, error)
+	PreviewInvitation(ctx context.Context, in *PreviewInvitationRequest, opts ...grpc.CallOption) (*InvitationPreview, error)
 	ListUsers(ctx context.Context, in *ListUsersRequest, opts ...grpc.CallOption) (*ListUsersResult, error)
 	DeactivateUser(ctx context.Context, in *DeactivateUserRequest, opts ...grpc.CallOption) (*SimpleResult, error)
 	// Solo servicios de confianza (notifications): contacto e idioma por id. Nunca expuesto por el gateway.
@@ -307,6 +309,16 @@ func (c *identityClient) AcceptInvitation(ctx context.Context, in *AcceptInvitat
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AuthResult)
 	err := c.cc.Invoke(ctx, Identity_AcceptInvitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) PreviewInvitation(ctx context.Context, in *PreviewInvitationRequest, opts ...grpc.CallOption) (*InvitationPreview, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InvitationPreview)
+	err := c.cc.Invoke(ctx, Identity_PreviewInvitation_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -642,6 +654,7 @@ type IdentityServer interface {
 	// Equipo del comercio
 	InviteStaff(context.Context, *InviteStaffRequest) (*Invitation, error)
 	AcceptInvitation(context.Context, *AcceptInvitationRequest) (*AuthResult, error)
+	PreviewInvitation(context.Context, *PreviewInvitationRequest) (*InvitationPreview, error)
 	ListUsers(context.Context, *ListUsersRequest) (*ListUsersResult, error)
 	DeactivateUser(context.Context, *DeactivateUserRequest) (*SimpleResult, error)
 	// Solo servicios de confianza (notifications): contacto e idioma por id. Nunca expuesto por el gateway.
@@ -738,6 +751,9 @@ func (UnimplementedIdentityServer) InviteStaff(context.Context, *InviteStaffRequ
 }
 func (UnimplementedIdentityServer) AcceptInvitation(context.Context, *AcceptInvitationRequest) (*AuthResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AcceptInvitation not implemented")
+}
+func (UnimplementedIdentityServer) PreviewInvitation(context.Context, *PreviewInvitationRequest) (*InvitationPreview, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PreviewInvitation not implemented")
 }
 func (UnimplementedIdentityServer) ListUsers(context.Context, *ListUsersRequest) (*ListUsersResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUsers not implemented")
@@ -1152,6 +1168,24 @@ func _Identity_AcceptInvitation_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IdentityServer).AcceptInvitation(ctx, req.(*AcceptInvitationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_PreviewInvitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreviewInvitationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).PreviewInvitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_PreviewInvitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).PreviewInvitation(ctx, req.(*PreviewInvitationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1770,6 +1804,10 @@ var Identity_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AcceptInvitation",
 			Handler:    _Identity_AcceptInvitation_Handler,
+		},
+		{
+			MethodName: "PreviewInvitation",
+			Handler:    _Identity_PreviewInvitation_Handler,
 		},
 		{
 			MethodName: "ListUsers",

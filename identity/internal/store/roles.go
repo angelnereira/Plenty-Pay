@@ -32,6 +32,16 @@ type MembershipUpdate struct {
 	Change    string // ROLE | SCOPE | UPDATED (MembershipChanged.change)
 }
 
+// AcceptInvitationInput es el canje de una invitacion. Para una cuenta nueva llevan valor
+// PasswordHash (R19), FullName y Consents (R18, ya validados por el servicio).
+type AcceptInvitationInput struct {
+	Token          string
+	ExistingUserID string
+	PasswordHash   string
+	FullName       string
+	Consents       []domain.ConsentRecord
+}
+
 // RoleStore es el contrato de roles, membresias, invitaciones y equipo (F08.6, ADR 0018).
 type RoleStore interface {
 	// CreateRole crea un rol del tenant con sus permisos (ya validados, R12).
@@ -54,9 +64,9 @@ type RoleStore interface {
 	CreateInvitation(ctx context.Context, inv *domain.Invitation) (*domain.Invitation, string, error)
 	// InvitationByToken busca una invitacion por su token (el token es la credencial).
 	InvitationByToken(ctx context.Context, token string) (*domain.Invitation, error)
-	// AcceptInvitation canjea el token: vincula al usuario existente (existingUserID) o crea uno
-	// BUSINESS_STAFF con passwordHash, activa su membresia y marca la invitacion usada (H8).
-	AcceptInvitation(ctx context.Context, token, existingUserID, passwordHash string) (*domain.User, error)
+	// AcceptInvitation canjea el token: vincula al usuario existente (in.ExistingUserID) o crea uno
+	// BUSINESS_STAFF con sus consentimientos (R18), activa su membresia y marca la invitacion usada (H8).
+	AcceptInvitation(ctx context.Context, in AcceptInvitationInput) (*domain.User, error)
 	// ListInvitations devuelve las invitaciones no aceptadas ni revocadas del tenant.
 	ListInvitations(ctx context.Context, tenantID string) ([]domain.Invitation, error)
 	// RevokeInvitation invalida una invitacion pendiente.
@@ -468,8 +478,9 @@ func (s *PostgresRoleStore) InvitationByToken(ctx context.Context, token string)
 	return &inv, nil
 }
 
-func (s *PostgresRoleStore) AcceptInvitation(ctx context.Context, token, existingUserID, passwordHash string) (*domain.User, error) {
-	hash := sha256.Sum256([]byte(token))
+func (s *PostgresRoleStore) AcceptInvitation(ctx context.Context, in AcceptInvitationInput) (*domain.User, error) {
+	hash := sha256.Sum256([]byte(in.Token))
+	existingUserID, passwordHash := in.ExistingUserID, in.PasswordHash
 	now := time.Now().UTC()
 	var user domain.User
 	err := pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
@@ -501,14 +512,27 @@ func (s *PostgresRoleStore) AcceptInvitation(ctx context.Context, token, existin
 			user.ID = existingUserID
 		} else {
 			user.ID = uuid.NewString()
+			fullName := in.FullName
+			if fullName == "" {
+				fullName = inv.FullName
+			}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO users (id, email, email_normalized, password_hash, full_name, role, tenant_id, active, status, created_at, updated_at)
 				VALUES ($1::uuid, $2, lower($2), $3, $4, 'BUSINESS_STAFF', $5::uuid, true, 'ACTIVE', $6, $6)`,
-				user.ID, inv.Email, passwordHash, inv.FullName, inv.TenantID, now); err != nil {
+				user.ID, inv.Email, passwordHash, fullName, inv.TenantID, now); err != nil {
 				if isEmailTakenViolation(err) {
 					return domain.ErrEmailTaken
 				}
 				return fmt.Errorf("insert staff: %w", err)
+			}
+			// R18: la cuenta nueva nace con sus aceptaciones, en la misma transacción.
+			for _, c := range in.Consents {
+				if _, err := tx.Exec(ctx, `
+					INSERT INTO consents (user_id, purpose, text_version, granted, channel, device, recorded_at)
+					VALUES ($1::uuid, $2, $3, $4, $5, $6, $7)`,
+					user.ID, c.Purpose, c.TextVersion, c.Granted, c.Channel, c.Device, c.RecordedAt); err != nil {
+					return fmt.Errorf("insert staff consent: %w", err)
+				}
 			}
 		}
 

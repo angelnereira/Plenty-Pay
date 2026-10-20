@@ -54,7 +54,8 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | POST `/v1/business/staff/{user_id}/suspend` · `/reactivate` | SuspendUser · ReactivateUser | `admin:users:manage` |
 | DELETE `/v1/business/staff/{user_id}` | DeactivateUser | `admin:users:manage` |
 | GET `/v1/business/invitations` · POST `/v1/business/invitations/{invitation_id}/resend` · DELETE `/v1/business/invitations/{invitation_id}` | ListInvitations · ResendInvitation · RevokeInvitation | `admin:users:manage` |
-| POST `/v1/invitations/accept` | AcceptInvitation | público con token |
+| POST `/v1/invitations/preview` | PreviewInvitation (S-GEN-17: negocio, rol, alcance y si el correo ya tiene cuenta; el token va en el cuerpo, nunca en la URL) | público con token |
+| POST `/v1/invitations/accept` | AcceptInvitation (cuenta nueva: `consents` R18 y `full_name`) | público con token |
 | GET `/v1/business/roles` · POST `/v1/business/roles` 🔒 (crear y editar: `role.role_id` vacío = crear) · DELETE `/v1/business/roles/{role_id}` | ListRoles · UpsertRole · ArchiveRole | `admin:roles:manage` |
 | POST `/v1/business/roles/{user_id}/assign` 🔒 | AssignRole (compat.; la app usa `membership`) | `admin:roles:manage` |
 | GET `/v1/access/catalog` · GET `/v1/verticals` · GET `/v1/role-templates` | GetAccessCatalog · ListVerticals · ListRoleTemplates | autenticado |

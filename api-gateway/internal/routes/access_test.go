@@ -25,6 +25,7 @@ func TestR24_AccessRoutesResolveBeforeTenantWildcard(t *testing.T) {
 		"POST /v1/business/invitations/i1/resend":        "ResendInvitation",
 		"DELETE /v1/business/roles/r1":                   "ArchiveRole",
 		"GET /v1/business/0199f0c8-1111-7000-8000-00001": "GetTenant",
+		"POST /v1/invitations/preview":                   "PreviewInvitation",
 	}
 	for req, rpc := range cases {
 		method, path, _ := strings.Cut(req, " ")

@@ -169,6 +169,13 @@ var GatedCapabilities = map[string]bool{
 	"appointments.deposits": true, // Q-33
 }
 
+// GatingQuestion es la pregunta abierta (docs/open-questions.md) que bloquea cada capacidad.
+var GatingQuestion = map[string]string{
+	"pos.tips":              "Q-21",
+	"payroll.commissions":   "Q-32",
+	"appointments.deposits": "Q-33",
+}
+
 // AllCapabilityEntries contiene las capacidades estándar del modelo (docs/domain/business-profiles-and-access.md §4).
 var AllCapabilityEntries = []CapabilityCatalogEntry{
 	{Key: "pos.counter", Module: "pos"},

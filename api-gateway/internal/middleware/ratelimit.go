@@ -50,7 +50,7 @@ func classify(r *http.Request) (string, int) {
 	p := r.URL.Path
 	method := r.Method
 	switch {
-	case strings.HasPrefix(p, "/v1/auth/") || strings.HasPrefix(p, "/v1/invitations/accept") || strings.HasPrefix(p, "/v1/auth/password"):
+	case strings.HasPrefix(p, "/v1/auth/") || strings.HasPrefix(p, "/v1/invitations/"):
 		return "auth", 10
 	case strings.HasPrefix(p, "/v1/public/tracking") || strings.HasPrefix(p, "/v1/pay-links"):
 		return "public", 60

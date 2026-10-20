@@ -382,7 +382,14 @@ func (s *IdentityServer) InviteStaff(ctx context.Context, req *pb.InviteStaffReq
 
 // AcceptInvitation canjea el token y devuelve la sesion (H8: también para cuentas existentes).
 func (s *IdentityServer) AcceptInvitation(ctx context.Context, req *pb.AcceptInvitationRequest) (*pb.AuthResult, error) {
-	res, err := s.svc.AcceptInvitation(ctx, req.GetInvitationToken(), req.GetPassword())
+	consents := make([]service.ConsentGrant, 0, len(req.GetConsents()))
+	for _, c := range req.GetConsents() {
+		// El canal lo fija el servidor: la aceptación llega por el enlace de invitación (S-GEN-17).
+		consents = append(consents, service.ConsentGrant{Purpose: c.GetPurpose(), TextVersion: c.GetTextVersion(), Granted: c.GetGranted(), Channel: "invitation"})
+	}
+	res, err := s.svc.AcceptInvitation(ctx, service.AcceptInput{
+		Token: req.GetInvitationToken(), Password: req.GetPassword(), FullName: req.GetFullName(), Consents: consents,
+	})
 	if err != nil {
 		return nil, status.Error(codes.Internal, observability.Wrap(err, "accept invitation").Error())
 	}

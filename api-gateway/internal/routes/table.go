@@ -43,6 +43,12 @@ var Table = []Route{
 		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
 	},
 	{
+		// S-GEN-17: el token va en el cuerpo (nunca en la URL, que queda en los registros).
+		Method: "POST", Path: "/v1/invitations/preview", RPC: "/plentypay.identity.v1.Identity/PreviewInvitation",
+		NewRequest:  func() proto.Message { return &pb.PreviewInvitationRequest{} },
+		NewResponse: func() proto.Message { return &pb.InvitationPreview{} },
+	},
+	{
 		Method: "POST", Path: "/v1/invitations/accept", RPC: "/plentypay.identity.v1.Identity/AcceptInvitation",
 		Idempotency: true,
 		NewRequest:  func() proto.Message { return &pb.AcceptInvitationRequest{} },

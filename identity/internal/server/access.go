@@ -113,7 +113,9 @@ func (s *IdentityServer) GetAccessCatalog(_ context.Context, _ *pb.GetAccessCata
 		})
 	}
 	for _, c := range auth.AllCapabilityEntries {
-		out.Capabilities = append(out.Capabilities, &pb.CapabilityInfo{Key: c.Key, Module: c.Module})
+		out.Capabilities = append(out.Capabilities, &pb.CapabilityInfo{
+			Key: c.Key, Module: c.Module, Gated: auth.GatedCapabilities[c.Key], OpenQuestion: auth.GatingQuestion[c.Key],
+		})
 	}
 	return out, nil
 }
@@ -319,4 +321,21 @@ func (s *IdentityServer) ResendInvitation(ctx context.Context, req *pb.Invitatio
 		return nil, toStatus(err)
 	}
 	return s.toPBInvitation(inv), nil
+}
+
+// PreviewInvitation muestra la invitación a quien tiene el enlace (S-GEN-17).
+func (s *IdentityServer) PreviewInvitation(ctx context.Context, req *pb.PreviewInvitationRequest) (*pb.InvitationPreview, error) {
+	p, err := s.svc.PreviewInvitation(ctx, req.GetInvitationToken())
+	if err != nil {
+		if errors.Is(err, domain.ErrInvitationNotFound) {
+			return nil, ErrorInfo(codes.NotFound, "TOKEN_INVALID", "invitacion no encontrada")
+		}
+		return nil, toStatus(err)
+	}
+	inv := p.Invitation
+	return &pb.InvitationPreview{
+		Email: inv.Email, FullName: inv.FullName, BusinessName: p.BusinessName,
+		RoleId: inv.RoleID, RoleName: p.RoleName, RoleSystem: p.RoleSystem,
+		Scope: inv.Scope, BranchNames: p.BranchNames, Status: inv.Status(s.now()), AccountExists: p.AccountExists,
+	}, nil
 }

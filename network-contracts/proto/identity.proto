@@ -34,6 +34,7 @@ service Identity {
   // Equipo del comercio
   rpc InviteStaff(InviteStaffRequest) returns (Invitation);
   rpc AcceptInvitation(AcceptInvitationRequest) returns (AuthResult);
+  rpc PreviewInvitation(PreviewInvitationRequest) returns (InvitationPreview); // público con token (S-GEN-17)
   rpc ListUsers(ListUsersRequest) returns (ListUsersResult);
   rpc DeactivateUser(DeactivateUserRequest) returns (SimpleResult);
 
@@ -256,7 +257,24 @@ message Invitation {
   string status = 9;                 // "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED"
   google.protobuf.Timestamp created_at = 10;
 }
-message AcceptInvitationRequest { string invitation_token = 1; string password = 2; string idempotency_key = 3; }
+message AcceptInvitationRequest {
+  string invitation_token = 1; string password = 2; string idempotency_key = 3;
+  repeated ConsentGrant consents = 4;  // obligatorio si se crea la cuenta (R18, N-DAT-02, N-DAT-14)
+  string full_name = 5;                // cuenta nueva: nombre que la persona confirma (vacío = el de la invitación)
+}
+message PreviewInvitationRequest { string invitation_token = 1; }
+message InvitationPreview {
+  string email = 1;                    // a quién se invitó (bloqueado en el formulario)
+  string full_name = 2;
+  string business_name = 3;            // nombre comercial del negocio
+  string role_id = 4;
+  string role_name = 5;                // nombre del rol del negocio, o clave de la plantilla si es de sistema
+  bool role_system = 6;
+  string scope = 7;                    // "TENANT" | "BRANCHES"
+  repeated string branch_names = 8;
+  string status = 9;                   // "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED"
+  bool account_exists = 10;            // el correo ya tiene cuenta: se acepta con su contraseña (H8)
+}
 
 message UserSummary {
   string user_id = 1;
@@ -367,7 +385,12 @@ message PermissionInfo {
   bool money = 5;                              // 🔒 exige confirmación fuerte al asignarlo
   bool platform = 6;                           // `platform:*`: nunca se ofrece a un negocio
 }
-message CapabilityInfo { string key = 1; string module = 2; }
+message CapabilityInfo {
+  string key = 1;
+  string module = 2;
+  bool gated = 3;                              // sujeta a una pregunta legal abierta: no se puede encender todavía
+  string open_question = 4;                    // p. ej. "Q-32" (docs/open-questions.md); vacío si no está bloqueada
+}
 message GetAccessCatalogRequest {}
 message AccessCatalog {
   repeated PermissionInfo permissions = 1;

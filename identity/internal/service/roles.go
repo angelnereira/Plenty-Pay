@@ -365,9 +365,72 @@ func (s *IdentityService) requestInvitationEmail(ctx context.Context, inv *domai
 	return nil
 }
 
+// AcceptInput es el canje de una invitación (S-GEN-17). Consents y FullName solo cuentan para una
+// cuenta nueva: quien ya tiene cuenta ya aceptó los textos al registrarse.
+type AcceptInput struct {
+	Token    string
+	Password string
+	FullName string
+	Consents []ConsentGrant
+}
+
+// InvitationPreview es lo que ve quien abre el enlace antes de aceptar (S-GEN-17).
+type InvitationPreview struct {
+	Invitation    *domain.Invitation
+	BusinessName  string
+	RoleName      string
+	RoleSystem    bool
+	BranchNames   []string
+	AccountExists bool
+}
+
+// PreviewInvitation muestra «{Negocio} te invita como {rol}» con el alcance. El token es la
+// credencial: un token desconocido responde TOKEN_INVALID sin revelar nada más.
+func (s *IdentityService) PreviewInvitation(ctx context.Context, token string) (*InvitationPreview, error) {
+	if s.roles == nil || s.tenants == nil || token == "" {
+		return nil, domain.ErrInvitationNotFound
+	}
+	inv, err := s.roles.InvitationByToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	out := &InvitationPreview{Invitation: inv, RoleName: inv.RoleName}
+	t, err := s.tenants.GetTenant(ctx, inv.TenantID)
+	if err != nil {
+		return nil, observability.Wrap(err, "load invitation tenant")
+	}
+	out.BusinessName = t.TradeName
+	if out.BusinessName == "" {
+		out.BusinessName = t.LegalName
+	}
+	if role, err := s.roles.RoleByID(ctx, inv.TenantID, inv.RoleID); err == nil {
+		out.RoleName, out.RoleSystem = role.Name, role.System
+	} else if !errors.Is(err, domain.ErrRoleNotFound) {
+		return nil, observability.Wrap(err, "load invitation role")
+	}
+	if inv.Scope == domain.ScopeBranches {
+		branches, err := s.tenants.ListBranches(ctx, inv.TenantID, true)
+		if err != nil {
+			return nil, observability.Wrap(err, "load invitation branches")
+		}
+		for _, b := range branches {
+			if slices.Contains(inv.BranchIDs, b.ID) {
+				out.BranchNames = append(out.BranchNames, b.Name)
+			}
+		}
+	}
+	if _, err := s.users.FindByEmail(ctx, inv.Email); err == nil {
+		out.AccountExists = true
+	} else if !errors.Is(err, domain.ErrUserNotFound) {
+		return nil, observability.Wrap(err, "find invited account")
+	}
+	return out, nil
+}
+
 // AcceptInvitation canjea el token (H8): quien ya tiene cuenta de cliente la conserva y entra con su
-// contraseña actual; quien no, crea su cuenta de staff. Devuelve la sesión.
-func (s *IdentityService) AcceptInvitation(ctx context.Context, token, password string) (*AcceptResult, error) {
+// contraseña actual; quien no, crea su cuenta de staff con sus aceptaciones (R18). Devuelve la sesión.
+func (s *IdentityService) AcceptInvitation(ctx context.Context, in AcceptInput) (*AcceptResult, error) {
+	token, password := in.Token, in.Password
 	if s.roles == nil {
 		return &AcceptResult{Reason: "INTERNAL", ErrorMessage: "error interno"}, nil
 	}
@@ -391,18 +454,24 @@ func (s *IdentityService) AcceptInvitation(ctx context.Context, token, password 
 		if existing.Role != "CUSTOMER" || existing.TenantID != "" {
 			return rejectAccept("ALREADY_HAS_TENANT", "esa cuenta ya pertenece a un negocio"), nil
 		}
-		if _, err := s.roles.AcceptInvitation(ctx, token, existing.ID, ""); err != nil {
+		if _, err := s.roles.AcceptInvitation(ctx, store.AcceptInvitationInput{Token: token, ExistingUserID: existing.ID}); err != nil {
 			return acceptError(err)
 		}
 	case errors.Is(err, domain.ErrUserNotFound):
 		if err := domain.ValidatePassword(password); err != nil {
 			return rejectAccept("WEAK_PASSWORD", "la contrasena debe tener entre 12 y 128 caracteres"), nil
 		}
+		records, reason := ValidateConsents(in.Consents, s.now())
+		if reason != "" {
+			return rejectAccept(reason, consentMessage(reason)), nil
+		}
 		hash, err := auth.HashPassword(password)
 		if err != nil {
 			return nil, observability.Wrap(err, "hash password")
 		}
-		if _, err := s.roles.AcceptInvitation(ctx, token, "", hash); err != nil {
+		if _, err := s.roles.AcceptInvitation(ctx, store.AcceptInvitationInput{
+			Token: token, PasswordHash: hash, FullName: strings.TrimSpace(in.FullName), Consents: records,
+		}); err != nil {
 			return acceptError(err)
 		}
 	default:

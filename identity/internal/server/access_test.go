@@ -124,6 +124,14 @@ func TestR10_GetAccessCatalogServesCatalog(t *testing.T) {
 			}
 		}
 	}
+	for _, c := range cat.GetCapabilities() {
+		if c.GetKey() == "payroll.commissions" && (!c.GetGated() || c.GetOpenQuestion() != "Q-32") {
+			t.Fatalf("payroll.commissions bloqueada por Q-32: %+v", c)
+		}
+		if c.GetKey() == "pos.counter" && c.GetGated() {
+			t.Fatalf("pos.counter no está bloqueada: %+v", c)
+		}
+	}
 	verts, err := srv.ListVerticals(context.Background(), &pb.ListVerticalsRequest{})
 	if err != nil || len(verts.GetVerticals()) != len(auth.AllVerticals) || len(verts.GetTraits()) != len(auth.AllTraits) {
 		t.Fatalf("ListVerticals: %v", err)

@@ -157,7 +157,8 @@ func (f *fakeRoleStore) InvitationByToken(_ context.Context, token string) (*dom
 	return &cp, nil
 }
 
-func (f *fakeRoleStore) AcceptInvitation(ctx context.Context, token, existingUserID, passwordHash string) (*domain.User, error) {
+func (f *fakeRoleStore) AcceptInvitation(ctx context.Context, in store.AcceptInvitationInput) (*domain.User, error) {
+	token, existingUserID, passwordHash := in.Token, in.ExistingUserID, in.PasswordHash
 	inv, ok := f.invitations[token]
 	if !ok {
 		return nil, domain.ErrInvitationNotFound
@@ -171,7 +172,7 @@ func (f *fakeRoleStore) AcceptInvitation(ctx context.Context, token, existingUse
 		user.Role, user.TenantID = "BUSINESS_STAFF", inv.TenantID
 	} else {
 		user = &domain.User{ID: "user-" + inv.Email, Email: inv.Email, FullName: inv.FullName, PasswordHash: passwordHash,
-			Role: "BUSINESS_STAFF", TenantID: inv.TenantID}
+			Role: "BUSINESS_STAFF", TenantID: inv.TenantID, Consents: in.Consents}
 		if err := f.users.Create(ctx, user); err != nil {
 			return nil, err
 		}
@@ -668,7 +669,7 @@ func TestF08_6_AcceptInvitationCreatesStaffWithSession(t *testing.T) {
 	if _, err := f.svc.InviteStaff(as("owner-a", tenantA), service.InviteInput{Email: "nuevo@example.com", RoleID: "role-viewer", Scope: domain.ScopeBranches, BranchIDs: []string{branchCo}}); err != nil {
 		t.Fatalf("InviteStaff: %v", err)
 	}
-	res, err := f.svc.AcceptInvitation(context.Background(), "token-nuevo@example.com", "una-clave-muy-larga")
+	res, err := f.svc.AcceptInvitation(context.Background(), service.AcceptInput{Token: "token-nuevo@example.com", Password: "una-clave-muy-larga", Consents: consentsOK()})
 	if err != nil || !res.Success || res.Session == nil || res.Session.AccessToken == "" {
 		t.Fatalf("AcceptInvitation: %v %+v", err, res)
 	}
@@ -676,7 +677,7 @@ func TestF08_6_AcceptInvitationCreatesStaffWithSession(t *testing.T) {
 	if err != nil || perms.BranchScope != branchCo || !slices.Contains(perms.Permissions, "analytics:read") {
 		t.Fatalf("el staff queda con su rol y su alcance: %v %+v", err, perms)
 	}
-	again, err := f.svc.AcceptInvitation(context.Background(), "token-nuevo@example.com", "una-clave-muy-larga")
+	again, err := f.svc.AcceptInvitation(context.Background(), service.AcceptInput{Token: "token-nuevo@example.com", Password: "una-clave-muy-larga", Consents: consentsOK()})
 	if err != nil || again.Success || again.Reason != "ALREADY_USED" {
 		t.Fatalf("token de un solo uso: %v %+v", err, again)
 	}
@@ -687,7 +688,7 @@ func TestF08_6_AcceptInvitation_WeakPassword(t *testing.T) {
 	if _, err := f.svc.InviteStaff(as("owner-a", tenantA), service.InviteInput{Email: "debil@example.com", RoleID: "role-viewer"}); err != nil {
 		t.Fatalf("InviteStaff: %v", err)
 	}
-	res, err := f.svc.AcceptInvitation(context.Background(), "token-debil@example.com", "corta")
+	res, err := f.svc.AcceptInvitation(context.Background(), service.AcceptInput{Token: "token-debil@example.com", Password: "corta", Consents: consentsOK()})
 	if err != nil || res.Success || res.Reason != "WEAK_PASSWORD" {
 		t.Fatalf("se esperaba WEAK_PASSWORD: %v %+v", err, res)
 	}
@@ -707,11 +708,11 @@ func TestH8_AcceptInvitation_ExistingCustomerKeepsAccount(t *testing.T) {
 	if _, err := f.svc.InviteStaff(as("owner-a", tenantA), service.InviteInput{Email: "cliente@example.com", RoleID: "role-viewer"}); err != nil {
 		t.Fatalf("InviteStaff: %v", err)
 	}
-	wrong, err := f.svc.AcceptInvitation(context.Background(), "token-cliente@example.com", "otra-clave-cualquiera")
+	wrong, err := f.svc.AcceptInvitation(context.Background(), service.AcceptInput{Token: "token-cliente@example.com", Password: "otra-clave-cualquiera", Consents: consentsOK()})
 	if err != nil || wrong.Success || wrong.Reason != "INVALID_CREDENTIALS" {
 		t.Fatalf("clave equivocada: %v %+v", err, wrong)
 	}
-	res, err := f.svc.AcceptInvitation(context.Background(), "token-cliente@example.com", "clave-del-cliente-123")
+	res, err := f.svc.AcceptInvitation(context.Background(), service.AcceptInput{Token: "token-cliente@example.com", Password: "clave-del-cliente-123", Consents: consentsOK()})
 	if err != nil || !res.Success || res.UserID != "cliente-1" {
 		t.Fatalf("aceptar con la cuenta existente: %v %+v", err, res)
 	}
@@ -739,7 +740,7 @@ func TestF08_6_RevokeAndResendInvitation(t *testing.T) {
 	if err := f.svc.RevokeInvitation(ctx, res.Invitation.ID); !errors.Is(err, domain.ErrInvitationNotFound) {
 		t.Fatalf("revocar dos veces: %v", err)
 	}
-	accepted, err := f.svc.AcceptInvitation(context.Background(), "token2-r@example.com", "una-clave-muy-larga")
+	accepted, err := f.svc.AcceptInvitation(context.Background(), service.AcceptInput{Token: "token2-r@example.com", Password: "una-clave-muy-larga", Consents: consentsOK()})
 	if err != nil || accepted.Success {
 		t.Fatalf("una invitación revocada no se canjea: %v %+v", err, accepted)
 	}
@@ -902,5 +903,49 @@ func TestR10_OrphanTenantGetsBaseOnly(t *testing.T) {
 	perms, err := f.svc.PermissionsForUser(context.Background(), u.ID)
 	if err != nil || !slices.Equal(perms.EnabledModules, []string{"wallet", "marketplace"}) {
 		t.Fatalf("tenant inexistente: %v %+v", err, perms)
+	}
+}
+
+// R18 + N-DAT-02/N-DAT-14: una cuenta nueva creada por invitación necesita las mismas aceptaciones
+// que el registro público, y quedan guardadas con versión y canal.
+func TestR18_AcceptInvitationNewAccountRequiresConsents(t *testing.T) {
+	f := newAccessFixture(t)
+	if _, err := f.svc.InviteStaff(as("owner-a", tenantA), service.InviteInput{Email: "sin@example.com", RoleID: "role-viewer"}); err != nil {
+		t.Fatal(err)
+	}
+	res, err := f.svc.AcceptInvitation(context.Background(), service.AcceptInput{Token: "token-sin@example.com", Password: "una-clave-muy-larga"})
+	if err != nil || res.Success || res.Reason != "AGE_REQUIREMENT" {
+		t.Fatalf("sin consentimientos: %v %+v", err, res)
+	}
+	res, err = f.svc.AcceptInvitation(context.Background(), service.AcceptInput{
+		Token: "token-sin@example.com", Password: "una-clave-muy-larga", FullName: " Luz Nueva ", Consents: consentsOK(),
+	})
+	if err != nil || !res.Success {
+		t.Fatalf("con consentimientos: %v %+v", err, res)
+	}
+	u := f.users.byID[res.UserID]
+	if len(u.Consents) < 3 || u.Consents[0].TextVersion == "" {
+		t.Fatalf("consentimientos guardados: %+v", u.Consents)
+	}
+}
+
+// S-GEN-17: la vista previa muestra negocio, rol, alcance y si el correo ya tiene cuenta.
+func TestF08_8_PreviewInvitation(t *testing.T) {
+	f := newAccessFixture(t)
+	f.tenants.tenants[tenantA].TradeName = "Barbería Centro"
+	if _, err := f.svc.InviteStaff(as("owner-a", tenantA), service.InviteInput{
+		Email: "owner-a@example.com", RoleID: "role-viewer", Scope: domain.ScopeBranches, BranchIDs: []string{branchCo},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	p, err := f.svc.PreviewInvitation(context.Background(), "token-owner-a@example.com")
+	if err != nil {
+		t.Fatalf("PreviewInvitation: %v", err)
+	}
+	if p.BusinessName != "Barbería Centro" || p.RoleName != "viewer" || !p.RoleSystem || !slices.Equal(p.BranchNames, []string{"Colón"}) || !p.AccountExists {
+		t.Fatalf("vista previa: %+v", p)
+	}
+	if _, err := f.svc.PreviewInvitation(context.Background(), "inventado"); !errors.Is(err, domain.ErrInvitationNotFound) {
+		t.Fatalf("token desconocido: %v", err)
 	}
 }
