@@ -9,7 +9,7 @@ identity|go|internal/pb|identity.proto,events.proto,security.proto,common.proto
 api-gateway|go|internal/pb|identity.proto,events.proto,common.proto
 # --- objetivo (se activan al llegar a su fase) ---
 ledger|rust|proto|ledger.proto,common.proto,events.proto
-payments-core|rust|proto|payments.proto,ledger.proto,identity.proto,common.proto,events.proto
+payments-core|rust|proto|payments.proto,ledger.proto,identity.proto,infra_management.proto,common.proto,events.proto
 settlement|rust|proto|settlement.proto,ledger.proto,payments.proto,identity.proto,common.proto,events.proto
 security|go|internal/pb|security.proto,common.proto
 infra-management|go|internal/pb|infra_management.proto,common.proto

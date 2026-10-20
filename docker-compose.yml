@@ -67,6 +67,32 @@ services:
       postgres-db:
         condition: service_healthy
 
+  # F11: orquestador de cobros (Rust). Único que pide al ledger asientos de cobro (AGENTS.md §2.5).
+  # Conecta directo a postgres-db (sqlx con sentencias preparadas). Límites, umbral de step-up y
+  # flags vienen de infra-management; estado del negocio de identity. Migraciones:
+  # `docker compose run --rm --no-deps payments-core migrate`.
+  payments-core:
+    <<: *hardening
+    build:
+      context: ./payments-core
+    environment:
+      DATABASE_URL: "${PAYMENTS_DB_DSN:-postgres://payments_svc:payments_svc_dev_secret_32_chars!@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_MIGRATE_DSN: "${PAYMENTS_MIGRATE_DSN:-postgres://migrator_payments:payments_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_LEDGER_ADDR: "http://ledger:50061"
+      PP_IDENTITY_ADDR: "http://identity:50060"
+      PP_INFRA_ADDR: "http://infra-management:50074"
+      PP_NATS_URL: "${PAYMENTS_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${PAYMENTS_NATS_USER:-payments_svc}"
+      PP_NATS_PASS: "${PAYMENTS_NATS_PASS:-payments_nats_secret}"
+      RUST_LOG: "${PAYMENTS_LOG:-info}"
+    networks: [services, data]
+    healthcheck: *healthcheck
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      ledger:
+        condition: service_healthy
+
   api-gateway:
     <<: *hardening
     build:

@@ -1,9 +1,12 @@
-pub mod domain;
-pub mod error;
-pub mod grpc;
-pub mod adapters;
-pub mod pb;
+//! payments-core: orquesta los cobros de PlentyPay (SPEC.md). Único que pide al ledger los asientos
+//! de cobro y reembolso (AGENTS.md §2.5).
 
-pub use domain::fee::{FeeBearer, FeeBreakdown};
-pub use domain::state::{PaymentIntentStatus, PaymentStatus, PaymentAttemptStatus};
-pub use error::PaymentsError;
+pub mod clients;
+pub mod config;
+pub mod domain;
+pub mod events;
+pub mod grpc;
+pub mod observability;
+pub mod pb;
+pub mod service;
+pub mod store;
