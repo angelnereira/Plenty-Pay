@@ -743,5 +743,30 @@
   "financeRefunds": "Refunds",
   "financeNet": "Net",
   "featureUnavailableBody": "This feature isn't available yet. We'll let you know when you can use it.",
-  "homeRegisterBusiness": "Register my business"
+  "homeRegisterBusiness": "Register my business",
+  "topupHowMuch": "How much do you want to top up?",
+  "topupMinimum": "The minimum is $1.00.",
+  "topupMethod": "Method",
+  "railYappy": "Yappy",
+  "railClave": "Clave",
+  "railSandbox": "Test",
+  "topupAmountLine": "Top-up",
+  "topupFeeLine": "Fee",
+  "topupTotalLine": "Total to pay",
+  "topupButton": "Top up {total}",
+  "@topupButton": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "topupResult": "Top-up from {rail}",
+  "@topupResult": {
+    "placeholders": {
+      "rail": {
+        "type": "String"
+      }
+    }
+  }
 }

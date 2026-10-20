@@ -67,7 +67,9 @@ class _RolesScreenState extends State<RolesScreen> {
     );
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _edit(RolesData data,
       {Map<String, dynamic>? role, Map<String, dynamic>? template}) async {

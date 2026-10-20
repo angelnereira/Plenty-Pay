@@ -160,7 +160,9 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                   ? payErrorMessage(l10n, snap.error!)
                   : l10n.errorNoConnection,
               retryLabel: l10n.actionRetry,
-              onRetry: () => setState(() => _future = _load()),
+              onRetry: () => setState(() {
+                _future = _load();
+              }),
               emptyView: const SizedBox.shrink(),
               builder: (context, data) => _body(context, data),
             ),

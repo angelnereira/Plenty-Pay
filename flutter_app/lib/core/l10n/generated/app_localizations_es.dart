@@ -2246,6 +2246,43 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get homeRegisterBusiness => 'Registrar mi negocio';
+
+  @override
+  String get topupHowMuch => '¿Cuánto quieres recargar?';
+
+  @override
+  String get topupMinimum => 'El mínimo es \$1.00.';
+
+  @override
+  String get topupMethod => 'Método';
+
+  @override
+  String get railYappy => 'Yappy';
+
+  @override
+  String get railClave => 'Clave';
+
+  @override
+  String get railSandbox => 'Prueba';
+
+  @override
+  String get topupAmountLine => 'Recarga';
+
+  @override
+  String get topupFeeLine => 'Comisión';
+
+  @override
+  String get topupTotalLine => 'Total a pagar';
+
+  @override
+  String topupButton(String total) {
+    return 'Recargar $total';
+  }
+
+  @override
+  String topupResult(String rail) {
+    return 'Recarga desde $rail';
+  }
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

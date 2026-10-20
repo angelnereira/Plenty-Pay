@@ -42,7 +42,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   void _open(Widget screen) => Navigator.of(context)
       .push(MaterialPageRoute<void>(builder: (_) => screen))
-      .then((_) => setState(() => _future = loadPayments(widget.api)));
+      .then((_) => setState(() {
+            _future = loadPayments(widget.api);
+          }));
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +78,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   ? walletErrorMessage(l10n, snap.error!)
                   : l10n.errorNoConnection,
               retryLabel: l10n.actionRetry,
-              onRetry: () => setState(() => _future = loadPayments(widget.api)),
+              onRetry: () => setState(() {
+                _future = loadPayments(widget.api);
+              }),
               emptyView: const SizedBox.shrink(),
               builder: (context, payments) {
                 final t = FinanceTotals.of(payments, _since());

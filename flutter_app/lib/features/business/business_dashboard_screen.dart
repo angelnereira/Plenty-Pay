@@ -54,7 +54,9 @@ class _BusinessDashboardScreenState extends State<BusinessDashboardScreen> {
     );
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _run(Future<Object?> Function() action, String okMessage) async {
     final l10n = AppLocalizations.of(context);

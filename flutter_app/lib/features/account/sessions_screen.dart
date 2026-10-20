@@ -27,7 +27,9 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
   Future<void> _revoke(String sessionId) async {
     await widget.api.revokeSession(sessionId);
-    setState(() => _future = _load());
+    setState(() {
+      _future = _load();
+    });
   }
 
   @override
@@ -44,7 +46,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
           if (snap.hasError) {
             return Center(child: Text(l10n.errorNoConnection));
           }
-          final sessions = (snap.data?['sessions'] as List<dynamic>? ?? const []);
+          final sessions =
+              (snap.data?['sessions'] as List<dynamic>? ?? const []);
           if (sessions.isEmpty) {
             return Center(child: Text(l10n.emptySessions));
           }
@@ -54,7 +57,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
               final s = sessions[i] as Map<String, dynamic>;
               final current = s['current'] == true;
               return ListTile(
-                leading: Icon(current ? Icons.phone_android : Icons.devices_other),
+                leading:
+                    Icon(current ? Icons.phone_android : Icons.devices_other),
                 title: Text(s['device_label'] as String? ?? ''),
                 subtitle: Text(s['ip_address'] as String? ?? ''),
                 trailing: current

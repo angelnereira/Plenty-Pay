@@ -34,7 +34,9 @@ class _WalletScreenState extends State<WalletScreen> {
   /// lo registró; aquí queda la miga para reconstruir la sesión.
   Future<void> _reload() {
     final next = loadWallet(widget.api);
-    setState(() => _future = next);
+    setState(() {
+      _future = next;
+    });
     return next.then<void>((_) {},
         onError: (Object e) => widget.api.logger
             .breadcrumb('ui', 'wallet.refresh', e.runtimeType.toString()));

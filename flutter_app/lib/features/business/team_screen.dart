@@ -74,7 +74,9 @@ class _TeamScreenState extends State<TeamScreen> {
     );
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   void _toast(String message) => ScaffoldMessenger.of(context)
       .showSnackBar(SnackBar(content: Text(message)));

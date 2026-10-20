@@ -61,7 +61,9 @@ class _TerminalsScreenState extends State<TerminalsScreen> {
     ];
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _create() async {
     final created = await showModalBottomSheet<bool>(

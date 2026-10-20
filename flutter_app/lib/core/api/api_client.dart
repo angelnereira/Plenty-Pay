@@ -280,6 +280,19 @@ class ApiClient {
           idempotencyKey: idempotencyKey,
           headers: {if (stepUpToken != null) 'X-Step-Up-Token': stepUpToken});
 
+  /// S-WAL-02 (R10/T1): recarga desde un riel externo. El gateway fija la referencia `topup`.
+  Future<Map<String, dynamic>> createTopup(
+          {required int amountMinor,
+          required String rail,
+          required String idempotencyKey,
+          String currency = 'USD'}) =>
+      _post('/v1/wallet/topups',
+          data: {
+            'amount': {'amount_minor': '$amountMinor', 'currency': currency},
+            'rail': rail,
+          },
+          idempotencyKey: idempotencyKey);
+
   Future<Map<String, dynamic>> confirmPaymentIntent(String intentId,
           {required String idempotencyKey}) =>
       _post('/v1/payments/intents/${Uri.encodeComponent(intentId)}/confirm',

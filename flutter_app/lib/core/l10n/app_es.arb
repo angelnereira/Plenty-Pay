@@ -844,5 +844,30 @@
   "financeRefunds": "Reembolsos",
   "financeNet": "Neto",
   "featureUnavailableBody": "Esta función todavía no está disponible. Te avisaremos cuando puedas usarla.",
-  "homeRegisterBusiness": "Registrar mi negocio"
+  "homeRegisterBusiness": "Registrar mi negocio",
+  "topupHowMuch": "¿Cuánto quieres recargar?",
+  "topupMinimum": "El mínimo es $1.00.",
+  "topupMethod": "Método",
+  "railYappy": "Yappy",
+  "railClave": "Clave",
+  "railSandbox": "Prueba",
+  "topupAmountLine": "Recarga",
+  "topupFeeLine": "Comisión",
+  "topupTotalLine": "Total a pagar",
+  "topupButton": "Recargar {total}",
+  "@topupButton": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "topupResult": "Recarga desde {rail}",
+  "@topupResult": {
+    "placeholders": {
+      "rail": {
+        "type": "String"
+      }
+    }
+  }
 }

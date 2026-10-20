@@ -56,7 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _push(Widget screen) => Navigator.of(context)
       .push(MaterialPageRoute<void>(builder: (_) => screen))
-      .then((_) => setState(() => _balance = loadWalletBalance(widget.api)));
+      .then((_) => setState(() {
+            _balance = loadWalletBalance(widget.api);
+          }));
 
   @override
   Widget build(BuildContext context) {
@@ -98,8 +100,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? walletErrorMessage(l10n, snap.error!)
                       : l10n.errorNoConnection,
                   retryLabel: l10n.actionRetry,
-                  onRetry: () =>
-                      setState(() => _balance = loadWalletBalance(widget.api)),
+                  onRetry: () => setState(() {
+                    _balance = loadWalletBalance(widget.api);
+                  }),
                   emptyView: const SizedBox.shrink(),
                   builder: (context, balance) => GestureDetector(
                     onTap: () => widget.onSelectModule(wallet),

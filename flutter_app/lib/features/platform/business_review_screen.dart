@@ -34,7 +34,11 @@ class _BusinessReviewScreenState extends State<BusinessReviewScreen> {
 
   Future<void> _decide(String tenantId, bool approve) async {
     await widget.api.reviewBusiness(tenantId: tenantId, approve: approve);
-    if (mounted) setState(() => _future = widget.api.listTenants(status: 'PENDING_REVIEW'));
+    if (mounted) {
+      setState(() {
+        _future = widget.api.listTenants(status: 'PENDING_REVIEW');
+      });
+    }
   }
 
   @override

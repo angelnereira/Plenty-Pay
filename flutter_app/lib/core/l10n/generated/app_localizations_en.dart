@@ -2242,4 +2242,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeRegisterBusiness => 'Register my business';
+
+  @override
+  String get topupHowMuch => 'How much do you want to top up?';
+
+  @override
+  String get topupMinimum => 'The minimum is \$1.00.';
+
+  @override
+  String get topupMethod => 'Method';
+
+  @override
+  String get railYappy => 'Yappy';
+
+  @override
+  String get railClave => 'Clave';
+
+  @override
+  String get railSandbox => 'Test';
+
+  @override
+  String get topupAmountLine => 'Top-up';
+
+  @override
+  String get topupFeeLine => 'Fee';
+
+  @override
+  String get topupTotalLine => 'Total to pay';
+
+  @override
+  String topupButton(String total) {
+    return 'Top up $total';
+  }
+
+  @override
+  String topupResult(String rail) {
+    return 'Top-up from $rail';
+  }
 }

@@ -4268,6 +4268,72 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Registrar mi negocio'**
   String get homeRegisterBusiness;
+
+  /// No description provided for @topupHowMuch.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cuánto quieres recargar?'**
+  String get topupHowMuch;
+
+  /// No description provided for @topupMinimum.
+  ///
+  /// In es, this message translates to:
+  /// **'El mínimo es \$1.00.'**
+  String get topupMinimum;
+
+  /// No description provided for @topupMethod.
+  ///
+  /// In es, this message translates to:
+  /// **'Método'**
+  String get topupMethod;
+
+  /// No description provided for @railYappy.
+  ///
+  /// In es, this message translates to:
+  /// **'Yappy'**
+  String get railYappy;
+
+  /// No description provided for @railClave.
+  ///
+  /// In es, this message translates to:
+  /// **'Clave'**
+  String get railClave;
+
+  /// No description provided for @railSandbox.
+  ///
+  /// In es, this message translates to:
+  /// **'Prueba'**
+  String get railSandbox;
+
+  /// No description provided for @topupAmountLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Recarga'**
+  String get topupAmountLine;
+
+  /// No description provided for @topupFeeLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Comisión'**
+  String get topupFeeLine;
+
+  /// No description provided for @topupTotalLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Total a pagar'**
+  String get topupTotalLine;
+
+  /// No description provided for @topupButton.
+  ///
+  /// In es, this message translates to:
+  /// **'Recargar {total}'**
+  String topupButton(String total);
+
+  /// No description provided for @topupResult.
+  ///
+  /// In es, this message translates to:
+  /// **'Recarga desde {rail}'**
+  String topupResult(String rail);
 }
 
 class _AppLocalizationsDelegate

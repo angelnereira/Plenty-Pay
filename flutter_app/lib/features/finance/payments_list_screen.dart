@@ -45,7 +45,9 @@ class _PaymentsListScreenState extends State<PaymentsListScreen> {
                   ? walletErrorMessage(l10n, snap.error!)
                   : l10n.errorNoConnection,
               retryLabel: l10n.actionRetry,
-              onRetry: () => setState(() => _future = loadPayments(widget.api)),
+              onRetry: () => setState(() {
+                _future = loadPayments(widget.api);
+              }),
               isEmpty: (list) => list.isEmpty,
               emptyView: Padding(
                 padding:
