@@ -32,6 +32,11 @@ func testDSN(t *testing.T) string {
 	if dsn == "" {
 		t.Skip("PP_TEST_DB_DSN no definido: se salta la prueba L2 (requiere postgres-db)")
 	}
+	// Barrera de producción: las pruebas L2 escriben y borran datos. Nunca contra la base que
+	// atiende a las apps (identity/test/test_store_l2.sh crea una base efímera).
+	if cfg, err := pgx.ParseConfig(dsn); err != nil || cfg.Database == "plentypay" {
+		t.Fatalf("las pruebas L2 no corren contra la base de producción %q", cfg.Database)
+	}
 	return dsn
 }
 

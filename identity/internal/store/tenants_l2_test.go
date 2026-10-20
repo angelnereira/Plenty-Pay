@@ -12,6 +12,7 @@ package store_test
 
 import (
 	"context"
+	"os"
 	"fmt"
 	"testing"
 	"time"
@@ -34,8 +35,15 @@ const testNATSStream = "PP_IDENTITY"
 var streamSince = time.Now().UTC().Add(-time.Minute)
 
 // natsEnv devuelve url/user/pass del bus de pruebas (mismos que el contenedor).
-func natsEnv() (string, string, string) {
-	return "nats://event-bus:4222", "identity_svc", "identity_nats_secret"
+// Solo con PP_TEST_NATS_URL: el stream PP_IDENTITY de producción lo consumen servicios reales y
+// no debe recibir eventos de prueba.
+func natsEnv(t *testing.T) (string, string, string) {
+	t.Helper()
+	url := os.Getenv("PP_TEST_NATS_URL")
+	if url == "" {
+		t.Skip("PP_TEST_NATS_URL no definido: se salta la publicación en NATS (no se usa el bus de producción)")
+	}
+	return url, "identity_svc", "identity_nats_secret"
 }
 
 // F08.5: un cambio de estado publica exactamente un evento en JetStream.
@@ -92,7 +100,7 @@ func TestL2_F08_5_OneEventPerTransition(t *testing.T) {
 	}
 
 	// Publicacion: el relay (el de pruebas o el vivo) las saca del outbox.
-	url, natsUser, natsPass := natsEnv()
+	url, natsUser, natsPass := natsEnv(t)
 	relay, err := events.NewRelay(ctx, ts, url, natsUser, natsPass, nil, nil)
 	if err != nil {
 		t.Fatalf("NewRelay: %v", err)
@@ -194,10 +202,6 @@ func TestL2_F08_5_InvalidTransitionWritesNothing(t *testing.T) {
 	if len(pending) != 1 {
 		t.Fatalf("se esperaba 1 evento pendiente, llegaron %d", len(pending))
 	}
-	// Drenaje para no dejar basura.
-	if _, err := relayDrain(ctx, ts); err != nil {
-		t.Fatalf("drenar outbox: %v", err)
-	}
 }
 
 // outboxIDsFor devuelve los event_id del outbox de un agregado.
@@ -262,21 +266,6 @@ func streamMsgIDs(ctx context.Context, url, user, pass, subject string, limit in
 		ids = append(ids, m.Header.Get(nats.MsgIdHdr))
 	}
 	return ids, nil
-}
-
-// relayDrain publica lo pendiente con el relay real (limpieza entre pruebas).
-func relayDrain(ctx context.Context, ts store.TenantStore) (int, error) {
-	url, natsUser, natsPass := natsEnv()
-	relay, err := events.NewRelay(ctx, ts, url, natsUser, natsPass, nil, nil)
-	if err != nil {
-		return 0, err
-	}
-	defer relay.Close()
-	n, err := relay.PublishOnce(ctx)
-	if err != nil {
-		return n, err
-	}
-	return n, nil
 }
 
 // countStreamMessages lee el stream con un consumidor efimero y cuenta los

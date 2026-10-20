@@ -161,6 +161,12 @@ func (s *IdentityService) accessFor(ctx context.Context, user *domain.User) (aut
 	}
 	if s.tenants != nil {
 		t, err := s.tenants.GetTenant(ctx, user.TenantID)
+		if errors.Is(err, domain.ErrTenantNotFound) {
+			// tenant_id sin negocio (datos huérfanos): la persona se trata como cliente, nunca como
+			// error, para no bloquear su sesión entera con un INTERNAL.
+			in.MembershipActive = false
+			return auth.ResolveAccess(in), nil, nil
+		}
 		if err != nil {
 			return auth.Access{}, nil, observability.Wrap(err, "load tenant capabilities")
 		}

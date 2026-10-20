@@ -891,3 +891,16 @@ func TestR22_AccessCacheDisabled(t *testing.T) {
 		t.Fatal("sin caché se ve el cambio al instante")
 	}
 }
+
+// Un tenant_id que no existe (datos huérfanos) no bloquea la sesión: la persona recibe la base.
+func TestR10_OrphanTenantGetsBaseOnly(t *testing.T) {
+	f := newAccessFixture(t)
+	u := &domain.User{ID: "huerfano", Email: "h@example.com", Role: "BUSINESS_OWNER", TenantID: "tenant-borrado", Status: domain.UserStatusActive}
+	if err := f.users.Create(context.Background(), u); err != nil {
+		t.Fatal(err)
+	}
+	perms, err := f.svc.PermissionsForUser(context.Background(), u.ID)
+	if err != nil || !slices.Equal(perms.EnabledModules, []string{"wallet", "marketplace"}) {
+		t.Fatalf("tenant inexistente: %v %+v", err, perms)
+	}
+}
