@@ -7,9 +7,11 @@ import 'core/l10n/generated/app_localizations.dart';
 import 'core/l10n/locales.dart';
 import 'core/observability/app_logger.dart';
 import 'core/session/session_store.dart';
+import 'core/sync/deep_links.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/login_screen.dart';
+import 'features/invitations/accept_invitation_screen.dart';
 import 'features/shell/app_shell.dart';
 
 /// Versión del build (`--dart-define=BUILD_ID=...`); identifica los símbolos para des-ofuscar las pilas.
@@ -29,11 +31,16 @@ void main() {
     final config = AppConfig.fromEnvironment();
     final session = SessionStore();
     final customUrl = await session.customBaseUrl();
-    if (customUrl != null && (customUrl.contains('localhost') || customUrl.contains('127.0.0.1') || customUrl.contains('10.0.2.2'))) {
+    if (customUrl != null &&
+        (customUrl.contains('localhost') ||
+            customUrl.contains('127.0.0.1') ||
+            customUrl.contains('10.0.2.2'))) {
       await session.clearCustomBaseUrl();
     }
     final cleanCustomUrl = await session.customBaseUrl();
-    final effectiveUrl = (cleanCustomUrl != null && cleanCustomUrl.isNotEmpty) ? cleanCustomUrl : config.apiBaseUrl;
+    final effectiveUrl = (cleanCustomUrl != null && cleanCustomUrl.isNotEmpty)
+        ? cleanCustomUrl
+        : config.apiBaseUrl;
     final signedIn = await session.accessToken() != null;
     logger.info('app started');
     runApp(PlentyPayApp(
@@ -44,7 +51,8 @@ void main() {
 }
 
 class PlentyPayApp extends StatefulWidget {
-  const PlentyPayApp({super.key, required this.api, required this.startSignedIn, this.locale});
+  const PlentyPayApp(
+      {super.key, required this.api, required this.startSignedIn, this.locale});
   final ApiClient api;
   final bool startSignedIn;
 
@@ -57,6 +65,10 @@ class PlentyPayApp extends StatefulWidget {
 
 class _PlentyPayAppState extends State<PlentyPayApp> {
   late bool _signedIn = widget.startSignedIn;
+
+  /// S-GEN-17: en la web, el enlace del correo abre la app en `/invite/<token>` (el origen es el
+  /// propio despliegue, así que basta la ruta). En Android/iOS el enlace nativo llega con F22.3.
+  String? _inviteToken = kIsWeb ? inviteTokenFromPath(Uri.base) : null;
 
   @override
   Widget build(BuildContext context) {
@@ -73,9 +85,22 @@ class _PlentyPayAppState extends State<PlentyPayApp> {
         themeMode: ThemeController.instance.mode,
         navigatorObservers: [TelemetryNavigatorObserver(widget.api.logger)],
         // F02.6: reemplazar por go_router con redirect global (flutter-standards.md §6).
-        home: _signedIn
-            ? AppShell(api: widget.api, onSignedOut: () => setState(() => _signedIn = false))
-            : LoginScreen(api: widget.api, onSignedIn: () => setState(() => _signedIn = true)),
+        home: _inviteToken != null
+            ? AcceptInvitationScreen(
+                api: widget.api,
+                token: _inviteToken!,
+                onAccepted: () => setState(() {
+                  _inviteToken = null;
+                  _signedIn = true;
+                }),
+              )
+            : _signedIn
+                ? AppShell(
+                    api: widget.api,
+                    onSignedOut: () => setState(() => _signedIn = false))
+                : LoginScreen(
+                    api: widget.api,
+                    onSignedIn: () => setState(() => _signedIn = true)),
       ),
     );
   }

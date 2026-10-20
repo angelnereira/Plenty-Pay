@@ -30,7 +30,8 @@ class AsyncView<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (snapshot.hasError) {
-      return _ErrorState(message: errorMessage, retryLabel: retryLabel, onRetry: onRetry);
+      return _ErrorState(
+          message: errorMessage, retryLabel: retryLabel, onRetry: onRetry);
     }
     if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
       return const _Skeleton();
@@ -50,7 +51,8 @@ class _Skeleton extends StatelessWidget {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     Widget bar(double height) => Container(
           height: height,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(Tokens.radius)),
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(Tokens.radius)),
         );
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -67,7 +69,8 @@ class _Skeleton extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.retryLabel, required this.onRetry});
+  const _ErrorState(
+      {required this.message, required this.retryLabel, required this.onRetry});
 
   final String message;
   final String retryLabel;

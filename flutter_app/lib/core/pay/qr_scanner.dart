@@ -134,7 +134,8 @@ QrScanResult parseNdefUri(String uri) => parsePaymentQr(uri);
 /// Escribe un registro URI NDEF con el enlace de cobro.
 NdefRecord buildNdefUri(String code) {
   if (!paymentCodePattern.hasMatch(code)) {
-    throw ArgumentError.value(code, 'code', 'formato de código de cobro inválido');
+    throw ArgumentError.value(
+        code, 'code', 'formato de código de cobro inválido');
   }
   return NdefRecord(type: 'uri', payload: 'https://plentypay.app/t/$code');
 }
@@ -158,7 +159,8 @@ enum PaymentDisplay {
   bool get isDefinitiveFailure => this == PaymentDisplay.failed;
 
   /// `true` cuando todavía no se sabe: la UI mantiene el sondeo y no cierra la pantalla.
-  bool get isStillConfirming => this == PaymentDisplay.pending || this == PaymentDisplay.unknown;
+  bool get isStillConfirming =>
+      this == PaymentDisplay.pending || this == PaymentDisplay.unknown;
 }
 
 /// Convierte el estado del servidor a lo que se muestra.
@@ -196,7 +198,8 @@ PaymentDisplay paymentDisplayFor(String? serverStatus) {
 /// llega por configuración porque es un límite de riesgo del negocio, no del código
 /// (`security-standards.md` §4, AGENTS.md §2.13).
 class StepUpPolicy {
-  const StepUpPolicy({required this.minorThreshold, required this.biometricAvailable});
+  const StepUpPolicy(
+      {required this.minorThreshold, required this.biometricAvailable});
 
   /// Umbral de step-up en centavos. `0` = cualquier pago exige step-up.
   final int minorThreshold;

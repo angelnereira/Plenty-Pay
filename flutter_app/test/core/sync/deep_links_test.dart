@@ -126,4 +126,13 @@ void main() {
         const ClientConfig(minimumAppVersion: '1.0.0', maintenanceMode: false);
     expect(config.toJson().contains('message'), isFalse);
   });
+
+  // S-GEN-17 en la web: el enlace del correo abre la app en /invite/<token>.
+  test('inviteTokenFromPath lee el token de la ruta y rechaza lo demás', () {
+    expect(inviteTokenFromPath(Uri.parse('https://app.plentypay.test/invite/0b6f8f1e-0000-7000-8000-00000000000a')),
+        '0b6f8f1e-0000-7000-8000-00000000000a');
+    expect(inviteTokenFromPath(Uri.parse('https://app.plentypay.test/invite/corto')), isNull);
+    expect(inviteTokenFromPath(Uri.parse('https://app.plentypay.test/t/ABC123')), isNull);
+    expect(inviteTokenFromPath(Uri.parse('https://app.plentypay.test/')), isNull);
+  });
 }

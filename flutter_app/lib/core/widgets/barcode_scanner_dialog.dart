@@ -18,13 +18,15 @@ class BarcodeScannerDialog extends StatefulWidget {
   final String subtitle;
 
   /// Abre el diálogo y retorna el código escaneado (o null si se cancela).
-  static Future<String?> scan(BuildContext context, {String? title, String? subtitle}) {
+  static Future<String?> scan(BuildContext context,
+      {String? title, String? subtitle}) {
     return showDialog<String>(
       context: context,
       barrierDismissible: true,
       builder: (ctx) => BarcodeScannerDialog(
         title: title ?? 'Escanear Código de Barra o QR',
-        subtitle: subtitle ?? 'Apunta la cámara al código de barra o QR del producto',
+        subtitle:
+            subtitle ?? 'Apunta la cámara al código de barra o QR del producto',
       ),
     );
   }
@@ -33,7 +35,8 @@ class BarcodeScannerDialog extends StatefulWidget {
   State<BarcodeScannerDialog> createState() => _BarcodeScannerDialogState();
 }
 
-class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with SingleTickerProviderStateMixin {
+class _BarcodeScannerDialogState extends State<BarcodeScannerDialog>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _animCtrl;
   late final Animation<double> _laserAnim;
   final _manualCtrl = TextEditingController();
@@ -45,7 +48,9 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat(reverse: true);
+    _animCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1600))
+      ..repeat(reverse: true);
     _laserAnim = Tween<double>(begin: 0.1, end: 0.9).animate(
       CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut),
     );
@@ -119,11 +124,13 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                   Expanded(
                     child: Text(
                       widget.title,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
                   IconButton(
-                    icon: Icon(_torch ? Icons.flash_on : Icons.flash_off, color: _torch ? Colors.amber : cs.onSurfaceVariant),
+                    icon: Icon(_torch ? Icons.flash_on : Icons.flash_off,
+                        color: _torch ? Colors.amber : cs.onSurfaceVariant),
                     tooltip: 'Linterna',
                     onPressed: () async {
                       try {
@@ -152,7 +159,8 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
               const SizedBox(height: 4),
               Text(
                 widget.subtitle,
-                style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: cs.onSurfaceVariant),
               ),
               const SizedBox(height: 16),
 
@@ -166,14 +174,16 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                     alignment: Alignment.center,
                     children: [
                       // Cámara nativa física con MobileScanner
-                      if (_scannerController != null && _cameraPermissionGranted)
+                      if (_scannerController != null &&
+                          _cameraPermissionGranted)
                         MobileScanner(
                           controller: _scannerController!,
                           fit: BoxFit.cover,
                           onDetect: (capture) {
                             if (_hasDetected) return;
                             for (final barcode in capture.barcodes) {
-                              final val = barcode.rawValue ?? barcode.displayValue;
+                              final val =
+                                  barcode.rawValue ?? barcode.displayValue;
                               if (val != null && val.isNotEmpty) {
                                 _hasDetected = true;
                                 _handleScan(val);
@@ -188,19 +198,24 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.videocam_off_outlined, color: Colors.white70, size: 36),
+                                    const Icon(Icons.videocam_off_outlined,
+                                        color: Colors.white70, size: 36),
                                     const SizedBox(height: 8),
                                     const Text(
                                       'Cámara no disponible o permiso denegado',
-                                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 12),
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 8),
                                     TextButton.icon(
-                                      style: TextButton.styleFrom(foregroundColor: Colors.white),
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: Colors.white),
                                       onPressed: () => openAppSettings(),
-                                      icon: const Icon(Icons.settings, size: 16),
-                                      label: const Text('Abrir Ajustes de Permisos'),
+                                      icon:
+                                          const Icon(Icons.settings, size: 16),
+                                      label: const Text(
+                                          'Abrir Ajustes de Permisos'),
                                     ),
                                   ],
                                 ),
@@ -213,9 +228,12 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.camera_alt_outlined, size: 48, color: Colors.white54),
+                              const Icon(Icons.camera_alt_outlined,
+                                  size: 48, color: Colors.white54),
                               const SizedBox(height: 8),
-                              const Text('Permiso de cámara requerido', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                              const Text('Permiso de cámara requerido',
+                                  style: TextStyle(
+                                      color: Colors.white70, fontSize: 12)),
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 onPressed: _initScanner,
@@ -231,7 +249,9 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                           width: 200,
                           height: 140,
                           decoration: BoxDecoration(
-                            border: Border.all(color: cs.primary.withValues(alpha: 0.8), width: 2),
+                            border: Border.all(
+                                color: cs.primary.withValues(alpha: 0.8),
+                                width: 2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
@@ -266,7 +286,8 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                         bottom: 8,
                         child: IgnorePointer(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(12),
@@ -274,9 +295,12 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.camera_alt, size: 14, color: Colors.white70),
+                                Icon(Icons.camera_alt,
+                                    size: 14, color: Colors.white70),
                                 SizedBox(width: 6),
-                                Text('Cámara activa · Escaneando...', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                Text('Cámara activa · Escaneando...',
+                                    style: TextStyle(
+                                        color: Colors.white70, fontSize: 11)),
                               ],
                             ),
                           ),
@@ -291,7 +315,8 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
               // Códigos preconfigurados de prueba rápida
               Text(
                 'Códigos de prueba directa:',
-                style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Wrap(

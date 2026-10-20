@@ -20,14 +20,17 @@ class ConsentPurpose {
 /// Una aceptación de la persona: finalidad, versión del texto que vio y si la marcó.
 /// Nunca se premarca nada: el valor por omisión es `granted: false` (N-DAT-02).
 class ConsentGrant {
-  const ConsentGrant({required this.purpose, required this.textVersion, this.granted = false});
+  const ConsentGrant(
+      {required this.purpose, required this.textVersion, this.granted = false});
 
   final String purpose;
   final String textVersion;
   final bool granted;
 
-  ConsentGrant copyWith({bool? granted}) =>
-      ConsentGrant(purpose: purpose, textVersion: textVersion, granted: granted ?? this.granted);
+  ConsentGrant copyWith({bool? granted}) => ConsentGrant(
+      purpose: purpose,
+      textVersion: textVersion,
+      granted: granted ?? this.granted);
 
   Map<String, dynamic> toJson() => {
         'purpose': purpose,

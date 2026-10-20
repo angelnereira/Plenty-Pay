@@ -78,7 +78,9 @@ class _BusinessPrivacyScreenState extends State<BusinessPrivacyScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(req['id'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(req['id'] as String,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
                         StatusChip(
                           label: req['status_label'] as String,
                           tone: req['status'] as StatusChipTone,
@@ -86,19 +88,25 @@ class _BusinessPrivacyScreenState extends State<BusinessPrivacyScreen> {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text('Solicitante: ${req['applicant']}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text('Derecho ejercido: ${req['type']}', style: theme.textTheme.bodyMedium),
-                    Text('Ingresada: ${req['date']}', style: theme.textTheme.bodySmall),
+                    Text('Solicitante: ${req['applicant']}',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text('Derecho ejercido: ${req['type']}',
+                        style: theme.textTheme.bodyMedium),
+                    Text('Ingresada: ${req['date']}',
+                        style: theme.textTheme.bodySmall),
                     const Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Plazo legal: 10 días hábiles (ANTAI)', style: theme.textTheme.labelSmall),
+                        Text('Plazo legal: 10 días hábiles (ANTAI)',
+                            style: theme.textTheme.labelSmall),
                         TextButton(
                           child: const Text('Tramitar respuesta'),
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Abriendo expediente para ${req['id']}...')),
+                              SnackBar(
+                                  content: Text(
+                                      'Abriendo expediente para ${req['id']}...')),
                             );
                           },
                         ),
@@ -118,7 +126,9 @@ class _BusinessPrivacyScreenState extends State<BusinessPrivacyScreen> {
             label: 'Atender solicitud de datos',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Generando paquete ZIP de datos personales certificado...')),
+                const SnackBar(
+                    content: Text(
+                        'Generando paquete ZIP de datos personales certificado...')),
               );
             },
           ),

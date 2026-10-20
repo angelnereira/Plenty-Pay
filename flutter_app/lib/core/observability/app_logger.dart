@@ -15,7 +15,11 @@ enum LogLevel { debug, info, warn, error, fatal }
 /// Un registro listo para exportar. Las claves siguen las convenciones de OpenTelemetry;
 /// las propias llevan el prefijo `pp.`.
 class TelemetryRecord {
-  TelemetryRecord({required this.ts, required this.level, required this.msg, required this.attributes});
+  TelemetryRecord(
+      {required this.ts,
+      required this.level,
+      required this.msg,
+      required this.attributes});
   final DateTime ts;
   final LogLevel level;
   final String msg;
@@ -39,7 +43,8 @@ class ConsoleSink implements TelemetrySink {
   const ConsoleSink();
   @override
   void add(TelemetryRecord record) {
-    developer.log(jsonEncode(record.toJson()), name: 'plentypay', level: 500 + record.level.index * 100);
+    developer.log(jsonEncode(record.toJson()),
+        name: 'plentypay', level: 500 + record.level.index * 100);
   }
 }
 
@@ -112,15 +117,19 @@ class AppLogger {
   List<Breadcrumb> get breadcrumbs => List.unmodifiable(_breadcrumbs);
 
   void breadcrumb(String type, String name, [String? detail]) {
-    _breadcrumbs.addLast(Breadcrumb(_clock(), type, name, detail == null ? null : scrub(detail)));
+    _breadcrumbs.addLast(Breadcrumb(
+        _clock(), type, name, detail == null ? null : scrub(detail)));
     while (_breadcrumbs.length > maxBreadcrumbs) {
       _breadcrumbs.removeFirst();
     }
   }
 
-  void debug(String msg, [Map<String, Object?> attributes = const {}]) => _emit(LogLevel.debug, msg, attributes);
-  void info(String msg, [Map<String, Object?> attributes = const {}]) => _emit(LogLevel.info, msg, attributes);
-  void warn(String msg, [Map<String, Object?> attributes = const {}]) => _emit(LogLevel.warn, msg, attributes);
+  void debug(String msg, [Map<String, Object?> attributes = const {}]) =>
+      _emit(LogLevel.debug, msg, attributes);
+  void info(String msg, [Map<String, Object?> attributes = const {}]) =>
+      _emit(LogLevel.info, msg, attributes);
+  void warn(String msg, [Map<String, Object?> attributes = const {}]) =>
+      _emit(LogLevel.warn, msg, attributes);
 
   /// Registra un fallo con todo lo necesario para diagnosticarlo. Se llama una sola vez por fallo,
   /// en el borde: los manejadores globales o la pantalla que lo captura (§10.3).
@@ -138,7 +147,8 @@ class AppLogger {
       'exception.message': scrub(error.toString()),
       if (stack != null) 'exception.stacktrace': scrub(stack.toString()),
       if (widget != null) 'pp.widget': widget,
-      'pp.breadcrumbs': _breadcrumbs.map((b) => b.toJson()).toList(growable: false),
+      'pp.breadcrumbs':
+          _breadcrumbs.map((b) => b.toJson()).toList(growable: false),
       ...attributes,
     });
   }
@@ -164,7 +174,8 @@ class AppLogger {
 
   void _emit(LogLevel level, String msg, Map<String, Object?> attributes) {
     if (sinks.isEmpty) return;
-    final record = TelemetryRecord(ts: _clock(), level: level, msg: msg, attributes: {
+    final record =
+        TelemetryRecord(ts: _clock(), level: level, msg: msg, attributes: {
       'service.name': 'flutter_app',
       'service.version': buildId,
       'deployment.environment.name': environment,
@@ -184,7 +195,9 @@ class AppLogger {
     RegExp(r'Bearer\s+\S+', caseSensitive: false),
     RegExp(r'[\w.+-]+@[\w-]+\.[\w.-]+'), // correo
     RegExp(r'\b\d{13,19}\b'), // número de tarjeta
-    RegExp(r'("?(password|contraseña|refresh_token|access_token)"?\s*[:=]\s*)"?[^",}\s]+"?', caseSensitive: false),
+    RegExp(
+        r'("?(password|contraseña|refresh_token|access_token)"?\s*[:=]\s*)"?[^",}\s]+"?',
+        caseSensitive: false),
   ];
 
   /// Enmascara datos prohibidos antes de exportar (§1.4 y §11.6): los mensajes de excepción de
@@ -192,7 +205,11 @@ class AppLogger {
   static String scrub(String text) {
     var out = text;
     for (final pattern in _secrets) {
-      out = out.replaceAllMapped(pattern, (m) => m.groupCount >= 1 && m.group(1) != null ? '${m.group(1)}[redacted]' : '[redacted]');
+      out = out.replaceAllMapped(
+          pattern,
+          (m) => m.groupCount >= 1 && m.group(1) != null
+              ? '${m.group(1)}[redacted]'
+              : '[redacted]');
     }
     return out;
   }
@@ -210,11 +227,14 @@ class TelemetryNavigatorObserver extends NavigatorObserver {
   }
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _update(route, 'push');
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _update(route, 'push');
   @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => _update(previousRoute, 'pop');
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _update(previousRoute, 'pop');
   @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => _update(newRoute, 'replace');
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _update(newRoute, 'replace');
 }
 
 /// Instala las tres capturas globales obligatorias (§13.1) y ejecuta [body] dentro de la zona vigilada:
@@ -225,7 +245,8 @@ void runGuarded(AppLogger logger, FutureOr<void> Function() body) {
   installFrameworkErrorHandlers(logger);
   runZonedGuarded<void>(
     () => body(),
-    (error, stack) => logger.error('uncaught zone error', error, stack, level: LogLevel.fatal),
+    (error, stack) => logger.error('uncaught zone error', error, stack,
+        level: LogLevel.fatal),
   );
 }
 
@@ -249,11 +270,17 @@ void installFrameworkErrorHandlers(AppLogger logger) {
 
 final Random _random = Random.secure();
 
-String _hex(int bytes) => List.generate(bytes, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+String _hex(int bytes) => List.generate(
+        bytes, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0'))
+    .join();
 
 /// UUIDv7 (RFC 9562): 48 bits de milisegundos + aleatorio. Es el `X-Request-Id` de cada acción.
 String newRequestId([DateTime? now]) {
-  final ms = (now ?? DateTime.now()).toUtc().millisecondsSinceEpoch.toRadixString(16).padLeft(12, '0');
+  final ms = (now ?? DateTime.now())
+      .toUtc()
+      .millisecondsSinceEpoch
+      .toRadixString(16)
+      .padLeft(12, '0');
   final rand = _hex(10);
   final variant = (8 + _random.nextInt(4)).toRadixString(16);
   return '${ms.substring(0, 8)}-${ms.substring(8, 12)}-7${rand.substring(0, 3)}-$variant${rand.substring(3, 6)}-${rand.substring(6, 18)}';

@@ -66,7 +66,11 @@ class StatusChip extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: TextStyle(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w500, color: ink),
+                  style: TextStyle(
+                      fontSize: 13,
+                      height: 18 / 13,
+                      fontWeight: FontWeight.w500,
+                      color: ink),
                 ),
               ),
             ],

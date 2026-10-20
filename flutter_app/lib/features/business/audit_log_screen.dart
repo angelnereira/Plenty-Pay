@@ -26,7 +26,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       'description': 'Descuento autorizado del 15% en Ticket POS-0482',
       'actor': 'supervisor@marbella.pa (IP: 190.140.22.10 · Panamá)',
       'timestamp': '19 de octubre de 2026, 10:12:44 AM',
-      'hash': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      'hash':
+          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     },
     {
       'id': 'LOG-49209',
@@ -34,7 +35,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       'description': 'Reembolso aprobado para cobro PAY-2026-98119 (\$85.00)',
       'actor': 'gerencia@marbella.pa (IP: 190.140.22.10 · Panamá)',
       'timestamp': '19 de octubre de 2026, 09:40:15 AM',
-      'hash': '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
+      'hash':
+          '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
     },
     {
       'id': 'LOG-49208',
@@ -42,7 +44,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       'description': 'Precio actualizado para SKU-CAFE-01 (\$25.00 -> \$26.50)',
       'actor': 'admin@marbella.pa (IP: 200.46.12.98 · Panamá)',
       'timestamp': '18 de octubre de 2026, 05:22:01 PM',
-      'hash': 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb',
+      'hash':
+          'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb',
     },
     {
       'id': 'LOG-49207',
@@ -50,7 +53,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       'description': 'Inicio de sesión exitoso con Passkey WebAuthn',
       'actor': 'carlos.rodriguez@marbella.pa (IP: 190.140.22.14 · Panamá)',
       'timestamp': '18 de octubre de 2026, 07:58:30 AM',
-      'hash': '4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a',
+      'hash':
+          '4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a',
     },
   ];
 
@@ -76,12 +80,16 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Cadena criptográfica intacta', style: TextStyle(fontWeight: FontWeight.bold)),
-                        Text('Bloque actual: #49,210 · Algoritmo SHA-256 merkle chain', style: theme.textTheme.bodySmall),
+                        const Text('Cadena criptográfica intacta',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                            'Bloque actual: #49,210 · Algoritmo SHA-256 merkle chain',
+                            style: theme.textTheme.bodySmall),
                       ],
                     ),
                   ),
-                  const StatusChip(label: 'Válida', tone: StatusChipTone.success),
+                  const StatusChip(
+                      label: 'Válida', tone: StatusChipTone.success),
                 ],
               ),
             ),
@@ -106,19 +114,29 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(log['action'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-                              Text(log['id'] as String, style: theme.textTheme.labelSmall),
+                              Text(log['action'] as String,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'monospace')),
+                              Text(log['id'] as String,
+                                  style: theme.textTheme.labelSmall),
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Text(log['description'] as String, style: theme.textTheme.bodyMedium),
+                          Text(log['description'] as String,
+                              style: theme.textTheme.bodyMedium),
                           const SizedBox(height: 4),
-                          Text('Actor: ${log['actor']}', style: theme.textTheme.bodySmall),
-                          Text('Fecha: ${log['timestamp']}', style: theme.textTheme.bodySmall),
+                          Text('Actor: ${log['actor']}',
+                              style: theme.textTheme.bodySmall),
+                          Text('Fecha: ${log['timestamp']}',
+                              style: theme.textTheme.bodySmall),
                           const SizedBox(height: 8),
                           SelectableText(
                             'Hash: ${log['hash']}',
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.grey),
+                            style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 10,
+                                color: Colors.grey),
                           ),
                         ],
                       ),
@@ -137,7 +155,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
             label: 'Verificar integridad de la cadena',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✓ Se verificaron 49,210 bloques: Cero discrepancias encontradas')),
+                const SnackBar(
+                    content: Text(
+                        '✓ Se verificaron 49,210 bloques: Cero discrepancias encontradas')),
               );
             },
           ),

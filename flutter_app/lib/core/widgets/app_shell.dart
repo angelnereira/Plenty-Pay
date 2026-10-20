@@ -51,7 +51,8 @@ class AppShellScaffold extends StatelessWidget {
                   for (final d in visible)
                     NavigationDestination(
                       icon: Icon(d.icon),
-                      selectedIcon: d.selectedIcon != null ? Icon(d.selectedIcon) : null,
+                      selectedIcon:
+                          d.selectedIcon != null ? Icon(d.selectedIcon) : null,
                       label: d.label,
                     ),
                 ],
@@ -65,14 +66,18 @@ class AppShellScaffold extends StatelessWidget {
         children: [
           NavigationRail(
             extended: isExtended,
-            selectedIndex: selectedIndex < destinations.length ? selectedIndex : 0,
+            selectedIndex:
+                selectedIndex < destinations.length ? selectedIndex : 0,
             onDestinationSelected: onDestinationSelected,
-            labelType: isExtended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+            labelType: isExtended
+                ? NavigationRailLabelType.none
+                : NavigationRailLabelType.all,
             destinations: [
               for (final d in destinations)
                 NavigationRailDestination(
                   icon: Icon(d.icon),
-                  selectedIcon: d.selectedIcon != null ? Icon(d.selectedIcon) : null,
+                  selectedIcon:
+                      d.selectedIcon != null ? Icon(d.selectedIcon) : null,
                   label: Text(d.label),
                 ),
             ],

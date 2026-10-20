@@ -78,7 +78,8 @@ DeepLink parseDeepLink(Uri uri, {bool allowDevHosts = false}) {
     return DeepLink(kind: DeepLinkKind.unsupported, rawPath: path);
   }
 
-  final segments = Uri.parse(path).pathSegments.where((s) => s.isNotEmpty).toList();
+  final segments =
+      Uri.parse(path).pathSegments.where((s) => s.isNotEmpty).toList();
   if (segments.isEmpty) {
     return DeepLink(kind: DeepLinkKind.unsupported, rawPath: path);
   }
@@ -105,7 +106,8 @@ extension on DeepLink {
   /// `/track/` y `/reset/` exigen código; `/invite/` también. Sin él no hay pantalla.
   DeepLink withRequiredCode() {
     if (code.isEmpty) {
-      return DeepLink(kind: DeepLinkKind.unsupported, rawPath: rawPath, query: query);
+      return DeepLink(
+          kind: DeepLinkKind.unsupported, rawPath: rawPath, query: query);
     }
     return this;
   }
@@ -131,7 +133,8 @@ class UpdateGate {
 
   bool get isForced => isOlderThan(currentVersion, minimumVersion);
 
-  bool get isOptional => minimumVersion.isNotEmpty && !isOlderThan(currentVersion, minimumVersion);
+  bool get isOptional =>
+      minimumVersion.isNotEmpty && !isOlderThan(currentVersion, minimumVersion);
 }
 
 /// Compara versiones semánticas sin depender de un paquete externo.
@@ -182,4 +185,16 @@ class ClientConfig {
         'maintenance_mode': maintenanceMode,
         if (message != null) 'message': message,
       });
+}
+
+/// Token de `/invite/<token>` en la ruta de [uri] (la web sirve la app desde su propio origen),
+/// o null si la ruta no es una invitación.
+String? inviteTokenFromPath(Uri uri) {
+  final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  if (segments.length == 2 &&
+      segments[0] == 'invite' &&
+      segments[1].length >= 16) {
+    return segments[1];
+  }
+  return null;
 }

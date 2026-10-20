@@ -12,7 +12,8 @@ enum Flavor {
         'dev' => Flavor.dev,
         'staging' => Flavor.staging,
         'prod' => Flavor.prod,
-        _ => throw StateError('FLAVOR desconocido: "$value" (usa dev, staging o prod)'),
+        _ => throw StateError(
+            'FLAVOR desconocido: "$value" (usa dev, staging o prod)'),
       };
 }
 
@@ -21,10 +22,13 @@ class AppConfig {
 
   /// Valida la combinación flavor/URL. staging y prod nunca hablan http en claro:
   /// la app falla al arrancar en vez de degradar la seguridad.
-  factory AppConfig.resolve({required String flavor, required String apiBaseUrl}) {
+  factory AppConfig.resolve(
+      {required String flavor, required String apiBaseUrl}) {
     final parsed = Flavor.parse(flavor);
     final uri = Uri.tryParse(apiBaseUrl);
-    if (uri == null || uri.host.isEmpty || (uri.scheme != 'http' && uri.scheme != 'https')) {
+    if (uri == null ||
+        uri.host.isEmpty ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
       throw StateError('API_BASE_URL inválida: "$apiBaseUrl"');
     }
     final isLocal = uri.host == 'localhost' ||
@@ -36,14 +40,18 @@ class AppConfig {
     if (parsed.requiresHttps && uri.scheme != 'https' && !isLocal) {
       throw StateError('API_BASE_URL debe ser https en ${parsed.name}');
     }
-    final normalized = apiBaseUrl.endsWith('/') ? apiBaseUrl.substring(0, apiBaseUrl.length - 1) : apiBaseUrl;
+    final normalized = apiBaseUrl.endsWith('/')
+        ? apiBaseUrl.substring(0, apiBaseUrl.length - 1)
+        : apiBaseUrl;
     return AppConfig._(flavor: parsed, apiBaseUrl: normalized);
   }
 
   /// Lee los dart-define del build. Sin defines: conecta al servidor en la nube de PlentyPay.
   factory AppConfig.fromEnvironment() => AppConfig.resolve(
         flavor: const String.fromEnvironment('FLAVOR', defaultValue: 'dev'),
-        apiBaseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://undo-guards-roots-lectures.trycloudflare.com'),
+        apiBaseUrl: const String.fromEnvironment('API_BASE_URL',
+            defaultValue:
+                'https://undo-guards-roots-lectures.trycloudflare.com'),
       );
 
   final Flavor flavor;

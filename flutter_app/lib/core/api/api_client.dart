@@ -31,7 +31,8 @@ class Me {
 }
 
 class Permissions {
-  Permissions({required this.role, required this.modules, required this.permissions});
+  Permissions(
+      {required this.role, required this.modules, required this.permissions});
   final String role;
   final List<String> modules;
   final List<String> permissions;
@@ -78,7 +79,8 @@ class ApiClient {
   String baseUrl;
 
   void updateBaseUrl(String newUrl) {
-    final normalized = newUrl.endsWith('/') ? newUrl.substring(0, newUrl.length - 1) : newUrl;
+    final normalized =
+        newUrl.endsWith('/') ? newUrl.substring(0, newUrl.length - 1) : newUrl;
     baseUrl = normalized;
     _dio.options.baseUrl = normalized;
   }
@@ -103,21 +105,26 @@ class ApiClient {
         }
 
         // 2. X-Request-Id (UUIDv7)
-        final requestId = (options.headers['X-Request-Id'] as String?) ?? newRequestId();
+        final requestId =
+            (options.headers['X-Request-Id'] as String?) ?? newRequestId();
         options.headers['X-Request-Id'] = requestId;
         logger.lastRequestId = requestId;
 
         // 3. traceparent (W3C)
         final trace = TraceContext.start();
-        final traceparent = (options.headers['traceparent'] as String?) ?? trace.traceparent;
+        final traceparent =
+            (options.headers['traceparent'] as String?) ?? trace.traceparent;
         options.headers['traceparent'] = traceparent;
         logger.lastTraceId = trace.traceId;
 
         // 4. Idempotency-Key en mutaciones (POST, PUT, PATCH)
         final method = options.method.toUpperCase();
-        final isMutation = method == 'POST' || method == 'PUT' || method == 'PATCH';
+        final isMutation =
+            method == 'POST' || method == 'PUT' || method == 'PATCH';
         final skipIdempotency = options.extra['skipIdempotency'] == true;
-        if (isMutation && !skipIdempotency && !options.headers.containsKey('Idempotency-Key')) {
+        if (isMutation &&
+            !skipIdempotency &&
+            !options.headers.containsKey('Idempotency-Key')) {
           options.headers['Idempotency-Key'] = newRequestId();
         }
 
@@ -125,7 +132,8 @@ class ApiClient {
       },
       onResponse: (response, handler) {
         final req = response.requestOptions;
-        logger.breadcrumb('http', '${req.method} ${req.path}', '${response.statusCode}');
+        logger.breadcrumb(
+            'http', '${req.method} ${req.path}', '${response.statusCode}');
         if ((response.statusCode ?? 200) >= 500) {
           final started = req.extra['started'] as DateTime? ?? DateTime.now();
           logger.warn('http request failed', {
@@ -145,7 +153,8 @@ class ApiClient {
         final path = req.path;
 
         // 401: intentar refresh único y reintentar si no era ya una petición de auth
-        final isAuthEndpoint = path.contains('/v1/auth/login') || path.contains('/v1/auth/refresh');
+        final isAuthEndpoint = path.contains('/v1/auth/login') ||
+            path.contains('/v1/auth/refresh');
         final isRetry = req.extra['retry'] == true;
 
         if (status == 401 && !isAuthEndpoint && !isRetry) {
@@ -168,16 +177,20 @@ class ApiClient {
         }
 
         final started = req.extra['started'] as DateTime? ?? DateTime.now();
-        logger.breadcrumb('http', '${req.method} $path', status != null ? '$status' : 'network error');
+        logger.breadcrumb('http', '${req.method} $path',
+            status != null ? '$status' : 'network error');
 
         if (status == null || status >= 500) {
-          final errType = err.error != null ? err.error.runtimeType.toString() : err.type.toString();
+          final errType = err.error != null
+              ? err.error.runtimeType.toString()
+              : err.type.toString();
           logger.warn('http request failed', {
             'http.request.method': req.method,
             'url.path': path,
             if (status != null) 'http.response.status_code': status,
             'error.type': errType,
-            'exception.message': AppLogger.scrub(err.error?.toString() ?? err.message ?? ''),
+            'exception.message':
+                AppLogger.scrub(err.error?.toString() ?? err.message ?? ''),
             'peer.service': 'api-gateway',
             'duration_ms': DateTime.now().difference(started).inMilliseconds,
           });
@@ -204,7 +217,8 @@ class ApiClient {
   /// El registro público crea la cuenta del usuario (api-gateway).
   /// `consents` son las aceptaciones de S-GEN-03 (N-DAT-02, N-DAT-14): cada una lleva la versión
   /// del texto que la persona vio; el canal y el dispositivo los fija el gateway.
-  Future<void> registerCustomer(String fullName, String email, String password, List<ConsentGrant> consents) async {
+  Future<void> registerCustomer(String fullName, String email, String password,
+      List<ConsentGrant> consents) async {
     final body = await _post(
       '/v1/auth/register',
       data: {
@@ -233,7 +247,8 @@ class ApiClient {
 
   Future<Permissions> permissions() async {
     final body = await _get('/v1/me/permissions');
-    List<String> strings(Object? v) => (v as List<dynamic>? ?? const []).whereType<String>().toList();
+    List<String> strings(Object? v) =>
+        (v as List<dynamic>? ?? const []).whereType<String>().toList();
     return Permissions(
       role: body['role'] as String? ?? '',
       modules: strings(body['enabled_modules']),
@@ -248,8 +263,10 @@ class ApiClient {
     await _post('/v1/auth/password/forgot', data: {'email': email});
   }
 
-  Future<void> resetPassword({required String token, required String newPassword}) async {
-    await _post('/v1/auth/password/reset', data: {'token': token, 'new_password': newPassword});
+  Future<void> resetPassword(
+      {required String token, required String newPassword}) async {
+    await _post('/v1/auth/password/reset',
+        data: {'token': token, 'new_password': newPassword});
   }
 
   // ── Identidad / negocio (F08.8) ────────────────────────────────────────────
@@ -278,7 +295,8 @@ class ApiClient {
     return _get('/v1/business/$tenantId');
   }
 
-  Future<Map<String, dynamic>> listUsers(String tenantId, {int pageSize = 50, String? pageToken}) async {
+  Future<Map<String, dynamic>> listUsers(String tenantId,
+      {int pageSize = 50, String? pageToken}) async {
     return _get('/v1/business/staff/$tenantId', queryParameters: {
       'page_size': pageSize,
       if (pageToken != null) 'page_token': pageToken,
@@ -299,14 +317,16 @@ class ApiClient {
     String? jobTitle,
     String? stepUpToken,
   }) async {
-    return _post('/v1/business/staff', data: {
-      'email': email,
-      'role_id': role,
-      if (fullName != null) 'full_name': fullName,
-      'scope': scope,
-      if (branchIds.isNotEmpty) 'branch_ids': branchIds,
-      if (jobTitle != null) 'job_title': jobTitle,
-    }, headers: _stepUpHeaders(stepUpToken));
+    return _post('/v1/business/staff',
+        data: {
+          'email': email,
+          'role_id': role,
+          if (fullName != null) 'full_name': fullName,
+          'scope': scope,
+          if (branchIds.isNotEmpty) 'branch_ids': branchIds,
+          if (jobTitle != null) 'job_title': jobTitle,
+        },
+        headers: _stepUpHeaders(stepUpToken));
   }
 
   Future<void> deactivateUser(String userId) async {
@@ -326,28 +346,158 @@ class ApiClient {
     required String roleId,
     required String name,
     required List<String> permissions,
+    String description = '',
+    String templateKey = '',
     String? stepUpToken,
   }) async {
     // identity.UpsertRoleRequest: el rol va anidado; role_id vacío = crear. El tenant sale del
     // token. El step-up viaja en la cabecera X-Step-Up-Token (operación `identity.role.upsert`).
-    return _post('/v1/business/roles', data: {
-      'role': {
-        'role_id': roleId,
-        'name': name,
-        'permissions': permissions,
-      },
-    }, headers: _stepUpHeaders(stepUpToken));
+    return _post('/v1/business/roles',
+        data: {
+          'role': {
+            'role_id': roleId,
+            'name': name,
+            'permissions': permissions,
+            'description': description,
+            'template_key': templateKey,
+          },
+        },
+        headers: _stepUpHeaders(stepUpToken));
   }
 
-  Future<void> assignRole({required String userId, required String roleId, String? stepUpToken}) async {
-    await _post('/v1/business/roles/$userId/assign', data: {
-      'role_id': roleId,
-    }, headers: _stepUpHeaders(stepUpToken));
+  Future<void> assignRole(
+      {required String userId,
+      required String roleId,
+      String? stepUpToken}) async {
+    await _post('/v1/business/roles/$userId/assign',
+        data: {
+          'role_id': roleId,
+        },
+        headers: _stepUpHeaders(stepUpToken));
   }
 
   /// Cabecera de confirmación fuerte (api-gateway SPEC §3.9 → `x-pp-step-up`).
   Map<String, String>? _stepUpHeaders(String? stepUpToken) =>
       stepUpToken == null ? null : {'X-Step-Up-Token': stepUpToken};
+
+  // ── Modelo de acceso (ADR 0018, api-gateway/SPEC.md §4.1) ─────────────────
+  // El negocio y el actor salen siempre del token (ADR 0011): ninguna llamada manda tenant_id.
+
+  /// Pide un token de confirmación fuerte para [operation] (security-standards.md §4). El reto
+  /// queda atado al usuario del token; la verificación con passkey llega en F28.
+  Future<String> stepUp(String operation) async {
+    final challenge = await _post('/v1/step-up/challenge',
+        data: {'operation': operation}, skipIdempotency: true);
+    final verified = await _post('/v1/step-up/verify',
+        data: {'challenge_id': challenge['challenge_id']},
+        skipIdempotency: true);
+    final token = verified['token'] as String? ?? '';
+    if (token.isEmpty) throw ApiException(403, 'STEP_UP_INVALID', '');
+    return token;
+  }
+
+  Future<Map<String, dynamic>> getAccessCatalog() => _get('/v1/access/catalog');
+
+  Future<Map<String, dynamic>> listVerticals() => _get('/v1/verticals');
+
+  Future<Map<String, dynamic>> listRoleTemplates() =>
+      _get('/v1/role-templates');
+
+  Future<Map<String, dynamic>> getBusinessProfile() =>
+      _get('/v1/business/profile');
+
+  Future<Map<String, dynamic>> updateBusinessProfile({
+    required String primaryVertical,
+    List<String> secondaryVerticals = const [],
+    Map<String, bool> traitAnswers = const {},
+  }) =>
+      _put('/v1/business/profile', data: {
+        'primary_vertical': primaryVertical,
+        'secondary_verticals': secondaryVerticals,
+        'trait_answers': traitAnswers,
+      });
+
+  /// Enciende o apaga capacidades (S-ADM-08). Apagar Finanzas o Equipo pide step-up
+  /// (operación `identity.capabilities.set`).
+  Future<Map<String, dynamic>> setCapabilities(Map<String, bool> changes,
+          {String? stepUpToken}) =>
+      _put(
+        '/v1/business/capabilities',
+        data: {
+          'changes': [
+            for (final e in changes.entries)
+              {'capability': e.key, 'enabled': e.value}
+          ],
+        },
+        headers: _stepUpHeaders(stepUpToken),
+      );
+
+  Future<Map<String, dynamic>> listBranches({bool includeInactive = false}) =>
+      _get('/v1/business/branches',
+          queryParameters: {'include_inactive': includeInactive});
+
+  /// Crea ([branchId] vacío) o edita una sucursal. [code] son 4 dígitos DGI ("0000" = matriz).
+  Future<Map<String, dynamic>> upsertBranch({
+    String branchId = '',
+    required String code,
+    required String name,
+    String address = '',
+  }) =>
+      _post('/v1/business/branches', data: {
+        'branch': {
+          'branch_id': branchId,
+          'code': code,
+          'name': name,
+          'address': address
+        },
+      });
+
+  Future<Map<String, dynamic>> setBranchActive(String branchId,
+          {required bool active}) =>
+      _post(
+          '/v1/business/branches/$branchId/${active ? 'reactivate' : 'deactivate'}');
+
+  Future<Map<String, dynamic>> listStaff() => _get('/v1/business/staff');
+
+  Future<Map<String, dynamic>> listBusinessRoles() =>
+      _get('/v1/business/roles');
+
+  /// Cambia rol, alcance y cargo (vacío = no cambia; cargo "-" = borrarlo). Si suma permisos de
+  /// dinero pide step-up (operación `identity.membership.update`).
+  Future<Map<String, dynamic>> updateMembership({
+    required String userId,
+    String roleId = '',
+    String scope = '',
+    List<String> branchIds = const [],
+    String jobTitle = '',
+    String? stepUpToken,
+  }) =>
+      _put('/v1/business/staff/$userId/membership',
+          data: {
+            'role_id': roleId,
+            'scope': scope,
+            'branch_ids': branchIds,
+            'job_title': jobTitle,
+          },
+          headers: _stepUpHeaders(stepUpToken));
+
+  Future<void> setMemberSuspended(String userId,
+      {required bool suspended}) async {
+    await _post(
+        '/v1/business/staff/$userId/${suspended ? 'suspend' : 'reactivate'}');
+  }
+
+  Future<Map<String, dynamic>> listInvitations() =>
+      _get('/v1/business/invitations');
+
+  Future<Map<String, dynamic>> resendInvitation(String invitationId) =>
+      _post('/v1/business/invitations/$invitationId/resend');
+
+  Future<void> revokeInvitation(String invitationId) =>
+      _delete('/v1/business/invitations/$invitationId');
+
+  Future<void> archiveRole(String roleId) =>
+      _delete('/v1/business/roles/$roleId');
 
   Future<Map<String, dynamic>> listSessions(String userId) async {
     return _get('/v1/sessions', queryParameters: {'user_id': userId});
@@ -361,7 +511,8 @@ class ApiClient {
     }
   }
 
-  Future<Map<String, dynamic>> listTenants({String? status, int pageSize = 50, String? pageToken}) async {
+  Future<Map<String, dynamic>> listTenants(
+      {String? status, int pageSize = 50, String? pageToken}) async {
     return _get('/v1/platform/tenants', queryParameters: {
       if (status != null) 'status': status,
       'page_size': pageSize,
@@ -393,18 +544,36 @@ class ApiClient {
     });
   }
 
+  /// S-GEN-17: datos de la invitación para quien tiene el enlace (sin sesión).
+  Future<Map<String, dynamic>> previewInvitation(String token) =>
+      _post('/v1/invitations/preview',
+          data: {'invitation_token': token},
+          skipAuth: true,
+          skipIdempotency: true);
+
+  /// Canjea la invitación (identity.AcceptInvitationRequest). Quien ya tiene cuenta manda su
+  /// contraseña actual; una cuenta nueva manda además su nombre y las aceptaciones de S-GEN-03
+  /// (R18, N-DAT-02, N-DAT-14). El correo ya está en la invitación.
   Future<Map<String, dynamic>> acceptInvitation({
     required String token,
-    required String fullName,
-    required String email,
     required String password,
+    String fullName = '',
+    List<ConsentGrant> consents = const [],
   }) async {
-    // identity.AcceptInvitationRequest: solo token y contraseña. El correo y el nombre ya están
-    // en la invitación; quien ya tiene cuenta entra con su contraseña actual (H8).
-    final body = await _post('/v1/invitations/accept', data: {
-      'invitation_token': token,
-      'password': password,
-    }, skipAuth: true, skipIdempotency: false);
+    final body = await _post('/v1/invitations/accept',
+        data: {
+          'invitation_token': token,
+          'password': password,
+          if (fullName.isNotEmpty) 'full_name': fullName,
+          if (consents.isNotEmpty)
+            'consents': consents.map((c) => c.toJson()).toList(),
+        },
+        skipAuth: true,
+        skipIdempotency: false);
+    if (body['success'] == false) {
+      throw ApiException(400, body['reason'] as String? ?? 'UNKNOWN',
+          body['error_message'] as String? ?? '');
+    }
     if (body['access_token'] != null) {
       await _session.save(
         accessToken: body['access_token'] as String,
@@ -442,7 +611,9 @@ class ApiClient {
     return false;
   }
 
-  Future<Map<String, dynamic>> _get(String path, {Map<String, dynamic>? queryParameters, Map<String, String>? headers}) async {
+  Future<Map<String, dynamic>> _get(String path,
+      {Map<String, dynamic>? queryParameters,
+      Map<String, String>? headers}) async {
     try {
       final res = await _dio.get<dynamic>(
         path,
@@ -481,6 +652,25 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> _put(String path,
+      {Object? data, Map<String, String>? headers}) async {
+    try {
+      final res = await _dio.put<dynamic>(path,
+          data: data, options: Options(headers: headers));
+      return _extractData(res);
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
+
+  Future<void> _delete(String path) async {
+    try {
+      await _dio.delete<dynamic>(path);
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
+
   Map<String, dynamic> _extractData(Response<dynamic> res) {
     if (res.data is Map<String, dynamic>) {
       return res.data as Map<String, dynamic>;
@@ -513,14 +703,20 @@ class ApiClient {
         '';
     return ApiException(
       status,
-      body['reason'] as String? ?? (e.type == DioExceptionType.connectionError ? 'CONNECTION_REFUSED' : 'UNKNOWN'),
+      body['reason'] as String? ??
+          (e.type == DioExceptionType.connectionError
+              ? 'CONNECTION_REFUSED'
+              : 'UNKNOWN'),
       body['error'] as String? ?? e.message ?? '',
       requestId: reqId,
     );
   }
 
   /// Sube un archivo de imagen al almacenamiento de objetos (Garage) y devuelve la URL del medio.
-  Future<String> uploadMedia({required Uint8List bytes, required String filename, String mimeType = 'image/jpeg'}) async {
+  Future<String> uploadMedia(
+      {required Uint8List bytes,
+      required String filename,
+      String mimeType = 'image/jpeg'}) async {
     try {
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(bytes, filename: filename),
@@ -535,7 +731,8 @@ class ApiClient {
       );
       final url = res.data?['url'] as String?;
       if (url == null || url.isEmpty) {
-        throw ApiException(500, 'STORAGE_ERROR', 'No se recibió la URL del objeto');
+        throw ApiException(
+            500, 'STORAGE_ERROR', 'No se recibió la URL del objeto');
       }
       return url;
     } on DioException catch (e) {

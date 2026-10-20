@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plentypay/core/api/api_client.dart';
 import 'package:plentypay/core/l10n/generated/app_localizations.dart';
 import 'package:plentypay/core/l10n/locales.dart';
+import 'package:plentypay/features/business/access_labels.dart';
 import 'package:plentypay/features/modules/module_registry.dart';
 import 'package:plentypay/main.dart';
 
@@ -33,11 +34,11 @@ void main() {
     expect(_messageKeys('lib/core/l10n/app_en.arb'), _messageKeys('lib/core/l10n/app_es.arb'));
   });
 
-  test('los 12 módulos tienen etiqueta en español e inglés', () async {
+  test('los 13 módulos tienen etiqueta en español e inglés', () async {
     for (final locale in [const Locale('es', 'PA'), const Locale('en')]) {
       final l10n = await AppLocalizations.delegate.load(locale);
       final labels = moduleRegistry.map((m) => moduleLabel(l10n, m)).toList();
-      expect(labels.toSet().length, 12, reason: 'etiquetas únicas en $locale');
+      expect(labels.toSet().length, moduleRegistry.length, reason: 'etiquetas únicas en $locale');
       for (final m in moduleRegistry) {
         expect(moduleLabel(l10n, m), isNot(m.id), reason: '${m.id} sin etiqueta en $locale');
       }
@@ -46,6 +47,29 @@ void main() {
     final en = await AppLocalizations.delegate.load(const Locale('en'));
     expect(es.moduleWallet, 'Billetera');
     expect(en.moduleWallet, 'Wallet');
+  });
+
+  // Cada clave del servidor (capacidades, permisos, plantillas, verticales) tiene texto propio en
+  // los dos idiomas: ninguna se muestra como su id técnico.
+  test('etiquetas del modelo de acceso en español e inglés', () async {
+    const caps = ['pos.counter', 'appointments.queue', 'payroll.commissions', 'analytics.export'];
+    const perms = ['pos:sell', 'payments:refund', 'appointments:read:self', 'admin:roles:manage'];
+    for (final locale in [const Locale('es', 'PA'), const Locale('en')]) {
+      final l10n = await AppLocalizations.delegate.load(locale);
+      for (final c in caps) {
+        expect(capabilityLabel(l10n, c), isNot(c), reason: '$c en $locale');
+        expect(capabilityDescription(l10n, c), isNotEmpty, reason: '$c en $locale');
+      }
+      for (final p in perms) {
+        expect(permissionLabel(l10n, p), isNot(p), reason: '$p en $locale');
+      }
+      expect(templateLabel(l10n, 'stylist'), isNot('stylist'));
+      expect(verticalLabel(l10n, 'beauty_wellness'), isNot('beauty_wellness'));
+      expect(levelLabel(l10n, 'APPROVE'), isNot('APPROVE'));
+    }
+    final es = await AppLocalizations.delegate.load(const Locale('es', 'PA'));
+    expect(es.memberBranchCount(2), '2 sucursales');
+    expect(permissionLabel(es, 'pos:sell'), 'Vender');
   });
 
   test('plurales del inicio', () async {

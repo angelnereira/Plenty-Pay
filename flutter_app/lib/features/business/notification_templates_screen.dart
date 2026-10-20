@@ -14,30 +14,35 @@ class NotificationTemplatesScreen extends StatefulWidget {
   final ApiClient api;
 
   @override
-  State<NotificationTemplatesScreen> createState() => _NotificationTemplatesScreenState();
+  State<NotificationTemplatesScreen> createState() =>
+      _NotificationTemplatesScreenState();
 }
 
-class _NotificationTemplatesScreenState extends State<NotificationTemplatesScreen> {
+class _NotificationTemplatesScreenState
+    extends State<NotificationTemplatesScreen> {
   final List<Map<String, dynamic>> _templates = [
     {
       'id': 'TPL-01',
       'title': 'Recibo digital de compra',
       'channel': 'WhatsApp + Email',
-      'body': 'Hola {{cliente}}, gracias por tu compra en {{comercio}}. Tu comprobante electrónico por {{monto}} está disponible en: {{enlace_recibo}}',
+      'body':
+          'Hola {{cliente}}, gracias por tu compra en {{comercio}}. Tu comprobante electrónico por {{monto}} está disponible en: {{enlace_recibo}}',
       'active': true,
     },
     {
       'id': 'TPL-02',
       'title': 'Pedido en camino con repartidor',
       'channel': 'WhatsApp + Push',
-      'body': 'Tu pedido {{pedido_id}} va en camino. Sigue la entrega en vivo con tu repartidor: {{enlace_tracking}}',
+      'body':
+          'Tu pedido {{pedido_id}} va en camino. Sigue la entrega en vivo con tu repartidor: {{enlace_tracking}}',
       'active': true,
     },
     {
       'id': 'TPL-03',
       'title': 'Confirmación de pago recibido',
       'channel': 'SMS + Push',
-      'body': 'PlentyPay: Pago confirmado de {{monto}} a {{comercio}}. Ref: {{ref_id}}',
+      'body':
+          'PlentyPay: Pago confirmado de {{monto}} a {{comercio}}. Ref: {{ref_id}}',
       'active': true,
     },
   ];
@@ -51,7 +56,8 @@ class _NotificationTemplatesScreenState extends State<NotificationTemplatesScree
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
@@ -64,11 +70,13 @@ class _NotificationTemplatesScreenState extends State<NotificationTemplatesScree
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Nueva plantilla de mensaje', style: Theme.of(ctx).textTheme.titleLarge),
+            Text('Nueva plantilla de mensaje',
+                style: Theme.of(ctx).textTheme.titleLarge),
             const SizedBox(height: 16),
             TextField(
               controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre o propósito de la plantilla'),
+              decoration: const InputDecoration(
+                  labelText: 'Nombre o propósito de la plantilla'),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -76,7 +84,8 @@ class _NotificationTemplatesScreenState extends State<NotificationTemplatesScree
               maxLines: 4,
               decoration: const InputDecoration(
                 labelText: 'Cuerpo del mensaje',
-                hintText: 'Usa variables como {{cliente}}, {{monto}}, {{enlace_recibo}}...',
+                hintText:
+                    'Usa variables como {{cliente}}, {{monto}}, {{enlace_recibo}}...',
               ),
             ),
             const SizedBox(height: 16),
@@ -85,7 +94,8 @@ class _NotificationTemplatesScreenState extends State<NotificationTemplatesScree
               children: [
                 ActionChip(label: const Text('{{cliente}}'), onPressed: () {}),
                 ActionChip(label: const Text('{{monto}}'), onPressed: () {}),
-                ActionChip(label: const Text('{{enlace_recibo}}'), onPressed: () {}),
+                ActionChip(
+                    label: const Text('{{enlace_recibo}}'), onPressed: () {}),
               ],
             ),
             const SizedBox(height: 20),
@@ -141,14 +151,19 @@ class _NotificationTemplatesScreenState extends State<NotificationTemplatesScree
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(t['title'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(t['title'] as String,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: theme.colorScheme.secondaryContainer,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(t['channel'] as String, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                          child: Text(t['channel'] as String,
+                              style: const TextStyle(
+                                  fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -159,7 +174,8 @@ class _NotificationTemplatesScreenState extends State<NotificationTemplatesScree
                         color: theme.colorScheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(t['body'] as String, style: theme.textTheme.bodyMedium),
+                      child: Text(t['body'] as String,
+                          style: theme.textTheme.bodyMedium),
                     ),
                   ],
                 ),

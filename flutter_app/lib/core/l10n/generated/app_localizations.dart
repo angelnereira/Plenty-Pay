@@ -1766,6 +1766,1902 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No tienes pedidos todavía.'**
   String get emptyOrders;
+
+  /// No description provided for @actionCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelar'**
+  String get actionCancel;
+
+  /// No description provided for @actionAdd.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar'**
+  String get actionAdd;
+
+  /// No description provided for @actionEdit.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar'**
+  String get actionEdit;
+
+  /// No description provided for @actionSuspend.
+  ///
+  /// In es, this message translates to:
+  /// **'Suspender'**
+  String get actionSuspend;
+
+  /// No description provided for @actionReactivate.
+  ///
+  /// In es, this message translates to:
+  /// **'Reactivar'**
+  String get actionReactivate;
+
+  /// No description provided for @actionResend.
+  ///
+  /// In es, this message translates to:
+  /// **'Reenviar'**
+  String get actionResend;
+
+  /// No description provided for @actionArchive.
+  ///
+  /// In es, this message translates to:
+  /// **'Archivar'**
+  String get actionArchive;
+
+  /// No description provided for @actionDuplicate.
+  ///
+  /// In es, this message translates to:
+  /// **'Duplicar'**
+  String get actionDuplicate;
+
+  /// No description provided for @moduleAppointments.
+  ///
+  /// In es, this message translates to:
+  /// **'Agenda'**
+  String get moduleAppointments;
+
+  /// No description provided for @businessLegalSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Datos legales'**
+  String get businessLegalSection;
+
+  /// No description provided for @businessBranchesSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Sucursales'**
+  String get businessBranchesSection;
+
+  /// No description provided for @businessProfileSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Perfil comercial'**
+  String get businessProfileSection;
+
+  /// No description provided for @businessAdminSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Administración'**
+  String get businessAdminSection;
+
+  /// No description provided for @businessVerticalLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Tipo de negocio: {vertical}'**
+  String businessVerticalLabel(Object vertical);
+
+  /// No description provided for @businessSecondaryLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'También: {verticals}'**
+  String businessSecondaryLabel(Object verticals);
+
+  /// No description provided for @businessLegalLocked.
+  ///
+  /// In es, this message translates to:
+  /// **'Los datos legales no se editan después de la aprobación.'**
+  String get businessLegalLocked;
+
+  /// No description provided for @fieldBranchCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Código DGI'**
+  String get fieldBranchCode;
+
+  /// No description provided for @fieldBranchName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre de la sucursal'**
+  String get fieldBranchName;
+
+  /// No description provided for @fieldAddress.
+  ///
+  /// In es, this message translates to:
+  /// **'Dirección'**
+  String get fieldAddress;
+
+  /// No description provided for @hintBranchCode.
+  ///
+  /// In es, this message translates to:
+  /// **'4 dígitos. 0000 es la casa matriz.'**
+  String get hintBranchCode;
+
+  /// No description provided for @errorBranchCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe 4 dígitos, por ejemplo 0001.'**
+  String get errorBranchCode;
+
+  /// No description provided for @errorBranchName.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe el nombre de la sucursal.'**
+  String get errorBranchName;
+
+  /// No description provided for @branchHeadquarters.
+  ///
+  /// In es, this message translates to:
+  /// **'Casa matriz'**
+  String get branchHeadquarters;
+
+  /// No description provided for @branchActive.
+  ///
+  /// In es, this message translates to:
+  /// **'Activa'**
+  String get branchActive;
+
+  /// No description provided for @branchInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'Inactiva'**
+  String get branchInactive;
+
+  /// No description provided for @branchNewTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva sucursal'**
+  String get branchNewTitle;
+
+  /// No description provided for @branchEditTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar sucursal'**
+  String get branchEditTitle;
+
+  /// No description provided for @msgBranchSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Sucursal guardada.'**
+  String get msgBranchSaved;
+
+  /// No description provided for @emptyBranches.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no hay sucursales.'**
+  String get emptyBranches;
+
+  /// No description provided for @modulesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Módulos y funciones'**
+  String get modulesTitle;
+
+  /// No description provided for @integrationsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Integraciones'**
+  String get integrationsTitle;
+
+  /// No description provided for @templatesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Plantillas de mensajes'**
+  String get templatesTitle;
+
+  /// No description provided for @auditTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Auditoría'**
+  String get auditTitle;
+
+  /// No description provided for @privacyTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Privacidad'**
+  String get privacyTitle;
+
+  /// No description provided for @teamTabMembers.
+  ///
+  /// In es, this message translates to:
+  /// **'Miembros'**
+  String get teamTabMembers;
+
+  /// No description provided for @teamTabInvitations.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitaciones'**
+  String get teamTabInvitations;
+
+  /// No description provided for @fieldScope.
+  ///
+  /// In es, this message translates to:
+  /// **'Alcance'**
+  String get fieldScope;
+
+  /// No description provided for @scopeTenant.
+  ///
+  /// In es, this message translates to:
+  /// **'Todas las sucursales'**
+  String get scopeTenant;
+
+  /// No description provided for @scopeBranches.
+  ///
+  /// In es, this message translates to:
+  /// **'Sucursales específicas'**
+  String get scopeBranches;
+
+  /// No description provided for @fieldJobTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargo (opcional)'**
+  String get fieldJobTitle;
+
+  /// No description provided for @errorJobTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Usa 60 caracteres como máximo.'**
+  String get errorJobTitle;
+
+  /// No description provided for @errorBranchesRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige al menos una sucursal.'**
+  String get errorBranchesRequired;
+
+  /// No description provided for @errorRoleRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige un rol.'**
+  String get errorRoleRequired;
+
+  /// No description provided for @memberStatusActive.
+  ///
+  /// In es, this message translates to:
+  /// **'Activo'**
+  String get memberStatusActive;
+
+  /// No description provided for @memberStatusSuspended.
+  ///
+  /// In es, this message translates to:
+  /// **'Suspendido'**
+  String get memberStatusSuspended;
+
+  /// No description provided for @memberStatusDeactivated.
+  ///
+  /// In es, this message translates to:
+  /// **'De baja'**
+  String get memberStatusDeactivated;
+
+  /// No description provided for @memberOwner.
+  ///
+  /// In es, this message translates to:
+  /// **'Dueño'**
+  String get memberOwner;
+
+  /// No description provided for @memberNoRole.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin rol'**
+  String get memberNoRole;
+
+  /// No description provided for @memberLastAccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Último acceso: {date}'**
+  String memberLastAccess(Object date);
+
+  /// No description provided for @memberBranchCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 sucursal} other{{count} sucursales}}'**
+  String memberBranchCount(int count);
+
+  /// No description provided for @actionChangeAccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar rol y alcance'**
+  String get actionChangeAccess;
+
+  /// No description provided for @actionRemoveMember.
+  ///
+  /// In es, this message translates to:
+  /// **'Dar de baja'**
+  String get actionRemoveMember;
+
+  /// No description provided for @confirmRemoveTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Dar de baja a {name}?'**
+  String confirmRemoveTitle(Object name);
+
+  /// No description provided for @confirmRemoveBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Perderá el acceso al negocio y se cerrarán sus sesiones.'**
+  String get confirmRemoveBody;
+
+  /// No description provided for @confirmSuspendTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Suspender a {name}?'**
+  String confirmSuspendTitle(Object name);
+
+  /// No description provided for @confirmSuspendBody.
+  ///
+  /// In es, this message translates to:
+  /// **'No podrá entrar hasta que lo reactives. Sus sesiones se cierran ahora.'**
+  String get confirmSuspendBody;
+
+  /// No description provided for @msgMemberUpdated.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambios guardados.'**
+  String get msgMemberUpdated;
+
+  /// No description provided for @emptyInvitations.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay invitaciones pendientes.'**
+  String get emptyInvitations;
+
+  /// No description provided for @invitationExpiresOn.
+  ///
+  /// In es, this message translates to:
+  /// **'Vence el {date}'**
+  String invitationExpiresOn(Object date);
+
+  /// No description provided for @invitationExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'Vencida'**
+  String get invitationExpired;
+
+  /// No description provided for @msgInvitationResent.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviamos un enlace nuevo.'**
+  String get msgInvitationResent;
+
+  /// No description provided for @msgInvitationRevoked.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitación revocada.'**
+  String get msgInvitationRevoked;
+
+  /// No description provided for @stepUpInvite.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirma la invitación'**
+  String get stepUpInvite;
+
+  /// No description provided for @stepUpAccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirma el cambio de acceso'**
+  String get stepUpAccess;
+
+  /// No description provided for @stepUpRole.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirma el rol'**
+  String get stepUpRole;
+
+  /// No description provided for @stepUpCapabilities.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirma el cambio de funciones'**
+  String get stepUpCapabilities;
+
+  /// No description provided for @rolesTemplatesSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Plantillas'**
+  String get rolesTemplatesSection;
+
+  /// No description provided for @rolesOwnSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Roles del negocio'**
+  String get rolesOwnSection;
+
+  /// No description provided for @roleNewTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Nuevo rol'**
+  String get roleNewTitle;
+
+  /// No description provided for @roleEditTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar rol'**
+  String get roleEditTitle;
+
+  /// No description provided for @fieldRoleName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre del rol'**
+  String get fieldRoleName;
+
+  /// No description provided for @fieldRoleDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Descripción (opcional)'**
+  String get fieldRoleDescription;
+
+  /// No description provided for @errorRoleName.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe un nombre para el rol.'**
+  String get errorRoleName;
+
+  /// No description provided for @roleFromTemplate.
+  ///
+  /// In es, this message translates to:
+  /// **'Basado en {template}'**
+  String roleFromTemplate(Object template);
+
+  /// No description provided for @roleMembers.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =0{Sin miembros} =1{1 miembro} other{{count} miembros}}'**
+  String roleMembers(int count);
+
+  /// No description provided for @rolePermissionCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 permiso} other{{count} permisos}}'**
+  String rolePermissionCount(int count);
+
+  /// No description provided for @roleTemplateReadOnly.
+  ///
+  /// In es, this message translates to:
+  /// **'Las plantillas no se editan: duplica una para crear tu rol.'**
+  String get roleTemplateReadOnly;
+
+  /// No description provided for @roleSodWarning.
+  ///
+  /// In es, this message translates to:
+  /// **'Este rol reúne funciones que conviene separar.'**
+  String get roleSodWarning;
+
+  /// No description provided for @roleMoneyPermission.
+  ///
+  /// In es, this message translates to:
+  /// **'Mueve dinero'**
+  String get roleMoneyPermission;
+
+  /// No description provided for @roleUnavailablePermission.
+  ///
+  /// In es, this message translates to:
+  /// **'Función apagada en tu negocio'**
+  String get roleUnavailablePermission;
+
+  /// No description provided for @msgRoleSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Rol guardado.'**
+  String get msgRoleSaved;
+
+  /// No description provided for @msgRoleArchived.
+  ///
+  /// In es, this message translates to:
+  /// **'Rol archivado.'**
+  String get msgRoleArchived;
+
+  /// No description provided for @level_VIEW.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver'**
+  String get level_VIEW;
+
+  /// No description provided for @level_OPERATE.
+  ///
+  /// In es, this message translates to:
+  /// **'Operar'**
+  String get level_OPERATE;
+
+  /// No description provided for @level_MANAGE.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar'**
+  String get level_MANAGE;
+
+  /// No description provided for @level_APPROVE.
+  ///
+  /// In es, this message translates to:
+  /// **'Aprobar'**
+  String get level_APPROVE;
+
+  /// No description provided for @level_CONFIGURE.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar'**
+  String get level_CONFIGURE;
+
+  /// No description provided for @modulesPlan.
+  ///
+  /// In es, this message translates to:
+  /// **'Plan: {plan}'**
+  String modulesPlan(Object plan);
+
+  /// No description provided for @capabilityGated.
+  ///
+  /// In es, this message translates to:
+  /// **'Pendiente de validación legal'**
+  String get capabilityGated;
+
+  /// No description provided for @actionSaveCapabilities.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar funciones'**
+  String get actionSaveCapabilities;
+
+  /// No description provided for @confirmDisableTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Desactivar estas funciones?'**
+  String get confirmDisableTitle;
+
+  /// No description provided for @confirmDisableBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Los permisos asociados dejarán de estar disponibles para tu equipo. Los datos se conservan.'**
+  String get confirmDisableBody;
+
+  /// No description provided for @actionDisable.
+  ///
+  /// In es, this message translates to:
+  /// **'Desactivar'**
+  String get actionDisable;
+
+  /// No description provided for @msgCapabilitiesSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Funciones guardadas.'**
+  String get msgCapabilitiesSaved;
+
+  /// No description provided for @msgNoChanges.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay cambios por guardar.'**
+  String get msgNoChanges;
+
+  /// No description provided for @error_PERMISSION_NOT_HELD.
+  ///
+  /// In es, this message translates to:
+  /// **'No puedes dar permisos que tú no tienes.'**
+  String get error_PERMISSION_NOT_HELD;
+
+  /// No description provided for @error_SELF_ASSIGNMENT_FORBIDDEN.
+  ///
+  /// In es, this message translates to:
+  /// **'No puedes cambiar tu propio acceso.'**
+  String get error_SELF_ASSIGNMENT_FORBIDDEN;
+
+  /// No description provided for @error_BRANCH_OUT_OF_SCOPE.
+  ///
+  /// In es, this message translates to:
+  /// **'Esa sucursal está fuera de tu alcance.'**
+  String get error_BRANCH_OUT_OF_SCOPE;
+
+  /// No description provided for @error_ROLE_IN_USE.
+  ///
+  /// In es, this message translates to:
+  /// **'El rol tiene miembros: reasígnalos antes de archivarlo.'**
+  String get error_ROLE_IN_USE;
+
+  /// No description provided for @error_BRANCH_CODE_TAKEN.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya existe una sucursal con ese código.'**
+  String get error_BRANCH_CODE_TAKEN;
+
+  /// No description provided for @error_INVALID_BRANCH_CODE.
+  ///
+  /// In es, this message translates to:
+  /// **'El código debe tener 4 dígitos.'**
+  String get error_INVALID_BRANCH_CODE;
+
+  /// No description provided for @error_CANNOT_DEACTIVATE_LAST_BRANCH.
+  ///
+  /// In es, this message translates to:
+  /// **'El negocio necesita al menos una sucursal activa.'**
+  String get error_CANNOT_DEACTIVATE_LAST_BRANCH;
+
+  /// No description provided for @error_CANNOT_DEACTIVATE_OWNER.
+  ///
+  /// In es, this message translates to:
+  /// **'El negocio no puede quedarse sin dueño activo.'**
+  String get error_CANNOT_DEACTIVATE_OWNER;
+
+  /// No description provided for @error_CAPABILITY_DISABLED.
+  ///
+  /// In es, this message translates to:
+  /// **'Esa función no está disponible en tu negocio.'**
+  String get error_CAPABILITY_DISABLED;
+
+  /// No description provided for @error_PRESET_READ_ONLY.
+  ///
+  /// In es, this message translates to:
+  /// **'Las plantillas no se editan: duplica una.'**
+  String get error_PRESET_READ_ONLY;
+
+  /// No description provided for @error_PERMISSION_DENIED.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes permiso para esta acción.'**
+  String get error_PERMISSION_DENIED;
+
+  /// No description provided for @error_STEP_UP_REQUIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta acción necesita confirmación.'**
+  String get error_STEP_UP_REQUIRED;
+
+  /// No description provided for @error_STEP_UP_INVALID.
+  ///
+  /// In es, this message translates to:
+  /// **'La confirmación no es válida. Inténtalo de nuevo.'**
+  String get error_STEP_UP_INVALID;
+
+  /// No description provided for @error_ROLE_NOT_FOUND.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese rol ya no existe.'**
+  String get error_ROLE_NOT_FOUND;
+
+  /// No description provided for @error_ALREADY_EXISTS.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya existe un rol con ese nombre.'**
+  String get error_ALREADY_EXISTS;
+
+  /// No description provided for @error_INVALID_REQUEST.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisa los datos e inténtalo de nuevo.'**
+  String get error_INVALID_REQUEST;
+
+  /// No description provided for @error_NOT_FOUND.
+  ///
+  /// In es, this message translates to:
+  /// **'No encontramos ese registro.'**
+  String get error_NOT_FOUND;
+
+  /// No description provided for @error_VERTICAL_NOT_FOUND.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese tipo de negocio no está disponible.'**
+  String get error_VERTICAL_NOT_FOUND;
+
+  /// No description provided for @error_ACCOUNT_SUSPENDED.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu cuenta está suspendida. Contacta al administrador de tu negocio.'**
+  String get error_ACCOUNT_SUSPENDED;
+
+  /// No description provided for @vertical_retail.
+  ///
+  /// In es, this message translates to:
+  /// **'Comercio minorista'**
+  String get vertical_retail;
+
+  /// No description provided for @vertical_food_and_beverage.
+  ///
+  /// In es, this message translates to:
+  /// **'Restaurante y comida'**
+  String get vertical_food_and_beverage;
+
+  /// No description provided for @vertical_services_appointments.
+  ///
+  /// In es, this message translates to:
+  /// **'Servicios con cita'**
+  String get vertical_services_appointments;
+
+  /// No description provided for @vertical_professional_services.
+  ///
+  /// In es, this message translates to:
+  /// **'Servicios profesionales'**
+  String get vertical_professional_services;
+
+  /// No description provided for @vertical_wholesale_distribution.
+  ///
+  /// In es, this message translates to:
+  /// **'Mayorista y distribución'**
+  String get vertical_wholesale_distribution;
+
+  /// No description provided for @vertical_logistics_courier.
+  ///
+  /// In es, this message translates to:
+  /// **'Mensajería y logística'**
+  String get vertical_logistics_courier;
+
+  /// No description provided for @vertical_beauty_wellness.
+  ///
+  /// In es, this message translates to:
+  /// **'Belleza y bienestar'**
+  String get vertical_beauty_wellness;
+
+  /// No description provided for @vertical_health_clinic.
+  ///
+  /// In es, this message translates to:
+  /// **'Clínica y salud'**
+  String get vertical_health_clinic;
+
+  /// No description provided for @vertical_education_courses.
+  ///
+  /// In es, this message translates to:
+  /// **'Educación y cursos'**
+  String get vertical_education_courses;
+
+  /// No description provided for @vertical_general_commercial.
+  ///
+  /// In es, this message translates to:
+  /// **'Comercio general'**
+  String get vertical_general_commercial;
+
+  /// No description provided for @template_manager.
+  ///
+  /// In es, this message translates to:
+  /// **'Gerente'**
+  String get template_manager;
+
+  /// No description provided for @template_supervisor.
+  ///
+  /// In es, this message translates to:
+  /// **'Supervisor de turno'**
+  String get template_supervisor;
+
+  /// No description provided for @template_cashier.
+  ///
+  /// In es, this message translates to:
+  /// **'Cajero'**
+  String get template_cashier;
+
+  /// No description provided for @template_stock_keeper.
+  ///
+  /// In es, this message translates to:
+  /// **'Almacenista'**
+  String get template_stock_keeper;
+
+  /// No description provided for @template_courier.
+  ///
+  /// In es, this message translates to:
+  /// **'Repartidor'**
+  String get template_courier;
+
+  /// No description provided for @template_accountant.
+  ///
+  /// In es, this message translates to:
+  /// **'Contador'**
+  String get template_accountant;
+
+  /// No description provided for @template_viewer.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo consulta'**
+  String get template_viewer;
+
+  /// No description provided for @template_waiter.
+  ///
+  /// In es, this message translates to:
+  /// **'Mesero'**
+  String get template_waiter;
+
+  /// No description provided for @template_host.
+  ///
+  /// In es, this message translates to:
+  /// **'Anfitrión'**
+  String get template_host;
+
+  /// No description provided for @template_kitchen.
+  ///
+  /// In es, this message translates to:
+  /// **'Cocina'**
+  String get template_kitchen;
+
+  /// No description provided for @template_bartender.
+  ///
+  /// In es, this message translates to:
+  /// **'Barra'**
+  String get template_bartender;
+
+  /// No description provided for @template_stylist.
+  ///
+  /// In es, this message translates to:
+  /// **'Profesional (estilista, barbero)'**
+  String get template_stylist;
+
+  /// No description provided for @template_receptionist.
+  ///
+  /// In es, this message translates to:
+  /// **'Recepción'**
+  String get template_receptionist;
+
+  /// No description provided for @template_salon_manager.
+  ///
+  /// In es, this message translates to:
+  /// **'Encargado del salón'**
+  String get template_salon_manager;
+
+  /// No description provided for @template_sales_rep.
+  ///
+  /// In es, this message translates to:
+  /// **'Vendedor'**
+  String get template_sales_rep;
+
+  /// No description provided for @template_credit_officer.
+  ///
+  /// In es, this message translates to:
+  /// **'Crédito y cobro'**
+  String get template_credit_officer;
+
+  /// No description provided for @template_warehouse_lead.
+  ///
+  /// In es, this message translates to:
+  /// **'Jefe de bodega'**
+  String get template_warehouse_lead;
+
+  /// No description provided for @template_dispatcher.
+  ///
+  /// In es, this message translates to:
+  /// **'Despachador'**
+  String get template_dispatcher;
+
+  /// No description provided for @template_fleet_manager.
+  ///
+  /// In es, this message translates to:
+  /// **'Jefe de flota'**
+  String get template_fleet_manager;
+
+  /// No description provided for @template_billing_clerk.
+  ///
+  /// In es, this message translates to:
+  /// **'Facturación'**
+  String get template_billing_clerk;
+
+  /// No description provided for @template_sales_associate.
+  ///
+  /// In es, this message translates to:
+  /// **'Asesor de ventas'**
+  String get template_sales_associate;
+
+  /// No description provided for @cap_pos_counter.
+  ///
+  /// In es, this message translates to:
+  /// **'Caja de mostrador'**
+  String get cap_pos_counter;
+
+  /// No description provided for @capDesc_pos_counter.
+  ///
+  /// In es, this message translates to:
+  /// **'Vender y cobrar en el mostrador.'**
+  String get capDesc_pos_counter;
+
+  /// No description provided for @cap_pos_offline.
+  ///
+  /// In es, this message translates to:
+  /// **'Caja sin conexión'**
+  String get cap_pos_offline;
+
+  /// No description provided for @capDesc_pos_offline.
+  ///
+  /// In es, this message translates to:
+  /// **'Seguir vendiendo cuando se cae internet.'**
+  String get capDesc_pos_offline;
+
+  /// No description provided for @cap_pos_customer_display.
+  ///
+  /// In es, this message translates to:
+  /// **'Pantalla del cliente'**
+  String get cap_pos_customer_display;
+
+  /// No description provided for @capDesc_pos_customer_display.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar el total al cliente en otra pantalla.'**
+  String get capDesc_pos_customer_display;
+
+  /// No description provided for @cap_pos_house_credit.
+  ///
+  /// In es, this message translates to:
+  /// **'Crédito de la casa'**
+  String get cap_pos_house_credit;
+
+  /// No description provided for @capDesc_pos_house_credit.
+  ///
+  /// In es, this message translates to:
+  /// **'Vender a crédito a clientes conocidos.'**
+  String get capDesc_pos_house_credit;
+
+  /// No description provided for @cap_pos_loyalty.
+  ///
+  /// In es, this message translates to:
+  /// **'Puntos de lealtad'**
+  String get cap_pos_loyalty;
+
+  /// No description provided for @capDesc_pos_loyalty.
+  ///
+  /// In es, this message translates to:
+  /// **'Dar y canjear puntos a tus clientes.'**
+  String get capDesc_pos_loyalty;
+
+  /// No description provided for @cap_pos_tables.
+  ///
+  /// In es, this message translates to:
+  /// **'Mesas'**
+  String get cap_pos_tables;
+
+  /// No description provided for @capDesc_pos_tables.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir, mover, unir y dividir mesas.'**
+  String get capDesc_pos_tables;
+
+  /// No description provided for @cap_pos_kitchen_display.
+  ///
+  /// In es, this message translates to:
+  /// **'Pantalla de cocina'**
+  String get cap_pos_kitchen_display;
+
+  /// No description provided for @capDesc_pos_kitchen_display.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver y marcar las comandas en cocina o barra.'**
+  String get capDesc_pos_kitchen_display;
+
+  /// No description provided for @cap_pos_split_bill.
+  ///
+  /// In es, this message translates to:
+  /// **'Dividir la cuenta'**
+  String get cap_pos_split_bill;
+
+  /// No description provided for @capDesc_pos_split_bill.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobrar una cuenta en partes.'**
+  String get capDesc_pos_split_bill;
+
+  /// No description provided for @cap_pos_tips.
+  ///
+  /// In es, this message translates to:
+  /// **'Propinas'**
+  String get cap_pos_tips;
+
+  /// No description provided for @capDesc_pos_tips.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibir propinas en el cobro.'**
+  String get capDesc_pos_tips;
+
+  /// No description provided for @cap_pos_weighed_items.
+  ///
+  /// In es, this message translates to:
+  /// **'Venta por peso'**
+  String get cap_pos_weighed_items;
+
+  /// No description provided for @capDesc_pos_weighed_items.
+  ///
+  /// In es, this message translates to:
+  /// **'Vender productos por kilo o libra.'**
+  String get capDesc_pos_weighed_items;
+
+  /// No description provided for @cap_orders_marketplace.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedidos en línea'**
+  String get cap_orders_marketplace;
+
+  /// No description provided for @capDesc_orders_marketplace.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibir y gestionar pedidos del mercado.'**
+  String get capDesc_orders_marketplace;
+
+  /// No description provided for @cap_orders_quotes.
+  ///
+  /// In es, this message translates to:
+  /// **'Cotizaciones'**
+  String get cap_orders_quotes;
+
+  /// No description provided for @capDesc_orders_quotes.
+  ///
+  /// In es, this message translates to:
+  /// **'Cotizar y convertir cotizaciones en pedidos.'**
+  String get capDesc_orders_quotes;
+
+  /// No description provided for @cap_orders_b2b.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedidos a empresas'**
+  String get cap_orders_b2b;
+
+  /// No description provided for @capDesc_orders_b2b.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedidos de clientes empresariales.'**
+  String get capDesc_orders_b2b;
+
+  /// No description provided for @cap_appointments_calendar.
+  ///
+  /// In es, this message translates to:
+  /// **'Agenda de citas'**
+  String get cap_appointments_calendar;
+
+  /// No description provided for @capDesc_appointments_calendar.
+  ///
+  /// In es, this message translates to:
+  /// **'Reservar y atender citas.'**
+  String get capDesc_appointments_calendar;
+
+  /// No description provided for @cap_appointments_queue.
+  ///
+  /// In es, this message translates to:
+  /// **'Turnos por llegada'**
+  String get cap_appointments_queue;
+
+  /// No description provided for @capDesc_appointments_queue.
+  ///
+  /// In es, this message translates to:
+  /// **'Atender por orden de llegada.'**
+  String get capDesc_appointments_queue;
+
+  /// No description provided for @cap_appointments_online_booking.
+  ///
+  /// In es, this message translates to:
+  /// **'Reservas en línea'**
+  String get cap_appointments_online_booking;
+
+  /// No description provided for @capDesc_appointments_online_booking.
+  ///
+  /// In es, this message translates to:
+  /// **'Que tus clientes reserven solos.'**
+  String get capDesc_appointments_online_booking;
+
+  /// No description provided for @cap_appointments_deposits.
+  ///
+  /// In es, this message translates to:
+  /// **'Depósitos de citas'**
+  String get cap_appointments_deposits;
+
+  /// No description provided for @capDesc_appointments_deposits.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobrar un adelanto al reservar.'**
+  String get capDesc_appointments_deposits;
+
+  /// No description provided for @cap_catalog_products.
+  ///
+  /// In es, this message translates to:
+  /// **'Productos'**
+  String get cap_catalog_products;
+
+  /// No description provided for @capDesc_catalog_products.
+  ///
+  /// In es, this message translates to:
+  /// **'Catálogo de productos con precio e impuestos.'**
+  String get capDesc_catalog_products;
+
+  /// No description provided for @cap_catalog_services.
+  ///
+  /// In es, this message translates to:
+  /// **'Servicios'**
+  String get cap_catalog_services;
+
+  /// No description provided for @capDesc_catalog_services.
+  ///
+  /// In es, this message translates to:
+  /// **'Servicios con duración y precio.'**
+  String get capDesc_catalog_services;
+
+  /// No description provided for @cap_catalog_variants.
+  ///
+  /// In es, this message translates to:
+  /// **'Tallas y colores'**
+  String get cap_catalog_variants;
+
+  /// No description provided for @capDesc_catalog_variants.
+  ///
+  /// In es, this message translates to:
+  /// **'Opciones de un mismo producto.'**
+  String get capDesc_catalog_variants;
+
+  /// No description provided for @cap_catalog_modifiers.
+  ///
+  /// In es, this message translates to:
+  /// **'Extras'**
+  String get cap_catalog_modifiers;
+
+  /// No description provided for @capDesc_catalog_modifiers.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregados que se eligen al preparar.'**
+  String get capDesc_catalog_modifiers;
+
+  /// No description provided for @cap_catalog_listing.
+  ///
+  /// In es, this message translates to:
+  /// **'Publicar en el mercado'**
+  String get cap_catalog_listing;
+
+  /// No description provided for @capDesc_catalog_listing.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar tus productos en PlentyPay.'**
+  String get capDesc_catalog_listing;
+
+  /// No description provided for @cap_catalog_price_lists.
+  ///
+  /// In es, this message translates to:
+  /// **'Listas de precios'**
+  String get cap_catalog_price_lists;
+
+  /// No description provided for @capDesc_catalog_price_lists.
+  ///
+  /// In es, this message translates to:
+  /// **'Precios por cliente o segmento.'**
+  String get capDesc_catalog_price_lists;
+
+  /// No description provided for @cap_inventory_stock.
+  ///
+  /// In es, this message translates to:
+  /// **'Existencias'**
+  String get cap_inventory_stock;
+
+  /// No description provided for @capDesc_inventory_stock.
+  ///
+  /// In es, this message translates to:
+  /// **'Controlar cuánto tienes de cada producto.'**
+  String get capDesc_inventory_stock;
+
+  /// No description provided for @cap_inventory_lots.
+  ///
+  /// In es, this message translates to:
+  /// **'Lotes y vencimientos'**
+  String get cap_inventory_lots;
+
+  /// No description provided for @capDesc_inventory_lots.
+  ///
+  /// In es, this message translates to:
+  /// **'Vender primero lo que vence antes.'**
+  String get capDesc_inventory_lots;
+
+  /// No description provided for @cap_inventory_transfers.
+  ///
+  /// In es, this message translates to:
+  /// **'Traslados'**
+  String get cap_inventory_transfers;
+
+  /// No description provided for @capDesc_inventory_transfers.
+  ///
+  /// In es, this message translates to:
+  /// **'Mover mercancía entre sucursales.'**
+  String get capDesc_inventory_transfers;
+
+  /// No description provided for @cap_inventory_purchasing.
+  ///
+  /// In es, this message translates to:
+  /// **'Compras'**
+  String get cap_inventory_purchasing;
+
+  /// No description provided for @capDesc_inventory_purchasing.
+  ///
+  /// In es, this message translates to:
+  /// **'Órdenes de compra y recepciones.'**
+  String get capDesc_inventory_purchasing;
+
+  /// No description provided for @cap_inventory_recipes.
+  ///
+  /// In es, this message translates to:
+  /// **'Recetas'**
+  String get cap_inventory_recipes;
+
+  /// No description provided for @capDesc_inventory_recipes.
+  ///
+  /// In es, this message translates to:
+  /// **'Descontar insumos por plato vendido.'**
+  String get capDesc_inventory_recipes;
+
+  /// No description provided for @cap_logistics_own_fleet.
+  ///
+  /// In es, this message translates to:
+  /// **'Reparto propio'**
+  String get cap_logistics_own_fleet;
+
+  /// No description provided for @capDesc_logistics_own_fleet.
+  ///
+  /// In es, this message translates to:
+  /// **'Entregar con tus repartidores.'**
+  String get capDesc_logistics_own_fleet;
+
+  /// No description provided for @cap_logistics_carriers.
+  ///
+  /// In es, this message translates to:
+  /// **'Transportistas'**
+  String get cap_logistics_carriers;
+
+  /// No description provided for @capDesc_logistics_carriers.
+  ///
+  /// In es, this message translates to:
+  /// **'Entregar con empresas externas.'**
+  String get capDesc_logistics_carriers;
+
+  /// No description provided for @cap_logistics_geofences.
+  ///
+  /// In es, this message translates to:
+  /// **'Zonas de entrega'**
+  String get cap_logistics_geofences;
+
+  /// No description provided for @capDesc_logistics_geofences.
+  ///
+  /// In es, this message translates to:
+  /// **'Definir dónde entregas y a qué costo.'**
+  String get capDesc_logistics_geofences;
+
+  /// No description provided for @cap_logistics_fleet.
+  ///
+  /// In es, this message translates to:
+  /// **'Flota'**
+  String get cap_logistics_fleet;
+
+  /// No description provided for @capDesc_logistics_fleet.
+  ///
+  /// In es, this message translates to:
+  /// **'Vehículos y mantenimientos.'**
+  String get capDesc_logistics_fleet;
+
+  /// No description provided for @cap_logistics_freight.
+  ///
+  /// In es, this message translates to:
+  /// **'Carga'**
+  String get cap_logistics_freight;
+
+  /// No description provided for @capDesc_logistics_freight.
+  ///
+  /// In es, this message translates to:
+  /// **'Transporte por peso o volumen.'**
+  String get capDesc_logistics_freight;
+
+  /// No description provided for @cap_logistics_routes.
+  ///
+  /// In es, this message translates to:
+  /// **'Rutas'**
+  String get cap_logistics_routes;
+
+  /// No description provided for @capDesc_logistics_routes.
+  ///
+  /// In es, this message translates to:
+  /// **'Planificar rutas de reparto.'**
+  String get capDesc_logistics_routes;
+
+  /// No description provided for @cap_finance_payments.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobros'**
+  String get cap_finance_payments;
+
+  /// No description provided for @capDesc_finance_payments.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibir pagos de tus clientes.'**
+  String get capDesc_finance_payments;
+
+  /// No description provided for @cap_finance_terminals.
+  ///
+  /// In es, this message translates to:
+  /// **'Terminales QR'**
+  String get cap_finance_terminals;
+
+  /// No description provided for @capDesc_finance_terminals.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobrar con códigos QR por caja.'**
+  String get capDesc_finance_terminals;
+
+  /// No description provided for @cap_finance_settlement.
+  ///
+  /// In es, this message translates to:
+  /// **'Liquidaciones'**
+  String get cap_finance_settlement;
+
+  /// No description provided for @capDesc_finance_settlement.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibir el dinero en tu cuenta.'**
+  String get capDesc_finance_settlement;
+
+  /// No description provided for @cap_finance_fiscal.
+  ///
+  /// In es, this message translates to:
+  /// **'Factura electrónica'**
+  String get cap_finance_fiscal;
+
+  /// No description provided for @capDesc_finance_fiscal.
+  ///
+  /// In es, this message translates to:
+  /// **'Emitir facturas a la DGI.'**
+  String get capDesc_finance_fiscal;
+
+  /// No description provided for @cap_payroll_attendance.
+  ///
+  /// In es, this message translates to:
+  /// **'Asistencia'**
+  String get cap_payroll_attendance;
+
+  /// No description provided for @capDesc_payroll_attendance.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcar entradas y salidas.'**
+  String get capDesc_payroll_attendance;
+
+  /// No description provided for @cap_payroll_kiosk.
+  ///
+  /// In es, this message translates to:
+  /// **'Quiosco de marcaje'**
+  String get cap_payroll_kiosk;
+
+  /// No description provided for @capDesc_payroll_kiosk.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcar desde un dispositivo del local.'**
+  String get capDesc_payroll_kiosk;
+
+  /// No description provided for @cap_payroll_runs.
+  ///
+  /// In es, this message translates to:
+  /// **'Planilla'**
+  String get cap_payroll_runs;
+
+  /// No description provided for @capDesc_payroll_runs.
+  ///
+  /// In es, this message translates to:
+  /// **'Calcular y pagar la planilla.'**
+  String get capDesc_payroll_runs;
+
+  /// No description provided for @cap_payroll_commissions.
+  ///
+  /// In es, this message translates to:
+  /// **'Comisiones'**
+  String get cap_payroll_commissions;
+
+  /// No description provided for @capDesc_payroll_commissions.
+  ///
+  /// In es, this message translates to:
+  /// **'Comisión por servicio o venta.'**
+  String get capDesc_payroll_commissions;
+
+  /// No description provided for @cap_payroll_tips_distribution.
+  ///
+  /// In es, this message translates to:
+  /// **'Reparto de propinas'**
+  String get cap_payroll_tips_distribution;
+
+  /// No description provided for @capDesc_payroll_tips_distribution.
+  ///
+  /// In es, this message translates to:
+  /// **'Repartir las propinas al equipo.'**
+  String get capDesc_payroll_tips_distribution;
+
+  /// No description provided for @cap_analytics_dashboards.
+  ///
+  /// In es, this message translates to:
+  /// **'Tableros'**
+  String get cap_analytics_dashboards;
+
+  /// No description provided for @capDesc_analytics_dashboards.
+  ///
+  /// In es, this message translates to:
+  /// **'Indicadores de tu negocio.'**
+  String get capDesc_analytics_dashboards;
+
+  /// No description provided for @cap_analytics_ask.
+  ///
+  /// In es, this message translates to:
+  /// **'Preguntas'**
+  String get cap_analytics_ask;
+
+  /// No description provided for @capDesc_analytics_ask.
+  ///
+  /// In es, this message translates to:
+  /// **'Preguntar en lenguaje natural.'**
+  String get capDesc_analytics_ask;
+
+  /// No description provided for @cap_analytics_forecast.
+  ///
+  /// In es, this message translates to:
+  /// **'Pronósticos'**
+  String get cap_analytics_forecast;
+
+  /// No description provided for @capDesc_analytics_forecast.
+  ///
+  /// In es, this message translates to:
+  /// **'Estimar ventas futuras.'**
+  String get capDesc_analytics_forecast;
+
+  /// No description provided for @cap_analytics_export.
+  ///
+  /// In es, this message translates to:
+  /// **'Exportar'**
+  String get cap_analytics_export;
+
+  /// No description provided for @capDesc_analytics_export.
+  ///
+  /// In es, this message translates to:
+  /// **'Descargar registros para el contador.'**
+  String get capDesc_analytics_export;
+
+  /// No description provided for @perm_payments_charge.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobrar'**
+  String get perm_payments_charge;
+
+  /// No description provided for @perm_payments_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver cobros'**
+  String get perm_payments_read;
+
+  /// No description provided for @perm_payments_refund.
+  ///
+  /// In es, this message translates to:
+  /// **'Reembolsar'**
+  String get perm_payments_refund;
+
+  /// No description provided for @perm_payments_terminal_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar terminales'**
+  String get perm_payments_terminal_manage;
+
+  /// No description provided for @perm_payments_fees_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver comisiones'**
+  String get perm_payments_fees_read;
+
+  /// No description provided for @perm_payments_fees_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar comisiones'**
+  String get perm_payments_fees_manage;
+
+  /// No description provided for @perm_settlement_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver liquidaciones'**
+  String get perm_settlement_read;
+
+  /// No description provided for @perm_settlement_schedule_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar liquidaciones'**
+  String get perm_settlement_schedule_manage;
+
+  /// No description provided for @perm_settlement_reconcile.
+  ///
+  /// In es, this message translates to:
+  /// **'Conciliar'**
+  String get perm_settlement_reconcile;
+
+  /// No description provided for @perm_catalog_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver catálogo'**
+  String get perm_catalog_read;
+
+  /// No description provided for @perm_catalog_write.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar catálogo'**
+  String get perm_catalog_write;
+
+  /// No description provided for @perm_catalog_import.
+  ///
+  /// In es, this message translates to:
+  /// **'Importar catálogo'**
+  String get perm_catalog_import;
+
+  /// No description provided for @perm_catalog_listing_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Publicar en el mercado'**
+  String get perm_catalog_listing_manage;
+
+  /// No description provided for @perm_catalog_pricelist_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar listas de precios'**
+  String get perm_catalog_pricelist_manage;
+
+  /// No description provided for @perm_inventory_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver existencias'**
+  String get perm_inventory_read;
+
+  /// No description provided for @perm_inventory_adjust.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajustar existencias'**
+  String get perm_inventory_adjust;
+
+  /// No description provided for @perm_inventory_purchase_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar compras'**
+  String get perm_inventory_purchase_manage;
+
+  /// No description provided for @perm_inventory_receive.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibir mercancía'**
+  String get perm_inventory_receive;
+
+  /// No description provided for @perm_inventory_recipe_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar recetas'**
+  String get perm_inventory_recipe_manage;
+
+  /// No description provided for @perm_pos_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver ventas y arqueos'**
+  String get perm_pos_read;
+
+  /// No description provided for @perm_pos_sell.
+  ///
+  /// In es, this message translates to:
+  /// **'Vender'**
+  String get perm_pos_sell;
+
+  /// No description provided for @perm_pos_void.
+  ///
+  /// In es, this message translates to:
+  /// **'Anular ventas'**
+  String get perm_pos_void;
+
+  /// No description provided for @perm_pos_refund.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolver ventas'**
+  String get perm_pos_refund;
+
+  /// No description provided for @perm_pos_session_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir y cerrar caja'**
+  String get perm_pos_session_manage;
+
+  /// No description provided for @perm_pos_settings_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar caja'**
+  String get perm_pos_settings_manage;
+
+  /// No description provided for @perm_pos_discount_apply.
+  ///
+  /// In es, this message translates to:
+  /// **'Aplicar descuentos'**
+  String get perm_pos_discount_apply;
+
+  /// No description provided for @perm_pos_table_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar mesas'**
+  String get perm_pos_table_manage;
+
+  /// No description provided for @perm_pos_kitchen_update.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualizar comandas'**
+  String get perm_pos_kitchen_update;
+
+  /// No description provided for @perm_pos_credit_approve.
+  ///
+  /// In es, this message translates to:
+  /// **'Aprobar crédito'**
+  String get perm_pos_credit_approve;
+
+  /// No description provided for @perm_fiscal_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver facturas'**
+  String get perm_fiscal_read;
+
+  /// No description provided for @perm_fiscal_issue.
+  ///
+  /// In es, this message translates to:
+  /// **'Emitir facturas'**
+  String get perm_fiscal_issue;
+
+  /// No description provided for @perm_fiscal_note_issue.
+  ///
+  /// In es, this message translates to:
+  /// **'Emitir notas de crédito'**
+  String get perm_fiscal_note_issue;
+
+  /// No description provided for @perm_fiscal_profile_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar facturación'**
+  String get perm_fiscal_profile_manage;
+
+  /// No description provided for @perm_orders_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver pedidos'**
+  String get perm_orders_read;
+
+  /// No description provided for @perm_orders_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar pedidos'**
+  String get perm_orders_manage;
+
+  /// No description provided for @perm_orders_quote_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar cotizaciones'**
+  String get perm_orders_quote_manage;
+
+  /// No description provided for @perm_appointments_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver toda la agenda'**
+  String get perm_appointments_read;
+
+  /// No description provided for @perm_appointments_read_self.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver mi agenda'**
+  String get perm_appointments_read_self;
+
+  /// No description provided for @perm_appointments_book.
+  ///
+  /// In es, this message translates to:
+  /// **'Reservar citas'**
+  String get perm_appointments_book;
+
+  /// No description provided for @perm_appointments_checkin.
+  ///
+  /// In es, this message translates to:
+  /// **'Registrar llegadas'**
+  String get perm_appointments_checkin;
+
+  /// No description provided for @perm_appointments_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar agenda'**
+  String get perm_appointments_manage;
+
+  /// No description provided for @perm_appointments_settings_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar agenda'**
+  String get perm_appointments_settings_manage;
+
+  /// No description provided for @perm_logistics_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver entregas'**
+  String get perm_logistics_read;
+
+  /// No description provided for @perm_logistics_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar entregas'**
+  String get perm_logistics_manage;
+
+  /// No description provided for @perm_logistics_deliver.
+  ///
+  /// In es, this message translates to:
+  /// **'Entregar'**
+  String get perm_logistics_deliver;
+
+  /// No description provided for @perm_logistics_geofence_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar zonas'**
+  String get perm_logistics_geofence_manage;
+
+  /// No description provided for @perm_logistics_fleet_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar flota'**
+  String get perm_logistics_fleet_manage;
+
+  /// No description provided for @perm_logistics_route_plan.
+  ///
+  /// In es, this message translates to:
+  /// **'Planificar rutas'**
+  String get perm_logistics_route_plan;
+
+  /// No description provided for @perm_payroll_employee_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver empleados'**
+  String get perm_payroll_employee_read;
+
+  /// No description provided for @perm_payroll_employee_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar empleados'**
+  String get perm_payroll_employee_manage;
+
+  /// No description provided for @perm_payroll_attendance_record.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcar asistencia'**
+  String get perm_payroll_attendance_record;
+
+  /// No description provided for @perm_payroll_attendance_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver asistencia'**
+  String get perm_payroll_attendance_read;
+
+  /// No description provided for @perm_payroll_run_create.
+  ///
+  /// In es, this message translates to:
+  /// **'Preparar planilla'**
+  String get perm_payroll_run_create;
+
+  /// No description provided for @perm_payroll_run_approve.
+  ///
+  /// In es, this message translates to:
+  /// **'Aprobar planilla'**
+  String get perm_payroll_run_approve;
+
+  /// No description provided for @perm_payroll_run_pay.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar planilla'**
+  String get perm_payroll_run_pay;
+
+  /// No description provided for @perm_payroll_payslip_read_self.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver mis comprobantes'**
+  String get perm_payroll_payslip_read_self;
+
+  /// No description provided for @perm_payroll_commission_read_self.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver mis comisiones'**
+  String get perm_payroll_commission_read_self;
+
+  /// No description provided for @perm_payroll_commission_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar comisiones'**
+  String get perm_payroll_commission_manage;
+
+  /// No description provided for @perm_analytics_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver análisis'**
+  String get perm_analytics_read;
+
+  /// No description provided for @perm_analytics_dashboard_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar tableros'**
+  String get perm_analytics_dashboard_manage;
+
+  /// No description provided for @perm_analytics_alert_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar alertas'**
+  String get perm_analytics_alert_manage;
+
+  /// No description provided for @perm_analytics_export.
+  ///
+  /// In es, this message translates to:
+  /// **'Exportar registros'**
+  String get perm_analytics_export;
+
+  /// No description provided for @perm_admin_users_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar equipo'**
+  String get perm_admin_users_manage;
+
+  /// No description provided for @perm_admin_roles_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar roles'**
+  String get perm_admin_roles_manage;
+
+  /// No description provided for @perm_admin_business_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar el negocio'**
+  String get perm_admin_business_manage;
+
+  /// No description provided for @perm_admin_integrations_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar integraciones'**
+  String get perm_admin_integrations_manage;
+
+  /// No description provided for @perm_admin_audit_read.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver auditoría'**
+  String get perm_admin_audit_read;
+
+  /// No description provided for @perm_notifications_template_manage.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar plantillas de mensajes'**
+  String get perm_notifications_template_manage;
+
+  /// No description provided for @invitationHeadline.
+  ///
+  /// In es, this message translates to:
+  /// **'{business} te invita como {role}'**
+  String invitationHeadline(Object business, Object role);
+
+  /// No description provided for @invitationScope.
+  ///
+  /// In es, this message translates to:
+  /// **'Alcance: {scope}'**
+  String invitationScope(Object scope);
+
+  /// No description provided for @invitationInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta invitación ya no es válida. Pide una nueva a tu negocio.'**
+  String get invitationInvalid;
+
+  /// No description provided for @invitationExistingAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya tienes cuenta en PlentyPay: entra con tu contraseña actual y conservas tu billetera.'**
+  String get invitationExistingAccount;
+
+  /// No description provided for @actionAcceptInvitation.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar invitación'**
+  String get actionAcceptInvitation;
+
+  /// No description provided for @actionAcceptAndCreate.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar y crear cuenta'**
+  String get actionAcceptAndCreate;
+
+  /// No description provided for @error_TOKEN_INVALID.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta invitación ya no es válida. Pide una nueva a tu negocio.'**
+  String get error_TOKEN_INVALID;
+
+  /// No description provided for @error_ALREADY_USED.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta invitación ya se usó.'**
+  String get error_ALREADY_USED;
+
+  /// No description provided for @error_ALREADY_HAS_TENANT.
+  ///
+  /// In es, this message translates to:
+  /// **'Esa cuenta ya pertenece a otro negocio.'**
+  String get error_ALREADY_HAS_TENANT;
 }
 
 class _AppLocalizationsDelegate

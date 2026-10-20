@@ -1,237 +1,349 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
 import '../../core/theme/tokens.dart';
-import '../../core/widgets/pp_button.dart';
+import '../../core/widgets/async_view.dart';
 import '../../core/widgets/status_chip.dart';
-import 'audit_log_screen.dart';
-import 'business_privacy_screen.dart';
-import 'integrations_screen.dart';
-import 'notification_templates_screen.dart';
+import 'access_labels.dart';
+import 'branch_sheet.dart';
+import 'modules_screen.dart';
 import 'roles_screen.dart';
 import 'team_screen.dart';
 
-/// S-ADM-01 · `/business` · Perfil de la empresa, sucursales y gestión administrativa.
+class BusinessData {
+  BusinessData(
+      {required this.tenant, required this.profile, required this.branches});
+  final Map<String, dynamic> tenant;
+  final Map<String, dynamic> profile;
+  final List<Map<String, dynamic>> branches;
+}
+
+/// S-ADM-01 · `/business` · Datos del negocio. Permiso `admin:business:manage`.
 ///
-/// Permiso: `admin:business:manage`.
-/// Muestra los datos fiscales del negocio, estado de revisión KYB, aviso de operación y sucursales activas.
+/// Todo sale de identity: estado y datos legales (`GetTenant`), perfil comercial
+/// (`GetBusinessProfile`) y sucursales (`ListBranches`, `UpsertBranch`, `Deactivate/ReactivateBranch`).
+/// Construidos: e1, e2 (solo lectura), e6 y e8. Pendientes por falta de servicio: e3 editable,
+/// e4 Aviso de Operación, e5 dueños y e7 preferencias (docs/roadmap/status.md, F08.8).
 class BusinessDashboardScreen extends StatefulWidget {
   const BusinessDashboardScreen({super.key, required this.api});
 
   final ApiClient api;
 
   @override
-  State<BusinessDashboardScreen> createState() => _BusinessDashboardScreenState();
+  State<BusinessDashboardScreen> createState() =>
+      _BusinessDashboardScreenState();
 }
 
 class _BusinessDashboardScreenState extends State<BusinessDashboardScreen> {
-  final Map<String, dynamic> _business = {
-    'name': 'COMERCIALIZADORA DEL PACÍFICO S.A.',
-    'trade_name': 'Supermercado Gourmet Marbella',
-    'ruc': '155678234-2-2021',
-    'dv': '45',
-    'mici_license': 'AVISO-2021-98421 (MICI)',
-    'kyb_status': StatusChipTone.success,
-    'kyb_label': 'KYB Verificado',
-    'branches': [
-      {'name': 'Casa Matriz Marbella', 'address': 'Calle 47 Este, Plaza 2000', 'active': true},
-      {'name': 'Sucursal San Francisco', 'address': 'Calle 74 Este, Casa 22', 'active': true},
-      {'name': 'Bodega Central Milla 8', 'address': 'Parque Industrial Milla 8, Galera B-4', 'active': true},
-    ],
-  };
+  late Future<BusinessData> _future = _load();
+
+  Future<BusinessData> _load() async {
+    final me = await widget.api.me();
+    final results = await Future.wait([
+      widget.api.getTenant(me.tenantId),
+      widget.api.getBusinessProfile(),
+      widget.api.listBranches(includeInactive: true),
+    ]);
+    return BusinessData(
+      tenant: results[0],
+      profile: results[1],
+      branches: (results[2]['branches'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>(),
+    );
+  }
+
+  void _reload() => setState(() => _future = _load());
+
+  Future<void> _run(Future<Object?> Function() action, String okMessage) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await action();
+      messenger.showSnackBar(SnackBar(content: Text(okMessage)));
+      _reload();
+    } on Exception catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(reasonMessage(l10n, e))));
+    }
+  }
+
+  Future<void> _editBranch({Map<String, dynamic>? branch}) async {
+    final l10n = AppLocalizations.of(context);
+    final input = await BranchSheet.show(context, initial: branch);
+    if (input == null || !mounted) return;
+    await _run(
+      () => widget.api.upsertBranch(
+        branchId: branch?['branch_id'] as String? ?? '',
+        code: input.code,
+        name: input.name,
+        address: input.address,
+      ),
+      l10n.msgBranchSaved,
+    );
+  }
+
+  void _open(Widget screen) => Navigator.of(context)
+      .push(MaterialPageRoute<void>(builder: (_) => screen));
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
+    final l10n = AppLocalizations.of(context);
+    final window = WindowClass.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Negocio'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTokens.spacingMd),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Business profile card
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.surfaceContainerLow,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                  side: BorderSide(color: theme.colorScheme.outlineVariant),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _business['trade_name'] as String,
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          StatusChip(
-                            label: _business['kyb_label'] as String,
-                            tone: _business['kyb_status'] as StatusChipTone,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text('Razón Social: ${_business['name']}', style: theme.textTheme.bodyMedium),
-                      Text('RUC: ${_business['ruc']} DV ${_business['dv']}', style: theme.textTheme.bodySmall),
-                      Text('Aviso de Operación: ${_business['mici_license']}', style: theme.textTheme.bodySmall),
-                    ],
-                  ),
+      appBar: AppBar(title: Text(l10n.businessTitle)),
+      body: FutureBuilder<BusinessData>(
+        future: _future,
+        builder: (context, snap) => AsyncView<BusinessData>(
+          snapshot: snap,
+          errorMessage: snap.hasError
+              ? reasonMessage(l10n, snap.error!)
+              : l10n.errorNoConnection,
+          retryLabel: l10n.actionRetry,
+          onRetry: _reload,
+          emptyView: const SizedBox.shrink(),
+          builder: (context, data) {
+            final main = [
+              _LegalCard(tenant: data.tenant),
+              const SizedBox(height: AppTokens.spacingLg),
+              _ProfileCard(
+                  profile: data.profile,
+                  onAdjust: () => _open(ModulesScreen(api: widget.api))),
+              const SizedBox(height: AppTokens.spacingLg),
+              _BranchesCard(
+                branches: data.branches,
+                onAdd: () => _editBranch(),
+                onEdit: (b) => _editBranch(branch: b),
+                onToggle: (b) => _run(
+                  () => widget.api.setBranchActive(b['branch_id'] as String,
+                      active: !(b['active'] as bool? ?? false)),
+                  l10n.msgBranchSaved,
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              // Branches
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                  side: BorderSide(color: theme.colorScheme.outlineVariant),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Sucursales (${(_business['branches'] as List).length})', style: theme.textTheme.titleMedium),
-                          TextButton(onPressed: () {}, child: const Text('Agregar')),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      for (final b in (_business['branches'] as List))
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Icon(Icons.storefront_outlined, size: 20, color: theme.colorScheme.primary),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(b['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    Text(b['address'] as String, style: theme.textTheme.bodySmall),
-                                  ],
-                                ),
-                              ),
-                              const StatusChip(label: 'Operativa', tone: StatusChipTone.success),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Text('Administración y configuración', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-
-              _buildNavTile(
-                context,
-                icon: Icons.people_outline,
-                title: 'Equipo y colaboradores',
-                subtitle: 'Invitaciones, asignación de usuarios y control de acceso',
-                destination: TeamScreen(api: widget.api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.security_outlined,
-                title: 'Roles y permisos personalizados',
-                subtitle: 'Matriz granular de permisos agrupada por módulos',
-                destination: RolesScreen(api: widget.api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.hub_outlined,
-                title: 'Integraciones y API',
-                subtitle: 'Rieles de pago, PAC DGI, WhatsApp Cloud y Webhooks',
-                destination: IntegrationsScreen(api: widget.api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.sms_outlined,
-                title: 'Plantillas de notificaciones',
-                subtitle: 'Comprobantes digitales y avisos por WhatsApp/SMS',
-                destination: NotificationTemplatesScreen(api: widget.api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.history_edu_outlined,
-                title: 'Bitácora de auditoría inmutable',
-                subtitle: 'Registro de seguridad criptográfico con cadena de bloques',
-                destination: AuditLogScreen(api: widget.api),
-              ),
-              _buildNavTile(
-                context,
-                icon: Icons.privacy_tip_outlined,
-                title: 'Privacidad y derechos ARCO (Ley 81)',
-                subtitle: 'Atención de solicitudes de datos de clientes y empleados',
-                destination: BusinessPrivacyScreen(api: widget.api),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: PPButton.primary(
-            label: 'Editar perfil comercial',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Abriendo edición de datos del comercio...')),
-              );
-            },
-          ),
+            ];
+            final admin = _AdminLinks(
+              onTeam: () => _open(TeamScreen(api: widget.api)),
+              onRoles: () => _open(RolesScreen(api: widget.api)),
+              onModules: () => _open(ModulesScreen(api: widget.api)),
+            );
+            final padding = EdgeInsets.fromLTRB(
+                window.horizontalMargin,
+                AppTokens.spacingMd,
+                window.horizontalMargin,
+                AppTokens.spacingLg);
+            if (!window.twoPanes) {
+              return ListView(padding: padding, children: [
+                ...main,
+                const SizedBox(height: AppTokens.spacingLg),
+                admin
+              ]);
+            }
+            // Desde expanded: datos a la izquierda y administración a la derecha (panel de apoyo, §8.3).
+            return SingleChildScrollView(
+              padding: padding,
+              child:
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                    flex: 3,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: main)),
+                const SizedBox(width: AppTokens.spacingLg),
+                Expanded(flex: 2, child: admin),
+              ]),
+            );
+          },
         ),
       ),
     );
   }
+}
 
-  Widget _buildNavTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Widget destination,
-  }) {
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.title, required this.child, this.action});
+  final String title;
+  final Widget child;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
+      margin: EdgeInsets.zero,
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      color: theme.colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(AppTokens.spacingMd),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
+            if (action != null) action!,
+          ]),
+          const SizedBox(height: AppTokens.spacingSm),
+          child,
+        ]),
       ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          child: Icon(icon, color: theme.colorScheme.primary),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
-        },
-      ),
+    );
+  }
+}
+
+class _LegalCard extends StatelessWidget {
+  const _LegalCard({required this.tenant});
+  final Map<String, dynamic> tenant;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final status =
+        (tenant['status'] as String? ?? '').replaceFirst('TENANT_STATUS_', '');
+    final (label, tone) = switch (status) {
+      'ACTIVE' => (l10n.statusActive, StatusTone.success),
+      'SUSPENDED' => (l10n.statusSuspended, StatusTone.warning),
+      'REJECTED' => (l10n.statusRejected, StatusTone.error),
+      _ => (l10n.statusPending, StatusTone.info),
+    };
+    final tradeName = tenant['trade_name'] as String? ?? '';
+    return _SectionCard(
+      title: tradeName.isNotEmpty
+          ? tradeName
+          : tenant['legal_name'] as String? ?? '',
+      action: StatusChip(label: label, tone: tone),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(l10n.businessLegalSection, style: theme.textTheme.titleSmall),
+        const SizedBox(height: AppTokens.spacingXs),
+        Text('${l10n.fieldLegalName}: ${tenant['legal_name'] ?? ''}',
+            style: theme.textTheme.bodyMedium),
+        Text(
+            '${l10n.fieldTaxId}: ${tenant['tax_id'] ?? ''} · ${l10n.fieldDv}: ${tenant['dv'] ?? ''}',
+            style: theme.textTheme.bodyMedium),
+        const SizedBox(height: AppTokens.spacingXs),
+        Text(l10n.businessLegalLocked, style: theme.textTheme.bodySmall),
+      ]),
+    );
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({required this.profile, required this.onAdjust});
+  final Map<String, dynamic> profile;
+  final VoidCallback onAdjust;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final secondary =
+        (profile['secondary_verticals'] as List<dynamic>? ?? const [])
+            .cast<String>();
+    return _SectionCard(
+      title: l10n.businessProfileSection,
+      action: TextButton(onPressed: onAdjust, child: Text(l10n.modulesTitle)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(
+            l10n.businessVerticalLabel(verticalLabel(
+                l10n, profile['primary_vertical'] as String? ?? '')),
+            style: theme.textTheme.bodyMedium),
+        if (secondary.isNotEmpty)
+          Text(
+              l10n.businessSecondaryLabel(
+                  secondary.map((v) => verticalLabel(l10n, v)).join(', ')),
+              style: theme.textTheme.bodyMedium),
+      ]),
+    );
+  }
+}
+
+class _BranchesCard extends StatelessWidget {
+  const _BranchesCard(
+      {required this.branches,
+      required this.onAdd,
+      required this.onEdit,
+      required this.onToggle});
+  final List<Map<String, dynamic>> branches;
+  final VoidCallback onAdd;
+  final void Function(Map<String, dynamic>) onEdit;
+  final void Function(Map<String, dynamic>) onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return _SectionCard(
+      title: l10n.businessBranchesSection,
+      action: TextButton.icon(
+          onPressed: onAdd,
+          icon: const Icon(Icons.add),
+          label: Text(l10n.actionAdd)),
+      child: branches.isEmpty
+          ? Text(l10n.emptyBranches)
+          : Column(children: [
+              for (final b in branches)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${b['code']} · ${b['name']}'),
+                  subtitle: Text([
+                    if (b['code'] == '0000') l10n.branchHeadquarters,
+                    if ((b['address'] as String? ?? '').isNotEmpty)
+                      b['address'] as String,
+                  ].join(' · ')),
+                  trailing: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppTokens.spacingSm,
+                      children: [
+                        StatusChip(
+                          label: (b['active'] as bool? ?? false)
+                              ? l10n.branchActive
+                              : l10n.branchInactive,
+                          tone: (b['active'] as bool? ?? false)
+                              ? StatusTone.success
+                              : StatusTone.neutral,
+                        ),
+                        PopupMenuButton<String>(
+                          tooltip: l10n.actionEdit,
+                          onSelected: (v) =>
+                              v == 'edit' ? onEdit(b) : onToggle(b),
+                          itemBuilder: (_) => [
+                            PopupMenuItem(
+                                value: 'edit', child: Text(l10n.actionEdit)),
+                            PopupMenuItem(
+                              value: 'toggle',
+                              child: Text((b['active'] as bool? ?? false)
+                                  ? l10n.actionDeactivate
+                                  : l10n.actionReactivate),
+                            ),
+                          ],
+                        ),
+                      ]),
+                ),
+            ]),
+    );
+  }
+}
+
+class _AdminLinks extends StatelessWidget {
+  const _AdminLinks(
+      {required this.onTeam, required this.onRoles, required this.onModules});
+  final VoidCallback onTeam;
+  final VoidCallback onRoles;
+  final VoidCallback onModules;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    Widget tile(IconData icon, String title, VoidCallback onTap) => ListTile(
+          leading: Icon(icon),
+          title: Text(title),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: onTap,
+        );
+    return _SectionCard(
+      title: l10n.businessAdminSection,
+      child: Column(children: [
+        tile(Icons.people_outline, l10n.teamTitle, onTeam),
+        tile(Icons.admin_panel_settings_outlined, l10n.rolesTitle, onRoles),
+        tile(Icons.tune_outlined, l10n.modulesTitle, onModules),
+      ]),
     );
   }
 }

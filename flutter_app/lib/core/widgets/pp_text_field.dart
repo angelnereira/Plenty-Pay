@@ -19,6 +19,7 @@ class PPTextField extends StatelessWidget {
     this.prefixText,
     this.suffixIcon,
     this.onChanged,
+    this.readOnly = false,
   });
 
   final String? label;
@@ -34,6 +35,9 @@ class PPTextField extends StatelessWidget {
   final String? prefixText;
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
+
+  /// Campo visible pero bloqueado (p. ej. el correo precargado de una invitación, S-GEN-17).
+  final bool readOnly;
 
   String get effectiveLabel => label ?? labelText ?? '';
 
@@ -68,6 +72,7 @@ class PPTextField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          readOnly: readOnly,
           maxLines: maxLines,
           onChanged: onChanged,
           decoration: InputDecoration(
@@ -75,11 +80,13 @@ class PPTextField extends StatelessWidget {
             prefixIcon: prefixIcon,
             prefixText: prefixText,
             suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             enabledBorder: border,
             border: border,
             focusedBorder: border.copyWith(
-              borderSide: BorderSide(color: hasError ? scheme.error : Tokens.primary, width: 2),
+              borderSide: BorderSide(
+                  color: hasError ? scheme.error : Tokens.primary, width: 2),
             ),
           ),
         ),
@@ -92,7 +99,9 @@ class PPTextField extends StatelessWidget {
                 Icon(Icons.error_outline, size: 16, color: scheme.error),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(error!, style: TextStyle(fontSize: 12, height: 16 / 12, color: scheme.error)),
+                  child: Text(error!,
+                      style: TextStyle(
+                          fontSize: 12, height: 16 / 12, color: scheme.error)),
                 ),
               ],
             ),
@@ -102,7 +111,10 @@ class PPTextField extends StatelessWidget {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               helperText!,
-              style: TextStyle(fontSize: 12, height: 16 / 12, color: scheme.onSurface.withValues(alpha: 0.6)),
+              style: TextStyle(
+                  fontSize: 12,
+                  height: 16 / 12,
+                  color: scheme.onSurface.withValues(alpha: 0.6)),
             ),
           ),
       ],

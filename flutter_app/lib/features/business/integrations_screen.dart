@@ -42,7 +42,8 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
     },
     {
       'name': 'PAC Facturación DGI (The Factory HKA)',
-      'description': 'Proveedor de Autorización Calificada para factura electrónica',
+      'description':
+          'Proveedor de Autorización Calificada para factura electrónica',
       'sandbox': false,
       'status': StatusChipTone.success,
       'status_label': 'Producción DGI',
@@ -85,7 +86,9 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(it['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(it['name'] as String,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
                         StatusChip(
                           label: it['status_label'] as String,
                           tone: it['status'] as StatusChipTone,
@@ -93,16 +96,21 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(it['description'] as String, style: theme.textTheme.bodySmall),
+                    Text(it['description'] as String,
+                        style: theme.textTheme.bodySmall),
                     const Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          it['sandbox'] == true ? 'Sin credenciales reales (Sandbox activo)' : 'Credenciales en producción',
+                          it['sandbox'] == true
+                              ? 'Sin credenciales reales (Sandbox activo)'
+                              : 'Credenciales en producción',
                           style: TextStyle(
                             fontSize: 12,
-                            color: it['sandbox'] == true ? theme.colorScheme.error : theme.colorScheme.primary,
+                            color: it['sandbox'] == true
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -126,7 +134,8 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
             label: 'Guardar configuración de integraciones',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Configuraciones y llaves API actualizadas')),
+                const SnackBar(
+                    content: Text('Configuraciones y llaves API actualizadas')),
               );
             },
           ),

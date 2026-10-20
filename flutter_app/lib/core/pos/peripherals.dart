@@ -14,7 +14,8 @@ import 'dart:convert';
 /// - Un código desconocido no se muestra como precio ni como existencias: se dice
 ///   que no se encontró y se ofrece buscar a mano.
 class BarcodeLookup {
-  BarcodeLookup({required this.lookup, this.budget = const Duration(milliseconds: 300)});
+  BarcodeLookup(
+      {required this.lookup, this.budget = const Duration(milliseconds: 300)});
 
   /// Resuelve un código contra el catálogo del servidor.
   final Future<ProductHit?> Function(String barcode) lookup;
@@ -96,7 +97,8 @@ class BarcodeError extends BarcodeResult {
 /// Acumula los caracteres que llegan del lector y emite el código al recibir Enter.
 /// Un lector real no necesita ninguna configuración: el código se separa con Enter.
 class HidBarcodeReader {
-  HidBarcodeReader({this.terminator = '\n', this.bufferLimit = 64, this.onScanned});
+  HidBarcodeReader(
+      {this.terminator = '\n', this.bufferLimit = 64, this.onScanned});
 
   /// Carácter que cierra el código. `\n` en la mayoría de lectores USB.
   final String terminator;
@@ -183,8 +185,10 @@ class DisplaySession {
 
   /// F24.4: el pareo caduca y se vuelve a ofrecer uno nuevo. Un código vencido no se
   /// renueva en silencio: la caja tiene que pedir uno nuevo explícitamente.
-  DisplaySession refreshed(DateTime now, DateTime nowPairingExpiresAt) => DisplaySession(
-        pairing: CustomerDisplayPairing(code: pairing.code, expiresAt: nowPairingExpiresAt),
+  DisplaySession refreshed(DateTime now, DateTime nowPairingExpiresAt) =>
+      DisplaySession(
+        pairing: CustomerDisplayPairing(
+            code: pairing.code, expiresAt: nowPairingExpiresAt),
         state: DisplayPairingState.offered,
       );
 }
@@ -197,7 +201,12 @@ class CashDrawerRule {
   const CashDrawerRule();
 
   /// Motivos que autorizan abrir el cajón.
-  static const allowedReasons = {'SALE_COMPLETED', 'REFUND_ISSUED', 'CASH_COUNT', 'CASH_DEPOSIT'};
+  static const allowedReasons = {
+    'SALE_COMPLETED',
+    'REFUND_ISSUED',
+    'CASH_COUNT',
+    'CASH_DEPOSIT'
+  };
 
   /// `true` si el motivo habilita la apertura.
   bool allows(String reason) => allowedReasons.contains(reason);
@@ -212,7 +221,8 @@ class CashDrawerRule {
 /// Pantalla completa y bloqueada. Salir exige el PIN de un gerente, y el PIN de un
 /// empleado normal **nunca** abre la salida del quiosco.
 class KioskExitRule {
-  const KioskExitRule({required this.managerPinHash, required this.employeePinHash});
+  const KioskExitRule(
+      {required this.managerPinHash, required this.employeePinHash});
 
   /// Hash del PIN de gerente. Nunca el PIN en claro, ni en memoria.
   final String managerPinHash;

@@ -8,7 +8,11 @@ import 'dart:math';
 /// recurso), no la fecha: si el servidor sube la versión, la entrada vieja se
 /// descarta aunque tenga menos de 24 h.
 class CacheEntry<T> {
-  CacheEntry({required this.key, required this.version, required this.value, required this.storedAt});
+  CacheEntry(
+      {required this.key,
+      required this.version,
+      required this.value,
+      required this.storedAt});
 
   final String key;
 
@@ -21,7 +25,8 @@ class CacheEntry<T> {
   double ageHours(DateTime now) => now.difference(storedAt).inMinutes / 60.0;
 
   /// Regla de 24 h: una entrada más vieja se marca obsoleta y la app vuelve al servidor.
-  bool isStale(DateTime now, {Duration ttl = _defaultTtl}) => ageHours(now) >= ttl.inMinutes / 60.0;
+  bool isStale(DateTime now, {Duration ttl = _defaultTtl}) =>
+      ageHours(now) >= ttl.inMinutes / 60.0;
 
   Map<String, dynamic> toJson(Object? Function(T) encode) => {
         'key': key,
@@ -32,7 +37,8 @@ class CacheEntry<T> {
 
   /// Reconstruye una entrada serializada. Es un constructor de fábrica y no un
   /// `static` porque Dart no permite variables de tipo en miembros estáticos.
-  factory CacheEntry.fromJson(Map<String, dynamic> json, T Function(dynamic) decode) =>
+  factory CacheEntry.fromJson(
+          Map<String, dynamic> json, T Function(dynamic) decode) =>
       CacheEntry<T>(
         key: json['key'] as String,
         version: json['version'] as int,
@@ -65,7 +71,8 @@ class VersionedCache<T> {
     if (current != null && version <= current.version) {
       return false;
     }
-    _entries[key] = CacheEntry<T>(key: key, version: version, value: value, storedAt: now);
+    _entries[key] =
+        CacheEntry<T>(key: key, version: version, value: value, storedAt: now);
     return true;
   }
 
@@ -84,7 +91,10 @@ class VersionedCache<T> {
 
   /// Las entradas más viejas que `ttl` se eliminan. Devuelve cuántas se borraron.
   int evictExpired(DateTime now) {
-    final stale = _entries.values.where((e) => e.isStale(now, ttl: ttl)).map((e) => e.key).toList();
+    final stale = _entries.values
+        .where((e) => e.isStale(now, ttl: ttl))
+        .map((e) => e.key)
+        .toList();
     for (final k in stale) {
       _entries.remove(k);
     }
@@ -99,7 +109,8 @@ class VersionedCache<T> {
   void decodeAll(List<dynamic> json, T Function(dynamic) decode) {
     _entries.clear();
     for (final raw in json) {
-      final entry = CacheEntry<T>.fromJson(Map<String, dynamic>.from(raw as Map), decode);
+      final entry =
+          CacheEntry<T>.fromJson(Map<String, dynamic>.from(raw as Map), decode);
       _entries[entry.key] = entry;
     }
   }
@@ -143,7 +154,8 @@ class LocalOutboxEntry {
   String? lastError;
   DateTime? nextAttemptAt;
 
-  bool isReady(DateTime now) => nextAttemptAt == null || !now.isBefore(nextAttemptAt!);
+  bool isReady(DateTime now) =>
+      nextAttemptAt == null || !now.isBefore(nextAttemptAt!);
 }
 
 typedef Uint8List = List<int>;

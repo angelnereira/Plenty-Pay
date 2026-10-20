@@ -887,4 +887,1029 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get emptyOrders => 'You have no orders yet.';
+
+  @override
+  String get actionCancel => 'Cancel';
+
+  @override
+  String get actionAdd => 'Add';
+
+  @override
+  String get actionEdit => 'Edit';
+
+  @override
+  String get actionSuspend => 'Suspend';
+
+  @override
+  String get actionReactivate => 'Reactivate';
+
+  @override
+  String get actionResend => 'Resend';
+
+  @override
+  String get actionArchive => 'Archive';
+
+  @override
+  String get actionDuplicate => 'Duplicate';
+
+  @override
+  String get moduleAppointments => 'Appointments';
+
+  @override
+  String get businessLegalSection => 'Legal details';
+
+  @override
+  String get businessBranchesSection => 'Branches';
+
+  @override
+  String get businessProfileSection => 'Business profile';
+
+  @override
+  String get businessAdminSection => 'Administration';
+
+  @override
+  String businessVerticalLabel(Object vertical) {
+    return 'Business type: $vertical';
+  }
+
+  @override
+  String businessSecondaryLabel(Object verticals) {
+    return 'Also: $verticals';
+  }
+
+  @override
+  String get businessLegalLocked =>
+      'Legal details cannot be edited after approval.';
+
+  @override
+  String get fieldBranchCode => 'DGI code';
+
+  @override
+  String get fieldBranchName => 'Branch name';
+
+  @override
+  String get fieldAddress => 'Address';
+
+  @override
+  String get hintBranchCode => '4 digits. 0000 is the head office.';
+
+  @override
+  String get errorBranchCode => 'Enter 4 digits, for example 0001.';
+
+  @override
+  String get errorBranchName => 'Enter the branch name.';
+
+  @override
+  String get branchHeadquarters => 'Head office';
+
+  @override
+  String get branchActive => 'Active';
+
+  @override
+  String get branchInactive => 'Inactive';
+
+  @override
+  String get branchNewTitle => 'New branch';
+
+  @override
+  String get branchEditTitle => 'Edit branch';
+
+  @override
+  String get msgBranchSaved => 'Branch saved.';
+
+  @override
+  String get emptyBranches => 'No branches yet.';
+
+  @override
+  String get modulesTitle => 'Modules and features';
+
+  @override
+  String get integrationsTitle => 'Integrations';
+
+  @override
+  String get templatesTitle => 'Message templates';
+
+  @override
+  String get auditTitle => 'Audit log';
+
+  @override
+  String get privacyTitle => 'Privacy';
+
+  @override
+  String get teamTabMembers => 'Members';
+
+  @override
+  String get teamTabInvitations => 'Invitations';
+
+  @override
+  String get fieldScope => 'Scope';
+
+  @override
+  String get scopeTenant => 'All branches';
+
+  @override
+  String get scopeBranches => 'Specific branches';
+
+  @override
+  String get fieldJobTitle => 'Job title (optional)';
+
+  @override
+  String get errorJobTitle => 'Use 60 characters or fewer.';
+
+  @override
+  String get errorBranchesRequired => 'Choose at least one branch.';
+
+  @override
+  String get errorRoleRequired => 'Choose a role.';
+
+  @override
+  String get memberStatusActive => 'Active';
+
+  @override
+  String get memberStatusSuspended => 'Suspended';
+
+  @override
+  String get memberStatusDeactivated => 'Removed';
+
+  @override
+  String get memberOwner => 'Owner';
+
+  @override
+  String get memberNoRole => 'No role';
+
+  @override
+  String memberLastAccess(Object date) {
+    return 'Last access: $date';
+  }
+
+  @override
+  String memberBranchCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count branches',
+      one: '1 branch',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actionChangeAccess => 'Change role and scope';
+
+  @override
+  String get actionRemoveMember => 'Remove from team';
+
+  @override
+  String confirmRemoveTitle(Object name) {
+    return 'Remove $name?';
+  }
+
+  @override
+  String get confirmRemoveBody =>
+      'They will lose access to the business and their sessions will end.';
+
+  @override
+  String confirmSuspendTitle(Object name) {
+    return 'Suspend $name?';
+  }
+
+  @override
+  String get confirmSuspendBody =>
+      'They cannot sign in until you reactivate them. Their sessions end now.';
+
+  @override
+  String get msgMemberUpdated => 'Changes saved.';
+
+  @override
+  String get emptyInvitations => 'No pending invitations.';
+
+  @override
+  String invitationExpiresOn(Object date) {
+    return 'Expires on $date';
+  }
+
+  @override
+  String get invitationExpired => 'Expired';
+
+  @override
+  String get msgInvitationResent => 'We sent a new link.';
+
+  @override
+  String get msgInvitationRevoked => 'Invitation revoked.';
+
+  @override
+  String get stepUpInvite => 'Confirm the invitation';
+
+  @override
+  String get stepUpAccess => 'Confirm the access change';
+
+  @override
+  String get stepUpRole => 'Confirm the role';
+
+  @override
+  String get stepUpCapabilities => 'Confirm the feature change';
+
+  @override
+  String get rolesTemplatesSection => 'Templates';
+
+  @override
+  String get rolesOwnSection => 'Business roles';
+
+  @override
+  String get roleNewTitle => 'New role';
+
+  @override
+  String get roleEditTitle => 'Edit role';
+
+  @override
+  String get fieldRoleName => 'Role name';
+
+  @override
+  String get fieldRoleDescription => 'Description (optional)';
+
+  @override
+  String get errorRoleName => 'Enter a role name.';
+
+  @override
+  String roleFromTemplate(Object template) {
+    return 'Based on $template';
+  }
+
+  @override
+  String roleMembers(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count members',
+      one: '1 member',
+      zero: 'No members',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rolePermissionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count permissions',
+      one: '1 permission',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get roleTemplateReadOnly =>
+      'Templates cannot be edited: duplicate one to create your role.';
+
+  @override
+  String get roleSodWarning =>
+      'This role combines duties that are best kept separate.';
+
+  @override
+  String get roleMoneyPermission => 'Moves money';
+
+  @override
+  String get roleUnavailablePermission => 'Feature turned off in your business';
+
+  @override
+  String get msgRoleSaved => 'Role saved.';
+
+  @override
+  String get msgRoleArchived => 'Role archived.';
+
+  @override
+  String get level_VIEW => 'View';
+
+  @override
+  String get level_OPERATE => 'Operate';
+
+  @override
+  String get level_MANAGE => 'Manage';
+
+  @override
+  String get level_APPROVE => 'Approve';
+
+  @override
+  String get level_CONFIGURE => 'Configure';
+
+  @override
+  String modulesPlan(Object plan) {
+    return 'Plan: $plan';
+  }
+
+  @override
+  String get capabilityGated => 'Pending legal review';
+
+  @override
+  String get actionSaveCapabilities => 'Save features';
+
+  @override
+  String get confirmDisableTitle => 'Turn off these features?';
+
+  @override
+  String get confirmDisableBody =>
+      'Related permissions will no longer be available to your team. Data is kept.';
+
+  @override
+  String get actionDisable => 'Turn off';
+
+  @override
+  String get msgCapabilitiesSaved => 'Features saved.';
+
+  @override
+  String get msgNoChanges => 'There are no changes to save.';
+
+  @override
+  String get error_PERMISSION_NOT_HELD =>
+      'You cannot grant permissions you do not have.';
+
+  @override
+  String get error_SELF_ASSIGNMENT_FORBIDDEN =>
+      'You cannot change your own access.';
+
+  @override
+  String get error_BRANCH_OUT_OF_SCOPE => 'That branch is outside your scope.';
+
+  @override
+  String get error_ROLE_IN_USE =>
+      'This role has members: reassign them before archiving it.';
+
+  @override
+  String get error_BRANCH_CODE_TAKEN =>
+      'A branch with that code already exists.';
+
+  @override
+  String get error_INVALID_BRANCH_CODE => 'The code must have 4 digits.';
+
+  @override
+  String get error_CANNOT_DEACTIVATE_LAST_BRANCH =>
+      'The business needs at least one active branch.';
+
+  @override
+  String get error_CANNOT_DEACTIVATE_OWNER =>
+      'The business cannot be left without an active owner.';
+
+  @override
+  String get error_CAPABILITY_DISABLED =>
+      'That feature is not available in your business.';
+
+  @override
+  String get error_PRESET_READ_ONLY =>
+      'Templates cannot be edited: duplicate one.';
+
+  @override
+  String get error_PERMISSION_DENIED =>
+      'You do not have permission for this action.';
+
+  @override
+  String get error_STEP_UP_REQUIRED => 'This action needs confirmation.';
+
+  @override
+  String get error_STEP_UP_INVALID =>
+      'The confirmation is not valid. Try again.';
+
+  @override
+  String get error_ROLE_NOT_FOUND => 'That role no longer exists.';
+
+  @override
+  String get error_ALREADY_EXISTS => 'A role with that name already exists.';
+
+  @override
+  String get error_INVALID_REQUEST => 'Check the details and try again.';
+
+  @override
+  String get error_NOT_FOUND => 'We could not find that record.';
+
+  @override
+  String get error_VERTICAL_NOT_FOUND => 'That business type is not available.';
+
+  @override
+  String get error_ACCOUNT_SUSPENDED =>
+      'Your account is suspended. Contact your business administrator.';
+
+  @override
+  String get vertical_retail => 'Retail store';
+
+  @override
+  String get vertical_food_and_beverage => 'Food and beverage';
+
+  @override
+  String get vertical_services_appointments => 'Appointment services';
+
+  @override
+  String get vertical_professional_services => 'Professional services';
+
+  @override
+  String get vertical_wholesale_distribution => 'Wholesale and distribution';
+
+  @override
+  String get vertical_logistics_courier => 'Courier and logistics';
+
+  @override
+  String get vertical_beauty_wellness => 'Beauty and wellness';
+
+  @override
+  String get vertical_health_clinic => 'Health clinic';
+
+  @override
+  String get vertical_education_courses => 'Education and courses';
+
+  @override
+  String get vertical_general_commercial => 'General business';
+
+  @override
+  String get template_manager => 'Manager';
+
+  @override
+  String get template_supervisor => 'Shift supervisor';
+
+  @override
+  String get template_cashier => 'Cashier';
+
+  @override
+  String get template_stock_keeper => 'Stock keeper';
+
+  @override
+  String get template_courier => 'Courier';
+
+  @override
+  String get template_accountant => 'Accountant';
+
+  @override
+  String get template_viewer => 'Viewer';
+
+  @override
+  String get template_waiter => 'Waiter';
+
+  @override
+  String get template_host => 'Host';
+
+  @override
+  String get template_kitchen => 'Kitchen';
+
+  @override
+  String get template_bartender => 'Bartender';
+
+  @override
+  String get template_stylist => 'Professional (stylist, barber)';
+
+  @override
+  String get template_receptionist => 'Receptionist';
+
+  @override
+  String get template_salon_manager => 'Salon manager';
+
+  @override
+  String get template_sales_rep => 'Sales rep';
+
+  @override
+  String get template_credit_officer => 'Credit officer';
+
+  @override
+  String get template_warehouse_lead => 'Warehouse lead';
+
+  @override
+  String get template_dispatcher => 'Dispatcher';
+
+  @override
+  String get template_fleet_manager => 'Fleet manager';
+
+  @override
+  String get template_billing_clerk => 'Billing clerk';
+
+  @override
+  String get template_sales_associate => 'Sales associate';
+
+  @override
+  String get cap_pos_counter => 'Counter sales';
+
+  @override
+  String get capDesc_pos_counter => 'Sell and charge at the counter.';
+
+  @override
+  String get cap_pos_offline => 'Offline sales';
+
+  @override
+  String get capDesc_pos_offline => 'Keep selling when the internet is down.';
+
+  @override
+  String get cap_pos_customer_display => 'Customer display';
+
+  @override
+  String get capDesc_pos_customer_display =>
+      'Show the total to the customer on a second screen.';
+
+  @override
+  String get cap_pos_house_credit => 'House credit';
+
+  @override
+  String get capDesc_pos_house_credit => 'Sell on credit to known customers.';
+
+  @override
+  String get cap_pos_loyalty => 'Loyalty points';
+
+  @override
+  String get capDesc_pos_loyalty =>
+      'Earn and redeem points with your customers.';
+
+  @override
+  String get cap_pos_tables => 'Tables';
+
+  @override
+  String get capDesc_pos_tables => 'Open, move, merge and split tables.';
+
+  @override
+  String get cap_pos_kitchen_display => 'Kitchen display';
+
+  @override
+  String get capDesc_pos_kitchen_display =>
+      'See and mark orders in the kitchen or bar.';
+
+  @override
+  String get cap_pos_split_bill => 'Split bill';
+
+  @override
+  String get capDesc_pos_split_bill => 'Charge one bill in several parts.';
+
+  @override
+  String get cap_pos_tips => 'Tips';
+
+  @override
+  String get capDesc_pos_tips => 'Receive tips at checkout.';
+
+  @override
+  String get cap_pos_weighed_items => 'Weighed items';
+
+  @override
+  String get capDesc_pos_weighed_items => 'Sell items by weight.';
+
+  @override
+  String get cap_orders_marketplace => 'Online orders';
+
+  @override
+  String get capDesc_orders_marketplace =>
+      'Receive and manage marketplace orders.';
+
+  @override
+  String get cap_orders_quotes => 'Quotes';
+
+  @override
+  String get capDesc_orders_quotes => 'Quote and turn quotes into orders.';
+
+  @override
+  String get cap_orders_b2b => 'Business orders';
+
+  @override
+  String get capDesc_orders_b2b => 'Orders from business customers.';
+
+  @override
+  String get cap_appointments_calendar => 'Appointment calendar';
+
+  @override
+  String get capDesc_appointments_calendar => 'Book and serve appointments.';
+
+  @override
+  String get cap_appointments_queue => 'Walk-in queue';
+
+  @override
+  String get capDesc_appointments_queue =>
+      'Serve customers in order of arrival.';
+
+  @override
+  String get cap_appointments_online_booking => 'Online booking';
+
+  @override
+  String get capDesc_appointments_online_booking =>
+      'Let customers book on their own.';
+
+  @override
+  String get cap_appointments_deposits => 'Booking deposits';
+
+  @override
+  String get capDesc_appointments_deposits => 'Charge a deposit when booking.';
+
+  @override
+  String get cap_catalog_products => 'Products';
+
+  @override
+  String get capDesc_catalog_products =>
+      'Product catalog with prices and taxes.';
+
+  @override
+  String get cap_catalog_services => 'Services';
+
+  @override
+  String get capDesc_catalog_services => 'Services with duration and price.';
+
+  @override
+  String get cap_catalog_variants => 'Variants';
+
+  @override
+  String get capDesc_catalog_variants => 'Options of the same product.';
+
+  @override
+  String get cap_catalog_modifiers => 'Modifiers';
+
+  @override
+  String get capDesc_catalog_modifiers => 'Add-ons chosen when preparing.';
+
+  @override
+  String get cap_catalog_listing => 'Marketplace listing';
+
+  @override
+  String get capDesc_catalog_listing => 'Show your products on PlentyPay.';
+
+  @override
+  String get cap_catalog_price_lists => 'Price lists';
+
+  @override
+  String get capDesc_catalog_price_lists => 'Prices per customer or segment.';
+
+  @override
+  String get cap_inventory_stock => 'Stock';
+
+  @override
+  String get capDesc_inventory_stock =>
+      'Track how much you have of each product.';
+
+  @override
+  String get cap_inventory_lots => 'Lots and expiry';
+
+  @override
+  String get capDesc_inventory_lots => 'Sell what expires first.';
+
+  @override
+  String get cap_inventory_transfers => 'Transfers';
+
+  @override
+  String get capDesc_inventory_transfers => 'Move goods between branches.';
+
+  @override
+  String get cap_inventory_purchasing => 'Purchasing';
+
+  @override
+  String get capDesc_inventory_purchasing => 'Purchase orders and receiving.';
+
+  @override
+  String get cap_inventory_recipes => 'Recipes';
+
+  @override
+  String get capDesc_inventory_recipes => 'Deduct ingredients per dish sold.';
+
+  @override
+  String get cap_logistics_own_fleet => 'Own delivery';
+
+  @override
+  String get capDesc_logistics_own_fleet => 'Deliver with your own couriers.';
+
+  @override
+  String get cap_logistics_carriers => 'Carriers';
+
+  @override
+  String get capDesc_logistics_carriers => 'Deliver with external companies.';
+
+  @override
+  String get cap_logistics_geofences => 'Delivery zones';
+
+  @override
+  String get capDesc_logistics_geofences =>
+      'Define where you deliver and at what cost.';
+
+  @override
+  String get cap_logistics_fleet => 'Fleet';
+
+  @override
+  String get capDesc_logistics_fleet => 'Vehicles and maintenance.';
+
+  @override
+  String get cap_logistics_freight => 'Freight';
+
+  @override
+  String get capDesc_logistics_freight => 'Transport by weight or volume.';
+
+  @override
+  String get cap_logistics_routes => 'Routes';
+
+  @override
+  String get capDesc_logistics_routes => 'Plan delivery routes.';
+
+  @override
+  String get cap_finance_payments => 'Payments';
+
+  @override
+  String get capDesc_finance_payments =>
+      'Receive payments from your customers.';
+
+  @override
+  String get cap_finance_terminals => 'QR terminals';
+
+  @override
+  String get capDesc_finance_terminals => 'Charge with QR codes per register.';
+
+  @override
+  String get cap_finance_settlement => 'Settlements';
+
+  @override
+  String get capDesc_finance_settlement => 'Receive money in your account.';
+
+  @override
+  String get cap_finance_fiscal => 'E-invoicing';
+
+  @override
+  String get capDesc_finance_fiscal => 'Issue invoices to the DGI.';
+
+  @override
+  String get cap_payroll_attendance => 'Attendance';
+
+  @override
+  String get capDesc_payroll_attendance => 'Clock in and out.';
+
+  @override
+  String get cap_payroll_kiosk => 'Clock-in kiosk';
+
+  @override
+  String get capDesc_payroll_kiosk => 'Clock in from a shared device.';
+
+  @override
+  String get cap_payroll_runs => 'Payroll';
+
+  @override
+  String get capDesc_payroll_runs => 'Calculate and pay payroll.';
+
+  @override
+  String get cap_payroll_commissions => 'Commissions';
+
+  @override
+  String get capDesc_payroll_commissions => 'Commission per service or sale.';
+
+  @override
+  String get cap_payroll_tips_distribution => 'Tip distribution';
+
+  @override
+  String get capDesc_payroll_tips_distribution => 'Share tips with the team.';
+
+  @override
+  String get cap_analytics_dashboards => 'Dashboards';
+
+  @override
+  String get capDesc_analytics_dashboards => 'Your business indicators.';
+
+  @override
+  String get cap_analytics_ask => 'Ask';
+
+  @override
+  String get capDesc_analytics_ask => 'Ask in plain language.';
+
+  @override
+  String get cap_analytics_forecast => 'Forecasts';
+
+  @override
+  String get capDesc_analytics_forecast => 'Estimate future sales.';
+
+  @override
+  String get cap_analytics_export => 'Export';
+
+  @override
+  String get capDesc_analytics_export =>
+      'Download records for your accountant.';
+
+  @override
+  String get perm_payments_charge => 'Charge';
+
+  @override
+  String get perm_payments_read => 'View payments';
+
+  @override
+  String get perm_payments_refund => 'Refund';
+
+  @override
+  String get perm_payments_terminal_manage => 'Configure terminals';
+
+  @override
+  String get perm_payments_fees_read => 'View fees';
+
+  @override
+  String get perm_payments_fees_manage => 'Configure fees';
+
+  @override
+  String get perm_settlement_read => 'View settlements';
+
+  @override
+  String get perm_settlement_schedule_manage => 'Configure settlements';
+
+  @override
+  String get perm_settlement_reconcile => 'Reconcile';
+
+  @override
+  String get perm_catalog_read => 'View catalog';
+
+  @override
+  String get perm_catalog_write => 'Edit catalog';
+
+  @override
+  String get perm_catalog_import => 'Import catalog';
+
+  @override
+  String get perm_catalog_listing_manage => 'Manage listings';
+
+  @override
+  String get perm_catalog_pricelist_manage => 'Manage price lists';
+
+  @override
+  String get perm_inventory_read => 'View stock';
+
+  @override
+  String get perm_inventory_adjust => 'Adjust stock';
+
+  @override
+  String get perm_inventory_purchase_manage => 'Manage purchasing';
+
+  @override
+  String get perm_inventory_receive => 'Receive goods';
+
+  @override
+  String get perm_inventory_recipe_manage => 'Manage recipes';
+
+  @override
+  String get perm_pos_read => 'View sales and cash counts';
+
+  @override
+  String get perm_pos_sell => 'Sell';
+
+  @override
+  String get perm_pos_void => 'Void sales';
+
+  @override
+  String get perm_pos_refund => 'Refund sales';
+
+  @override
+  String get perm_pos_session_manage => 'Open and close register';
+
+  @override
+  String get perm_pos_settings_manage => 'Configure register';
+
+  @override
+  String get perm_pos_discount_apply => 'Apply discounts';
+
+  @override
+  String get perm_pos_table_manage => 'Manage tables';
+
+  @override
+  String get perm_pos_kitchen_update => 'Update kitchen orders';
+
+  @override
+  String get perm_pos_credit_approve => 'Approve credit';
+
+  @override
+  String get perm_fiscal_read => 'View invoices';
+
+  @override
+  String get perm_fiscal_issue => 'Issue invoices';
+
+  @override
+  String get perm_fiscal_note_issue => 'Issue credit notes';
+
+  @override
+  String get perm_fiscal_profile_manage => 'Configure invoicing';
+
+  @override
+  String get perm_orders_read => 'View orders';
+
+  @override
+  String get perm_orders_manage => 'Manage orders';
+
+  @override
+  String get perm_orders_quote_manage => 'Manage quotes';
+
+  @override
+  String get perm_appointments_read => 'View all appointments';
+
+  @override
+  String get perm_appointments_read_self => 'View my appointments';
+
+  @override
+  String get perm_appointments_book => 'Book appointments';
+
+  @override
+  String get perm_appointments_checkin => 'Check in customers';
+
+  @override
+  String get perm_appointments_manage => 'Manage calendar';
+
+  @override
+  String get perm_appointments_settings_manage => 'Configure calendar';
+
+  @override
+  String get perm_logistics_read => 'View deliveries';
+
+  @override
+  String get perm_logistics_manage => 'Manage deliveries';
+
+  @override
+  String get perm_logistics_deliver => 'Deliver';
+
+  @override
+  String get perm_logistics_geofence_manage => 'Configure zones';
+
+  @override
+  String get perm_logistics_fleet_manage => 'Manage fleet';
+
+  @override
+  String get perm_logistics_route_plan => 'Plan routes';
+
+  @override
+  String get perm_payroll_employee_read => 'View employees';
+
+  @override
+  String get perm_payroll_employee_manage => 'Manage employees';
+
+  @override
+  String get perm_payroll_attendance_record => 'Record attendance';
+
+  @override
+  String get perm_payroll_attendance_read => 'View attendance';
+
+  @override
+  String get perm_payroll_run_create => 'Prepare payroll';
+
+  @override
+  String get perm_payroll_run_approve => 'Approve payroll';
+
+  @override
+  String get perm_payroll_run_pay => 'Pay payroll';
+
+  @override
+  String get perm_payroll_payslip_read_self => 'View my payslips';
+
+  @override
+  String get perm_payroll_commission_read_self => 'View my commissions';
+
+  @override
+  String get perm_payroll_commission_manage => 'Manage commissions';
+
+  @override
+  String get perm_analytics_read => 'View analytics';
+
+  @override
+  String get perm_analytics_dashboard_manage => 'Manage dashboards';
+
+  @override
+  String get perm_analytics_alert_manage => 'Manage alerts';
+
+  @override
+  String get perm_analytics_export => 'Export records';
+
+  @override
+  String get perm_admin_users_manage => 'Manage team';
+
+  @override
+  String get perm_admin_roles_manage => 'Manage roles';
+
+  @override
+  String get perm_admin_business_manage => 'Configure business';
+
+  @override
+  String get perm_admin_integrations_manage => 'Configure integrations';
+
+  @override
+  String get perm_admin_audit_read => 'View audit log';
+
+  @override
+  String get perm_notifications_template_manage => 'Manage message templates';
+
+  @override
+  String invitationHeadline(Object business, Object role) {
+    return '$business invites you as $role';
+  }
+
+  @override
+  String invitationScope(Object scope) {
+    return 'Scope: $scope';
+  }
+
+  @override
+  String get invitationInvalid =>
+      'This invitation is no longer valid. Ask your business for a new one.';
+
+  @override
+  String get invitationExistingAccount =>
+      'You already have a PlentyPay account: sign in with your current password and keep your wallet.';
+
+  @override
+  String get actionAcceptInvitation => 'Accept invitation';
+
+  @override
+  String get actionAcceptAndCreate => 'Accept and create account';
+
+  @override
+  String get error_TOKEN_INVALID =>
+      'This invitation is no longer valid. Ask your business for a new one.';
+
+  @override
+  String get error_ALREADY_USED => 'This invitation was already used.';
+
+  @override
+  String get error_ALREADY_HAS_TENANT =>
+      'That account already belongs to another business.';
 }

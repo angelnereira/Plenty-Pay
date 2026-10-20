@@ -63,17 +63,31 @@ class _BusinessCreateScreenState extends State<BusinessCreateScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(controller: _legal, decoration: InputDecoration(labelText: l10n.fieldLegalName)),
+          TextField(
+              controller: _legal,
+              decoration: InputDecoration(labelText: l10n.fieldLegalName)),
           const SizedBox(height: 8),
-          TextField(controller: _trade, decoration: InputDecoration(labelText: l10n.fieldTradeName)),
+          TextField(
+              controller: _trade,
+              decoration: InputDecoration(labelText: l10n.fieldTradeName)),
           const SizedBox(height: 8),
-          TextField(controller: _taxId, decoration: InputDecoration(labelText: l10n.fieldTaxId)),
+          TextField(
+              controller: _taxId,
+              decoration: InputDecoration(labelText: l10n.fieldTaxId)),
           const SizedBox(height: 8),
-          TextField(controller: _dv, decoration: InputDecoration(labelText: l10n.fieldDv)),
+          TextField(
+              controller: _dv,
+              decoration: InputDecoration(labelText: l10n.fieldDv)),
           const SizedBox(height: 12),
-          if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          if (_ok != null) Text(_ok!, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
-          FilledButton(onPressed: _busy ? null : _submit, child: Text(l10n.actionCreate)),
+          if (_error != null)
+            Text(_error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          if (_ok != null)
+            Text(_ok!,
+                style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+          FilledButton(
+              onPressed: _busy ? null : _submit,
+              child: Text(l10n.actionCreate)),
         ],
       ),
     );
