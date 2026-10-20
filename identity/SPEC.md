@@ -142,7 +142,7 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 | Register | público (vía gateway) | no | crea `CUSTOMER`; el gateway fuerza el rol (R6), el canal y el dispositivo; valida y registra los consentimientos (R18) | `INVALID_EMAIL`, `WEAK_PASSWORD`, `EMAIL_TAKEN`, `CONSENT_REQUIRED`, `AGE_REQUIREMENT` |
 | Login | público | no | verifica contraseña, bloqueo progresivo, crea sesión, devuelve access+refresh | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ACCOUNT_SUSPENDED` |
 | ValidateToken | servicio (gateway) | — | valida access token: firma, exp, algoritmo, sesión no revocada; devuelve además `permissions`, `branch_scope` y `capabilities` calculados **ahora** (no los del momento de emisión), que el gateway propaga como `x-pp-*` | `TOKEN_INVALID` |
-| GetUserPermissions | servicio / self | — | rol base + rol asignado + capacidades + alcance → `permissions`, `modules`, `branch_scope`, `capabilities` (R10, R21, R22, R24) | `NOT_FOUND` |
+| GetUserPermissions | servicio / self | — | rol base + rol asignado + capacidades + alcance → `permissions`, `modules`, `branch_scope`, `capabilities` (R10, R21, R22, R24). Esta lectura (y la de ValidateToken) usa una caché por usuario de 15 s —el mismo plazo de R9— que cada mutación de acceso de la instancia vacía; otra réplica ve el cambio al vencer el TTL. Las verificaciones A1–A3 leen siempre el estado fresco | `NOT_FOUND` |
 | RefreshToken | público | — | rota refresh; reuso ⇒ revoca familia y publica `SessionRevoked` | `TOKEN_INVALID`, `TOKEN_REUSED` |
 | Logout | self | sí | revoca la sesión actual (o todas con `all=true`) | — |
 | ListSessions / RevokeSession | self | — / sí | dispositivos con sesión; revocar una | `NOT_FOUND` |

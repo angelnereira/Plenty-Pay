@@ -131,6 +131,7 @@ func (s *IdentityService) CreateBusiness(ctx context.Context, in CreateBusinessI
 		return nil, err
 	}
 
+	s.accessChanged()
 	// Sesion del dueno: el token ya lleva su nuevo rol y su tenant.
 	owner.Role, owner.TenantID = "BUSINESS_OWNER", tenant.ID
 	session, err := s.issueTokens(ctx, owner, s.startSession(ctx, owner.ID))

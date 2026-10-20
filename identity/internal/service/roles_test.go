@@ -853,3 +853,41 @@ func TestR10_OwnerWithoutTenantGetsBaseOnly(t *testing.T) {
 		t.Fatalf("sin negocio: %+v", perms)
 	}
 }
+
+// La ruta de lectura (ValidateToken/GetUserPermissions) usa la caché de 15 s; una mutación de
+// acceso de esta instancia la vacía al instante.
+func TestR22_AccessCacheInvalidatedByMutation(t *testing.T) {
+	f := newAccessFixture(t)
+	f.addRole("role-caja", "pos:sell")
+	f.addMember(t, "cajera", "BUSINESS_STAFF", tenantA, "role-caja", domain.ScopeTenant, nil)
+	if p, err := f.svc.PermissionsForUser(context.Background(), "cajera"); err != nil || !slices.Contains(p.Permissions, "pos:sell") {
+		t.Fatalf("primera lectura: %v %+v", err, p)
+	}
+	// Cambio por fuera del servicio (otra réplica): dentro del TTL se sigue viendo el valor cacheado.
+	f.roles.roles["role-caja"].Permissions = []string{"catalog:read"}
+	if p, _ := f.svc.PermissionsForUser(context.Background(), "cajera"); !slices.Contains(p.Permissions, "pos:sell") {
+		t.Fatal("dentro del TTL se sirve la caché")
+	}
+	// Una mutación de acceso en esta instancia la vacía.
+	if err := f.svc.SetUserStatus(as("owner-a", tenantA), "cajera", domain.UserStatusSuspended); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := f.svc.PermissionsForUser(context.Background(), "cajera"); slices.Contains(p.Permissions, "pos:sell") {
+		t.Fatalf("tras la mutación se recalcula: %+v", p)
+	}
+}
+
+// Con TTL 0 la caché queda desactivada (cada lectura recalcula).
+func TestR22_AccessCacheDisabled(t *testing.T) {
+	f := newAccessFixture(t)
+	f.svc.WithAccessCacheTTL(0)
+	f.addRole("role-caja", "pos:sell")
+	f.addMember(t, "cajera", "BUSINESS_STAFF", tenantA, "role-caja", domain.ScopeTenant, nil)
+	if _, err := f.svc.PermissionsForUser(context.Background(), "cajera"); err != nil {
+		t.Fatal(err)
+	}
+	f.roles.roles["role-caja"].Permissions = []string{"catalog:read"}
+	if p, _ := f.svc.PermissionsForUser(context.Background(), "cajera"); slices.Contains(p.Permissions, "pos:sell") {
+		t.Fatal("sin caché se ve el cambio al instante")
+	}
+}

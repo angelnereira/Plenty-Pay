@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"plentypay/identity/internal/auth"
 	"plentypay/identity/internal/domain"
@@ -182,8 +184,71 @@ func enabledCapabilities(t *domain.Tenant) map[string]bool {
 	return out
 }
 
+// accessCache guarda el permiso efectivo de la ruta de lectura (ValidateToken, GetUserPermissions)
+// con un TTL corto, igual al de revocación de R9 (≤ 15 s). Cada mutación de acceso de esta
+// instancia la vacía; otra réplica ve el cambio al vencer el TTL. Las verificaciones de
+// autorización (A1–A3) nunca la usan: leen el estado fresco.
+type accessCache struct {
+	ttl     time.Duration
+	mu      sync.Mutex
+	entries map[string]cachedPermissions
+}
+
+type cachedPermissions struct {
+	perms *Permissions
+	at    time.Time
+}
+
+func newAccessCache(ttl time.Duration) *accessCache {
+	return &accessCache{ttl: ttl, entries: map[string]cachedPermissions{}}
+}
+
+func (c *accessCache) get(userID string) (*Permissions, bool) {
+	if c == nil || c.ttl <= 0 {
+		return nil, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	e, ok := c.entries[userID]
+	if !ok || time.Since(e.at) >= c.ttl {
+		return nil, false
+	}
+	return e.perms, true
+}
+
+func (c *accessCache) put(userID string, p *Permissions) {
+	if c == nil || c.ttl <= 0 {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[userID] = cachedPermissions{perms: p, at: time.Now()}
+}
+
+// invalidate vacía la caché completa: un cambio de rol, capacidad o sucursal afecta a muchas personas.
+func (c *accessCache) invalidate() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries = map[string]cachedPermissions{}
+}
+
+// WithAccessCacheTTL ajusta el TTL de la caché del permiso efectivo (0 = desactivada).
+func (s *IdentityService) WithAccessCacheTTL(d time.Duration) *IdentityService {
+	s.access = newAccessCache(d)
+	return s
+}
+
+// accessChanged se llama tras cada mutación de acceso que haya tenido éxito.
+func (s *IdentityService) accessChanged() { s.access.invalidate() }
+
 // PermissionsForUser devuelve rol, permisos, módulos, alcance y capacidades (R10, R21, R22, R24).
 func (s *IdentityService) PermissionsForUser(ctx context.Context, userID string) (*Permissions, error) {
+	if cached, ok := s.access.get(userID); ok {
+		return cached, nil
+	}
 	user, err := s.users.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -192,10 +257,12 @@ func (s *IdentityService) PermissionsForUser(ctx context.Context, userID string)
 	if err != nil {
 		return nil, err
 	}
-	return &Permissions{
+	out := &Permissions{
 		Role: user.Role, EnabledModules: access.Modules, Permissions: access.Permissions,
 		BranchScope: access.BranchScope, Capabilities: access.Capabilities,
-	}, nil
+	}
+	s.access.put(userID, out)
+	return out, nil
 }
 
 // ── Catálogos (lectura) ───────────────────────────────────────────────────────
@@ -297,6 +364,7 @@ func (s *IdentityService) UpdateBusinessProfile(ctx context.Context, in ProfileI
 	if err != nil {
 		return nil, err
 	}
+	s.accessChanged()
 	return toTenantView(t), nil
 }
 
@@ -331,6 +399,7 @@ func (s *IdentityService) SetCapabilities(ctx context.Context, changes map[strin
 	if err != nil {
 		return nil, err
 	}
+	s.accessChanged()
 	return toTenantView(t), nil
 }
 
@@ -397,7 +466,12 @@ func (s *IdentityService) SetBranchActive(ctx context.Context, branchID string, 
 	if branchID == "" {
 		return nil, domain.ErrInvalidRequest
 	}
-	return s.tenants.SetBranchActive(ctx, a.TenantID, branchID, active)
+	b, err := s.tenants.SetBranchActive(ctx, a.TenantID, branchID, active)
+	if err != nil {
+		return nil, err
+	}
+	s.accessChanged() // el alcance BRANCHES solo cuenta sucursales activas
+	return b, nil
 }
 
 // validateBranchesInTenant comprueba que cada sucursal exista y esté activa en el negocio.

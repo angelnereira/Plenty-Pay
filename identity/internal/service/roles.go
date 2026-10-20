@@ -147,6 +147,7 @@ func (s *IdentityService) UpsertRole(ctx context.Context, in RoleInput) (*RoleRe
 	if err != nil {
 		return nil, err
 	}
+	s.accessChanged()
 	return toRoleResult(role), nil
 }
 
@@ -176,7 +177,11 @@ func (s *IdentityService) ArchiveRole(ctx context.Context, roleID string) error 
 	if roleID == "" {
 		return domain.ErrInvalidRequest
 	}
-	return s.roles.ArchiveRole(ctx, a.TenantID, roleID)
+	if err := s.roles.ArchiveRole(ctx, a.TenantID, roleID); err != nil {
+		return err
+	}
+	s.accessChanged()
+	return nil
 }
 
 // AssignRole es la ruta de compatibilidad: cambia solo el rol de la membresía.
@@ -256,7 +261,12 @@ func (s *IdentityService) updateMembership(ctx context.Context, in MembershipInp
 			return nil, err
 		}
 	}
-	return s.roles.UpdateMembership(ctx, next)
+	u, err := s.roles.UpdateMembership(ctx, next)
+	if err != nil {
+		return nil, err
+	}
+	s.accessChanged()
+	return u, nil
 }
 
 // manageableMember carga la membresía del miembro y aplica A2 (no a uno mismo), que sea del
@@ -399,6 +409,7 @@ func (s *IdentityService) AcceptInvitation(ctx context.Context, token, password 
 		return nil, observability.Wrap(err, "find invited user")
 	}
 
+	s.accessChanged()
 	user, err := s.users.FindByEmail(ctx, inv.Email)
 	if err != nil {
 		return nil, observability.Wrap(err, "reload accepted user")
@@ -520,6 +531,7 @@ func (s *IdentityService) SetUserStatus(ctx context.Context, userID, status stri
 	if err := s.roles.SetUserStatus(ctx, a.TenantID, userID, status); err != nil {
 		return err
 	}
+	s.accessChanged()
 	if status != domain.UserStatusActive {
 		s.revoked.invalidateAlive() // R9: las sesiones revocadas dejan de valer ya, no en 15 s
 	}

@@ -135,6 +135,7 @@ type IdentityService struct {
 	security  SecurityReporter
 	stepUp    StepUpConsumer // nil = las operaciones con dinero responden STEP_UP_INVALID
 	revoked   *revocationCache
+	access    *accessCache // permiso efectivo de la ruta de lectura (TTL 15 s)
 	// now es el reloj inyectado (go-standards.md 3.3): time.Now solo en main.
 	now func() time.Time
 }
@@ -144,6 +145,7 @@ func New(users store.UserStore, tokens *auth.TokenIssuer, reporter *observabilit
 	return &IdentityService{
 		users: users, tokens: tokens, reporter: reporter, metrics: metrics,
 		revoked: newRevocationCache(15 * time.Second),
+		access:  newAccessCache(15 * time.Second),
 		lockout: domain.DefaultLockoutPolicy,
 		now:     time.Now,
 	}
