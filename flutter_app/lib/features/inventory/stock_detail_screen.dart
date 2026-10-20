@@ -7,6 +7,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../catalog/catalog_data.dart';
 import '../catalog/catalog_errors.dart';
+import '../catalog/listing_switch.dart';
 import '../wallet/wallet_data.dart' show walletDateTime;
 import 'inventory_data.dart';
 import 'stock_adjust_screen.dart';
@@ -35,7 +36,8 @@ String movementLabel(AppLocalizations l10n, String type) => switch (type) {
     };
 
 /// S-INV-02 · `/inventory/:variant` · Detalle de existencias: por bodega y movimientos con fecha,
-/// tipo, cantidad con signo y motivo. Lotes y cobertura llegan con F16.4 y F16.6.
+/// tipo, cantidad con signo y motivo, e interruptor "Mostrar en el marketplace". Lotes y cobertura
+/// llegan con F16.4 y F16.6.
 class StockDetailScreen extends StatefulWidget {
   const StockDetailScreen(
       {super.key, required this.api, required this.product});
@@ -100,6 +102,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             padding: EdgeInsets.fromLTRB(
                 margin, AppTokens.spacingMd, margin, AppTokens.spacingXl * 3),
             children: [
+              ListingSwitch(api: widget.api, product: widget.product),
+              const SizedBox(height: AppTokens.spacingSm),
               AsyncView<StockDetail>(
                 snapshot: snap,
                 errorMessage: snap.hasError

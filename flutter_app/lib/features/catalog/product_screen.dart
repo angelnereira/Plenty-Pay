@@ -11,6 +11,7 @@ import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
 import 'catalog_data.dart';
 import 'catalog_errors.dart';
+import 'listing_switch.dart';
 import 'product_image.dart';
 
 /// S-CAT-02 · `/catalog/new`, `/catalog/:id` · Editor de producto. `catalog:write`.
@@ -490,6 +491,10 @@ class _ProductScreenState extends State<ProductScreen> {
                   onChanged: (v) => setState(() => _track = v),
                 ),
               ]),
+              if (!_isNew)
+                _section(context, l10n.moduleMarketplace, [
+                  ListingSwitch(api: widget.api, product: widget.product!),
+                ]),
               Semantics(
                 liveRegion: true,
                 child: Row(children: [

@@ -3342,6 +3342,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String mktPriceChangedFromTo(String from, String to) {
     return 'El total cambió de $from a $to.';
   }
+
+  @override
+  String get mktShowInMarketplace => 'Mostrar en el marketplace';
+
+  @override
+  String get mktListedChip => 'En el marketplace';
+
+  @override
+  String get mktStoreHiddenHint =>
+      'Tu tienda está oculta: el producto se verá cuando la muestres.';
+
+  @override
+  String get mktListingOn => 'Producto publicado en el marketplace.';
+
+  @override
+  String get mktListingOff => 'Producto oculto del marketplace.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

@@ -1084,5 +1084,10 @@
   "sfNoProducts": "First create products in your catalog.",
   "mktVerified": "Verified business",
   "mktAcceptNewTotal": "Accept new total",
-  "mktPriceChangedFromTo": "The total changed from {from} to {to}."
+  "mktPriceChangedFromTo": "The total changed from {from} to {to}.",
+  "mktShowInMarketplace": "Show in the marketplace",
+  "mktListedChip": "In the marketplace",
+  "mktStoreHiddenHint": "Your store is hidden: the product will show once you make it visible.",
+  "mktListingOn": "Product published in the marketplace.",
+  "mktListingOff": "Product hidden from the marketplace."
 }

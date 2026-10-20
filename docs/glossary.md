@@ -116,7 +116,7 @@ Fuentes: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §1.3 
 | **Conciliación** | Comparar registros internos contra extractos de rieles y bancos | dominio §2 |
 | **Tender** | Medio de pago aplicado a una venta POS; uno por riel o efectivo | dominio §7 F4 |
 | **Sub-pedido (SubOrder)** | Parte de un pedido que corresponde a un solo comercio | dominio §8.10 |
-| **Listing** | Publicación de un producto en el marketplace | dominio §1 |
+| **Listing** | Publicación de un producto en el marketplace. En `catalog.Product` y `ProductChanged` se lee como `listed_in_marketplace` (solo lectura, catalog R4); en la app, interruptor «Mostrar en el marketplace» | dominio §1 |
 | **Instantánea (snapshot)** | Copia inmutable de datos de otro contexto en un momento | dominio §2 |
 | **Carrier / Driver** | Transportista / repartidor. `courier` es solo el nombre del preset de rol | `logistics.proto` |
 | **Step-up** | Confirmación fuerte para una operación concreta | seguridad §4 |

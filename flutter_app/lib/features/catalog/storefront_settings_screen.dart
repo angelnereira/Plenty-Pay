@@ -11,13 +11,13 @@ import '../../core/widgets/pp_text_field.dart';
 import '../../core/widgets/status_chip.dart';
 import '../marketplace/market_data.dart';
 import 'catalog_data.dart';
+import 'listing_switch.dart';
 import 'product_image.dart';
 
 class _Loaded {
-  const _Loaded(this.store, this.products, this.listed);
+  const _Loaded(this.store, this.products);
   final StorefrontInfo store;
   final List<ProductItem> products;
-  final Set<String> listed;
 }
 
 /// S-CAT-05 · `/catalog/storefront` · Mi tienda en línea. `catalog:listing:manage` · N-CON-02 ·
@@ -27,7 +27,8 @@ class _Loaded {
 /// descripción · e4 retiro en tienda (la entrega a domicilio llega con logistics) · e6 interruptor
 /// "Publicar" por producto; catalog rechaza con `LISTING_INCOMPLETE` lo que no tiene foto o precio ·
 /// e7 "Guardar". Logo, horario y política de devoluciones (e2, e3, e5) llegan cuando catalog los
-/// guarde. Lo publicado se lee de la propia búsqueda del marketplace filtrada a la tienda.
+/// guarde. Cada interruptor refleja `listed_in_marketplace` del producto y funciona aunque la tienda
+/// esté oculta (el producto no se ve hasta mostrarla).
 class StorefrontSettingsScreen extends StatefulWidget {
   const StorefrontSettingsScreen({super.key, required this.api});
   final ApiClient api;
@@ -42,9 +43,7 @@ class _StorefrontSettingsScreenState extends State<StorefrontSettingsScreen> {
   final _description = TextEditingController();
   bool _published = false;
   bool _saving = false;
-  final Set<String> _toggling = {};
   late Future<_Loaded> _future = _load();
-  Set<String> _listed = {};
 
   Future<_Loaded> _load() async {
     StorefrontInfo store;
@@ -62,26 +61,10 @@ class _StorefrontSettingsScreenState extends State<StorefrontSettingsScreen> {
     }
     final products = (await loadProductIndex(widget.api)).values.toList()
       ..sort((a, b) => a.name.compareTo(b.name));
-    final listed = <String>{};
-    if (store.tenantId.isNotEmpty && store.published) {
-      var token = '';
-      do {
-        final body = await widget.api.marketplaceSearch(
-            merchant: store.tenantId, pageSize: 100, pageToken: token);
-        for (final r in (body['results'] as List<dynamic>? ?? const [])
-            .cast<Map<String, dynamic>>()) {
-          listed.add(MarketProduct.fromJson(r).id);
-        }
-        token = (body['page'] as Map<String, dynamic>?)?['next_page_token']
-                as String? ??
-            '';
-      } while (token.isNotEmpty);
-    }
     _name.text = store.displayName;
     _description.text = store.description;
     _published = store.published;
-    _listed = listed;
-    return _Loaded(store, products, listed);
+    return _Loaded(store, products);
   }
 
   Future<void> _save() async {
@@ -107,25 +90,6 @@ class _StorefrontSettingsScreenState extends State<StorefrontSettingsScreen> {
           .showSnackBar(SnackBar(content: Text(marketErrorMessage(l10n, e))));
     } finally {
       if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _toggle(ProductItem p, bool listed) async {
-    final l10n = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _toggling.add(p.id));
-    try {
-      await widget.api
-          .setListing(p.id, listed: listed, idempotencyKey: newRequestId());
-      if (!mounted) return;
-      setState(() => listed ? _listed.add(p.id) : _listed.remove(p.id));
-    } on Object catch (e) {
-      widget.api.logger.breadcrumb(
-          'ui', 'catalog.listing', e is ApiException ? e.reason : 'network');
-      messenger
-          .showSnackBar(SnackBar(content: Text(marketErrorMessage(l10n, e))));
-    } finally {
-      if (mounted) setState(() => _toggling.remove(p.id));
     }
   }
 
@@ -212,17 +176,13 @@ class _StorefrontSettingsScreenState extends State<StorefrontSettingsScreen> {
                       child: Column(children: [
                         for (final p in data.products)
                           if (!p.archived)
-                            SwitchListTile(
-                              secondary:
+                            ListingSwitch(
+                              api: widget.api,
+                              product: p,
+                              storeHidden: !data.store.published,
+                              leading:
                                   ProductThumb(api: widget.api, product: p),
-                              title: Text(p.name),
-                              subtitle: Text(l10n.sfPublish),
-                              value: _listed.contains(p.id),
-                              // Lo publicado solo se puede leer con la tienda visible y guardada.
-                              onChanged: _toggling.contains(p.id) ||
-                                      !data.store.published
-                                  ? null
-                                  : (v) => _toggle(p, v),
+                              title: p.name,
                             ),
                       ]),
                     ),

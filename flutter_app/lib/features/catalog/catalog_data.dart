@@ -19,6 +19,7 @@ class ProductItem {
     required this.archived,
     required this.imageUrls,
     required this.version,
+    this.listed = false,
   });
 
   factory ProductItem.fromJson(Map<String, dynamic> j) => ProductItem(
@@ -38,6 +39,7 @@ class ProductItem {
         imageUrls: (j['image_object_keys'] as List<dynamic>? ?? const [])
             .cast<String>(),
         version: (j['version'] as num?)?.toInt() ?? 0,
+        listed: j['listed_in_marketplace'] as bool? ?? false,
       );
 
   final String id;
@@ -54,6 +56,9 @@ class ProductItem {
   final bool archived;
   final List<String> imageUrls;
   final int version;
+
+  /// Publicado en el marketplace (solo lectura; se cambia con `ListingSwitch`).
+  final bool listed;
 
   /// A granel: se vende por peso, volumen o longitud (cantidades en milésimas).
   bool get isBulk => unitType != 'UNIT';

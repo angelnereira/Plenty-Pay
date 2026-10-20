@@ -105,14 +105,15 @@ func uniqueViolation(err error) error {
 
 const productCols = `id, tenant_id, sku, coalesce(barcode, ''), name, description, coalesce(category_id::text, ''),
 	brand, unit_type, price_minor, currency, tax_rate_bps, cpbs_code, image_object_keys, attributes, status,
-	tracks_inventory, coalesce(created_by::text, ''), created_at, updated_at, version`
+	tracks_inventory, coalesce(created_by::text, ''), created_at, updated_at, version,
+	coalesce((SELECT l.listed FROM listings l WHERE l.product_id = products.id), false)`
 
 func scanProduct(row pgx.Row) (domain.Product, error) {
 	var p domain.Product
 	var attrs []byte
 	err := row.Scan(&p.ID, &p.TenantID, &p.SKU, &p.Barcode, &p.Name, &p.Description, &p.CategoryID,
 		&p.Brand, &p.UnitType, &p.PriceMinor, &p.Currency, &p.TaxRateBps, &p.CPBSCode, &p.ImageObjectKeys,
-		&attrs, &p.Status, &p.TracksInventory, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt, &p.Version)
+		&attrs, &p.Status, &p.TracksInventory, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt, &p.Version, &p.Listed)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, domain.ErrNotFound
 	}

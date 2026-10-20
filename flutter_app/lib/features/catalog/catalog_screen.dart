@@ -186,7 +186,19 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     ListTile(
                       leading: ProductThumb(api: widget.api, product: p),
                       title: Text(p.name),
-                      subtitle: Text(l10n.catSkuValue(p.sku)),
+                      subtitle: p.listed
+                          ? Wrap(
+                              spacing: AppTokens.spacingSm,
+                              runSpacing: AppTokens.spacingXs,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(l10n.catSkuValue(p.sku)),
+                                StatusChip(
+                                    label: l10n.mktListedChip,
+                                    tone: StatusTone.info),
+                              ],
+                            )
+                          : Text(l10n.catSkuValue(p.sku)),
                       trailing: p.archived
                           ? StatusChip(
                               label: l10n.catArchivedChip,

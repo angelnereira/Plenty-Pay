@@ -6230,6 +6230,36 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'El total cambió de {from} a {to}.'**
   String mktPriceChangedFromTo(String from, String to);
+
+  /// No description provided for @mktShowInMarketplace.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar en el marketplace'**
+  String get mktShowInMarketplace;
+
+  /// No description provided for @mktListedChip.
+  ///
+  /// In es, this message translates to:
+  /// **'En el marketplace'**
+  String get mktListedChip;
+
+  /// No description provided for @mktStoreHiddenHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu tienda está oculta: el producto se verá cuando la muestres.'**
+  String get mktStoreHiddenHint;
+
+  /// No description provided for @mktListingOn.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto publicado en el marketplace.'**
+  String get mktListingOn;
+
+  /// No description provided for @mktListingOff.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto oculto del marketplace.'**
+  String get mktListingOff;
 }
 
 class _AppLocalizationsDelegate

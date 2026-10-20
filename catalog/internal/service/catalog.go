@@ -56,6 +56,8 @@ func (c *Catalog) productChanged(p domain.Product) (store.OutboxEvent, error) {
 	msg := &pb.ProductChanged{
 		ProductId: p.ID, TenantId: p.TenantID, Status: pb.ProductStatus(p.Status), Name: p.Name,
 		CategoryId: p.CategoryID, PriceMinor: p.PriceMinor, Currency: p.Currency,
+		// Una edición del producto no cambia su publicación: viaja la que tiene (R4).
+		ListedInMarketplace: p.Listed,
 	}
 	b, err := proto.Marshal(msg)
 	if err != nil {

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plentypay/features/catalog/catalog_data.dart';
 import 'package:plentypay/features/catalog/catalog_screen.dart';
 import 'package:plentypay/features/catalog/categories_screen.dart';
 import 'package:plentypay/features/catalog/product_screen.dart';
 import 'package:plentypay/features/inventory/inventory_screen.dart';
+import 'package:plentypay/features/inventory/stock_detail_screen.dart';
 import 'package:plentypay/features/inventory/stock_adjust_screen.dart';
 import 'package:plentypay/features/inventory/stock_transfer_screen.dart';
 import 'package:plentypay/features/inventory/warehouses_screen.dart';
@@ -47,6 +49,8 @@ void main() {
           ],
           'page': {'next_page_token': ''},
         }),
+    'GET /v1/inventory/movements': (_) => json({'movements': <Object>[]}),
+    'GET /v1/catalog/storefront': (_) => json({...storefrontBody(storeA, 'Panadería y Repostería Artesanal Sol'), 'published': false}),
     'GET /v1/pos/sessions/current': (_) => json(session()),
     'GET /v1/terminals': (_) => json(terminalsBody),
     'GET /v1/pos/sessions/$sessionId': (_) => json(session()),
@@ -65,6 +69,8 @@ void main() {
     'productos': () => CatalogScreen(api: fakeApi(routes)),
     'editor de producto': () => ProductScreen(api: fakeApi(routes)),
     'categorías': () => CategoriesScreen(api: fakeApi(routes)),
+    'editor de producto publicado': () => ProductScreen(api: fakeApi(routes), product: ProductItem.fromJson({...product(cafeId, 'Café de altura de Boquete tostado medio 250 g', 1850), 'listed_in_marketplace': true})),
+    'detalle de existencias': () => StockDetailScreen(api: fakeApi(routes), product: ProductItem.fromJson({...product(cafeId, 'Café de altura de Boquete tostado medio 250 g', 1850), 'listed_in_marketplace': true})),
     'existencias': () => InventoryScreen(api: fakeApi(routes)),
     'ajuste': () => StockAdjustScreen(api: fakeApi(routes)),
     'transferencia': () => StockTransferScreen(api: fakeApi(routes)),

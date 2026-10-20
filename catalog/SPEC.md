@@ -61,7 +61,7 @@ Scylla `catalog_attrs.product_attributes (tenant_id, product_id, attr_key, attr_
 - **R1** SKU único por tenant; barcode único por tenant si existe.
 - **R2** Precios enteros ≥ 0; precio por sucursal sobrescribe al base.
 - **R3** Cambios de precio no afectan ventas/pedidos existentes (instantáneas en pos/orders).
-- **R4** Listado publicado solo si tenant ACTIVE (consumir `TenantStatusChanged`: SUSPENDED → despublicar todo).
+- **R4** Listado publicado solo si tenant ACTIVE (consumir `TenantStatusChanged`: SUSPENDED → despublicar todo). `Product.listed_in_marketplace` es de solo lectura (sale de `listings`; se cambia solo con `SetListing`) y el `ProductChanged` de una edición lleva la publicación vigente: editar un producto nunca lo despublica.
 - **R5** `in_stock` se proyecta desde `inventory.StockChanged` (eventual, ≤ 30 s); productos sin `track_inventory` siempre `in_stock`.
 - **R6** Imágenes: el servidor genera la clave; tipo verificado por magic bytes al confirmar (job) y antivirus antes de publicarse.
 - **R7** Búsqueda nunca expone productos de tenants no ACTIVE ni archivados.

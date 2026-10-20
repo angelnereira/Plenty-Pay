@@ -76,6 +76,8 @@ type Product struct {
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	Version         int32
+	// Listed es solo lectura: la publicación vive en `listings` y cambia con SetListing (R4).
+	Listed bool
 }
 
 // TaxRates son las tasas de ITBMS vigentes que un producto puede llevar: 0 (exento) y las de

@@ -11,7 +11,7 @@ Módulos `catalog` (paso F15.10) e `inventory` (paso F16.7). Convenciones: [`REA
 |---|---|---|---|
 | e1 | Buscador | Buscar por nombre, código o SKU | Icono de cámara: escanear código de barras |
 | e2 | Filtros | Categoría · Estado (Activo, Archivado) · Publicado en tiendas · Sin existencias · Datos incompletos | "Datos incompletos" lista lo que impide vender o publicar |
-| e3 | Lista | Foto, nombre, SKU, precio, existencias, etiquetas | Toca → S-CAT-02 |
+| e3 | Lista | Foto, nombre, SKU, precio, existencias, etiquetas | Toca → S-CAT-02. Etiqueta "En el marketplace" si está publicado |
 | e4 | `PPButton.primary` | Nuevo producto | Requiere `catalog:write` |
 | e5 | Menú | Importar · Exportar · Categorías | → S-CAT-03, C-20, S-CAT-04 |
 
@@ -45,6 +45,7 @@ Vacío: "Aún no tienes productos." con "Nuevo producto" e "Importar desde un ar
 | | Política de devolución | Lista: 7 / 15 / 30 días, o la de la tienda. Sin opción de negar devolución por defecto |
 | Restricciones | Solo mayores de 18 | Automático y bloqueado en alcohol y tabaco |
 | | Requiere receta | Si está activo, no se puede publicar en tiendas |
+| Marketplace | Mostrar en el marketplace | Interruptor; solo en un producto ya guardado y con `catalog:listing:manage`. Lo cambia al instante (`PUT /v1/catalog/products/:id/listing`, sin esperar a "Guardar"). Sin foto o sin precio: `LISTING_INCOMPLETE` "Al producto le falta foto o precio para publicarse." Con la tienda oculta (S-CAT-05) avisa "Tu tienda está oculta: el producto se verá cuando la muestres." (N-CON-02) |
 | Oferta | Precio de oferta · desde · hasta | Menor que el precio de venta. El "precio anterior" lo calcula el sistema (más bajo de los últimos 90 días) y se muestra de solo lectura |
 
 Botón primario "Guardar". Acción secundaria "Archivar" (C-05; el producto deja de venderse y no se borra). Al pie, panel "Listo para vender: sí/no" y "Listo para publicar: sí/no" con la lista de lo que falta, enlazada al campo.
@@ -65,7 +66,7 @@ Botón primario "Guardar". Acción secundaria "Archivar" (C-05; el producto deja
 | e3 | Horario | Por día | — |
 | e4 | Entrega | Retiro en tienda · Entrega a domicilio: zonas (corregimientos o radio en km) y costo | Al menos una modalidad |
 | e5 | Política de devoluciones | Plazo en días · condiciones | Mínimo el de la plataforma. No admite excluir productos defectuosos |
-| e6 | Lista de productos | Interruptor "Publicar" por producto | Deshabilitado con el motivo si le faltan datos obligatorios |
+| e6 | Lista de productos | Interruptor "Publicar" por producto | Refleja `listed_in_marketplace` del producto y se puede cambiar aunque la tienda esté oculta (no se ve hasta mostrarla). Rechazo con el motivo si le faltan datos obligatorios (`LISTING_INCOMPLETE`) |
 | e7 | `PPButton.primary` | Guardar | — |
 
 ## Inventario
@@ -82,7 +83,7 @@ Botón primario "Guardar". Acción secundaria "Archivar" (C-05; el producto deja
 | e5 | Menú | Ajustar · Transferir · Exportar | Según permiso |
 
 ### S-INV-02 · `/inventory/:variant` · Detalle de existencias
-Existencias por bodega; lotes con fecha de vencimiento (vencidos en `error`, próximos en `warning`); movimientos con fecha, tipo (Recepción, Venta, Ajuste, Transferencia, Devolución, Baja), cantidad con signo, saldo, documento de origen enlazado y usuario; cobertura en días según velocidad de venta.
+Interruptor "Mostrar en el marketplace" del producto (mismo comportamiento que S-CAT-02, con `catalog:listing:manage`). Existencias por bodega; lotes con fecha de vencimiento (vencidos en `error`, próximos en `warning`); movimientos con fecha, tipo (Recepción, Venta, Ajuste, Transferencia, Devolución, Baja), cantidad con signo, saldo, documento de origen enlazado y usuario; cobertura en días según velocidad de venta.
 
 ### S-INV-03 · `/inventory/adjust` · Ajuste
 `inventory:adjust`

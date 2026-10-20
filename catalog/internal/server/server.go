@@ -121,7 +121,7 @@ func toPB(p domain.Product) *pb.Product {
 		Price: &pb.Money{AmountMinor: p.PriceMinor, Currency: p.Currency}, TaxRateBps: p.TaxRateBps,
 		CpbsCode: p.CPBSCode, ImageObjectKeys: p.ImageObjectKeys, Attributes: p.Attributes,
 		Status: pb.ProductStatus(p.Status), TracksInventory: p.TracksInventory, TaxExempt: p.TaxRateBps == 0,
-		UpdatedAt: timestamppb.New(p.UpdatedAt), Version: p.Version,
+		UpdatedAt: timestamppb.New(p.UpdatedAt), Version: p.Version, ListedInMarketplace: p.Listed,
 	}
 }
 

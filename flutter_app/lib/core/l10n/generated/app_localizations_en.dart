@@ -3339,4 +3339,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String mktPriceChangedFromTo(String from, String to) {
     return 'The total changed from $from to $to.';
   }
+
+  @override
+  String get mktShowInMarketplace => 'Show in the marketplace';
+
+  @override
+  String get mktListedChip => 'In the marketplace';
+
+  @override
+  String get mktStoreHiddenHint =>
+      'Your store is hidden: the product will show once you make it visible.';
+
+  @override
+  String get mktListingOn => 'Product published in the marketplace.';
+
+  @override
+  String get mktListingOff => 'Product hidden from the marketplace.';
 }

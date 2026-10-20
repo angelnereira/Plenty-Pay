@@ -15,9 +15,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/proto"
 
 	"plentypay/catalog/internal/client"
 	"plentypay/catalog/internal/domain"
+	"plentypay/catalog/internal/pb"
 	"plentypay/catalog/internal/service"
 	"plentypay/catalog/internal/store"
 )
@@ -353,6 +355,62 @@ func TestR4_OnlyActiveTenantsPublishAndSuspensionUnlistsEverything(t *testing.T)
 	l, err := m.Listing(ctx, a, p.ID)
 	if err != nil || l.Listed {
 		t.Fatalf("el listado debe quedar despublicado: %+v %v", l, err)
+	}
+}
+
+// lastProductChanged decodifica el último ProductChanged del producto en el outbox.
+func lastProductChanged(t *testing.T, tenantID, productID string) *pb.ProductChanged {
+	t.Helper()
+	var payload []byte
+	err := pgx.BeginTxFunc(context.Background(), open(t).Pool(), pgx.TxOptions{}, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(context.Background(), `SELECT set_config('app.tenant_id', $1, true)`, tenantID); err != nil {
+			return err
+		}
+		return tx.QueryRow(context.Background(), `SELECT payload FROM outbox WHERE aggregate_id = $1
+			ORDER BY created_at DESC, id DESC LIMIT 1`, productID).Scan(&payload)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var msg pb.ProductChanged
+	if err := proto.Unmarshal(payload, &msg); err != nil {
+		t.Fatal(err)
+	}
+	return &msg
+}
+
+func TestR4_ProductCarriesItsListingAndEditsKeepIt(t *testing.T) {
+	ctx, a := context.Background(), tenant()
+	m := newMarket(t, directory{a: domain.TenantActive})
+	p := photoProduct(t, m, a, "MK-L", 1200)
+	if p.Listed {
+		t.Fatal("un producto nuevo no está publicado")
+	}
+	if _, err := m.SetListing(ctx, a, "", domain.Listing{ProductID: p.ID, Listed: true, Pickup: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := m.GetProduct(ctx, a, p.ID)
+	if err != nil || !got.Listed {
+		t.Fatalf("GetProduct no muestra la publicación: %+v %v", got.Listed, err)
+	}
+	list, _, err := m.ListProducts(ctx, a, store.ListFilter{Query: "MK-L", PageSize: 10})
+	if err != nil || len(list) != 1 || !list[0].Listed {
+		t.Fatalf("ListProducts no muestra la publicación: %v %v", list, err)
+	}
+	// Editar el precio no despublica y su evento dice que sigue publicado.
+	got.PriceMinor = 1300
+	edited, err := m.UpdateProduct(ctx, a, "", got, []string{"price"})
+	if err != nil || !edited.Listed {
+		t.Fatalf("la edición cambió la publicación: %+v %v", edited.Listed, err)
+	}
+	if ev := lastProductChanged(t, a, p.ID); !ev.GetListedInMarketplace() || ev.GetPriceMinor() != 1300 {
+		t.Fatalf("ProductChanged de la edición: %+v", ev)
+	}
+	if _, err := m.SetListing(ctx, a, "", domain.Listing{ProductID: p.ID, Listed: false}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := m.GetProduct(ctx, a, p.ID); err != nil || got.Listed {
+		t.Fatalf("despublicado sigue publicado: %+v %v", got.Listed, err)
 	}
 }
 
