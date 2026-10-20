@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/theme/tokens.dart';
 import '../../core/widgets/money_text.dart';
 import '../../core/widgets/pp_button.dart';
-import '../../core/widgets/pp_text_field.dart';
 
-/// S-GEN-21 · Diálogo de confirmación fuerte (Step-up authentication).
+/// S-GEN-21 · Confirmación fuerte (C-06), hoja inferior modal.
 ///
-/// Exigido para operaciones sensibles (monto ≥ umbral, cambio de destino de fondos,
-/// aprobaciones de nómina, reembolsos). F05.6 / F23.3.
-class StepUpDialog extends StatefulWidget {
+/// e1 "Confirma que eres tú" · e2 la operación y su monto · e5 "Cancelar" (la operación no se
+/// envía). Quien llama pide después el reto y el token a identity (`/v1/step-up/*`), atados a la
+/// operación y al monto; el servidor es quien decide. El factor (e3 biometría local, e4 PIN) no se
+/// simula en la app: llega con passkeys o el PIN verificado por identity (Q-38, F23.3, F28).
+class StepUpDialog extends StatelessWidget {
   const StepUpDialog({
     super.key,
     required this.operationTitle,
@@ -20,15 +24,17 @@ class StepUpDialog extends StatefulWidget {
   final int? amountMinor;
   final String? operationDescription;
 
+  /// true si la persona confirma; false si cancela o cierra la hoja.
   static Future<bool> confirm(
     BuildContext context, {
     required String title,
     int? amountMinor,
     String? description,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      showDragHandle: true,
       builder: (ctx) => StepUpDialog(
         operationTitle: title,
         amountMinor: amountMinor,
@@ -39,106 +45,50 @@ class StepUpDialog extends StatefulWidget {
   }
 
   @override
-  State<StepUpDialog> createState() => _StepUpDialogState();
-}
-
-class _StepUpDialogState extends State<StepUpDialog> {
-  final _pinController = TextEditingController();
-  bool _verifying = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _pinController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _verify() async {
-    if (_pinController.text.length < 4) return;
-    setState(() {
-      _verifying = true;
-      _error = null;
-    });
-
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-
-    if (_pinController.text == '0000') {
-      setState(() {
-        _verifying = false;
-        _error = 'PIN incorrecto. Inténtalo de nuevo.';
-      });
-      return;
-    }
-
-    Navigator.of(context).pop(true);
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.lock_person_outlined, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Expanded(child: Text(widget.operationTitle, style: theme.textTheme.titleMedium)),
-        ],
-      ),
-      content: SingleChildScrollView(
+    final margin = WindowClass.of(context).horizontalMargin;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(margin, 0, margin, AppTokens.spacingLg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.amountMinor != null) ...[
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: MoneyText(
-                    widget.amountMinor!,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            Row(children: [
+              Icon(Icons.lock_person_outlined,
+                  color: theme.colorScheme.primary),
+              const SizedBox(width: AppTokens.spacingSm),
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(l10n.stepUpTitle,
+                      style: theme.textTheme.titleLarge),
                 ),
               ),
-              const SizedBox(height: 8),
+            ]),
+            const SizedBox(height: AppTokens.spacingMd),
+            Text(operationTitle, style: theme.textTheme.bodyLarge),
+            if (amountMinor != null)
+              MoneyText(amountMinor!,
+                  style: theme.textTheme.headlineMedium
+                      ?.copyWith(color: theme.colorScheme.primary)),
+            if (operationDescription != null) ...[
+              const SizedBox(height: AppTokens.spacingSm),
+              Text(operationDescription!, style: theme.textTheme.bodyMedium),
             ],
-            if (widget.operationDescription != null) ...[
-              Text(widget.operationDescription!, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 16),
-            ],
-            Text(
-              'Por seguridad, confirma tu PIN o huella para autorizar esta operación:',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            PPTextField(
-              controller: _pinController,
-              labelText: 'PIN de seguridad',
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              onChanged: (_) => setState(() {}),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 12)),
-            ],
+            const SizedBox(height: AppTokens.spacingLg),
+            PPButton.primary(
+                label: l10n.stepUpConfirm,
+                onPressed: () => Navigator.of(context).pop(true)),
+            const SizedBox(height: AppTokens.spacingSm),
+            PPButton.text(
+                label: l10n.actionCancel,
+                onPressed: () => Navigator.of(context).pop(false)),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        PPButton.primary(
-          label: 'Confirmar',
-          onPressed: _pinController.text.length >= 4 && !_verifying ? _verify : null,
-        ),
-      ],
     );
   }
 }

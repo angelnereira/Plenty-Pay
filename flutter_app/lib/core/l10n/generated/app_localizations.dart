@@ -6260,6 +6260,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Producto oculto del marketplace.'**
   String get mktListingOff;
+
+  /// No description provided for @stepUpTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirma que eres tú'**
+  String get stepUpTitle;
+
+  /// No description provided for @stepUpConfirm.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar'**
+  String get stepUpConfirm;
 }
 
 class _AppLocalizationsDelegate

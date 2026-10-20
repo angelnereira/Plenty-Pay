@@ -188,8 +188,7 @@ void main() {
           findsOneWidget);
       await tester.tap(find.text(r'Pagar $41.25'));
       await settle(tester); // el botón gira mientras espera el diálogo
-      await tester.enterText(find.byType(TextField).last, '1234');
-      await tester.pump();
+      expect(find.text('Confirma que eres tú'), findsOneWidget);
       await tester.tap(find.text('Confirmar'));
       await tester.pump(const Duration(milliseconds: 600));
       await settle(tester);

@@ -1486,5 +1486,7 @@
   "mktListedChip": "En el marketplace",
   "mktStoreHiddenHint": "Tu tienda está oculta: el producto se verá cuando la muestres.",
   "mktListingOn": "Producto publicado en el marketplace.",
-  "mktListingOff": "Producto oculto del marketplace."
+  "mktListingOff": "Producto oculto del marketplace.",
+  "stepUpTitle": "Confirma que eres tú",
+  "stepUpConfirm": "Confirmar"
 }

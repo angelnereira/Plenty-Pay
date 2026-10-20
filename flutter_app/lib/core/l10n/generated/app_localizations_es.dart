@@ -3358,6 +3358,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get mktListingOff => 'Producto oculto del marketplace.';
+
+  @override
+  String get stepUpTitle => 'Confirma que eres tú';
+
+  @override
+  String get stepUpConfirm => 'Confirmar';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

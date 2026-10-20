@@ -3355,4 +3355,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mktListingOff => 'Product hidden from the marketplace.';
+
+  @override
+  String get stepUpTitle => 'Confirm it\'s you';
+
+  @override
+  String get stepUpConfirm => 'Confirm';
 }
