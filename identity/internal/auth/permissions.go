@@ -35,19 +35,37 @@ var customerPermissions = []string{"wallet:read", "wallet:topup", "wallet:transf
 // Presets (security-standards.md §3.2). Las claves en minúscula son roles de staff; las mayúsculas, roles base.
 var presets = map[string][]string{
 	"CUSTOMER": customerPermissions,
-	"cashier": {"pos:sell", "pos:session:manage", "payments:charge", "payments:read", "catalog:read", "inventory:read",
-		"fiscal:issue", "payroll:attendance:record", "payroll:payslip:read:self"},
-	"stock_keeper": {"inventory:read", "inventory:adjust", "inventory:purchase:manage", "inventory:receive", "catalog:read",
-		"payroll:attendance:record", "payroll:payslip:read:self"},
-	"courier": {"logistics:deliver", "logistics:read", "payroll:attendance:record", "payroll:payslip:read:self"},
-	"accountant": {"fiscal:read", "fiscal:issue", "fiscal:note:issue", "settlement:read", "settlement:reconcile", "payments:read",
-		"analytics:read", "analytics:export", "payroll:run:create"},
-	"manager": {"catalog:read", "catalog:write", "catalog:import", "catalog:listing:manage",
+	"cashier": {
+		"pos:sell", "pos:session:manage", "payments:charge", "payments:read", "catalog:read", "inventory:read",
+		"fiscal:issue", "payroll:attendance:record", "payroll:payslip:read:self",
+	},
+	"stock_keeper": {
+		"inventory:read", "inventory:adjust", "inventory:purchase:manage", "inventory:receive", "catalog:read",
+		"payroll:attendance:record", "payroll:payslip:read:self",
+	},
+	"courier": {
+		"logistics:deliver", "logistics:read", "payroll:attendance:record", "payroll:payslip:read:self",
+	},
+	"accountant": {
+		"fiscal:read", "fiscal:issue", "fiscal:note:issue", "settlement:read", "settlement:reconcile", "payments:read",
+		"analytics:read", "analytics:export", "payroll:run:create", "payroll:attendance:record", "payroll:payslip:read:self",
+	},
+	"manager": {
+		"catalog:read", "catalog:write", "catalog:import", "catalog:listing:manage",
 		"inventory:read", "inventory:adjust", "inventory:purchase:manage", "inventory:receive",
 		"pos:sell", "pos:void", "pos:refund", "pos:session:manage", "pos:settings:manage", "pos:discount:apply",
 		"orders:read", "orders:manage", "logistics:read", "logistics:manage", "logistics:deliver", "logistics:geofence:manage",
 		"payments:charge", "payments:read", "payments:refund", "settlement:read", "fiscal:read", "fiscal:issue", "fiscal:note:issue",
-		"analytics:read", "payroll:attendance:read", "payroll:employee:read"},
+		"analytics:read", "payroll:attendance:read", "payroll:employee:read", "payroll:attendance:record", "payroll:payslip:read:self",
+	},
+	"supervisor": {
+		"pos:void", "pos:refund", "pos:discount:apply", "pos:session:manage",
+		"payroll:attendance:read", "payroll:attendance:record", "payroll:payslip:read:self",
+	},
+	"viewer": {
+		"catalog:read", "inventory:read", "orders:read", "logistics:read", "payments:read", "settlement:read",
+		"fiscal:read", "payroll:attendance:read", "analytics:read",
+	},
 }
 
 func init() {
@@ -63,8 +81,46 @@ func init() {
 	// PLATFORM_ADMIN: todo platform:* + lectura de módulos para soporte (auditada) + su propia wallet.
 	presets["PLATFORM_ADMIN"] = append(append(platform, customerPermissions...),
 		"payments:read", "settlement:read", "fiscal:read", "orders:read", "logistics:read", "analytics:read", "admin:audit:read")
-	// BUSINESS_STAFF sin rol personalizado asignado (identity aún sin roles en BD, F08.6): preset de cajero.
-	presets["BUSINESS_STAFF"] = presets["cashier"]
+	// BUSINESS_STAFF sin rol asignado recibe solo la base de CUSTOMER (deny-by-default, P1).
+	presets["BUSINESS_STAFF"] = customerPermissions
+}
+
+// CustomerPermissions devuelve los permisos base de cualquier persona con cuenta.
+func CustomerPermissions() []string {
+	cp := make([]string, len(customerPermissions))
+	copy(cp, customerPermissions)
+	return cp
+}
+
+// PermissionsWithBase une una lista de permisos arbitrarios con la base de CUSTOMER.
+func PermissionsWithBase(perms []string) []string {
+	set := map[string]struct{}{}
+	for _, p := range perms {
+		set[p] = struct{}{}
+	}
+	for _, p := range customerPermissions {
+		set[p] = struct{}{}
+	}
+	out := make([]string, 0, len(set))
+	for p := range set {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Presets devuelve una copia de los presets de staff universales.
+func Presets() map[string][]string {
+	staff := []string{"cashier", "stock_keeper", "manager", "accountant", "courier", "viewer", "supervisor"}
+	out := make(map[string][]string, len(staff))
+	for _, k := range staff {
+		if v, ok := presets[k]; ok {
+			cp := make([]string, len(v))
+			copy(cp, v)
+			out[k] = cp
+		}
+	}
+	return out
 }
 
 // PermissionsFor devuelve los permisos efectivos (copia ordenada, sin duplicados) de un rol base o preset.

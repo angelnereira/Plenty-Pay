@@ -51,11 +51,12 @@ CREATE INDEX IF NOT EXISTS invitations_email_idx ON invitations (lower(email), t
 -- Presets de sistema (security-standards.md par. 3.2). Idempotente.
 INSERT INTO roles (id, tenant_id, name, system) VALUES
   ('00000000-0000-0000-0000-00000000ce01', NULL, 'cashier', true),
-  ('00000000-0000-0000-0000-00000000ce02', NULL, 'inventory', true),
+  ('00000000-0000-0000-0000-00000000ce02', NULL, 'stock_keeper', true),
   ('00000000-0000-0000-0000-00000000ce03', NULL, 'manager', true),
   ('00000000-0000-0000-0000-00000000ce04', NULL, 'accountant', true),
-  ('00000000-0000-0000-0000-00000000ce05', NULL, 'driver', true),
-  ('00000000-0000-0000-0000-00000000ce06', NULL, 'support', true)
+  ('00000000-0000-0000-0000-00000000ce05', NULL, 'courier', true),
+  ('00000000-0000-0000-0000-00000000ce06', NULL, 'viewer', true),
+  ('00000000-0000-0000-0000-00000000ce07', NULL, 'supervisor', true)
 ON CONFLICT DO NOTHING;
 
 -- Permisos de cada preset: coinciden con auth.PermissionsFor (fuente unica).
@@ -72,7 +73,7 @@ INSERT INTO role_permissions (role_id, permission)
 SELECT r.id, p FROM roles r
 CROSS JOIN LATERAL unnest(ARRAY[
   'inventory:read', 'inventory:adjust', 'inventory:purchase:manage', 'inventory:receive',
-  'catalog:read', 'catalog:write', 'catalog:import'
+  'catalog:read', 'payroll:attendance:record', 'payroll:payslip:read:self'
 ]) AS p
 WHERE r.id = '00000000-0000-0000-0000-00000000ce02'::uuid
 ON CONFLICT DO NOTHING;
@@ -83,11 +84,10 @@ CROSS JOIN LATERAL unnest(ARRAY[
   'catalog:read', 'catalog:write', 'catalog:import', 'catalog:listing:manage',
   'inventory:read', 'inventory:adjust', 'inventory:purchase:manage', 'inventory:receive',
   'pos:sell', 'pos:void', 'pos:refund', 'pos:session:manage', 'pos:settings:manage', 'pos:discount:apply',
-  'payments:charge', 'payments:read', 'payments:refund', 'payments:terminal:manage', 'payments:fees:read',
-  'settlement:read', 'settlement:schedule:manage',
-  'fiscal:issue', 'fiscal:read',
-  'payroll:read', 'payroll:attendance:record', 'payroll:payslip:read:self',
-  'analytics:read', 'orders:read', 'orders:manage'
+  'orders:read', 'orders:manage', 'logistics:read', 'logistics:manage', 'logistics:deliver', 'logistics:geofence:manage',
+  'payments:charge', 'payments:read', 'payments:refund',
+  'settlement:read', 'fiscal:read', 'fiscal:issue', 'fiscal:note:issue',
+  'analytics:read', 'payroll:attendance:read', 'payroll:employee:read', 'payroll:attendance:record', 'payroll:payslip:read:self'
 ]) AS p
 WHERE r.id = '00000000-0000-0000-0000-00000000ce03'::uuid
 ON CONFLICT DO NOTHING;
@@ -95,8 +95,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission)
 SELECT r.id, p FROM roles r
 CROSS JOIN LATERAL unnest(ARRAY[
-  'settlement:read', 'settlement:reconcile', 'fiscal:read', 'fiscal:issue',
-  'payments:read', 'payments:fees:read', 'analytics:read', 'payroll:read'
+  'fiscal:read', 'fiscal:issue', 'fiscal:note:issue', 'settlement:read', 'settlement:reconcile',
+  'payments:read', 'analytics:read', 'analytics:export', 'payroll:run:create',
+  'payroll:attendance:record', 'payroll:payslip:read:self'
 ]) AS p
 WHERE r.id = '00000000-0000-0000-0000-00000000ce04'::uuid
 ON CONFLICT DO NOTHING;
@@ -104,7 +105,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission)
 SELECT r.id, p FROM roles r
 CROSS JOIN LATERAL unnest(ARRAY[
-  'logistics:deliver', 'logistics:proof:capture', 'payroll:attendance:record', 'payroll:payslip:read:self'
+  'logistics:deliver', 'logistics:read', 'payroll:attendance:record', 'payroll:payslip:read:self'
 ]) AS p
 WHERE r.id = '00000000-0000-0000-0000-00000000ce05'::uuid
 ON CONFLICT DO NOTHING;
@@ -112,9 +113,19 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission)
 SELECT r.id, p FROM roles r
 CROSS JOIN LATERAL unnest(ARRAY[
-  'orders:read', 'payments:read', 'wallet:read', 'catalog:read', 'notifications:read:self'
+  'catalog:read', 'inventory:read', 'orders:read', 'logistics:read', 'payments:read',
+  'settlement:read', 'fiscal:read', 'payroll:attendance:read', 'analytics:read'
 ]) AS p
 WHERE r.id = '00000000-0000-0000-0000-00000000ce06'::uuid
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions (role_id, permission)
+SELECT r.id, p FROM roles r
+CROSS JOIN LATERAL unnest(ARRAY[
+  'pos:void', 'pos:refund', 'pos:discount:apply', 'pos:session:manage',
+  'payroll:attendance:read', 'payroll:attendance:record', 'payroll:payslip:read:self'
+]) AS p
+WHERE r.id = '00000000-0000-0000-0000-00000000ce07'::uuid
 ON CONFLICT DO NOTHING;
 
 -- Desactivacion de usuarios (R13). Aditivo: los existentes quedan activos.

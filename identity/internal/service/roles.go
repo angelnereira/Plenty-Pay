@@ -42,8 +42,8 @@ type AcceptResult struct {
 // presetNames son los roles de sistema: no se pueden crear con ese nombre
 // (SPEC §4 UpsertRole: los presets no son editables).
 var presetNames = map[string]bool{
-	"cashier": true, "inventory": true, "manager": true,
-	"accountant": true, "driver": true, "support": true,
+	"cashier": true, "stock_keeper": true, "manager": true,
+	"accountant": true, "courier": true, "viewer": true, "supervisor": true,
 }
 
 // UpsertRole crea un rol personalizado del tenant (R12).
@@ -108,8 +108,13 @@ func (s *IdentityService) InviteStaff(ctx context.Context, tenantID, email, full
 	}
 	// SPEC §6: outbox -> correo de invitacion.
 	if s.sessions != nil {
-		_ = s.sessions.WriteOutboxEvent(ctx, "pp.identity.notification.requested.v1", invitedBy, tenantID,
-			notificationPayload(invitedBy, "STAFF_INVITED"))
+		if err := s.sessions.WriteOutboxEvent(ctx, "pp.identity.notification.requested.v1", invitedBy, tenantID,
+			notificationPayload(invitedBy, "STAFF_INVITED")); err != nil {
+			if s.reporter != nil {
+				s.reporter.Defect(ctx, "outbox write failed for staff invitation", wrapErr(err, "write outbox invitation"))
+			}
+			return nil, err
+		}
 	}
 	return &InviteResult{
 		Success: true, InvitationID: token, ExpiresAt: expiresAt, Token: token,

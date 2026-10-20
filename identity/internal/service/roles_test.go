@@ -62,6 +62,17 @@ func (f *fakeRoleStore) AssignRole(_ context.Context, userID, roleID string) err
 	return nil
 }
 
+func (f *fakeRoleStore) RoleForUser(_ context.Context, userID string) (*domain.Role, error) {
+	if f.failWith != nil {
+		return nil, f.failWith
+	}
+	roleID, ok := f.userRoles[userID]
+	if !ok {
+		return nil, nil
+	}
+	return f.roles[roleID], nil
+}
+
 func (f *fakeRoleStore) CreateInvitation(_ context.Context, tenantID, email, fullName, roleID, _ string) (string, time.Time, error) {
 	token := "token-" + email
 	f.invitations[token] = &domain.Invitation{
@@ -240,3 +251,17 @@ func TestR13_CannotDeactivateLastOwner(t *testing.T) {
 		t.Fatalf("con dos duenos deberia poder desactivarse: %v", err)
 	}
 }
+
+// H10: InviteStaff no descarta el error de escritura en outbox (regla 14).
+func TestH10_InviteStaff_OutboxErrorPropagates(t *testing.T) {
+	svc, ss, _ := serviceWithSessions(t)
+	rs := newFakeRoleStore()
+	svc.WithRoles(rs)
+	ss.failOutbox = errors.New("outbox write failure")
+
+	inv, err := svc.InviteStaff(context.Background(), "tenant-1", "nuevo@example.com", "Nuevo", "role-cashier", "owner-1")
+	if err == nil {
+		t.Fatalf("se esperaba error de outbox pero fue exitoso: %+v", inv)
+	}
+}
+

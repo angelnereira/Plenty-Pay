@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -261,4 +262,80 @@ func TestRegister_StoreErrorDoesNotLeakDetail(t *testing.T) {
 	}
 }
 
+// R22: un BUSINESS_STAFF con rol personalizado asignado resuelve sus permisos + base de CUSTOMER.
+func TestR22_AssignedCustomRoleResolves(t *testing.T) {
+	fs := newFakeStore()
+	rs := newFakeRoleStore()
+	tokens, _ := auth.NewTokenIssuer("secreto-de-prueba-32-caracteres-ok", "otro-secreto-distinto-32-caracteres")
+	svc := service.New(fs, tokens, nil, nil).WithRoles(rs)
+
+	staffUser := &domain.User{
+		ID:       "staff-1",
+		Email:    "staff@example.com",
+		Role:     "BUSINESS_STAFF",
+		TenantID: "tenant-1",
+	}
+	fs.byID[staffUser.ID] = staffUser
+
+	customRole := &domain.Role{
+		ID:          "role-custom-1",
+		TenantID:    "tenant-1",
+		Name:        "mesero",
+		Permissions: []string{"pos:sell", "orders:read"},
+	}
+	rs.roles[customRole.ID] = customRole
+	rs.userRoles[staffUser.ID] = customRole.ID
+
+	perms, err := svc.PermissionsForUser(context.Background(), staffUser.ID)
+	if err != nil {
+		t.Fatalf("PermissionsForUser: %v", err)
+	}
+
+	if perms.Role != "BUSINESS_STAFF" {
+		t.Fatalf("se esperaba BUSINESS_STAFF, llego %s", perms.Role)
+	}
+
+	permMap := map[string]bool{}
+	for _, p := range perms.Permissions {
+		permMap[p] = true
+	}
+	if !permMap["pos:sell"] || !permMap["orders:read"] {
+		t.Fatalf("no se incluyeron los permisos del rol custom: %v", perms.Permissions)
+	}
+	if !permMap["wallet:read"] || !permMap["orders:read:self"] {
+		t.Fatalf("no se incluyeron los permisos base de CUSTOMER: %v", perms.Permissions)
+	}
+}
+
+// R22: un BUSINESS_STAFF sin rol asignado recibe deny-by-default (solo base de CUSTOMER).
+func TestR22_StaffWithoutRoleReceivesBaseOnly(t *testing.T) {
+	fs := newFakeStore()
+	rs := newFakeRoleStore()
+	tokens, _ := auth.NewTokenIssuer("secreto-de-prueba-32-caracteres-ok", "otro-secreto-distinto-32-caracteres")
+	svc := service.New(fs, tokens, nil, nil).WithRoles(rs)
+
+	staffUser := &domain.User{
+		ID:       "staff-2",
+		Email:    "unassigned@example.com",
+		Role:     "BUSINESS_STAFF",
+		TenantID: "tenant-1",
+	}
+	fs.byID[staffUser.ID] = staffUser
+
+	perms, err := svc.PermissionsForUser(context.Background(), staffUser.ID)
+	if err != nil {
+		t.Fatalf("PermissionsForUser: %v", err)
+	}
+
+	expectedBase := auth.CustomerPermissions()
+	if !reflect.DeepEqual(perms.Permissions, expectedBase) {
+		t.Fatalf("staff sin rol debe recibir solo permisos base: got %v, want %v", perms.Permissions, expectedBase)
+	}
+	expectedModules := auth.ModulesForPermissions(expectedBase)
+	if !reflect.DeepEqual(perms.EnabledModules, expectedModules) {
+		t.Fatalf("staff sin rol debe recibir solo modulos base: got %v, want %v", perms.EnabledModules, expectedModules)
+	}
+}
+
 var _ store.UserStore = (*fakeStore)(nil)
+

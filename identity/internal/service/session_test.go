@@ -18,9 +18,10 @@ type fakeSessionStore struct {
 	mu       sync.Mutex
 	sessions map[string]*domain.Session
 	tokens   map[string]*domain.RefreshToken // por hash hex
-	outbox   []string
-	revoked  []string
-	reported []string
+	outbox     []string
+	revoked    []string
+	reported   []string
+	failOutbox error
 }
 
 func newFakeSessionStore() *fakeSessionStore {
@@ -86,6 +87,9 @@ func (f *fakeSessionStore) SessionByID(_ context.Context, sessionID string) (*do
 func (f *fakeSessionStore) WriteOutboxEvent(_ context.Context, eventType, aggregateID, tenantID string, _ []byte) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.failOutbox != nil {
+		return f.failOutbox
+	}
 	f.outbox = append(f.outbox, eventType)
 	return nil
 }

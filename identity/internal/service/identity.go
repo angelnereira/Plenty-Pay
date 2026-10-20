@@ -398,13 +398,35 @@ func (s *IdentityService) assertSessionAlive(ctx context.Context, sessionID stri
 	return nil
 }
 
-// PermissionsForUser devuelve rol, permisos y modulos derivados (R10).
+// PermissionsForUser devuelve rol, permisos y modulos derivados (R10, R22).
 func (s *IdentityService) PermissionsForUser(ctx context.Context, userID string) (*Permissions, error) {
 	user, err := s.users.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	perms := auth.PermissionsFor(user.Role)
+	var perms []string
+	switch user.Role {
+	case "PLATFORM_ADMIN":
+		perms = auth.PermissionsFor("PLATFORM_ADMIN")
+	case "BUSINESS_OWNER":
+		perms = auth.PermissionsFor("BUSINESS_OWNER")
+	case "BUSINESS_STAFF":
+		if s.roles != nil {
+			role, err := s.roles.RoleForUser(ctx, userID)
+			if err != nil {
+				return nil, err
+			}
+			if role != nil {
+				perms = auth.PermissionsWithBase(role.Permissions)
+			} else {
+				perms = auth.CustomerPermissions()
+			}
+		} else {
+			perms = auth.CustomerPermissions()
+		}
+	default:
+		perms = auth.CustomerPermissions()
+	}
 	return &Permissions{Role: user.Role, EnabledModules: auth.ModulesForPermissions(perms), Permissions: perms}, nil
 }
 

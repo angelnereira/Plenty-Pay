@@ -27,6 +27,8 @@ type RoleStore interface {
 	ListRoles(ctx context.Context, tenantID string) ([]domain.Role, error)
 	// AssignRole asigna un rol a un usuario del tenant.
 	AssignRole(ctx context.Context, userID, roleID string) error
+	// RoleForUser devuelve el rol asignado a un usuario en user_roles (o nil si no tiene).
+	RoleForUser(ctx context.Context, userID string) (*domain.Role, error)
 	// CreateInvitation invita a un correo con un rol; devuelve el token en claro
 	// (solo se guarda el hash) y la fecha de expiracion.
 	CreateInvitation(ctx context.Context, tenantID, email, fullName, roleID, invitedBy string) (token string, expiresAt time.Time, err error)
@@ -129,6 +131,31 @@ func (s *PostgresRoleStore) AssignRole(ctx context.Context, userID, roleID strin
 		_, err := tx.Exec(ctx, `INSERT INTO user_roles (user_id, role_id) VALUES ($1::uuid, $2::uuid)`, userID, roleID)
 		return err
 	})
+}
+
+func (s *PostgresRoleStore) RoleForUser(ctx context.Context, userID string) (*domain.Role, error) {
+	var r domain.Role
+	err := pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.actor_role', 'PLATFORM_ADMIN', true)`); err != nil {
+			return err
+		}
+		row := tx.QueryRow(ctx, `
+			SELECT r.id::text, coalesce(r.tenant_id::text, ''), r.name, r.system,
+			       coalesce(array_agg(rp.permission) FILTER (WHERE rp.permission IS NOT NULL), '{}')
+			FROM user_roles ur
+			JOIN roles r ON r.id = ur.role_id
+			LEFT JOIN role_permissions rp ON rp.role_id = r.id
+			WHERE ur.user_id = $1::uuid
+			GROUP BY r.id, r.tenant_id, r.name, r.system`, userID)
+		return row.Scan(&r.ID, &r.TenantID, &r.Name, &r.System, &r.Permissions)
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("lookup role for user: %w", err)
+	}
+	return &r, nil
 }
 
 func (s *PostgresRoleStore) CreateInvitation(ctx context.Context, tenantID, email, fullName, roleID, invitedBy string) (string, time.Time, error) {
