@@ -109,7 +109,7 @@ La persistencia actualiza con guardia (`UPDATE ... WHERE id=$1 AND status=$2`) y
 ```dockerfile
 FROM rust:1.97-bookworm AS build
 WORKDIR /src
-RUN apt-get update && apt-get install -y --no-install-recommends protobuf-compiler && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends protobuf-compiler libprotobuf-dev && rm -rf /var/lib/apt/lists/*
 COPY . .
 ENV SQLX_OFFLINE=true
 RUN cargo build --release --locked

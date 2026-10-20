@@ -33,7 +33,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 |---|---|---|---|---|
 | [identity](identity/SPEC.md) | Go | 50060 | ✅ F08.1–F08.7 + modelo de acceso (ADR 0018): perfiles de negocio, capacidades, sucursales, membresías con alcance y anti-escalada A1–A3; migraciones 0001–0009 con RLS, store pgx sobre PgBouncer y pruebas L1/L2 en verde | F08 |
 | [api-gateway](api-gateway/SPEC.md) | Go | 8080 | 📝 rutas de autenticación (con consentimientos y `reason` estable) | F09 |
-| [ledger](ledger/SPEC.md) | Rust | 50061 | 📋 (invariantes SQL de referencia verificadas: 27/27) | F10 |
+| [ledger](ledger/SPEC.md) | Rust | 50061 | 📝 código completo y L2 25/25 (2026-10-20); en `docker-compose.yml`, sin desplegar hasta reiniciar el esquema de producción | F10 |
 | [payments-core](payments-core/SPEC.md) | Rust | 50062 | 📋 | F11 |
 | [settlement](settlement/SPEC.md) | Rust | 50063 | 📋 | F12 |
 | [fiscal-invoicing](fiscal-invoicing/SPEC.md) | Go | 50064 | 📋 | F13 |

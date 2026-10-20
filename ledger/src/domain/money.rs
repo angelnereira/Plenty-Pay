@@ -36,11 +36,17 @@ impl Money {
         if amount_minor < 0 {
             // Money can represent negatives internally (debits), but construction via new allows signed.
         }
-        Ok(Money { amount_minor, currency })
+        Ok(Money {
+            amount_minor,
+            currency,
+        })
     }
 
     pub fn zero(currency: Currency) -> Self {
-        Money { amount_minor: 0, currency }
+        Money {
+            amount_minor: 0,
+            currency,
+        }
     }
 
     pub fn amount_minor(&self) -> i64 {
@@ -53,20 +59,32 @@ impl Money {
 
     pub fn checked_add(self, other: Money) -> Result<Money, LedgerError> {
         if self.currency != other.currency {
-            return Err(LedgerError::CurrencyMismatch(self.currency.code().to_string(), other.currency.code().to_string()));
+            return Err(LedgerError::CurrencyMismatch(
+                self.currency.code().to_string(),
+                other.currency.code().to_string(),
+            ));
         }
         let sum = (self.amount_minor as i128) + (other.amount_minor as i128);
         let v = i64::try_from(sum).map_err(|_| LedgerError::Overflow)?;
-        Ok(Money { amount_minor: v, currency: self.currency })
+        Ok(Money {
+            amount_minor: v,
+            currency: self.currency,
+        })
     }
 
     pub fn checked_sub(self, other: Money) -> Result<Money, LedgerError> {
         if self.currency != other.currency {
-            return Err(LedgerError::CurrencyMismatch(self.currency.code().to_string(), other.currency.code().to_string()));
+            return Err(LedgerError::CurrencyMismatch(
+                self.currency.code().to_string(),
+                other.currency.code().to_string(),
+            ));
         }
         let diff = (self.amount_minor as i128) - (other.amount_minor as i128);
         let v = i64::try_from(diff).map_err(|_| LedgerError::Overflow)?;
-        Ok(Money { amount_minor: v, currency: self.currency })
+        Ok(Money {
+            amount_minor: v,
+            currency: self.currency,
+        })
     }
 
     /// Compute half_up on a raw i64 value, returning i64.
@@ -82,7 +100,10 @@ impl Money {
     /// percent_bps_half_up as Money in the given currency.
     pub fn percent_bps_half_up_money(value: Money, bps: u32) -> Result<Money, LedgerError> {
         let q = Self::half_up_raw(value.amount_minor, bps)?;
-        Ok(Money { amount_minor: q, currency: value.currency })
+        Ok(Money {
+            amount_minor: q,
+            currency: value.currency,
+        })
     }
 
     /// allocate(total, weights): each part = floor(total * w_i / sum_w); residue distributed
@@ -143,7 +164,10 @@ impl Money {
         }
         let mut out = Vec::with_capacity(weights.len());
         for m in result_minor {
-            out.push(Money { amount_minor: m, currency: total.currency });
+            out.push(Money {
+                amount_minor: m,
+                currency: total.currency,
+            });
         }
         Ok(out)
     }

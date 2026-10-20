@@ -1,306 +1,579 @@
-#![allow(clippy::arithmetic_side_effects)]
-use crate::pb;
-use crate::pb::ledger_server::Ledger;
-use crate::pb::EntrySide;
-use sqlx::PgPool;
-use tonic::{Request, Response, Status};
+//! Adaptador tonic del contrato `ledger.proto`: traduce pb ↔ store, autoriza al llamador desde
+//! los metadatos y traduce errores en `grpc/errors.rs`. Sin reglas de negocio propias.
+
+use chrono::{DateTime, TimeZone, Utc};
+use prost::Message;
+use sha2::{Digest, Sha256};
+use tonic::{Code, Request, Response, Status};
 use uuid::Uuid;
 
+use crate::domain::accounts::{AccountType, Side};
+use crate::domain::templates::EntrySpec;
+use crate::grpc::context::Caller;
+use crate::grpc::errors::{status, to_status};
+use crate::pb;
+use crate::pb::ledger_server::Ledger;
+use crate::store::{
+    AccountView, CaptureCommand, EntryView, HoldCommand, HoldStatus, HoldView, PgLedger,
+    PostCommand, ReadScope, StoreError, TransactionView,
+};
+
 pub struct LedgerService {
-    pub pool: PgPool,
-    pub account_cache: std::sync::Mutex<std::collections::HashMap<String, uuid::Uuid>>,
+    store: PgLedger,
 }
 
 impl LedgerService {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool, account_cache: std::sync::Mutex::new(std::collections::HashMap::new()) }
+    pub fn new(store: PgLedger) -> Self {
+        Self { store }
     }
 }
 
+const MAX_PAGE: i64 = 200;
+const DEFAULT_PAGE: i64 = 50;
+const MAX_STATEMENT_DAYS: i64 = 366;
+
+/// SHA-256 del request canónico sin la clave de idempotencia (R4).
+fn request_hash<M: Message + Clone>(msg: &M, clear: impl FnOnce(&mut M)) -> Vec<u8> {
+    let mut m = msg.clone();
+    clear(&mut m);
+    Sha256::digest(m.encode_to_vec()).to_vec()
+}
+
+fn invalid(reason: &str, message: &str) -> Status {
+    status(Code::InvalidArgument, reason, message)
+}
+
+fn parse_uuid(s: &str, reason: &str) -> Result<Uuid, Status> {
+    Uuid::parse_str(s).map_err(|_| invalid(reason, "identificador inválido"))
+}
+
+fn opt_uuid(s: &str) -> Result<Option<Uuid>, Status> {
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        parse_uuid(s, "INVALID_ACCOUNT").map(Some)
+    }
+}
+
+fn account_spec(
+    a: Option<&pb::AccountRef>,
+    side: Side,
+    amount_minor: i64,
+) -> Result<EntrySpec, Status> {
+    let a = a.ok_or_else(|| invalid("INVALID_ACCOUNT", "falta la cuenta"))?;
+    let account_type = AccountType::from_i32(a.r#type)
+        .map_err(|_| invalid("INVALID_ACCOUNT", "tipo de cuenta inválido"))?;
+    Ok(EntrySpec {
+        party_id: a.party_id.clone(),
+        account_type,
+        currency: a.currency.clone(),
+        scope_id: a.scope_id.clone(),
+        side,
+        amount_minor,
+    })
+}
+
+fn side_from(v: i32) -> Result<Side, Status> {
+    match v {
+        x if x == pb::EntrySide::Debit as i32 => Ok(Side::Debit),
+        x if x == pb::EntrySide::Credit as i32 => Ok(Side::Credit),
+        _ => Err(invalid("INVALID_ACCOUNT", "lado del asiento inválido")),
+    }
+}
+
+fn ts(d: DateTime<Utc>) -> prost_types::Timestamp {
+    prost_types::Timestamp {
+        seconds: d.timestamp(),
+        nanos: i32::try_from(d.timestamp_subsec_nanos()).unwrap_or(0),
+    }
+}
+
+fn from_ts(t: &prost_types::Timestamp) -> Result<DateTime<Utc>, Status> {
+    let nanos = u32::try_from(t.nanos).map_err(|_| invalid("INVALID_RANGE", "fecha inválida"))?;
+    Utc.timestamp_opt(t.seconds, nanos)
+        .single()
+        .ok_or_else(|| invalid("INVALID_RANGE", "fecha inválida"))
+}
+
+fn account_ref(a: &AccountView) -> pb::AccountRef {
+    pb::AccountRef {
+        party_id: a.party_id.clone(),
+        r#type: i32::from(a.account_type.code()),
+        currency: a.currency.clone(),
+        scope_id: a.scope_id.clone(),
+    }
+}
+
+fn entry_pb(e: &EntryView) -> pb::Entry {
+    pb::Entry {
+        entry_id: e.id.to_string(),
+        account_id: e.account.id.to_string(),
+        account: Some(account_ref(&e.account)),
+        side: if e.side == Side::Debit {
+            pb::EntrySide::Debit as i32
+        } else {
+            pb::EntrySide::Credit as i32
+        },
+        amount_minor: e.amount_minor,
+    }
+}
+
+fn transaction_pb(t: &TransactionView) -> pb::Transaction {
+    pb::Transaction {
+        transaction_id: t.id.to_string(),
+        tenant_id: t.tenant_id.map(|x| x.to_string()).unwrap_or_default(),
+        transaction_type: t.transaction_type.clone(),
+        reference: Some(pb::Reference {
+            r#type: t.reference_type.clone(),
+            id: t.reference_id.clone(),
+        }),
+        currency: t.currency.clone(),
+        description: t.description.clone(),
+        status: if t.reversed {
+            pb::TransactionStatus::Reversed as i32
+        } else {
+            pb::TransactionStatus::Posted as i32
+        },
+        entries: t.entries.iter().map(entry_pb).collect(),
+        reversal_of: t.reversal_of.map(|x| x.to_string()).unwrap_or_default(),
+        effective_at: Some(ts(t.effective_at)),
+        posted_at: t.posted_at.map(ts),
+    }
+}
+
+fn hold_pb(h: &HoldView) -> pb::Hold {
+    pb::Hold {
+        hold_id: h.id.to_string(),
+        account: Some(account_ref(&h.account)),
+        amount_minor: h.amount_minor,
+        status: match h.status {
+            HoldStatus::Active => pb::HoldStatus::Active as i32,
+            HoldStatus::Captured => pb::HoldStatus::Captured as i32,
+            HoldStatus::Released => pb::HoldStatus::Released as i32,
+            HoldStatus::Expired => pb::HoldStatus::Expired as i32,
+        },
+        reference: Some(pb::Reference {
+            r#type: h.reference_type.clone(),
+            id: h.reference_id.clone(),
+        }),
+        expires_at: Some(ts(h.expires_at)),
+        created_at: Some(ts(h.created_at)),
+    }
+}
+
+fn balance_pb(a: &AccountView) -> pb::Balance {
+    pb::Balance {
+        account: Some(account_ref(a)),
+        posted_minor: a.balance_minor,
+        held_minor: a.held_minor,
+        available_minor: a.balance_minor.saturating_sub(a.held_minor),
+        as_of: Some(ts(Utc::now())),
+    }
+}
+
+fn page_size(p: Option<&pb::PageRequest>) -> i64 {
+    match p.map(|p| i64::from(p.page_size)) {
+        Some(n) if n > 0 => n.min(MAX_PAGE),
+        _ => DEFAULT_PAGE,
+    }
+}
+
+/// Token opaco de la página siguiente: `<posted_at_micros>.<id>`.
+fn page_token(t: &TransactionView) -> String {
+    format!(
+        "{}.{}",
+        t.posted_at.map(|p| p.timestamp_micros()).unwrap_or(0),
+        t.id
+    )
+}
+
+fn parse_page_token(s: &str) -> Result<Option<(DateTime<Utc>, Uuid)>, Status> {
+    if s.is_empty() {
+        return Ok(None);
+    }
+    let (micros, id) = s
+        .split_once('.')
+        .ok_or_else(|| invalid("INVALID_RANGE", "página inválida"))?;
+    let micros: i64 = micros
+        .parse()
+        .map_err(|_| invalid("INVALID_RANGE", "página inválida"))?;
+    let at = Utc
+        .timestamp_micros(micros)
+        .single()
+        .ok_or_else(|| invalid("INVALID_RANGE", "página inválida"))?;
+    Ok(Some((at, parse_uuid(id, "INVALID_RANGE")?)))
+}
+
+fn post_command(
+    req: &pb::PostTransactionRequest,
+    entries: Vec<EntrySpec>,
+    hash: Vec<u8>,
+) -> Result<PostCommand, Status> {
+    Ok(PostCommand {
+        idempotency_key: req.idempotency_key.clone(),
+        request_hash: hash,
+        tenant_id: opt_uuid(&req.tenant_id)?,
+        transaction_type: req.transaction_type.clone(),
+        reference_type: req
+            .reference
+            .as_ref()
+            .map(|r| r.r#type.clone())
+            .unwrap_or_default(),
+        reference_id: req
+            .reference
+            .as_ref()
+            .map(|r| r.id.clone())
+            .unwrap_or_default(),
+        currency: req.currency.clone(),
+        description: req.description.clone(),
+        entries,
+        effective_at: req.effective_at.as_ref().map(from_ts).transpose()?,
+    })
+}
+
+type R<T> = Result<Response<T>, Status>;
+
 #[tonic::async_trait]
 impl Ledger for LedgerService {
+    #[tracing::instrument(skip_all, fields(rpc = "PostTransaction"))]
     async fn post_transaction(
         &self,
         request: Request<pb::PostTransactionRequest>,
-    ) -> Result<Response<pb::Transaction>, Status> {
+    ) -> R<pb::Transaction> {
+        Caller::from_metadata(request.metadata()).require_writer()?;
         let req = request.into_inner();
-        let mut d: i64 = 0;
-        let mut c: i64 = 0;
-        for e in &req.entries {
-            if e.amount_minor <= 0 {
-                return Err(Status::invalid_argument("amount must be > 0"));
-            }
-            match e.side {
-                x if x == EntrySide::Debit as i32 => d = d.saturating_add(e.amount_minor),
-                x if x == EntrySide::Credit as i32 => c = c.saturating_add(e.amount_minor),
-                _ => return Err(Status::invalid_argument("invalid side")),
-            }
-        }
-        if req.entries.len() < 2 {
-            return Err(Status::invalid_argument("at least 2 entries"));
-        }
-        if d != c {
-            return Err(Status::failed_precondition("unbalanced"));
-        }
-        let tx_id = Uuid::new_v4();
-        let currency = req.currency.clone();
-        let mut dbtx = self.pool.begin().await.map_err(|e| Status::internal(e.to_string()))?;
-
-        sqlx::query(
-            "INSERT INTO ledger.transactions (id, transaction_type, reference_type, reference_id, currency, status, idempotency_key, request_hash, effective_at) VALUES ($1,$2,$3,$4,$5,'DRAFT',$6,$7,now())",
-        )
-        .bind(tx_id)
-        .bind(&req.transaction_type)
-        .bind(req.reference.as_ref().map(|r| r.r#type.clone()).unwrap_or_default())
-        .bind(req.reference.as_ref().map(|r| r.id.clone()).unwrap_or_default())
-        .bind(&currency)
-        .bind(&req.idempotency_key)
-        .bind(Vec::<u8>::new())
-        .execute(dbtx.as_mut())
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        for e in &req.entries {
-            let entry_id = Uuid::new_v4();
-            let acc = e.account.as_ref().ok_or_else(|| Status::invalid_argument("account required"))?;
-            // resolve account
-            let cache_key = format!("{}:{}:{}:{}", acc.party_id, acc.r#type, acc.currency, acc.scope_id);
-            let cached = self.account_cache.lock().unwrap().get(&cache_key).copied();
-            let account_id = if let Some(id) = cached {
-                id
-            } else {
-                let new_id = Uuid::new_v4();
-                let row: (Uuid,) = sqlx::query_as(
-                    "INSERT INTO ledger.accounts (id, party_id, account_type, currency, scope_id) VALUES ($1,$2::uuid,$3,$4,$5) ON CONFLICT (party_id, account_type, currency, scope_id) DO UPDATE SET id = ledger.accounts.id RETURNING id",
-                )
-                .bind(new_id)
-                .bind(Uuid::parse_str(&acc.party_id).unwrap_or(Uuid::nil()))
-                .bind(acc.r#type as i16)
-                .bind(&acc.currency)
-                .bind(&acc.scope_id)
-                .fetch_one(dbtx.as_mut())
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-                let id = row.0;
-                self.account_cache.lock().unwrap().insert(cache_key, id);
-                id
-            };
-            let side_str = if e.side == EntrySide::Debit as i32 { "D" } else { "C" };
-            sqlx::query(
-                "INSERT INTO ledger.entries (id, transaction_id, account_id, side, amount_minor, currency) VALUES ($1,$2,$3,$4,$5,$6)",
-            )
-            .bind(entry_id)
-            .bind(tx_id)
-            .bind(account_id)
-            .bind(side_str)
-            .bind(e.amount_minor)
-            .bind(&currency)
-            .execute(dbtx.as_mut())
+        let entries = req
+            .entries
+            .iter()
+            .map(|e| account_spec(e.account.as_ref(), side_from(e.side)?, e.amount_minor))
+            .collect::<Result<Vec<_>, _>>()?;
+        let hash = request_hash(&req, |m| m.idempotency_key.clear());
+        let cmd = post_command(&req, entries, hash)?;
+        let t = self
+            .store
+            .post(cmd)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        }
-
-        sqlx::query("UPDATE ledger.transactions SET status='POSTED' WHERE id=$1")
-            .bind(tx_id)
-            .execute(dbtx.as_mut())
-            .await
-            .map_err(|e| Status::failed_precondition(e.to_string()))?;
-
-        // Outbox: TransactionPosted (ADR 0012). Same transaction => exactly-once semantics.
-        sqlx::query("INSERT INTO ledger.outbox (id, aggregate_type, aggregate_id, event_type, payload) VALUES ($1,'transaction',$2,'TransactionPosted',$3::jsonb)")
-            .bind(Uuid::new_v4())
-            .bind(tx_id.to_string())
-            .bind(serde_json::json!({"transaction_id": tx_id.to_string()}).to_string())
-            .execute(dbtx.as_mut())
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        dbtx.commit().await.map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(pb::Transaction {
-            transaction_id: tx_id.to_string(),
-            currency,
-            status: pb::TransactionStatus::Posted as i32,
-            ..Default::default()
-        }))
+            .map_err(|e| to_status(e, "PostTransaction"))?;
+        Ok(Response::new(transaction_pb(&t)))
     }
 
+    #[tracing::instrument(skip_all, fields(rpc = "ReverseTransaction"))]
     async fn reverse_transaction(
         &self,
         request: Request<pb::ReverseTransactionRequest>,
-    ) -> Result<Response<pb::Transaction>, Status> {
+    ) -> R<pb::Transaction> {
+        Caller::from_metadata(request.metadata()).require_writer()?;
         let req = request.into_inner();
-        let orig_id = Uuid::parse_str(&req.transaction_id).map_err(|_| Status::invalid_argument("bad id"))?;
-        let rev_id = Uuid::new_v4();
-        let mut dbtx = self.pool.begin().await.map_err(|e| Status::internal(e.to_string()))?;
-        sqlx::query("UPDATE ledger.transactions SET status='REVERSED' WHERE id=$1 AND status='POSTED'")
-            .bind(orig_id)
-            .execute(dbtx.as_mut())
+        let original = parse_uuid(&req.transaction_id, "NOT_FOUND")?;
+        let key = if req.idempotency_key.is_empty() {
+            format!("rev:{original}")
+        } else {
+            req.idempotency_key.clone()
+        };
+        let hash = request_hash(&req, |m| m.idempotency_key.clear());
+        let t = self
+            .store
+            .reverse(original, key, hash, req.reason.clone())
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        sqlx::query(
-            "INSERT INTO ledger.transactions (id, transaction_type, reference_type, reference_id, currency, status, reversal_of, idempotency_key, request_hash, effective_at) VALUES ($1,'REVERSAL','reversal',$2,'',$3,'DRAFT',$4,$5,now())",
-        )
-        .bind(rev_id)
-        .bind(&req.transaction_id)
-        .bind(orig_id)
-        .bind(&req.idempotency_key)
-        .bind(Vec::<u8>::new())
-        .execute(dbtx.as_mut())
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-        sqlx::query("UPDATE ledger.transactions SET status='POSTED' WHERE id=$1")
-            .bind(rev_id)
-            .execute(dbtx.as_mut())
+            .map_err(|e| to_status(e, "ReverseTransaction"))?;
+        Ok(Response::new(transaction_pb(&t)))
+    }
+
+    #[tracing::instrument(skip_all, fields(rpc = "GetTransaction"))]
+    async fn get_transaction(
+        &self,
+        request: Request<pb::GetTransactionRequest>,
+    ) -> R<pb::Transaction> {
+        let caller = Caller::from_metadata(request.metadata());
+        let req = request.into_inner();
+        let id = parse_uuid(&req.transaction_id, "NOT_FOUND")?;
+        // Sin parte en el pedido: solo servicios; el gateway usa ListTransactions por parte.
+        let scope = caller.read_scope("")?;
+        let t = self
+            .store
+            .transaction(id, &scope)
             .await
-            .map_err(|e| Status::failed_precondition(e.to_string()))?;
-        dbtx.commit().await.map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(pb::Transaction {
-            transaction_id: rev_id.to_string(),
-            status: pb::TransactionStatus::Posted as i32,
-            ..Default::default()
+            .map_err(|e| to_status(e, "GetTransaction"))?;
+        Ok(Response::new(transaction_pb(&t)))
+    }
+
+    #[tracing::instrument(skip_all, fields(rpc = "ListTransactions"))]
+    async fn list_transactions(
+        &self,
+        request: Request<pb::ListTransactionsRequest>,
+    ) -> R<pb::ListTransactionsResponse> {
+        let caller = Caller::from_metadata(request.metadata());
+        let req = request.into_inner();
+        let party = if req.party_id.is_empty() {
+            req.tenant_id.clone()
+        } else {
+            req.party_id.clone()
+        };
+        let scope = caller.read_scope(&party)?;
+        let limit = page_size(req.page.as_ref());
+        let after = parse_page_token(
+            req.page
+                .as_ref()
+                .map(|p| p.page_token.as_str())
+                .unwrap_or_default(),
+        )?;
+        let reference = req
+            .reference
+            .as_ref()
+            .filter(|r| !r.r#type.is_empty())
+            .map(|r| (r.r#type.clone(), r.id.clone()));
+        let list = self
+            .store
+            .list_transactions(
+                &scope,
+                opt_uuid(&req.party_id)?,
+                opt_uuid(&req.tenant_id)?,
+                reference,
+                after,
+                limit,
+            )
+            .await
+            .map_err(|e| to_status(e, "ListTransactions"))?;
+        let next = if i64::try_from(list.len()).unwrap_or(0) == limit {
+            list.last().map(page_token).unwrap_or_default()
+        } else {
+            String::new()
+        };
+        Ok(Response::new(pb::ListTransactionsResponse {
+            transactions: list.iter().map(transaction_pb).collect(),
+            page: Some(pb::PageInfo {
+                next_page_token: next,
+            }),
         }))
     }
 
-    async fn get_transaction(&self, _: Request<pb::GetTransactionRequest>) -> Result<Response<pb::Transaction>, Status> {
-        Err(Status::unimplemented("not implemented"))
-    }
-    async fn list_transactions(&self, _: Request<pb::ListTransactionsRequest>) -> Result<Response<pb::ListTransactionsResponse>, Status> {
-        Err(Status::unimplemented("not implemented"))
-    }
-    async fn get_balance(&self, request: Request<pb::GetBalanceRequest>) -> Result<Response<pb::Balance>, Status> {
+    #[tracing::instrument(skip_all, fields(rpc = "GetBalance"))]
+    async fn get_balance(&self, request: Request<pb::GetBalanceRequest>) -> R<pb::Balance> {
+        let caller = Caller::from_metadata(request.metadata());
         let req = request.into_inner();
-        let account_ref = req.account.ok_or_else(|| Status::invalid_argument("account required"))?;
-        // resolve account id
-        let row: Option<(Uuid,)> = sqlx::query_as(
-            "SELECT id FROM ledger.accounts WHERE party_id = $1::uuid AND account_type = $2 AND currency = $3 AND scope_id = $4",
-        )
-        .bind(&account_ref.party_id)
-        .bind(account_ref.r#type as i16)
-        .bind(&account_ref.currency)
-        .bind(&account_ref.scope_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-        let account_id = match row {
-            Some((id,)) => id,
-            None => return Err(Status::not_found("account not found")),
-        };
-        // posted = sum credits - sum debits for liability/income accounts? We use net: D - C (asset convention). Ledger stores signed balance per account class; here compute raw net = debits - credits.
-        let (posted,): (i64,) = sqlx::query_as(
-            "SELECT COALESCE(SUM(CASE WHEN side='D' THEN amount_minor ELSE -amount_minor END),0) FROM ledger.entries WHERE account_id=$1",
-        )
-        .bind(account_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-        let held: (i64,) = sqlx::query_as(
-            "SELECT COALESCE(SUM(amount_minor),0) FROM ledger.holds WHERE account_id=$1 AND status='ACTIVE'",
-        )
-        .bind(account_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(pb::Balance {
-            account: Some(account_ref),
-            posted_minor: posted,
-            held_minor: held.0,
-            available_minor: posted - held.0,
-            ..Default::default()
+        let spec = account_spec(req.account.as_ref(), Side::Debit, 1)?;
+        let scope = caller.read_scope(&spec.party_id)?;
+        let a = self
+            .store
+            .balance(&scope, &spec)
+            .await
+            .map_err(|e| to_status(e, "GetBalance"))?;
+        Ok(Response::new(balance_pb(&a)))
+    }
+
+    #[tracing::instrument(skip_all, fields(rpc = "ListBalances"))]
+    async fn list_balances(
+        &self,
+        request: Request<pb::ListBalancesRequest>,
+    ) -> R<pb::ListBalancesResponse> {
+        let caller = Caller::from_metadata(request.metadata());
+        let req = request.into_inner();
+        let scope = caller.read_scope(&req.party_id)?;
+        let party = parse_uuid(&req.party_id, "INVALID_ACCOUNT")?;
+        let list = self
+            .store
+            .balances(&scope, party)
+            .await
+            .map_err(|e| to_status(e, "ListBalances"))?;
+        Ok(Response::new(pb::ListBalancesResponse {
+            balances: list.iter().map(balance_pb).collect(),
         }))
     }
-    async fn list_balances(&self, _: Request<pb::ListBalancesRequest>) -> Result<Response<pb::ListBalancesResponse>, Status> {
-        Err(Status::unimplemented("not implemented"))
-    }
-    async fn get_statement(&self, request: Request<pb::GetStatementRequest>) -> Result<Response<pb::GetStatementResponse>, Status> {
-        let _req = request.into_inner();
+
+    #[tracing::instrument(skip_all, fields(rpc = "GetStatement"))]
+    async fn get_statement(
+        &self,
+        request: Request<pb::GetStatementRequest>,
+    ) -> R<pb::GetStatementResponse> {
+        let caller = Caller::from_metadata(request.metadata());
+        let req = request.into_inner();
+        let spec = account_spec(req.account.as_ref(), Side::Debit, 1)?;
+        let scope = caller.read_scope(&spec.party_id)?;
+        let range = req
+            .range
+            .as_ref()
+            .ok_or_else(|| invalid("INVALID_RANGE", "falta el rango"))?;
+        let from = from_ts(
+            range
+                .from
+                .as_ref()
+                .ok_or_else(|| invalid("INVALID_RANGE", "falta el inicio"))?,
+        )?;
+        let to = range
+            .to
+            .as_ref()
+            .map(from_ts)
+            .transpose()?
+            .unwrap_or_else(Utc::now);
+        if to <= from || to.signed_duration_since(from).num_days() > MAX_STATEMENT_DAYS {
+            return Err(invalid(
+                "INVALID_RANGE",
+                "el rango debe ser de hasta 366 días",
+            ));
+        }
+        let (opening, lines) = self
+            .store
+            .statement(
+                &scope,
+                &spec,
+                from,
+                to,
+                page_size(req.page.as_ref()).saturating_mul(10),
+            )
+            .await
+            .map_err(|e| to_status(e, "GetStatement"))?;
+        let closing = lines
+            .last()
+            .map(|l| l.running_balance_minor)
+            .unwrap_or(opening);
         Ok(Response::new(pb::GetStatementResponse {
-            lines: Vec::new(),
-            ..Default::default()
-        }))
-    }
-    async fn create_hold(&self, request: Request<pb::CreateHoldRequest>) -> Result<Response<pb::Hold>, Status> {
-        let req = request.into_inner();
-        let hold_id = Uuid::new_v4();
-        let account_ref = req.account.ok_or_else(|| Status::invalid_argument("account required"))?;
-        let account_id: (Uuid,) = sqlx::query_as(
-            "SELECT id FROM ledger.accounts WHERE party_id = $1::uuid AND account_type = $2 AND currency = $3 AND scope_id = $4",
-        )
-        .bind(&account_ref.party_id)
-        .bind(account_ref.r#type as i16)
-        .bind(&account_ref.currency)
-        .bind(&account_ref.scope_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| Status::not_found(e.to_string()))?;
-        sqlx::query(
-            "INSERT INTO ledger.holds (id, account_id, amount_minor, status, reference_type, reference_id, idempotency_key, expires_at) VALUES ($1,$2,$3,'ACTIVE',$4,$5,$6, now() + ($7 || ' seconds')::interval)",
-        )
-        .bind(hold_id)
-        .bind(account_id.0)
-        .bind(req.amount_minor)
-        .bind(req.reference.as_ref().map(|r| r.r#type.clone()).unwrap_or_default())
-        .bind(req.reference.as_ref().map(|r| r.id.clone()).unwrap_or_default())
-        .bind(&req.idempotency_key)
-        .bind(req.ttl_seconds)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(pb::Hold {
-            hold_id: hold_id.to_string(),
-            account: Some(account_ref),
-            amount_minor: req.amount_minor,
-            status: pb::HoldStatus::Active as i32,
-            ..Default::default()
+            opening_balance_minor: opening,
+            lines: lines
+                .iter()
+                .map(|l| pb::LedgerStatementLine {
+                    entry: Some(entry_pb(&l.entry)),
+                    transaction_id: l.transaction_id.to_string(),
+                    transaction_type: l.transaction_type.clone(),
+                    description: l.description.clone(),
+                    running_balance_minor: l.running_balance_minor,
+                    effective_at: Some(ts(l.effective_at)),
+                })
+                .collect(),
+            closing_balance_minor: closing,
+            page: Some(pb::PageInfo::default()),
         }))
     }
 
-    async fn capture_hold(&self, request: Request<pb::CaptureHoldRequest>) -> Result<Response<pb::CaptureHoldResponse>, Status> {
+    #[tracing::instrument(skip_all, fields(rpc = "CreateHold"))]
+    async fn create_hold(&self, request: Request<pb::CreateHoldRequest>) -> R<pb::Hold> {
+        Caller::from_metadata(request.metadata()).require_writer()?;
         let req = request.into_inner();
-        let hold_id = Uuid::parse_str(&req.hold_id).map_err(|_| Status::invalid_argument("bad id"))?;
-        sqlx::query("UPDATE ledger.holds SET status='CAPTURED', updated_at=now() WHERE id=$1 AND status='ACTIVE'")
-            .bind(hold_id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(pb::CaptureHoldResponse { hold: None, transaction: None }))
-    }
-    async fn release_hold(&self, request: Request<pb::ReleaseHoldRequest>) -> Result<Response<pb::Hold>, Status> {
-        let req = request.into_inner();
-        let hold_id = Uuid::parse_str(&req.hold_id).map_err(|_| Status::invalid_argument("bad id"))?;
-        sqlx::query("UPDATE ledger.holds SET status='RELEASED', updated_at=now() WHERE id=$1 AND status='ACTIVE'")
-            .bind(hold_id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(pb::Hold {
-            hold_id: req.hold_id,
-            status: pb::HoldStatus::Released as i32,
-            ..Default::default()
-        }))
-    }
-    async fn get_hold(&self, request: Request<pb::GetHoldRequest>) -> Result<Response<pb::Hold>, Status> {
-        let req = request.into_inner();
-        let hold_id = Uuid::parse_str(&req.hold_id).map_err(|_| Status::invalid_argument("bad id"))?;
-        let row: (Uuid, i64, String) = sqlx::query_as(
-            "SELECT id, amount_minor, status FROM ledger.holds WHERE id=$1",
-        )
-        .bind(hold_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| Status::not_found(e.to_string()))?;
-        let status = match row.2.as_str() {
-            "ACTIVE" => pb::HoldStatus::Active as i32,
-            "CAPTURED" => pb::HoldStatus::Captured as i32,
-            "RELEASED" => pb::HoldStatus::Released as i32,
-            "EXPIRED" => pb::HoldStatus::Expired as i32,
-            _ => pb::HoldStatus::Unspecified as i32,
+        let spec = account_spec(req.account.as_ref(), Side::Debit, req.amount_minor)?;
+        if spec.account_type != AccountType::Wallet {
+            return Err(invalid(
+                "INVALID_ACCOUNT",
+                "solo se retiene sobre una billetera",
+            ));
+        }
+        let hash = request_hash(&req, |m| m.idempotency_key.clear());
+        let cmd = HoldCommand {
+            idempotency_key: req.idempotency_key.clone(),
+            request_hash: hash,
+            party_id: spec.party_id,
+            currency: spec.currency,
+            scope_id: spec.scope_id,
+            amount_minor: req.amount_minor,
+            reference_type: req
+                .reference
+                .as_ref()
+                .map(|r| r.r#type.clone())
+                .unwrap_or_default(),
+            reference_id: req
+                .reference
+                .as_ref()
+                .map(|r| r.id.clone())
+                .unwrap_or_default(),
+            ttl_seconds: i64::from(req.ttl_seconds),
         };
-        Ok(Response::new(pb::Hold {
-            hold_id: row.0.to_string(),
-            amount_minor: row.1,
-            status,
-            ..Default::default()
+        if cmd.idempotency_key.is_empty() {
+            return Err(to_status(
+                StoreError::Domain(crate::domain::errors::DomainError::IdempotencyKeyRequired),
+                "CreateHold",
+            ));
+        }
+        let h = self
+            .store
+            .create_hold(cmd)
+            .await
+            .map_err(|e| to_status(e, "CreateHold"))?;
+        Ok(Response::new(hold_pb(&h)))
+    }
+
+    #[tracing::instrument(skip_all, fields(rpc = "CaptureHold"))]
+    async fn capture_hold(
+        &self,
+        request: Request<pb::CaptureHoldRequest>,
+    ) -> R<pb::CaptureHoldResponse> {
+        Caller::from_metadata(request.metadata()).require_writer()?;
+        let req = request.into_inner();
+        let hold_id = parse_uuid(&req.hold_id, "NOT_FOUND")?;
+        let legs = req
+            .legs
+            .iter()
+            .map(|l| account_spec(l.account.as_ref(), Side::Credit, l.amount_minor))
+            .collect::<Result<Vec<_>, _>>()?;
+        let hash = request_hash(&req, |m| m.idempotency_key.clear());
+        let post = PostCommand {
+            idempotency_key: req.idempotency_key.clone(),
+            request_hash: hash,
+            tenant_id: opt_uuid(&req.tenant_id)?,
+            transaction_type: req.transaction_type.clone(),
+            reference_type: req
+                .reference
+                .as_ref()
+                .map(|r| r.r#type.clone())
+                .unwrap_or_default(),
+            reference_id: req
+                .reference
+                .as_ref()
+                .map(|r| r.id.clone())
+                .unwrap_or_default(),
+            currency: String::new(), // la fija la cuenta del hold
+            description: String::new(),
+            entries: Vec::new(),
+            effective_at: None,
+        };
+        let (h, t) = self
+            .store
+            .capture_hold(CaptureCommand {
+                hold_id,
+                post,
+                legs,
+            })
+            .await
+            .map_err(|e| to_status(e, "CaptureHold"))?;
+        Ok(Response::new(pb::CaptureHoldResponse {
+            hold: Some(hold_pb(&h)),
+            transaction: Some(transaction_pb(&t)),
         }))
+    }
+
+    #[tracing::instrument(skip_all, fields(rpc = "ReleaseHold"))]
+    async fn release_hold(&self, request: Request<pb::ReleaseHoldRequest>) -> R<pb::Hold> {
+        Caller::from_metadata(request.metadata()).require_writer()?;
+        let req = request.into_inner();
+        let h = self
+            .store
+            .release_hold(parse_uuid(&req.hold_id, "NOT_FOUND")?)
+            .await
+            .map_err(|e| to_status(e, "ReleaseHold"))?;
+        Ok(Response::new(hold_pb(&h)))
+    }
+
+    #[tracing::instrument(skip_all, fields(rpc = "GetHold"))]
+    async fn get_hold(&self, request: Request<pb::GetHoldRequest>) -> R<pb::Hold> {
+        // Las retenciones son del orquestador de pagos: solo las leen servicios de confianza.
+        if !Caller::from_metadata(request.metadata())
+            .read_scope("")?
+            .service
+        {
+            return Err(status(Code::NotFound, "NOT_FOUND", "no encontrado"));
+        }
+        let req = request.into_inner();
+        let h = self
+            .store
+            .hold(parse_uuid(&req.hold_id, "NOT_FOUND")?)
+            .await
+            .map_err(|e| to_status(e, "GetHold"))?;
+        Ok(Response::new(hold_pb(&h)))
+    }
+}
+
+/// Para lecturas internas sin parte: el servicio de confianza ya validado.
+#[allow(dead_code)]
+fn service_scope() -> ReadScope {
+    ReadScope {
+        service: true,
+        ..Default::default()
     }
 }

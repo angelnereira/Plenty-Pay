@@ -1,5 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS ledger;
-
+-- El esquema `ledger` y sus permisos los crea postgres-db/init (el migrador no tiene CREATE en la base).
 -- Ledger schema (F10.2). Triggers enforce invariants I1-I3 as second barrier.
 
 CREATE TABLE ledger.accounts (

@@ -82,7 +82,7 @@ fn checked_add_overflow() {
 proptest! {
     #[test]
     fn allocate_sums_to_total(total in -1000i64..1000i64, n in 1usize..6usize) {
-        let weights: Vec<u64> = (0..n).map(|i| (i as u64) + 1).collect();
+        let weights: Vec<u64> = (1..=n).map(|i| i as u64).collect();
         let m = Money::new(total, Currency::USD).unwrap();
         let parts = Money::allocate(m, &weights).unwrap();
         let sum: i64 = parts.iter().map(|p| p.amount_minor()).sum();

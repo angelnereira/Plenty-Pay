@@ -47,6 +47,26 @@ services:
       pgbouncer:
         condition: service_healthy
 
+  # F10: libro contable (Rust). Solo payments-core y settlement escriben (SPEC §4); hoja sin
+  # dependencias gRPC. Conecta directo a postgres-db: sqlx usa sentencias preparadas y PgBouncer
+  # está en modo transaction sin max_prepared_statements. Migraciones: `docker compose run --rm ledger migrate`.
+  ledger:
+    <<: *hardening
+    build:
+      context: ./ledger
+    environment:
+      DATABASE_URL: "${LEDGER_DB_DSN:-postgres://ledger_svc:ledger_svc_dev_secret_32_chars!@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_MIGRATE_DSN: "${LEDGER_MIGRATE_DSN:-postgres://migrator_ledger:ledger_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_NATS_URL: "${LEDGER_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${LEDGER_NATS_USER:-ledger_svc}"
+      PP_NATS_PASS: "${LEDGER_NATS_PASS:-ledger_nats_secret}"
+      RUST_LOG: "${LEDGER_LOG:-info}"
+    networks: [services, data]
+    healthcheck: *healthcheck
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
   api-gateway:
     <<: *hardening
     build:

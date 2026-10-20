@@ -1,12 +1,14 @@
-//! Ledger domain (F10.1): Money and posting templates. Pure domain, no I/O.
+//! ledger: libro contable de doble partida de PlentyPay (SPEC.md). Único que escribe asientos
+//! (AGENTS.md §2.5).
 
+pub mod config;
 pub mod domain;
 pub mod error;
+pub mod events;
 pub mod grpc;
-pub mod pb;
-pub mod relay;
 pub mod observability;
+pub mod pb;
+pub mod store;
 
 pub use domain::money::{Currency, Money};
-pub use domain::posting::{PostingTemplate, TemplateId};
 pub use error::LedgerError;

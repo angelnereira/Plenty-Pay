@@ -63,17 +63,17 @@ CREATE INDEX holds_active_expiry ON ledger.holds (expires_at) WHERE status = 'AC
 ## 4. RPCs
 | RPC | Llamadores permitidos | Idempotente | Comportamiento | Errores |
 |---|---|---|---|---|
-| PostTransaction | payments-core, settlement, pos (T8/T9 vía payments-core en MVP), payroll vía payments-core | sí (`idempotency_key` global) | valida plantilla (§5), crea cuentas perezosamente, bloquea cuentas en orden ascendente de id, verifica I5 y disponibles, inserta, marca POSTED, outbox `TransactionPosted` | `UNBALANCED_TRANSACTION`, `UNKNOWN_TEMPLATE`, `INVALID_AMOUNT`, `CURRENCY_MISMATCH`, `INSUFFICIENT_FUNDS`, `DUPLICATE_CAPTURE`, `IDEMPOTENCY_KEY_REUSED` |
+| PostTransaction | payments-core, settlement, pos (T8/T9 vía payments-core en MVP), payroll vía payments-core | sí (`idempotency_key` global) | valida plantilla (§5), crea cuentas perezosamente, bloquea cuentas en orden ascendente de id, verifica I5 y disponibles, inserta, marca POSTED, outbox `TransactionPosted` | `UNBALANCED_TRANSACTION`, `UNKNOWN_TEMPLATE`, `INVALID_AMOUNT`, `CURRENCY_MISMATCH`, `INVALID_ACCOUNT`, `INVALID_EFFECTIVE_AT`, `INSUFFICIENT_FUNDS`, `DUPLICATE_CAPTURE`, `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_KEY_REUSED` |
 | ReverseTransaction | payments-core, settlement, `platform:reconcile` vía gateway | sí (`rev:<id>`) | crea transacción espejo (lados invertidos), original → REVERSED | `ALREADY_REVERSED`, `NOT_FOUND`, `INSUFFICIENT_FUNDS` |
 | GetTransaction / ListTransactions | servicios + gateway (lectura) | — | por id / por cuenta, referencia o rango; keyset | `NOT_FOUND` |
 | GetBalance / ListBalances | servicios + gateway | — | saldo, retenido, disponible por cuenta | `NOT_FOUND` (cuenta inexistente → saldo 0, no error) |
 | GetStatement | gateway (wallet, comercio) | — | movimientos con saldo corrido, rango ≤ 366 días | `INVALID_RANGE` |
-| CreateHold | payments-core | sí | verifica disponible ≥ monto, crea hold ACTIVE con TTL (def. 15 min, máx. 7 días) | `INSUFFICIENT_FUNDS` |
+| CreateHold | payments-core | sí | verifica disponible ≥ monto, solo sobre `WALLET`; verifica disponible ≥ monto, crea hold ACTIVE con TTL **obligatorio** entre 1 s y 7 días (`ttl_seconds` del contrato: ninguna retención es indefinida; payments-core usa 15 min) | `INSUFFICIENT_FUNDS`, `INVALID_HOLD_TTL`, `INVALID_ACCOUNT` |
 | CaptureHold | payments-core | sí | en una transacción: hold → CAPTURED + PostTransaction con D sobre la cuenta del hold por el monto del hold y `legs` de crédito; Σ legs = monto | `HOLD_NOT_ACTIVE`, `UNBALANCED_TRANSACTION` |
 | ReleaseHold | payments-core | sí por estado | ACTIVE → RELEASED; otros estados → devuelve el hold sin cambio | `NOT_FOUND` |
-| GetHold | payments-core | — | | `NOT_FOUND` |
+| GetHold | payments-core (solo servicios; desde el gateway responde `NOT_FOUND`) | — | | `NOT_FOUND` |
 
-Autorización: ledger confía en la identidad de servicio (mTLS) para escrituras; **solo** payments-core y settlement pueden escribir (§3 de `service-dependencies.md`). Lecturas desde el gateway exigen que el `party_id` pedido sea el usuario (`wallet:read`) o el tenant del contexto (`settlement:read`/`payments:read`); PLATFORM solo con `platform:*`.
+Autorización: ledger confía en la identidad de servicio (mTLS) para escrituras; **solo** payments-core y settlement pueden escribir (§3 de `service-dependencies.md`). Lecturas desde el gateway exigen que el `party_id` pedido sea el usuario (`wallet:read`) o el tenant del contexto (`settlement:read`/`payments:read`); PLATFORM solo con `platform:*` (**pendiente**: hoy una lectura de PLATFORM desde el gateway responde `NOT_FOUND`; se habilita con la consola de conciliación, F13).
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-AML-10, N-AML-11, N-COM-02, N-COM-07 y N-PAG-02. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
@@ -98,16 +98,16 @@ Publica: `pp.ledger.transaction.posted.v1` (`TransactionPosted`, sin entries com
 Ninguna síncrona. Es llamado por payments-core, settlement y gateway (lecturas).
 
 ## 8. Configuración
-`LEDGER_GRPC_ADDR` (`:50061`), `DATABASE_URL`, `DB_MAX_CONNECTIONS` (20), `NATS_URL`, `HOLD_DEFAULT_TTL_SECONDS` (900), `OTEL_EXPORTER_OTLP_ENDPOINT`.
+`DATABASE_URL` (obligatorio; directo a `postgres-db:5432` como `ledger_svc`: sqlx usa sentencias preparadas y PgBouncer está en modo `transaction`), `PP_MIGRATE_DSN` (subcomando `migrate`, como `migrator_ledger`), `PORT` (50061), `ADMIN_PORT` (9100), `PP_NATS_URL`/`PP_NATS_USER`/`PP_NATS_PASS` (vacío = sin relay), `RUST_LOG`. Pendiente con las trazas: `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
 ## 9. Observabilidad
-`pp_ledger_transactions_total{type}`, `pp_ledger_post_duration_seconds`, `pp_ledger_holds_active`, `pp_ledger_invariant_violations_total` (alerta crítica > 0), `pp_ledger_lock_wait_seconds`. SLO: PostTransaction p99 ≤ 50 ms.
+`pp_ledger_transactions_total{type}`, `pp_ledger_post_duration_seconds`, `pp_ledger_holds_active`, `pp_ledger_invariant_violations_total` (alerta crítica > 0), `pp_ledger_lock_wait_seconds`. SLO: PostTransaction p99 ≤ 50 ms. Implementadas hoy (2026-10-20): `pp_ledger_invariant_violations_total`, `pp_ledger_holds_expired_total`, `pp_ledger_job_failures_total{job}`; el resto queda pendiente junto con las trazas OTel (README, fila Observabilidad).
 
 ## 10. Seguridad
 Rol de BD sin privilegios de UPDATE/DELETE sobre `entries`; triggers como barrera aun para un servicio comprometido; auditoría de reversos (`AuditRecorded`).
 
 ## 11. Pruebas de aceptación
-1. Los 27 casos de `scripts/ledger-tests` pasan contra las migraciones Rust (L2).
+1. Los casos de `scripts/ledger-tests` que aplican al modelo del ledger pasan contra las migraciones Rust (L2, `tests/l2_ledger.rs` `ref_*`); los del modelo Prisma heredado (`payment_intents`, `wallets`, reembolsos sobre `payments`) son de payments-core.
 2. Plantillas T1–T10 con los vectores A, D, E, R1–R3 de `domain-model.md` §4.5 producen saldos esperados.
 3. Propiedad: secuencias aleatorias de transacciones válidas + reversos mantienen I1, I5, I7.
 4. Concurrencia: 1 000 transferencias T4 cruzadas entre 10 wallets en 50 tareas → saldo total constante, ninguna negativa, sin deadlocks.
