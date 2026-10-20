@@ -251,4 +251,101 @@ var commerceRoutes = []Route{
 	},
 }
 
-func init() { Table = append(Table, commerceRoutes...) }
+// ordersRoutes: marketplace multi-comercio (F15.6–F15.9, ADR 0017).
+var ordersRoutes = []Route{
+	{
+		Method: "GET", Path: "/v1/cart", RPC: "/plentypay.orders.v1.Orders/GetCart",
+		Backend: BackendOrders, RequireAuth: true, Permission: "orders:create:self",
+		NewRequest:  func() proto.Message { return &pb.GetCartRequest{} },
+		NewResponse: func() proto.Message { return &pb.Cart{} },
+	},
+	{
+		// quantity_milli = 0 quita el producto.
+		Method: "PUT", Path: "/v1/cart/items/{product_id}", RPC: "/plentypay.orders.v1.Orders/SetCartItem",
+		Backend: BackendOrders, RequireAuth: true, Idempotency: true, Permission: "orders:create:self",
+		PathParams:  map[string]string{"product_id": "product_id"},
+		NewRequest:  func() proto.Message { return &pb.SetCartItemRequest{} },
+		NewResponse: func() proto.Message { return &pb.Cart{} },
+	},
+	{
+		Method: "POST", Path: "/v1/cart/clear", RPC: "/plentypay.orders.v1.Orders/ClearCart",
+		Backend: BackendOrders, RequireAuth: true, Idempotency: true, Permission: "orders:create:self",
+		NewRequest:  func() proto.Message { return &pb.ClearCartRequest{} },
+		NewResponse: func() proto.Message { return &pb.Cart{} },
+	},
+	{
+		Method: "POST", Path: "/v1/orders/quote", RPC: "/plentypay.orders.v1.Orders/QuoteCheckout",
+		Backend: BackendOrders, RequireAuth: true, Permission: "orders:create:self",
+		NewRequest:  func() proto.Message { return &pb.QuoteCheckoutRequest{} },
+		NewResponse: func() proto.Message { return &pb.CheckoutQuote{} },
+	},
+	{
+		// Saga R3: reserva + UN cobro con splits; el comprador lo confirma en /v1/payments/intents/{id}/confirm.
+		Method: "POST", Path: "/v1/orders", RPC: "/plentypay.orders.v1.Orders/Checkout",
+		Backend: BackendOrders, RequireAuth: true, Idempotency: true, StepUp: true, Permission: "orders:create:self",
+		NewRequest:  func() proto.Message { return &pb.OrderCheckoutRequest{} },
+		NewResponse: func() proto.Message { return &pb.Order{} },
+	},
+	{
+		Method: "GET", Path: "/v1/orders", RPC: "/plentypay.orders.v1.Orders/ListMyOrders",
+		Backend: BackendOrders, RequireAuth: true, Permission: "orders:read:self",
+		QueryParams: map[string]string{"status": "status", "page_size": "page.page_size", "page_token": "page.page_token"},
+		NewRequest:  func() proto.Message { return &pb.ListMyOrdersRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListOrdersResponse{} },
+	},
+	{
+		Method: "GET", Path: "/v1/orders/{order_id}", RPC: "/plentypay.orders.v1.Orders/GetOrder",
+		Backend: BackendOrders, RequireAuth: true, Permission: "orders:read:self",
+		PathParams:  map[string]string{"order_id": "order_id"},
+		NewRequest:  func() proto.Message { return &pb.GetOrderRequest{} },
+		NewResponse: func() proto.Message { return &pb.Order{} },
+	},
+	{
+		Method: "POST", Path: "/v1/orders/{order_id}/cancel", RPC: "/plentypay.orders.v1.Orders/CancelOrder",
+		Backend: BackendOrders, RequireAuth: true, Idempotency: true, Permission: "orders:create:self",
+		PathParams:  map[string]string{"order_id": "order_id"},
+		NewRequest:  func() proto.Message { return &pb.CancelOrderRequest{} },
+		NewResponse: func() proto.Message { return &pb.Order{} },
+	},
+	{
+		Method: "GET", Path: "/v1/merchant/orders", RPC: "/plentypay.orders.v1.Orders/ListMerchantOrders",
+		Backend: BackendOrders, RequireAuth: true, Permission: "orders:read",
+		QueryParams: map[string]string{"status": "status", "from": "range.from", "to": "range.to",
+			"page_size": "page.page_size", "page_token": "page.page_token"},
+		NewRequest:  func() proto.Message { return &pb.ListMerchantOrdersRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListSubOrdersResponse{} },
+	},
+	{
+		Method: "POST", Path: "/v1/merchant/sub-orders/{sub_order_id}/accept", RPC: "/plentypay.orders.v1.Orders/AcceptSubOrder",
+		Backend: BackendOrders, RequireAuth: true, Idempotency: true, Permission: "orders:manage",
+		PathParams:  map[string]string{"sub_order_id": "sub_order_id"},
+		NewRequest:  func() proto.Message { return &pb.SubOrderActionRequest{} },
+		NewResponse: func() proto.Message { return &pb.SubOrder{} },
+	},
+	{
+		Method: "POST", Path: "/v1/merchant/sub-orders/{sub_order_id}/reject", RPC: "/plentypay.orders.v1.Orders/RejectSubOrder",
+		Backend: BackendOrders, RequireAuth: true, Idempotency: true, Permission: "orders:manage",
+		PathParams:  map[string]string{"sub_order_id": "sub_order_id"},
+		NewRequest:  func() proto.Message { return &pb.RejectSubOrderRequest{} },
+		NewResponse: func() proto.Message { return &pb.SubOrder{} },
+	},
+	{
+		Method: "POST", Path: "/v1/merchant/sub-orders/{sub_order_id}/ready", RPC: "/plentypay.orders.v1.Orders/MarkSubOrderReady",
+		Backend: BackendOrders, RequireAuth: true, Idempotency: true, Permission: "orders:manage",
+		PathParams:  map[string]string{"sub_order_id": "sub_order_id"},
+		NewRequest:  func() proto.Message { return &pb.SubOrderActionRequest{} },
+		NewResponse: func() proto.Message { return &pb.SubOrder{} },
+	},
+	{
+		Method: "POST", Path: "/v1/merchant/sub-orders/{sub_order_id}/complete", RPC: "/plentypay.orders.v1.Orders/MarkSubOrderCompleted",
+		Backend: BackendOrders, RequireAuth: true, Idempotency: true, Permission: "orders:manage",
+		PathParams:  map[string]string{"sub_order_id": "sub_order_id"},
+		NewRequest:  func() proto.Message { return &pb.SubOrderActionRequest{} },
+		NewResponse: func() proto.Message { return &pb.SubOrder{} },
+	},
+}
+
+func init() {
+	Table = append(Table, commerceRoutes...)
+	Table = append(Table, ordersRoutes...)
+}

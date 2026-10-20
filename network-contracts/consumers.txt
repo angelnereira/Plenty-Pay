@@ -6,7 +6,7 @@
 #
 # --- implementados hoy ---
 identity|go|internal/pb|identity.proto,events.proto,security.proto,common.proto
-api-gateway|go|internal/pb|identity.proto,payments.proto,ledger.proto,catalog.proto,inventory.proto,pos.proto,fiscal_invoicing.proto,events.proto,common.proto
+api-gateway|go|internal/pb|identity.proto,payments.proto,ledger.proto,catalog.proto,inventory.proto,pos.proto,orders.proto,fiscal_invoicing.proto,events.proto,common.proto
 # --- objetivo (se activan al llegar a su fase) ---
 ledger|rust|proto|ledger.proto,common.proto,events.proto
 payments-core|rust|proto|payments.proto,ledger.proto,identity.proto,infra_management.proto,common.proto,events.proto

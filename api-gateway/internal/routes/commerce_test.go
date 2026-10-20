@@ -30,6 +30,10 @@ func TestF15_F17_CommerceMutationsCarryIdempotencyKey(t *testing.T) {
 		{"PUT", "/v1/pos/sales/" + pid, func(m proto.Message) string { return m.(*pb.UpdateSaleRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/pos/sales/" + pid + "/checkout", func(m proto.Message) string { return m.(*pb.PosCheckoutRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/pos/sales/" + pid + "/void", func(m proto.Message) string { return m.(*pb.VoidSaleRequest).GetIdempotencyKey() }},
+		{"POST", "/v1/orders", func(m proto.Message) string { return m.(*pb.OrderCheckoutRequest).GetIdempotencyKey() }},
+		{"POST", "/v1/merchant/sub-orders/" + pid + "/reject", func(m proto.Message) string { return m.(*pb.RejectSubOrderRequest).GetIdempotencyKey() }},
+		{"PUT", "/v1/cart/items/" + pid, func(m proto.Message) string { return m.(*pb.SetCartItemRequest).GetIdempotencyKey() }},
+		{"POST", "/v1/payments/" + pid + "/refunds", func(m proto.Message) string { return m.(*pb.RefundPaymentRequest).GetIdempotencyKey() }},
 	} {
 		r := route(t, c.method, c.path)
 		if !r.Idempotency || r.Permission == "" {
@@ -100,7 +104,7 @@ func TestF17_CheckoutDecodesTenders(t *testing.T) {
 func TestF15_F17_CommerceRoutesRequireAuth(t *testing.T) {
 	for _, r := range routes.Table {
 		switch r.Backend {
-		case routes.BackendCatalog, routes.BackendInventory, routes.BackendPos:
+		case routes.BackendCatalog, routes.BackendInventory, routes.BackendPos, routes.BackendOrders:
 			// El marketplace lo lee cualquier persona con sesión (catalog SPEC §4 "autenticado").
 			if strings.HasPrefix(r.Path, "/v1/marketplace/") {
 				if !r.RequireAuth {

@@ -154,6 +154,28 @@ services:
       pgbouncer:
         condition: service_healthy
 
+  # F15.6–F15.9: pedidos del marketplace (saga: reservas en inventory + UN cobro con splits).
+  orders:
+    <<: *hardening
+    build:
+      context: ./orders
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      PP_DB_DSN: "${ORDERS_DB_DSN:-postgres://orders_svc:orders_svc_dev_secret_32_chars!@pgbouncer:6432/plentypay?sslmode=disable}"
+      PP_MIGRATE_DSN: "${ORDERS_MIGRATE_DSN:-postgres://migrator_orders:orders_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_CATALOG_ADDR: "catalog:50065"
+      PP_INVENTORY_ADDR: "inventory:50066"
+      PP_PAYMENTS_ADDR: "payments-core:50062"
+      PP_NATS_URL: "${ORDERS_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${ORDERS_NATS_USER:-orders_svc}"
+      PP_NATS_PASS: "${ORDERS_NATS_PASS:-orders_nats_secret}"
+    networks: [services, data]
+    healthcheck: *healthcheck
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+
   api-gateway:
     <<: *hardening
     build:

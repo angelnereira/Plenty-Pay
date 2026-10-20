@@ -86,6 +86,7 @@ func TestTableRoutesWellFormed(t *testing.T) {
 			routes.BackendCatalog:   "/plentypay.catalog.v1.Catalog/",
 			routes.BackendInventory: "/plentypay.inventory.v1.Inventory/",
 			routes.BackendPos:       "/plentypay.pos.v1.Pos/",
+			routes.BackendOrders:    "/plentypay.orders.v1.Orders/",
 		}[r.Backend]
 		if r.RPC == "" || prefix == "" || !strings.HasPrefix(r.RPC, prefix) {
 			t.Errorf("ruta %s %s: RPC %q inválido para el destino %q", r.Method, r.Path, r.RPC, r.Backend)

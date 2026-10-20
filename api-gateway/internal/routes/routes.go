@@ -72,6 +72,7 @@ const (
 	BackendCatalog   = "catalog"
 	BackendInventory = "inventory"
 	BackendPos       = "pos"
+	BackendOrders    = "orders"
 )
 
 // FullMethod devuelve el método gRPC normalizado (con barra inicial).
