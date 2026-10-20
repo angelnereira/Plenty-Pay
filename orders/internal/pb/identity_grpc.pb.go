@@ -42,6 +42,23 @@ const (
 	Identity_UpsertRole_FullMethodName                = "/plentypay.identity.v1.Identity/UpsertRole"
 	Identity_ListRoles_FullMethodName                 = "/plentypay.identity.v1.Identity/ListRoles"
 	Identity_AssignRole_FullMethodName                = "/plentypay.identity.v1.Identity/AssignRole"
+	Identity_ListVerticals_FullMethodName             = "/plentypay.identity.v1.Identity/ListVerticals"
+	Identity_ListRoleTemplates_FullMethodName         = "/plentypay.identity.v1.Identity/ListRoleTemplates"
+	Identity_GetAccessCatalog_FullMethodName          = "/plentypay.identity.v1.Identity/GetAccessCatalog"
+	Identity_GetBusinessProfile_FullMethodName        = "/plentypay.identity.v1.Identity/GetBusinessProfile"
+	Identity_UpdateBusinessProfile_FullMethodName     = "/plentypay.identity.v1.Identity/UpdateBusinessProfile"
+	Identity_SetCapabilities_FullMethodName           = "/plentypay.identity.v1.Identity/SetCapabilities"
+	Identity_UpsertBranch_FullMethodName              = "/plentypay.identity.v1.Identity/UpsertBranch"
+	Identity_ListBranches_FullMethodName              = "/plentypay.identity.v1.Identity/ListBranches"
+	Identity_DeactivateBranch_FullMethodName          = "/plentypay.identity.v1.Identity/DeactivateBranch"
+	Identity_ReactivateBranch_FullMethodName          = "/plentypay.identity.v1.Identity/ReactivateBranch"
+	Identity_UpdateMembership_FullMethodName          = "/plentypay.identity.v1.Identity/UpdateMembership"
+	Identity_ArchiveRole_FullMethodName               = "/plentypay.identity.v1.Identity/ArchiveRole"
+	Identity_SuspendUser_FullMethodName               = "/plentypay.identity.v1.Identity/SuspendUser"
+	Identity_ReactivateUser_FullMethodName            = "/plentypay.identity.v1.Identity/ReactivateUser"
+	Identity_ListInvitations_FullMethodName           = "/plentypay.identity.v1.Identity/ListInvitations"
+	Identity_RevokeInvitation_FullMethodName          = "/plentypay.identity.v1.Identity/RevokeInvitation"
+	Identity_ResendInvitation_FullMethodName          = "/plentypay.identity.v1.Identity/ResendInvitation"
 	Identity_BeginPasskeyRegistration_FullMethodName  = "/plentypay.identity.v1.Identity/BeginPasskeyRegistration"
 	Identity_FinishPasskeyRegistration_FullMethodName = "/plentypay.identity.v1.Identity/FinishPasskeyRegistration"
 	Identity_BeginPasskeyLogin_FullMethodName         = "/plentypay.identity.v1.Identity/BeginPasskeyLogin"
@@ -88,6 +105,24 @@ type IdentityClient interface {
 	UpsertRole(ctx context.Context, in *UpsertRoleRequest, opts ...grpc.CallOption) (*Role, error)
 	ListRoles(ctx context.Context, in *ListRolesRequest, opts ...grpc.CallOption) (*ListRolesResult, error)
 	AssignRole(ctx context.Context, in *AssignRoleRequest, opts ...grpc.CallOption) (*SimpleResult, error)
+	// ── Modelo de acceso (ADR 0018, identity/SPEC.md §4). Solo aditivo. ──
+	ListVerticals(ctx context.Context, in *ListVerticalsRequest, opts ...grpc.CallOption) (*ListVerticalsResult, error)
+	ListRoleTemplates(ctx context.Context, in *ListRoleTemplatesRequest, opts ...grpc.CallOption) (*ListRoleTemplatesResult, error)
+	GetAccessCatalog(ctx context.Context, in *GetAccessCatalogRequest, opts ...grpc.CallOption) (*AccessCatalog, error)
+	GetBusinessProfile(ctx context.Context, in *GetBusinessProfileRequest, opts ...grpc.CallOption) (*BusinessProfile, error)
+	UpdateBusinessProfile(ctx context.Context, in *UpdateBusinessProfileRequest, opts ...grpc.CallOption) (*BusinessProfile, error)
+	SetCapabilities(ctx context.Context, in *SetCapabilitiesRequest, opts ...grpc.CallOption) (*BusinessProfile, error)
+	UpsertBranch(ctx context.Context, in *UpsertBranchRequest, opts ...grpc.CallOption) (*Branch, error)
+	ListBranches(ctx context.Context, in *ListBranchesRequest, opts ...grpc.CallOption) (*ListBranchesResult, error)
+	DeactivateBranch(ctx context.Context, in *BranchRef, opts ...grpc.CallOption) (*Branch, error)
+	ReactivateBranch(ctx context.Context, in *BranchRef, opts ...grpc.CallOption) (*Branch, error)
+	UpdateMembership(ctx context.Context, in *UpdateMembershipRequest, opts ...grpc.CallOption) (*UserSummary, error)
+	ArchiveRole(ctx context.Context, in *ArchiveRoleRequest, opts ...grpc.CallOption) (*SimpleResult, error)
+	SuspendUser(ctx context.Context, in *SetUserStatusRequest, opts ...grpc.CallOption) (*SimpleResult, error)
+	ReactivateUser(ctx context.Context, in *SetUserStatusRequest, opts ...grpc.CallOption) (*SimpleResult, error)
+	ListInvitations(ctx context.Context, in *ListInvitationsRequest, opts ...grpc.CallOption) (*ListInvitationsResult, error)
+	RevokeInvitation(ctx context.Context, in *InvitationRef, opts ...grpc.CallOption) (*SimpleResult, error)
+	ResendInvitation(ctx context.Context, in *InvitationRef, opts ...grpc.CallOption) (*Invitation, error)
 	// Passkeys / WebAuthn
 	BeginPasskeyRegistration(ctx context.Context, in *BeginPasskeyRegistrationRequest, opts ...grpc.CallOption) (*PasskeyChallenge, error)
 	FinishPasskeyRegistration(ctx context.Context, in *FinishPasskeyRegistrationRequest, opts ...grpc.CallOption) (*SimpleResult, error)
@@ -338,6 +373,176 @@ func (c *identityClient) AssignRole(ctx context.Context, in *AssignRoleRequest, 
 	return out, nil
 }
 
+func (c *identityClient) ListVerticals(ctx context.Context, in *ListVerticalsRequest, opts ...grpc.CallOption) (*ListVerticalsResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListVerticalsResult)
+	err := c.cc.Invoke(ctx, Identity_ListVerticals_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) ListRoleTemplates(ctx context.Context, in *ListRoleTemplatesRequest, opts ...grpc.CallOption) (*ListRoleTemplatesResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRoleTemplatesResult)
+	err := c.cc.Invoke(ctx, Identity_ListRoleTemplates_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) GetAccessCatalog(ctx context.Context, in *GetAccessCatalogRequest, opts ...grpc.CallOption) (*AccessCatalog, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AccessCatalog)
+	err := c.cc.Invoke(ctx, Identity_GetAccessCatalog_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) GetBusinessProfile(ctx context.Context, in *GetBusinessProfileRequest, opts ...grpc.CallOption) (*BusinessProfile, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BusinessProfile)
+	err := c.cc.Invoke(ctx, Identity_GetBusinessProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) UpdateBusinessProfile(ctx context.Context, in *UpdateBusinessProfileRequest, opts ...grpc.CallOption) (*BusinessProfile, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BusinessProfile)
+	err := c.cc.Invoke(ctx, Identity_UpdateBusinessProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) SetCapabilities(ctx context.Context, in *SetCapabilitiesRequest, opts ...grpc.CallOption) (*BusinessProfile, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BusinessProfile)
+	err := c.cc.Invoke(ctx, Identity_SetCapabilities_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) UpsertBranch(ctx context.Context, in *UpsertBranchRequest, opts ...grpc.CallOption) (*Branch, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Branch)
+	err := c.cc.Invoke(ctx, Identity_UpsertBranch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) ListBranches(ctx context.Context, in *ListBranchesRequest, opts ...grpc.CallOption) (*ListBranchesResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListBranchesResult)
+	err := c.cc.Invoke(ctx, Identity_ListBranches_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) DeactivateBranch(ctx context.Context, in *BranchRef, opts ...grpc.CallOption) (*Branch, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Branch)
+	err := c.cc.Invoke(ctx, Identity_DeactivateBranch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) ReactivateBranch(ctx context.Context, in *BranchRef, opts ...grpc.CallOption) (*Branch, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Branch)
+	err := c.cc.Invoke(ctx, Identity_ReactivateBranch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) UpdateMembership(ctx context.Context, in *UpdateMembershipRequest, opts ...grpc.CallOption) (*UserSummary, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserSummary)
+	err := c.cc.Invoke(ctx, Identity_UpdateMembership_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) ArchiveRole(ctx context.Context, in *ArchiveRoleRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SimpleResult)
+	err := c.cc.Invoke(ctx, Identity_ArchiveRole_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) SuspendUser(ctx context.Context, in *SetUserStatusRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SimpleResult)
+	err := c.cc.Invoke(ctx, Identity_SuspendUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) ReactivateUser(ctx context.Context, in *SetUserStatusRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SimpleResult)
+	err := c.cc.Invoke(ctx, Identity_ReactivateUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) ListInvitations(ctx context.Context, in *ListInvitationsRequest, opts ...grpc.CallOption) (*ListInvitationsResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListInvitationsResult)
+	err := c.cc.Invoke(ctx, Identity_ListInvitations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) RevokeInvitation(ctx context.Context, in *InvitationRef, opts ...grpc.CallOption) (*SimpleResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SimpleResult)
+	err := c.cc.Invoke(ctx, Identity_RevokeInvitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) ResendInvitation(ctx context.Context, in *InvitationRef, opts ...grpc.CallOption) (*Invitation, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Invitation)
+	err := c.cc.Invoke(ctx, Identity_ResendInvitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *identityClient) BeginPasskeyRegistration(ctx context.Context, in *BeginPasskeyRegistrationRequest, opts ...grpc.CallOption) (*PasskeyChallenge, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PasskeyChallenge)
@@ -445,6 +650,24 @@ type IdentityServer interface {
 	UpsertRole(context.Context, *UpsertRoleRequest) (*Role, error)
 	ListRoles(context.Context, *ListRolesRequest) (*ListRolesResult, error)
 	AssignRole(context.Context, *AssignRoleRequest) (*SimpleResult, error)
+	// ── Modelo de acceso (ADR 0018, identity/SPEC.md §4). Solo aditivo. ──
+	ListVerticals(context.Context, *ListVerticalsRequest) (*ListVerticalsResult, error)
+	ListRoleTemplates(context.Context, *ListRoleTemplatesRequest) (*ListRoleTemplatesResult, error)
+	GetAccessCatalog(context.Context, *GetAccessCatalogRequest) (*AccessCatalog, error)
+	GetBusinessProfile(context.Context, *GetBusinessProfileRequest) (*BusinessProfile, error)
+	UpdateBusinessProfile(context.Context, *UpdateBusinessProfileRequest) (*BusinessProfile, error)
+	SetCapabilities(context.Context, *SetCapabilitiesRequest) (*BusinessProfile, error)
+	UpsertBranch(context.Context, *UpsertBranchRequest) (*Branch, error)
+	ListBranches(context.Context, *ListBranchesRequest) (*ListBranchesResult, error)
+	DeactivateBranch(context.Context, *BranchRef) (*Branch, error)
+	ReactivateBranch(context.Context, *BranchRef) (*Branch, error)
+	UpdateMembership(context.Context, *UpdateMembershipRequest) (*UserSummary, error)
+	ArchiveRole(context.Context, *ArchiveRoleRequest) (*SimpleResult, error)
+	SuspendUser(context.Context, *SetUserStatusRequest) (*SimpleResult, error)
+	ReactivateUser(context.Context, *SetUserStatusRequest) (*SimpleResult, error)
+	ListInvitations(context.Context, *ListInvitationsRequest) (*ListInvitationsResult, error)
+	RevokeInvitation(context.Context, *InvitationRef) (*SimpleResult, error)
+	ResendInvitation(context.Context, *InvitationRef) (*Invitation, error)
 	// Passkeys / WebAuthn
 	BeginPasskeyRegistration(context.Context, *BeginPasskeyRegistrationRequest) (*PasskeyChallenge, error)
 	FinishPasskeyRegistration(context.Context, *FinishPasskeyRegistrationRequest) (*SimpleResult, error)
@@ -533,6 +756,57 @@ func (UnimplementedIdentityServer) ListRoles(context.Context, *ListRolesRequest)
 }
 func (UnimplementedIdentityServer) AssignRole(context.Context, *AssignRoleRequest) (*SimpleResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AssignRole not implemented")
+}
+func (UnimplementedIdentityServer) ListVerticals(context.Context, *ListVerticalsRequest) (*ListVerticalsResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListVerticals not implemented")
+}
+func (UnimplementedIdentityServer) ListRoleTemplates(context.Context, *ListRoleTemplatesRequest) (*ListRoleTemplatesResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRoleTemplates not implemented")
+}
+func (UnimplementedIdentityServer) GetAccessCatalog(context.Context, *GetAccessCatalogRequest) (*AccessCatalog, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccessCatalog not implemented")
+}
+func (UnimplementedIdentityServer) GetBusinessProfile(context.Context, *GetBusinessProfileRequest) (*BusinessProfile, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBusinessProfile not implemented")
+}
+func (UnimplementedIdentityServer) UpdateBusinessProfile(context.Context, *UpdateBusinessProfileRequest) (*BusinessProfile, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateBusinessProfile not implemented")
+}
+func (UnimplementedIdentityServer) SetCapabilities(context.Context, *SetCapabilitiesRequest) (*BusinessProfile, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetCapabilities not implemented")
+}
+func (UnimplementedIdentityServer) UpsertBranch(context.Context, *UpsertBranchRequest) (*Branch, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpsertBranch not implemented")
+}
+func (UnimplementedIdentityServer) ListBranches(context.Context, *ListBranchesRequest) (*ListBranchesResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBranches not implemented")
+}
+func (UnimplementedIdentityServer) DeactivateBranch(context.Context, *BranchRef) (*Branch, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeactivateBranch not implemented")
+}
+func (UnimplementedIdentityServer) ReactivateBranch(context.Context, *BranchRef) (*Branch, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReactivateBranch not implemented")
+}
+func (UnimplementedIdentityServer) UpdateMembership(context.Context, *UpdateMembershipRequest) (*UserSummary, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateMembership not implemented")
+}
+func (UnimplementedIdentityServer) ArchiveRole(context.Context, *ArchiveRoleRequest) (*SimpleResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ArchiveRole not implemented")
+}
+func (UnimplementedIdentityServer) SuspendUser(context.Context, *SetUserStatusRequest) (*SimpleResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SuspendUser not implemented")
+}
+func (UnimplementedIdentityServer) ReactivateUser(context.Context, *SetUserStatusRequest) (*SimpleResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReactivateUser not implemented")
+}
+func (UnimplementedIdentityServer) ListInvitations(context.Context, *ListInvitationsRequest) (*ListInvitationsResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListInvitations not implemented")
+}
+func (UnimplementedIdentityServer) RevokeInvitation(context.Context, *InvitationRef) (*SimpleResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokeInvitation not implemented")
+}
+func (UnimplementedIdentityServer) ResendInvitation(context.Context, *InvitationRef) (*Invitation, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResendInvitation not implemented")
 }
 func (UnimplementedIdentityServer) BeginPasskeyRegistration(context.Context, *BeginPasskeyRegistrationRequest) (*PasskeyChallenge, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BeginPasskeyRegistration not implemented")
@@ -990,6 +1264,312 @@ func _Identity_AssignRole_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Identity_ListVerticals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListVerticalsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ListVerticals(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ListVerticals_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ListVerticals(ctx, req.(*ListVerticalsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_ListRoleTemplates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRoleTemplatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ListRoleTemplates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ListRoleTemplates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ListRoleTemplates(ctx, req.(*ListRoleTemplatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_GetAccessCatalog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccessCatalogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).GetAccessCatalog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_GetAccessCatalog_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).GetAccessCatalog(ctx, req.(*GetAccessCatalogRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_GetBusinessProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBusinessProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).GetBusinessProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_GetBusinessProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).GetBusinessProfile(ctx, req.(*GetBusinessProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_UpdateBusinessProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateBusinessProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).UpdateBusinessProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_UpdateBusinessProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).UpdateBusinessProfile(ctx, req.(*UpdateBusinessProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_SetCapabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetCapabilitiesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).SetCapabilities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_SetCapabilities_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).SetCapabilities(ctx, req.(*SetCapabilitiesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_UpsertBranch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertBranchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).UpsertBranch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_UpsertBranch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).UpsertBranch(ctx, req.(*UpsertBranchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_ListBranches_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBranchesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ListBranches(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ListBranches_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ListBranches(ctx, req.(*ListBranchesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_DeactivateBranch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BranchRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).DeactivateBranch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_DeactivateBranch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).DeactivateBranch(ctx, req.(*BranchRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_ReactivateBranch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BranchRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ReactivateBranch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ReactivateBranch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ReactivateBranch(ctx, req.(*BranchRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_UpdateMembership_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateMembershipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).UpdateMembership(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_UpdateMembership_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).UpdateMembership(ctx, req.(*UpdateMembershipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_ArchiveRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRoleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ArchiveRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ArchiveRole_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ArchiveRole(ctx, req.(*ArchiveRoleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_SuspendUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetUserStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).SuspendUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_SuspendUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).SuspendUser(ctx, req.(*SetUserStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_ReactivateUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetUserStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ReactivateUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ReactivateUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ReactivateUser(ctx, req.(*SetUserStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_ListInvitations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListInvitationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ListInvitations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ListInvitations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ListInvitations(ctx, req.(*ListInvitationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_RevokeInvitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InvitationRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).RevokeInvitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_RevokeInvitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).RevokeInvitation(ctx, req.(*InvitationRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_ResendInvitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InvitationRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ResendInvitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ResendInvitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ResendInvitation(ctx, req.(*InvitationRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Identity_BeginPasskeyRegistration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BeginPasskeyRegistrationRequest)
 	if err := dec(in); err != nil {
@@ -1214,6 +1794,74 @@ var Identity_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AssignRole",
 			Handler:    _Identity_AssignRole_Handler,
+		},
+		{
+			MethodName: "ListVerticals",
+			Handler:    _Identity_ListVerticals_Handler,
+		},
+		{
+			MethodName: "ListRoleTemplates",
+			Handler:    _Identity_ListRoleTemplates_Handler,
+		},
+		{
+			MethodName: "GetAccessCatalog",
+			Handler:    _Identity_GetAccessCatalog_Handler,
+		},
+		{
+			MethodName: "GetBusinessProfile",
+			Handler:    _Identity_GetBusinessProfile_Handler,
+		},
+		{
+			MethodName: "UpdateBusinessProfile",
+			Handler:    _Identity_UpdateBusinessProfile_Handler,
+		},
+		{
+			MethodName: "SetCapabilities",
+			Handler:    _Identity_SetCapabilities_Handler,
+		},
+		{
+			MethodName: "UpsertBranch",
+			Handler:    _Identity_UpsertBranch_Handler,
+		},
+		{
+			MethodName: "ListBranches",
+			Handler:    _Identity_ListBranches_Handler,
+		},
+		{
+			MethodName: "DeactivateBranch",
+			Handler:    _Identity_DeactivateBranch_Handler,
+		},
+		{
+			MethodName: "ReactivateBranch",
+			Handler:    _Identity_ReactivateBranch_Handler,
+		},
+		{
+			MethodName: "UpdateMembership",
+			Handler:    _Identity_UpdateMembership_Handler,
+		},
+		{
+			MethodName: "ArchiveRole",
+			Handler:    _Identity_ArchiveRole_Handler,
+		},
+		{
+			MethodName: "SuspendUser",
+			Handler:    _Identity_SuspendUser_Handler,
+		},
+		{
+			MethodName: "ReactivateUser",
+			Handler:    _Identity_ReactivateUser_Handler,
+		},
+		{
+			MethodName: "ListInvitations",
+			Handler:    _Identity_ListInvitations_Handler,
+		},
+		{
+			MethodName: "RevokeInvitation",
+			Handler:    _Identity_RevokeInvitation_Handler,
+		},
+		{
+			MethodName: "ResendInvitation",
+			Handler:    _Identity_ResendInvitation_Handler,
 		},
 		{
 			MethodName: "BeginPasskeyRegistration",

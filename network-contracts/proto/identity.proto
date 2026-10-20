@@ -45,6 +45,25 @@ service Identity {
   rpc ListRoles(ListRolesRequest) returns (ListRolesResult);
   rpc AssignRole(AssignRoleRequest) returns (SimpleResult);
 
+  // ── Modelo de acceso (ADR 0018, identity/SPEC.md §4). Solo aditivo. ──
+  rpc ListVerticals(ListVerticalsRequest) returns (ListVerticalsResult);
+  rpc ListRoleTemplates(ListRoleTemplatesRequest) returns (ListRoleTemplatesResult);
+  rpc GetAccessCatalog(GetAccessCatalogRequest) returns (AccessCatalog);
+  rpc GetBusinessProfile(GetBusinessProfileRequest) returns (BusinessProfile);
+  rpc UpdateBusinessProfile(UpdateBusinessProfileRequest) returns (BusinessProfile);
+  rpc SetCapabilities(SetCapabilitiesRequest) returns (BusinessProfile);
+  rpc UpsertBranch(UpsertBranchRequest) returns (Branch);
+  rpc ListBranches(ListBranchesRequest) returns (ListBranchesResult);
+  rpc DeactivateBranch(BranchRef) returns (Branch);
+  rpc ReactivateBranch(BranchRef) returns (Branch);
+  rpc UpdateMembership(UpdateMembershipRequest) returns (UserSummary);
+  rpc ArchiveRole(ArchiveRoleRequest) returns (SimpleResult);
+  rpc SuspendUser(SetUserStatusRequest) returns (SimpleResult);
+  rpc ReactivateUser(SetUserStatusRequest) returns (SimpleResult);
+  rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResult);
+  rpc RevokeInvitation(InvitationRef) returns (SimpleResult);
+  rpc ResendInvitation(InvitationRef) returns (Invitation);
+
   // Passkeys / WebAuthn
   rpc BeginPasskeyRegistration(BeginPasskeyRegistrationRequest) returns (PasskeyChallenge);
   rpc FinishPasskeyRegistration(FinishPasskeyRegistrationRequest) returns (SimpleResult);
@@ -115,6 +134,8 @@ message ValidateTokenResult {
   UserRole role = 4;
   repeated string permissions = 5; // p. ej. "pos:sell" — catálogo en docs/standards/security-standards.md §3.1
   string session_id = 6;
+  string branch_scope = 7;            // "*" (alcance TENANT) o UUIDs de sucursales separados por coma (R24)
+  repeated string capabilities = 8;   // capacidades activas del negocio (R21)
 }
 
 message GetUserPermissionsRequest {
@@ -126,6 +147,8 @@ message UserPermissions {
   UserRole role = 1;
   repeated string enabled_modules = 2; // "wallet", "catalog", "pos", ...
   repeated string permissions = 3;
+  string branch_scope = 4;            // "*" o UUIDs separados por coma
+  repeated string capabilities = 5;   // capacidades activas del negocio
 }
 
 message RefreshTokenRequest {
@@ -182,6 +205,10 @@ message Tenant {
   string country = 6;
   google.protobuf.Timestamp created_at = 7;
   string review_notes = 8;
+  string primary_vertical = 10;
+  repeated string secondary_verticals = 11;
+  repeated string traits = 12;        // rasgos activos
+  string plan_code = 13;
 }
 
 message CreateBusinessRequest {
@@ -195,6 +222,9 @@ message CreateBusinessRequest {
   repeated string kyb_document_object_keys = 8; // objetos ya subidos a object-storage
   string dv = 9;              // dígito verificador del RUC (R17)
   string idempotency_key = 10;
+  string primary_vertical = 11;                 // clave de ListVerticals (VERTICAL_NOT_FOUND si no existe)
+  map<string, bool> trait_answers = 12;         // rasgo -> respuesta del dueño (sí/no)
+  string branch_name = 13;                      // nombre de la primera sucursal (código fiscal 0000)
 }
 message CreateBusinessResult {
   bool success = 1;
@@ -208,12 +238,23 @@ message GetTenantRequest { string tenant_id = 1; }
 message ListTenantsRequest { TenantStatus status = 1; string page_token = 2; int32 page_size = 3; }
 message ListTenantsResult { repeated Tenant tenants = 1; string next_page_token = 2; }
 
-message InviteStaffRequest { string email = 1; string role_id = 2; string full_name = 3; string idempotency_key = 4; }
+message InviteStaffRequest {
+  string email = 1; string role_id = 2; string full_name = 3; string idempotency_key = 4;
+  string scope = 5;                  // "TENANT" | "BRANCHES"
+  repeated string branch_ids = 6;    // obligatorio si scope = BRANCHES
+  string job_title = 7;              // cargo, opcional (1–60 caracteres)
+}
 message Invitation {
   string invitation_id = 1;
   string email = 2;
   string role_id = 3;
   google.protobuf.Timestamp expires_at = 4;
+  string scope = 5;
+  repeated string branch_ids = 6;
+  string job_title = 7;
+  string full_name = 8;
+  string status = 9;                 // "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED"
+  google.protobuf.Timestamp created_at = 10;
 }
 message AcceptInvitationRequest { string invitation_token = 1; string password = 2; string idempotency_key = 3; }
 
@@ -224,6 +265,12 @@ message UserSummary {
   UserRole role = 4;
   string role_id = 5;
   bool active = 6;
+  string status = 7;                 // "ACTIVE" | "SUSPENDED" | "DEACTIVATED" | "LOCKED"
+  string scope = 8;                  // "TENANT" | "BRANCHES"
+  repeated string branch_ids = 9;
+  string job_title = 10;
+  google.protobuf.Timestamp last_login_at = 11;
+  string role_name = 12;
 }
 message ListUsersRequest { string tenant_id = 1; string page_token = 2; int32 page_size = 3; }
 message ListUsersResult { repeated UserSummary users = 1; string next_page_token = 2; }
@@ -249,6 +296,12 @@ message Role {
   string name = 3;
   repeated string permissions = 4;
   bool system = 5;               // los presets de sistema no se editan
+  string template_key = 6;       // plantilla de origen (p. ej. "cashier"), vacío si es en blanco
+  int32 template_version = 7;
+  string description = 8;
+  int32 version = 9;             // se incrementa en cada edición (invalida cachés del gateway)
+  bool archived = 10;
+  int32 member_count = 11;       // miembros activos con este rol (solo lectura)
 }
 message UpsertRoleRequest { Role role = 1; string idempotency_key = 2; }
 message ListRolesRequest { string tenant_id = 1; }
@@ -278,3 +331,103 @@ message TenantStatusChanged { string tenant_id = 1; TenantStatus status = 2; Ten
 // Revocación de sesiones (logout global, reuso de refresh detectado, cambio de contraseña, bloqueo de plataforma).
 // reason: "LOGOUT_ALL" | "REFRESH_REUSE" | "PASSWORD_CHANGED" | "ADMIN_ACTION" | "TENANT_SUSPENDED"
 message SessionRevoked { string user_id = 1; repeated string session_ids = 2; string reason = 3; }
+
+// ── Modelo de acceso (ADR 0018) ──
+message Vertical {
+  string key = 1;                              // p. ej. "retail", "beauty_wellness"
+  string family = 2;
+  repeated string default_traits = 3;
+  repeated string suggested_capabilities = 4;
+  repeated string role_template_keys = 5;
+  int32 version = 6;
+}
+message Trait {
+  string key = 1;                              // p. ej. "tables", "appointments"
+  repeated string capabilities = 2;            // capacidades que enciende
+}
+message ListVerticalsRequest {}
+message ListVerticalsResult { repeated Vertical verticals = 1; repeated Trait traits = 2; }
+
+message RoleTemplate {
+  string key = 1;                              // "manager", "cashier", "stylist"…
+  int32 version = 2;
+  string description = 3;
+  repeated string permissions = 4;
+  bool universal = 5;                          // true = se lista siempre
+  repeated string vertical_keys = 6;           // verticales donde se ofrece (si no es universal)
+}
+message ListRoleTemplatesRequest { repeated string vertical_keys = 1; }  // vacío = las del negocio del actor
+message ListRoleTemplatesResult { repeated RoleTemplate templates = 1; }
+
+message PermissionInfo {
+  string key = 1;                              // "pos:sell"
+  string module = 2;
+  string level = 3;                            // "VIEW" | "OPERATE" | "MANAGE" | "APPROVE" | "CONFIGURE"
+  string capability = 4;                       // vacío = núcleo o plataforma (siempre activo)
+  bool money = 5;                              // 🔒 exige confirmación fuerte al asignarlo
+  bool platform = 6;                           // `platform:*`: nunca se ofrece a un negocio
+}
+message CapabilityInfo { string key = 1; string module = 2; }
+message GetAccessCatalogRequest {}
+message AccessCatalog {
+  repeated PermissionInfo permissions = 1;
+  repeated string module_order = 2;
+  repeated CapabilityInfo capabilities = 3;
+}
+
+message CapabilityState { string capability = 1; bool enabled = 2; string source = 3; } // source: "VERTICAL" | "TRAIT" | "MANUAL" | "PLAN"
+message BusinessProfile {
+  string tenant_id = 1;
+  string primary_vertical = 2;
+  repeated string secondary_verticals = 3;
+  map<string, bool> traits = 4;
+  repeated CapabilityState capabilities = 5;
+  string plan_code = 6;
+  int32 version = 7;
+}
+message GetBusinessProfileRequest {}
+message UpdateBusinessProfileRequest {
+  string primary_vertical = 1;
+  repeated string secondary_verticals = 2;     // máx. 2
+  map<string, bool> trait_answers = 3;
+  string idempotency_key = 4;
+}
+message CapabilityChange { string capability = 1; bool enabled = 2; }
+message SetCapabilitiesRequest { repeated CapabilityChange changes = 1; string reason = 2; string idempotency_key = 3; }
+
+message Branch {
+  string branch_id = 1;
+  string tenant_id = 2;
+  string code = 3;                             // 4 dígitos; "0000" = casa matriz; se usa en la factura (N-FIS)
+  string name = 4;
+  string address = 5;
+  int32 latitude_e6 = 6;                       // microgrados; 0 = sin punto
+  int32 longitude_e6 = 7;
+  string opening_hours_json = 8;
+  bool active = 9;
+  int32 version = 10;
+}
+message UpsertBranchRequest { Branch branch = 1; string idempotency_key = 2; }   // branch_id vacío = crear
+message ListBranchesRequest { bool include_inactive = 1; }
+message ListBranchesResult { repeated Branch branches = 1; }
+message BranchRef { string branch_id = 1; string idempotency_key = 2; }
+
+message UpdateMembershipRequest {
+  string user_id = 1;
+  string role_id = 2;                          // vacío = no cambia
+  string scope = 3;                            // "TENANT" | "BRANCHES"; vacío = no cambia
+  repeated string branch_ids = 4;
+  string job_title = 5;                        // vacío = no cambia; "-" = borrar
+  string idempotency_key = 6;
+}
+message ArchiveRoleRequest { string role_id = 1; string idempotency_key = 2; }
+message SetUserStatusRequest { string user_id = 1; string reason = 2; string idempotency_key = 3; }
+message ListInvitationsRequest { string page_token = 1; int32 page_size = 2; }
+message ListInvitationsResult { repeated Invitation invitations = 1; string next_page_token = 2; }
+message InvitationRef { string invitation_id = 1; string idempotency_key = 2; }
+
+// ── Eventos del modelo de acceso. Subjects: pp.identity.<evento>.v1 ──
+message RoleChanged { string tenant_id = 1; string role_id = 2; int32 version = 3; string change = 4; }          // change: "CREATED"|"UPDATED"|"ARCHIVED"
+message MembershipChanged { string tenant_id = 1; string user_id = 2; string change = 3; }                       // change: "INVITED"|"ACCEPTED"|"ROLE"|"SCOPE"|"SUSPENDED"|"REACTIVATED"|"DEACTIVATED"
+message CapabilitiesChanged { string tenant_id = 1; repeated string enabled = 2; repeated string disabled = 3; int32 version = 4; }
+message BranchChanged { string tenant_id = 1; string branch_id = 2; string change = 3; }                         // change: "CREATED"|"UPDATED"|"DEACTIVATED"|"REACTIVATED"
