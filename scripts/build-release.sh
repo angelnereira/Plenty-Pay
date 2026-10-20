@@ -74,8 +74,10 @@ for platform in "${PLATFORMS[@]}"; do
       tar -czf "$OUT/web/plentypay-web-$VERSION.tar.gz" -C build/web .
       checksums web
       # El contenedor `web` sirve el bundle desde web/static/app/ (ADR 0016: no se versiona).
-      rm -rf "$ROOT/web/static/app"
+      # Se vacía el contenido, no el directorio: el contenedor `web` lo monta (bind mount) y un
+      # directorio nuevo lo dejaría sirviendo el anterior, ya vacío (404 en producción, 2026-10-20).
       mkdir -p "$ROOT/web/static/app"
+      find "$ROOT/web/static/app" -mindepth 1 -delete
       tar -xzf "$OUT/web/plentypay-web-$VERSION.tar.gz" -C "$ROOT/web/static/app"
       echo "  bundle servido por web: web/static/app/"
       ;;
