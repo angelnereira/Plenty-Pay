@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	pmd "plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/middleware"
 	"plentypay/api-gateway/internal/storage"
 )
@@ -97,13 +98,17 @@ func (m *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// R1: Claves generadas por el servidor (<tenant>/<año>/<uuid>.<ext>)
-	tenant := r.Header.Get("X-Tenant-Id")
+	// El tenant sale de la identidad validada, nunca de una cabecera del cliente (ADR 0011).
+	tenant := pmd.FromContext(r.Context()).TenantID
 	if tenant == "" {
-		tenant = "catalog"
+		tenant = "personal"
 	}
 	year := time.Now().UTC().Format("2006")
 	randomBytes := make([]byte, 16)
-	_, _ = rand.Read(randomBytes)
+	if _, err := rand.Read(randomBytes); err != nil {
+		middleware.WriteError(w, http.StatusInternalServerError, "INTERNAL", "error interno")
+		return
+	}
 	uuidStr := hex.EncodeToString(randomBytes)
 
 	objectKey := fmt.Sprintf("%s/%s/%s%s", tenant, year, uuidStr, ext)

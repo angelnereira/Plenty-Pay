@@ -6,8 +6,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	pmd "plentypay/api-gateway/internal/metadata"
 	"plentypay/api-gateway/internal/storage"
 )
 
@@ -48,13 +50,18 @@ func TestMediaHandler_UploadAndServe(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/media/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("X-Tenant-Id", "tenant-test")
+	// ADR 0011: una cabecera del cliente no decide el tenant; manda la identidad validada.
+	req.Header.Set("X-Tenant-Id", "tenant-ajeno")
+	req = req.WithContext(pmd.NewContext(req.Context(), pmd.Caller{UserID: "u-1", TenantID: "tenant-test"}))
 	rec := httptest.NewRecorder()
 
 	h.Upload(rec, req)
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected status 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"object_key":"tenant-test/`) {
+		t.Fatalf("la clave debe ir bajo el tenant del token: %s", rec.Body.String())
 	}
 
 	// 2. Upload invalid MIME type (e.g. text file)

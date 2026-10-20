@@ -89,8 +89,9 @@ func newMux(identity *client.IdentityClient, backends map[string]*grpc.ClientCon
 	s3Client := storage.NewClient(s3Endpoint, s3Region, s3KeyID, s3SecretKey, s3Bucket)
 	mediaH := handlers.NewMediaHandler(s3Client)
 
-	// Subida de archivos multimedia y servicio público de imágenes
-	mux.HandleFunc("POST /v1/media/upload", mediaH.Upload)
+	// Subida de archivos multimedia (con sesión: el tenant sale del token, ADR 0011) y servicio
+	// público de imágenes.
+	mux.Handle("POST /v1/media/upload", auth(http.HandlerFunc(mediaH.Upload)))
 	mux.HandleFunc("GET /media/", mediaH.Serve)
 
 	// Resto de la tabla declarativa: una fila = una ruta, sin código por endpoint.
@@ -180,6 +181,10 @@ func main() {
 	for name, target := range map[string]string{
 		routes.BackendPayments: envOr("PP_PAYMENTS_ADDR", "payments-core:50062"),
 		routes.BackendLedger:   envOr("PP_LEDGER_ADDR", "ledger:50061"),
+		// F15–F17: comercio (catálogo, inventario y caja).
+		routes.BackendCatalog:   envOr("PP_CATALOG_ADDR", "catalog:50065"),
+		routes.BackendInventory: envOr("PP_INVENTORY_ADDR", "inventory:50066"),
+		routes.BackendPos:       envOr("PP_POS_ADDR", "pos:50067"),
 	} {
 		conn, err := client.NewServiceConn(target, reporter)
 		if err != nil {
