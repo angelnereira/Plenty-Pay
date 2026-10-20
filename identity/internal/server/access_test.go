@@ -145,3 +145,27 @@ func TestR24_ValidateTokenCarriesScopeAndCapabilities(t *testing.T) {
 		t.Fatalf("un cliente: permisos base, sin alcance ni capacidades: %+v", v)
 	}
 }
+
+// R15: el reto de step-up se ata al usuario del token, no al user_id que mande el cuerpo; un
+// token emitido así no sirve para otra persona.
+func TestR15_StepUpChallengeBoundToContextUser(t *testing.T) {
+	srv := newTestServer(t)
+	ctx := tenancy.WithUser(context.Background(), "usuario-real")
+	ch, err := srv.IssueStepUpChallenge(ctx, &pb.StepUpRequest{UserId: "otra-persona", Operation: "identity.role.upsert"})
+	if err != nil {
+		t.Fatalf("IssueStepUpChallenge: %v", err)
+	}
+	tok, err := srv.VerifyStepUp(ctx, &pb.VerifyStepUpRequest{ChallengeId: ch.ChallengeId})
+	if err != nil || tok.Token == "" {
+		t.Fatalf("VerifyStepUp: %v", err)
+	}
+	if ok, _ := srv.stepUp.ConsumeToken(tok.Token, "otra-persona", "identity.role.upsert", 0, ""); ok {
+		t.Fatal("el token no puede quedar atado al user_id del cuerpo")
+	}
+	if ok, _ := srv.stepUp.ConsumeToken(tok.Token, "usuario-real", "identity.role.upsert", 0, ""); !ok {
+		t.Fatal("el token sirve al usuario del contexto")
+	}
+	if _, err := srv.IssueStepUpChallenge(ctx, &pb.StepUpRequest{}); err == nil {
+		t.Fatal("sin operación no hay reto")
+	}
+}

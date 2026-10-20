@@ -195,8 +195,17 @@ func (s *IdentityServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenR
 }
 
 // IssueStepUpChallenge emite un reto de confirmación fuerte (Passkey/WebAuthn) atado a la operación.
-func (s *IdentityServer) IssueStepUpChallenge(_ context.Context, req *pb.StepUpRequest) (*pb.PasskeyChallenge, error) {
-	chID, optionsJSON := s.stepUp.IssueChallenge(req.UserId, req.Operation, req.AmountMinor, req.Currency)
+// El reto se ata al usuario del token (x-pp-user-id, ADR 0011); el user_id del cuerpo solo se usa
+// en llamadas de servicio sin usuario en el contexto.
+func (s *IdentityServer) IssueStepUpChallenge(ctx context.Context, req *pb.StepUpRequest) (*pb.PasskeyChallenge, error) {
+	userID := tenancy.UserIDFromContext(ctx)
+	if userID == "" {
+		userID = req.UserId
+	}
+	if userID == "" || req.Operation == "" {
+		return nil, ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "el reto necesita usuario y operación")
+	}
+	chID, optionsJSON := s.stepUp.IssueChallenge(userID, req.Operation, req.AmountMinor, req.Currency)
 	return &pb.PasskeyChallenge{
 		ChallengeId:          chID,
 		PublicKeyOptionsJson: optionsJSON,
