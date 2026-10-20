@@ -45,6 +45,14 @@ Este repositorio **se gobierna por su documentación** (ADR 0010). Tu trabajo es
 7. Actualiza en el mismo cambio: `SPEC.md` (si cambió algo), `README.md` del contenedor (estado, incluida la fila de observabilidad), `docs/roadmap/status.md` (paso → hecho, con nivel y evidencia), `ARCHITECTURE.md` §2 si cambió el estado del contenedor, y `docs/glossary.md` si creaste un nombre, un `reason` o un enum.
 8. Corre `./scripts/check-isolation.sh && ./scripts/check-docs.sh && ./scripts/sync-protos.sh --check`.
 9. Commit con Conventional Commits y el contenedor como scope: `feat(ledger): reject unbalanced entries (F10.3, R1)`.
+10. **Después de cada push a `main`**, publica la app: `./scripts/publish-release.sh <patch|minor|major> <notas.md>` (sube la versión, compila web/Linux/Android contra producción, verifica que los APK lleven la misma firma que la versión anterior, actualiza la web servida y GitHub Pages, y crea el release con instaladores y checksums).
+
+### 3.1 Esta máquina es producción
+El repositorio vive en el servidor que atiende a las apps instaladas. Por eso:
+- Nada de simulaciones ni datos de demostración en servicios o pantallas: un módulo sin servicio desplegado muestra su estado vacío.
+- Las pruebas L2/L3 corren contra recursos **efímeros** (p. ej. `identity/test/test_store_l2.sh` crea y borra su base); nunca contra la base `plentypay`, el stream de NATS de producción ni los contenedores en servicio.
+- Desplegar = `docker compose build <svc> && docker compose up -d --no-deps <svc>`. **Nunca** reiniciar el contenedor `tunnel`: su URL está incrustada en las apps instaladas y cambia al reiniciarse.
+- Antes de modificar datos de producción, respaldo (`pg_dump`) fuera del repositorio.
 
 ## 4. Cómo crear un contenedor nuevo
 Copia `docs/templates/SPEC-TEMPLATE.md` → `<contenedor>/SPEC.md` y `docs/templates/CONTAINER-README-TEMPLATE.md` → `<contenedor>/README.md`; registra el contenedor en `docs/architecture/service-dependencies.md`, `network-contracts/consumers.txt`, `docker-compose.yml`, `ARCHITECTURE.md` §2, la tabla de nombres de `docs/glossary.md` §1, y escribe un ADR que justifique su existencia (como ADR 0017 hizo con `orders`).
