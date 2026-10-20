@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -40,8 +41,14 @@ func dialOptions(reporter *observability.Reporter, creds credentials.TransportCr
 
 // NewServiceConn abre la conexión hacia otro contenedor (payments-core, ledger) con la misma
 // cadena de interceptores: metadatos x-pp-* del token validado, traza y métricas (F11).
+//
+// Se resuelve el nombre en cada intento de conexión (`passthrough`) y el reintento espera como
+// máximo 5 s: si el gateway arranca antes que el contenedor destino, la ruta se recupera sola en
+// cuanto el destino existe (el resolvedor DNS de gRPC quedaba en fallo con el NXDOMAIN inicial y
+// las rutas respondían 503 hasta reiniciar el gateway, 2026-10-20).
 func NewServiceConn(target string, reporter *observability.Reporter) (*grpc.ClientConn, error) {
-	conn, err := grpc.NewClient(target, dialOptions(reporter, insecure.NewCredentials())...)
+	opts := append(dialOptions(reporter, insecure.NewCredentials()), grpc.WithConnectParams(serviceConnectParams))
+	conn, err := grpc.NewClient("passthrough:///"+target, opts...)
 	if err != nil {
 		return nil, observability.Wrap(err, "create service client")
 	}
@@ -190,4 +197,10 @@ func (c *IdentityClient) fail(ctx context.Context, op string, err error) error {
 	wrapped := observability.Wrap(err, op)
 	c.reporter.Dependency(ctx, "identity call failed", "identity", wrapped)
 	return wrapped
+}
+
+// serviceConnectParams: reconexión rápida hacia payments-core y ledger.
+var serviceConnectParams = grpc.ConnectParams{
+	Backoff:           backoff.Config{BaseDelay: 200 * time.Millisecond, Multiplier: 1.6, Jitter: 0.2, MaxDelay: 5 * time.Second},
+	MinConnectTimeout: 2 * time.Second,
 }
