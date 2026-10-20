@@ -36,7 +36,7 @@ Aplica a todos los contenedores y a la app Flutter. Es la base mínima: un SPEC 
 
 ### 3.1 Catálogo de permisos y mapeo a capacidades (fuente de verdad)
 
-Un permiso de negocio está activo si **al menos una** de sus capacidades asociadas está encendida en el negocio. Los permisos marcados como `(núcleo)` no dependen de capacidades y están siempre activos si el rol los contiene. Los permisos de `(plataforma)` aplican exclusivamente a `PLATFORM_ADMIN`.
+Un permiso de negocio está activo si **al menos una** de sus capacidades asociadas está encendida en el negocio. Cuando la columna lista varias capacidades, basta cualquiera (p. ej. una barbería sin `catalog.products` gestiona su catálogo de servicios con `catalog:write` gracias a `catalog.services`). Los permisos marcados como `(núcleo)` no dependen de capacidades y están siempre activos si el rol los contiene. Los permisos de `(plataforma)` aplican exclusivamente a `PLATFORM_ADMIN`.
 
 | Módulo | Permiso | Capacidad asociada |
 |---|---|---|
@@ -58,8 +58,8 @@ Un permiso de negocio está activo si **al menos una** de sus capacidades asocia
 | fiscal | `fiscal:note:issue` | `finance.fiscal` |
 | fiscal | `fiscal:profile:manage` | `finance.fiscal` |
 | catalog | `catalog:read` | `(núcleo)` |
-| catalog | `catalog:write` | `catalog.products` |
-| catalog | `catalog:import` | `catalog.products` |
+| catalog | `catalog:write` | `catalog.products`, `catalog.services` |
+| catalog | `catalog:import` | `catalog.products`, `catalog.services` |
 | catalog | `catalog:listing:manage` | `catalog.listing` |
 | catalog | `catalog:pricelist:manage` | `catalog.price_lists` |
 | inventory | `inventory:read` | `inventory.stock` |

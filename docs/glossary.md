@@ -247,7 +247,7 @@ No confundir el id de módulo con el contenedor: `marketplace` lo sirve `orders`
 | Cabecera HTTP (app → gateway) | Metadato gRPC (gateway → servicios) | Contenido |
 |---|---|---|
 | `Authorization: Bearer <access>` | `x-pp-user-id`, `x-pp-tenant-id`, `x-pp-role`, `x-pp-permissions` | Identidad validada. Tenant vacío = cliente final o plataforma |
-| — | `x-pp-branch-scope` | Alcance territorial (`*` para `TENANT` o lista de UUIDs de sucursales) |
+| — | `x-pp-branch-scope` | Alcance territorial (`*` para `TENANT` o UUIDs de las sucursales activas separados por comas). Ausente con `x-pp-tenant-id` presente = ninguna sucursal, nunca todas |
 | — | `x-pp-capabilities` | Capacidades activas del comercio separadas por comas |
 | `X-Request-Id` | `x-pp-request-id` | UUIDv7 por petición; se propaga sin cambio y se devuelve |
 | `Idempotency-Key` | campo `idempotency_key` del request | 16–100 caracteres |
@@ -291,7 +291,7 @@ Transversales (cualquier servicio): `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE
 | Dueño | `reason` propios |
 |---|---|
 | api-gateway | `TOKEN_INVALID`, `IDENTITY_UNAVAILABLE`, `INVALID_JSON`, `BODY_TOO_LARGE`, `IDEMPOTENCY_KEY_REQUIRED`, `RATE_LIMITED`, `MAINTENANCE_MODE` |
-| identity | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ACCOUNT_SUSPENDED`, `EMAIL_TAKEN`, `INVALID_EMAIL`, `WEAK_PASSWORD`, `TOKEN_INVALID`, `TOKEN_REUSED`, `ALREADY_HAS_TENANT`, `INVALID_RUC`, `RUC_TAKEN`, `ROLE_NOT_FOUND`, `PRESET_READ_ONLY`, `UNKNOWN_PERMISSION`, `CANNOT_DEACTIVATE_OWNER`, `ALREADY_USED`, `PERMISSION_NOT_HELD`, `SELF_ASSIGNMENT_FORBIDDEN`, `ROLE_IN_USE`, `BRANCH_CODE_TAKEN`, `INVALID_BRANCH_CODE`, `VERTICAL_NOT_FOUND`, `PLAN_LIMIT_REACHED`, `CANNOT_DEACTIVATE_LAST_BRANCH` |
+| identity | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ACCOUNT_SUSPENDED`, `EMAIL_TAKEN`, `INVALID_EMAIL`, `WEAK_PASSWORD`, `TOKEN_INVALID`, `TOKEN_REUSED`, `ALREADY_HAS_TENANT`, `INVALID_RUC`, `RUC_TAKEN`, `ROLE_NOT_FOUND`, `PRESET_READ_ONLY`, `UNKNOWN_PERMISSION`, `CANNOT_DEACTIVATE_OWNER`, `ALREADY_USED`, `PERMISSION_NOT_HELD`, `SELF_ASSIGNMENT_FORBIDDEN`, `ROLE_IN_USE`, `BRANCH_CODE_TAKEN`, `INVALID_BRANCH_CODE`, `VERTICAL_NOT_FOUND`, `PLAN_LIMIT_REACHED`, `CANNOT_DEACTIVATE_LAST_BRANCH`, `INVALID_REQUEST` |
 | ledger | `UNKNOWN_TEMPLATE`, `UNBALANCED_TRANSACTION`, `CURRENCY_MISMATCH`, `INVALID_AMOUNT`, `INSUFFICIENT_FUNDS`, `DUPLICATE_CAPTURE`, `ALREADY_REVERSED`, `HOLD_NOT_ACTIVE`, `INVALID_RANGE` |
 | payments-core | `AMOUNT_OUT_OF_RANGE`, `AMOUNT_BELOW_FEES`, `SPLITS_MISMATCH`, `FEE_POLICY_MISSING`, `RAIL_DISABLED`, `RAIL_UNAVAILABLE`, `TERMINAL_INACTIVE`, `PAYMENT_NOT_CAPTURED`, `REFUND_EXCEEDS_CAPTURED`, `MERCHANT_BALANCE_INSUFFICIENT`, `EVIDENCE_REQUIRED`, `SIGNATURE_INVALID`, `RAIL_PARTIAL_REFUND_UNSUPPORTED` |
 | settlement | `NOTHING_TO_SETTLE`, `BELOW_MINIMUM`, `INVALID_DESTINATION`, `ALREADY_IMPORTED`, `UNSUPPORTED_FORMAT`, `EVIDENCE_REQUIRED` |
