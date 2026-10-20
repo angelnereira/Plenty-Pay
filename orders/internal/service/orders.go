@@ -269,15 +269,20 @@ func (s *Orders) Checkout(ctx context.Context, b Buyer, r CheckoutRequest) (doma
 	for _, m := range now.Merchants {
 		o.Subs = append(o.Subs, domain.SubOrder{ID: s.newID(), TenantID: m.TenantID, Lines: m.Lines, TotalMinor: m.TotalMinor})
 	}
-	o, created, err := s.store.CreateOrder(ctx, o)
+	o, _, err = s.store.CreateOrder(ctx, o)
 	if err != nil {
 		return o, err
 	}
-	if !created || o.PaymentIntentID != "" || o.Status != domain.OrderPendingPayment {
+	// Un reintento con la misma clave retoma la saga donde quedó (reservas y cobro son
+	// idempotentes por su clave); un pedido ya cobrado o cerrado se devuelve tal cual.
+	if o.PaymentIntentID != "" || o.Status != domain.OrderPendingPayment {
 		return o, nil
 	}
 	// 3. Reservas por comercio (solo líneas que llevan inventario).
 	for i, sub := range o.Subs {
+		if sub.ReservationID != "" {
+			continue
+		}
 		var lines []client.ReserveLine
 		for _, l := range sub.Lines {
 			if l.TracksInventory {
@@ -311,13 +316,15 @@ func (s *Orders) Checkout(ctx context.Context, b Buyer, r CheckoutRequest) (doma
 	intent, err := s.deps.CreateIntent(ctx, b.UserID, b.RequestID, r.StepUp, "order:"+o.ID, o.ID, o.Currency, o.TotalMinor, 1, splits, IntentTTLSeconds)
 	if err != nil {
 		var rej *client.Rejected
-		if errors.As(err, &rej) {
-			// "No" definitivo (step-up, límites, comercio inactivo): se compensa ya.
+		if errors.As(err, &rej) && rej.Reason != "STEP_UP_REQUIRED" && rej.Reason != "STEP_UP_INVALID" {
+			// "No" definitivo (límites, comercio inactivo…): se compensa ya.
 			if _, cerr := s.cancelUnpaid(ctx, o.ID, "", "payment_rejected:"+rej.Reason); cerr != nil {
 				return o, errors.Join(err, cerr)
 			}
 		}
-		// Ambiguo: el job de recuperación cancela el pedido si nunca obtuvo su cobro.
+		// Falta la confirmación fuerte (el comprador reintenta con su token y la misma clave) o la
+		// respuesta fue ambigua: el pedido queda pendiente y, si nunca obtiene su cobro, el job de
+		// recuperación lo cancela y libera las reservas.
 		return o, err
 	}
 	if err := s.store.SetIntent(ctx, o.ID, intent.ID); err != nil {

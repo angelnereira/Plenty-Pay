@@ -35,6 +35,7 @@ type fakeDeps struct {
 	refundErr error
 	intents   map[string]client.Intent
 	intentReq map[string][]client.Split
+	needStep  bool // payments-core pide step-up si no llega token
 }
 
 func newDeps() *fakeDeps {
@@ -88,9 +89,12 @@ func (f *fakeDeps) Return(_ context.Context, _, key, _, _ string, qty int64) err
 	return nil
 }
 
-func (f *fakeDeps) CreateIntent(_ context.Context, _, _, _, key, _, _ string, _ int64, _ int32, splits []client.Split, _ int32) (client.Intent, error) {
+func (f *fakeDeps) CreateIntent(_ context.Context, _, _, stepUp, key, _, _ string, _ int64, _ int32, splits []client.Split, _ int32) (client.Intent, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.needStep && stepUp == "" {
+		return client.Intent{}, &client.Rejected{Dep: "payments-core", Reason: "STEP_UP_REQUIRED"}
+	}
 	if i, ok := f.intents[key]; ok {
 		return i, nil
 	}
@@ -501,5 +505,32 @@ func TestPrivileges_ServiceRoleCannotDeleteOrders(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("orders_svc pudo borrar pedidos")
+	}
+}
+
+func TestR5_StepUpRetryResumesTheSameOrder(t *testing.T) {
+	ctx, w := context.Background(), newWorld(t)
+	w.cart(t)
+	w.deps.needStep = true
+	q, err := w.svc.QuoteCheckout(ctx, w.buyer, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := "k-" + id()
+	_, err = w.svc.Checkout(ctx, w.buyer, service.CheckoutRequest{IdempotencyKey: key, QuoteID: q.ID, Fulfillment: 2})
+	var rej *client.Rejected
+	if !errors.As(err, &rej) || rej.Reason != "STEP_UP_REQUIRED" {
+		t.Fatalf("%v", err)
+	}
+	reserved := len(w.deps.reserved)
+	o, err := w.svc.Checkout(ctx, w.buyer, service.CheckoutRequest{IdempotencyKey: key, QuoteID: q.ID, Fulfillment: 2, StepUp: "token"})
+	if err != nil || o.PaymentIntentID == "" || o.Status != domain.OrderPendingPayment {
+		t.Fatalf("el reintento con step-up debe retomar el mismo pedido: %v %+v", err, o.Status)
+	}
+	if len(w.deps.reserved) != reserved {
+		t.Fatalf("el reintento reservó otra vez: %d → %d", reserved, len(w.deps.reserved))
+	}
+	if n := count(t, `SELECT count(*) FROM orders WHERE user_id = $1`, w.buyer.UserID); n != 1 {
+		t.Fatalf("pedidos: %d", n)
 	}
 }
