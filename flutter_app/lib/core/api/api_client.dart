@@ -504,6 +504,30 @@ class ApiClient {
       requestId: reqId,
     );
   }
+
+  /// Sube un archivo de imagen al almacenamiento de objetos (Garage) y devuelve la URL del medio.
+  Future<String> uploadMedia({required Uint8List bytes, required String filename, String mimeType = 'image/jpeg'}) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: filename),
+      });
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/v1/media/upload',
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+          extra: {'skipIdempotency': true},
+        ),
+      );
+      final url = res.data?['url'] as String?;
+      if (url == null || url.isEmpty) {
+        throw ApiException(500, 'STORAGE_ERROR', 'No se recibió la URL del objeto');
+      }
+      return url;
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
 }
 
 /// Adaptador para dirigir llamadas de Dio a través de http.Client (compatibilidad y pruebas con MockClient).

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -39,6 +40,7 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
   MobileScannerController? _scannerController;
   bool _torch = false;
   bool _hasDetected = false;
+  bool _cameraPermissionGranted = true;
 
   @override
   void initState() {
@@ -48,13 +50,28 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
       CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut),
     );
 
-    // Inicializar controlador de cámara física si no estamos en entorno headless de pruebas
+    _initScanner();
+  }
+
+  Future<void> _initScanner() async {
+    // En plataformas móviles nativas, verificar y solicitar permiso explícito
+    if (!kIsWeb) {
+      try {
+        final status = await Permission.camera.request();
+        if (!status.isGranted) {
+          if (mounted) setState(() => _cameraPermissionGranted = false);
+        }
+      } catch (_) {}
+    }
+
     try {
       _scannerController = MobileScannerController(
         detectionSpeed: DetectionSpeed.normal,
         facing: CameraFacing.back,
         torchEnabled: false,
+        autoStart: true,
       );
+      if (mounted) setState(() {});
     } catch (_) {
       _scannerController = null;
     }
@@ -118,6 +135,15 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                     },
                   ),
                   IconButton(
+                    icon: const Icon(Icons.cameraswitch_outlined),
+                    tooltip: 'Cambiar cámara',
+                    onPressed: () async {
+                      try {
+                        await _scannerController?.switchCamera();
+                      } catch (_) {}
+                    },
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -140,9 +166,10 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                     alignment: Alignment.center,
                     children: [
                       // Cámara nativa física con MobileScanner
-                      if (_scannerController != null)
+                      if (_scannerController != null && _cameraPermissionGranted)
                         MobileScanner(
                           controller: _scannerController!,
+                          fit: BoxFit.cover,
                           onDetect: (capture) {
                             if (_hasDetected) return;
                             for (final barcode in capture.barcodes) {
@@ -183,10 +210,18 @@ class _BarcodeScannerDialogState extends State<BarcodeScannerDialog> with Single
                         )
                       else
                         Center(
-                          child: Icon(
-                            Icons.qr_code_2,
-                            size: 110,
-                            color: Colors.white.withValues(alpha: 0.15),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.camera_alt_outlined, size: 48, color: Colors.white54),
+                              const SizedBox(height: 8),
+                              const Text('Permiso de cámara requerido', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              ElevatedButton(
+                                onPressed: _initScanner,
+                                child: const Text('Activar Cámara'),
+                              ),
+                            ],
                           ),
                         ),
 

@@ -60,12 +60,19 @@ services:
       PP_NATS_USER: "${GATEWAY_NATS_USER:-gateway_svc}"
       PP_NATS_PASS: "${GATEWAY_NATS_PASS:-gateway_nats_secret}"
       WEB_SERVICE_URL: "http://web:8081"
+      S3_ENDPOINT: "http://object-storage:3900"
+      S3_REGION: "garage"
+      S3_KEY_ID: "${S3_KEY_ID:-GK4f0303fd680380764c48e740}"
+      S3_SECRET_KEY: "${S3_SECRET_KEY:-aa4703619b38ef84b72d3fc2b31fff24db6e5e70778a45b27e28830b91949da0}"
+      S3_MEDIA_BUCKET: "pp-catalog-media"
     ports:
       - "8080:8080"
     depends_on:
       identity:
         condition: service_healthy
       web:
+        condition: service_healthy
+      object-storage:
         condition: service_healthy
     networks: [edge, services]
     healthcheck: *healthcheck

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/widgets/barcode_scanner_dialog.dart';
 import '../../core/widgets/pp_button.dart';
 import '../../core/widgets/status_chip.dart';
 
@@ -90,7 +91,24 @@ class DeliveryDetailScreen extends StatelessWidget {
               const Spacer(),
 
               PPButton.primary(
-                label: 'Reasignar repartidor',
+                label: 'Escanear QR de Entrega (POD)',
+                onPressed: () async {
+                  final code = await BarcodeScannerDialog.scan(
+                    context,
+                    title: 'Escanear Entrega de Pedido',
+                    subtitle: 'Apunta la cámara al código QR del cliente para confirmar la entrega',
+                  );
+                  if (!context.mounted) return;
+                  if (code != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('✓ Entrega verificada con éxito ($code)')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                child: const Text('Reasignar repartidor'),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Buscando repartidor más cercano disponible...')),

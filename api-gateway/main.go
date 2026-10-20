@@ -24,6 +24,7 @@ import (
 	"plentypay/api-gateway/internal/observability"
 	"plentypay/api-gateway/internal/realtime"
 	"plentypay/api-gateway/internal/routes"
+	"plentypay/api-gateway/internal/storage"
 )
 
 // version se inyecta en el build (-ldflags "-X main.version=...").
@@ -76,6 +77,19 @@ func newMux(identity *client.IdentityClient, hub *realtime.Hub) *http.ServeMux {
 
 	// OpenAPI generado de la tabla de rutas (F09.7).
 	mux.HandleFunc("GET /v1/openapi.json", openapi.Handler())
+
+	// Almacenamiento de objetos S3 (Garage) para medios del catálogo e imágenes (F07)
+	s3Endpoint := envOr("S3_ENDPOINT", "http://object-storage:3900")
+	s3Region := envOr("S3_REGION", "garage")
+	s3KeyID := os.Getenv("S3_KEY_ID")
+	s3SecretKey := os.Getenv("S3_SECRET_KEY")
+	s3Bucket := envOr("S3_MEDIA_BUCKET", "pp-catalog-media")
+	s3Client := storage.NewClient(s3Endpoint, s3Region, s3KeyID, s3SecretKey, s3Bucket)
+	mediaH := handlers.NewMediaHandler(s3Client)
+
+	// Subida de archivos multimedia y servicio público de imágenes
+	mux.HandleFunc("POST /v1/media/upload", mediaH.Upload)
+	mux.HandleFunc("GET /media/", mediaH.Serve)
 
 	// Resto de la tabla declarativa: una fila = una ruta, sin código por endpoint.
 	for _, r := range routes.Table {

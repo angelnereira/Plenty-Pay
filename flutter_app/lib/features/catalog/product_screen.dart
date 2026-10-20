@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
@@ -42,6 +43,7 @@ class _ProductScreenState extends State<ProductScreen> {
   bool _onlyAdults = false;
   bool _requiresPrescription = false;
   String? _productImageUrl;
+  bool _uploadingImage = false;
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -52,23 +54,53 @@ class _ProductScreenState extends State<ProductScreen> {
         maxHeight: 1920,
         imageQuality: 85,
       );
-      if (!mounted) return;
-      if (photo != null) {
-        setState(() => _productImageUrl = photo.path);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              source == ImageSource.camera
-                  ? '✓ Foto capturada con éxito.'
-                  : '✓ Imagen seleccionada con éxito.',
-            ),
-          ),
+      if (!mounted || photo == null) return;
+
+      setState(() => _uploadingImage = true);
+
+      final bytes = await photo.readAsBytes();
+      final filename = photo.name.isNotEmpty ? photo.name : 'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final mimeType = photo.mimeType ?? 'image/jpeg';
+
+      String imageUrl;
+      try {
+        final serverUrl = await widget.api.uploadMedia(
+          bytes: bytes,
+          filename: filename,
+          mimeType: mimeType,
         );
+        if (serverUrl.startsWith('/')) {
+          final base = widget.api.baseUrl.endsWith('/')
+              ? widget.api.baseUrl.substring(0, widget.api.baseUrl.length - 1)
+              : widget.api.baseUrl;
+          imageUrl = '$base$serverUrl';
+        } else {
+          imageUrl = serverUrl;
+        }
+      } catch (_) {
+        imageUrl = photo.path;
       }
+
+      if (!mounted) return;
+      setState(() {
+        _productImageUrl = imageUrl;
+        _uploadingImage = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            imageUrl.startsWith('http')
+                ? '✓ Foto capturada y guardada en almacenamiento de objetos (Garage S3).'
+                : '✓ Foto capturada en dispositivo.',
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
+      setState(() => _uploadingImage = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No fue posible abrir la cámara o galería: $e')),
+        SnackBar(content: Text('No fue posible abrir la cámara o procesar la foto: $e')),
       );
     }
   }
@@ -106,7 +138,27 @@ class _ProductScreenState extends State<ProductScreen> {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: img,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          img,
+          if (_uploadingImage)
+            Container(
+              height: 160,
+              color: Colors.black54,
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 8),
+                    Text('Subiendo al almacenamiento...', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -340,6 +392,79 @@ class _ProductScreenState extends State<ProductScreen> {
                   },
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Card(
+              elevation: 0,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: QrImageView(
+                        data: 'plentypay://product/${_barcode.text.isNotEmpty ? _barcode.text : (_sku.text.isNotEmpty ? _sku.text : "PROD-${widget.productId ?? 'NEW'}")}',
+                        version: QrVersions.auto,
+                        size: 64.0,
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Código QR del Producto', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 2),
+                          Text(
+                            _barcode.text.isNotEmpty
+                                ? 'Código: ${_barcode.text}'
+                                : (_sku.text.isNotEmpty ? 'SKU: ${_sku.text}' : 'Identificador escaneable PlentyPay'),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.fullscreen),
+                      tooltip: 'Ver QR en grande',
+                      onPressed: () {
+                        final payload = 'plentypay://product/${_barcode.text.isNotEmpty ? _barcode.text : (_sku.text.isNotEmpty ? _sku.text : "PROD-${widget.productId ?? 'NEW'}")}';
+                        showDialog<void>(
+                          context: context,
+                          builder: (dCtx) => AlertDialog(
+                            title: Text(_name.text.isNotEmpty ? _name.text : 'Código QR del Producto'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                                  child: QrImageView(data: payload, size: 220),
+                                ),
+                                const SizedBox(height: 12),
+                                SelectableText(payload, style: const TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.of(dCtx).pop(), child: const Text('Cerrar')),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             // Venta

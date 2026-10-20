@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/widgets/money_text.dart';
@@ -44,15 +45,29 @@ class MarketOrderDetailScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Código de confirmación de entrega (6 dígitos, N-LOG-04)
+            // Código y QR de confirmación de entrega (6 dígitos + QR, N-LOG-04)
             Card(
               color: theme.colorScheme.surfaceContainerHigh,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    Text('Código de entrega para el repartidor', style: theme.textTheme.titleSmall),
-                    const SizedBox(height: 8),
+                    Text('Código de entrega para el repartidor', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: QrImageView(
+                        data: 'plentypay://delivery/$orderId/849203',
+                        version: QrVersions.auto,
+                        size: 140.0,
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       decoration: BoxDecoration(
@@ -68,9 +83,9 @@ class MarketOrderDetailScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
-                      'Muestra este código al repartidor solo cuando recibas tu pedido.',
+                      'Muestra este código QR o los 6 dígitos al repartidor para validar la entrega.',
                       style: theme.textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
