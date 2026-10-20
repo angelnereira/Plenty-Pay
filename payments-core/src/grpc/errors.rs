@@ -131,6 +131,21 @@ pub fn to_status(err: Error, rpc: &'static str, request_id: &str) -> Status {
         Error::PermissionDenied => {
             status(Code::PermissionDenied, "PERMISSION_DENIED", "sin permiso")
         }
+        Error::PaymentNotCaptured => status(
+            Code::FailedPrecondition,
+            "PAYMENT_NOT_CAPTURED",
+            "el pago no está capturado",
+        ),
+        Error::RefundSplitRequired => status(
+            Code::InvalidArgument,
+            "REFUND_SPLIT_REQUIRED",
+            "indica el comercio cuyo split se reembolsa",
+        ),
+        Error::MerchantBalanceInsufficient => status(
+            Code::FailedPrecondition,
+            "MERCHANT_BALANCE_INSUFFICIENT",
+            "el comercio no tiene saldo para el reembolso",
+        ),
         Error::TenantNotActive => status(
             Code::FailedPrecondition,
             "TENANT_NOT_ACTIVE",

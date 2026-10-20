@@ -31,6 +31,8 @@ pub struct Metrics {
     pub captured_unposted: IntGauge,
     /// pp_payments_job_failures_total{job}: fallos de los jobs, registrados una vez en el borde.
     pub job_failures: IntCounterVec,
+    /// pp_refunds_total{status}: reembolsos por estado alcanzado (F11.6).
+    pub refunds: IntCounterVec,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -73,6 +75,11 @@ impl Metrics {
             ),
             &["job"],
         )?;
+        let refunds = IntCounterVec::new(
+            Opts::new("pp_refunds_total", "Reembolsos por estado alcanzado"),
+            &["status"],
+        )?;
+        registry.register(Box::new(refunds.clone()))?;
         registry.register(Box::new(payments.clone()))?;
         registry.register(Box::new(amount_minor.clone()))?;
         registry.register(Box::new(rail_requests.clone()))?;
@@ -87,7 +94,18 @@ impl Metrics {
             unknown_current,
             captured_unposted,
             job_failures,
+            refunds,
         })
+    }
+
+    /// Cuenta un reembolso por su estado (PENDING, SUCCEEDED, FAILED).
+    pub fn inc_refund(&self, status: i16) {
+        let label = match status {
+            2 => "SUCCEEDED",
+            3 => "FAILED",
+            _ => "PENDING",
+        };
+        self.refunds.with_label_values(&[label]).inc();
     }
 
     pub fn render(&self) -> String {

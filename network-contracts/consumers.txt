@@ -15,7 +15,7 @@ security|go|internal/pb|security.proto,common.proto
 infra-management|go|internal/pb|infra_management.proto,common.proto
 geolocation|go|internal/pb|geolocation.proto,common.proto,events.proto
 fiscal-invoicing|go|internal/pb|fiscal_invoicing.proto,security.proto,common.proto,events.proto
-catalog|go|internal/pb|catalog.proto,inventory.proto,infra_management.proto,common.proto,events.proto
+catalog|go|internal/pb|catalog.proto,inventory.proto,infra_management.proto,identity.proto,common.proto,events.proto
 inventory|go|internal/pb|inventory.proto,catalog.proto,common.proto,events.proto
 orders|go|internal/pb|orders.proto,catalog.proto,inventory.proto,payments.proto,logistics.proto,fiscal_invoicing.proto,identity.proto,common.proto,events.proto
 pos|go|internal/pb|pos.proto,catalog.proto,inventory.proto,payments.proto,logistics.proto,fiscal_invoicing.proto,common.proto,events.proto

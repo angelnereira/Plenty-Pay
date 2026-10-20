@@ -74,6 +74,51 @@ var commerceRoutes = []Route{
 		NewResponse: func() proto.Message { return &pb.ListTaxRatesResponse{} },
 	},
 
+	// Marketplace (F15.4–F15.5): lectura para cualquier persona con sesión; catalog aplica R7.
+	{
+		Method: "GET", Path: "/v1/marketplace/search", RPC: "/plentypay.catalog.v1.Catalog/SearchMarketplace",
+		Backend: BackendCatalog, RequireAuth: true,
+		QueryParams: map[string]string{"q": "query", "merchant": "merchant_tenant_id", "min_price": "min_price_minor",
+			"max_price": "max_price_minor", "sort": "sort", "page_size": "page.page_size", "page_token": "page.page_token"},
+		NewRequest:  func() proto.Message { return &pb.SearchMarketplaceRequest{} },
+		NewResponse: func() proto.Message { return &pb.SearchMarketplaceResponse{} },
+	},
+	{
+		Method: "GET", Path: "/v1/marketplace/products/{product_id}", RPC: "/plentypay.catalog.v1.Catalog/GetMarketplaceProduct",
+		Backend: BackendCatalog, RequireAuth: true,
+		PathParams:  map[string]string{"product_id": "product_id"},
+		NewRequest:  func() proto.Message { return &pb.GetMarketplaceProductRequest{} },
+		NewResponse: func() proto.Message { return &pb.MarketplaceProduct{} },
+	},
+	{
+		Method: "GET", Path: "/v1/marketplace/storefronts/{tenant_id}", RPC: "/plentypay.catalog.v1.Catalog/GetStorefront",
+		Backend: BackendCatalog, RequireAuth: true,
+		PathParams:  map[string]string{"tenant_id": "tenant_id"},
+		NewRequest:  func() proto.Message { return &pb.GetStorefrontRequest{} },
+		NewResponse: func() proto.Message { return &pb.Storefront{} },
+	},
+	{
+		// La vitrina propia (S-CAT-05): sin tenant_id, catalog usa el del token.
+		Method: "GET", Path: "/v1/catalog/storefront", RPC: "/plentypay.catalog.v1.Catalog/GetStorefront",
+		Backend: BackendCatalog, RequireAuth: true, Permission: "catalog:read",
+		Defaults:    map[string]string{"tenant_id": ""},
+		NewRequest:  func() proto.Message { return &pb.GetStorefrontRequest{} },
+		NewResponse: func() proto.Message { return &pb.Storefront{} },
+	},
+	{
+		Method: "PUT", Path: "/v1/catalog/storefront", RPC: "/plentypay.catalog.v1.Catalog/UpdateStorefront",
+		Backend: BackendCatalog, RequireAuth: true, Idempotency: true, Permission: "catalog:listing:manage",
+		NewRequest:  func() proto.Message { return &pb.UpdateStorefrontRequest{} },
+		NewResponse: func() proto.Message { return &pb.Storefront{} },
+	},
+	{
+		Method: "PUT", Path: "/v1/catalog/products/{product_id}/listing", RPC: "/plentypay.catalog.v1.Catalog/SetListing",
+		Backend: BackendCatalog, RequireAuth: true, Idempotency: true, Permission: "catalog:listing:manage",
+		PathParams:  map[string]string{"product_id": "listing.product_id"},
+		NewRequest:  func() proto.Message { return &pb.SetListingRequest{} },
+		NewResponse: func() proto.Message { return &pb.Listing{} },
+	},
+
 	// ── inventory ─────────────────────────────────────────────────────────────────────────
 	{
 		Method: "GET", Path: "/v1/inventory/warehouses", RPC: "/plentypay.inventory.v1.Inventory/ListWarehouses",

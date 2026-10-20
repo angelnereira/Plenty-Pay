@@ -1803,3 +1803,367 @@ async fn chain_topup_then_pay_is_consistent_everywhere() {
         .into_inner();
     assert_eq!(listed.payments.len(), 1);
 }
+
+/// orders R3.4 (marketplace): orders crea el cobro a nombre del comprador, sin un comercio único,
+/// con un split por comercio. Solo el
+/// comprador lo confirma; cada comercio recibe su neto en MERCHANT_PAYABLE en un solo asiento.
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn orders_marketplace_intent_splits_to_each_merchant_and_only_buyer_pays() {
+    let e = env().await;
+    let (a, b) = (active_merchant(&e).await, active_merchant(&e).await);
+    let buyer = Uuid::new_v4();
+    fund(&e, buyer, 20_000).await;
+    let order_id = Uuid::new_v4().to_string();
+    let split = |m: Uuid, amount: i64| pb::Split {
+        merchant_party_id: m.to_string(),
+        amount: usd(amount),
+        reference: Some(pb::Reference {
+            r#type: "sub_order".into(),
+            id: Uuid::new_v4().to_string(),
+        }),
+    };
+    let req = pb::CreatePaymentIntentRequest {
+        idempotency_key: key(),
+        amount: usd(5_000),
+        rail: 1,
+        splits: vec![split(a, 3_000), split(b, 2_000)],
+        reference: Some(pb::Reference {
+            r#type: "order".into(),
+            id: order_id.clone(),
+        }),
+        ..Default::default()
+    };
+    // Sin splits: no hay a quién cobrar.
+    let none = e
+        .svc
+        .create_payment_intent(with_md(
+            pb::CreatePaymentIntentRequest {
+                splits: vec![],
+                idempotency_key: key(),
+                ..req.clone()
+            },
+            "orders",
+            Some(buyer),
+            None,
+            "",
+        ))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&none), "SPLITS_MISMATCH");
+
+    let i = e
+        .svc
+        .create_payment_intent(with_md(req.clone(), "orders", Some(buyer), None, ""))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(i.payer_party_id, buyer.to_string());
+    // Reintento de orders con la misma clave: el mismo intent.
+    let again = e
+        .svc
+        .create_payment_intent(with_md(req, "orders", Some(buyer), None, ""))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(again.payment_intent_id, i.payment_intent_id);
+
+    // Otra persona no puede pagarlo.
+    let stranger = Uuid::new_v4();
+    fund(&e, stranger, 20_000).await;
+    let err = confirm(&e, stranger, &i.payment_intent_id, &key())
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::NotFound);
+
+    let done = confirm(&e, buyer, &i.payment_intent_id, &key())
+        .await
+        .unwrap();
+    assert_eq!(done.status, CAPTURED);
+    assert_eq!(
+        balance(&e, &buyer.to_string(), T::Wallet)
+            .await
+            .available_minor,
+        15_000
+    );
+    // Bajo el umbral de step-up del entorno (R5). A: 3000 − 75 − 5 = 2920 · B: 2000 − 50 − 4 = 1946
+    // (half_up de domain-model §4, como el vector E sin comisión de riel).
+    assert_eq!(
+        balance(&e, &a.to_string(), T::MerchantPayable)
+            .await
+            .available_minor,
+        2_920
+    );
+    assert_eq!(
+        balance(&e, &b.to_string(), T::MerchantPayable)
+            .await
+            .available_minor,
+        1_946
+    );
+    assert_eq!(ledger_txs_for(&e, &done.payment_id).await, 1);
+}
+
+// ── F11.6: reembolsos (R11, domain-model §4.4, T7) ──────────────────────────────────────────
+
+fn refund_req(payment: &str, amount: i64, merchant: Option<Uuid>) -> pb::RefundPaymentRequest {
+    pb::RefundPaymentRequest {
+        payment_id: payment.into(),
+        amount: if amount == 0 { None } else { usd(amount) },
+        reason: "devolución L2".into(),
+        idempotency_key: key(),
+        merchant_party_id: merchant.map(|m| m.to_string()).unwrap_or_default(),
+        ..Default::default()
+    }
+}
+
+/// Reembolso de sistema (orders o pos): sin step-up, auditado por su clave.
+async fn system_refund(e: &Env, req: pb::RefundPaymentRequest) -> Result<pb::Refund, Status> {
+    e.svc
+        .refund_payment(with_md(req, "orders", None, None, ""))
+        .await
+        .map(|r| r.into_inner())
+}
+
+/// Paga 40.00 con wallet al comercio (pct 250, ITBMS 700, MERCHANT): pf 100, tax 7, neto 3893.
+async fn paid_4000(e: &Env) -> (Uuid, Uuid, pb::PaymentIntent) {
+    let m = active_merchant(e).await;
+    let payer = Uuid::new_v4();
+    fund(e, payer, 10_000).await;
+    let code = terminal(e, m).await.public_code;
+    let i = pay_intent(e, payer, &code, 4_000).await;
+    let done = confirm(e, payer, &i.payment_intent_id, &key())
+        .await
+        .unwrap();
+    assert_eq!(done.status, CAPTURED);
+    (m, payer, done)
+}
+
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_6_partial_then_final_refund_returns_exact_fees() {
+    let e = env().await;
+    let (m, payer, p) = paid_4000(&e).await;
+    // 10.00: pf_r = round(100·1000/4000) = 25 · tax_r = round(7·1000/4000) = 2 · debit 973.
+    let mut req = refund_req(&p.payment_id, 1_000, None);
+    let r1 = system_refund(&e, req.clone()).await.unwrap();
+    assert_eq!(r1.status, 2, "SUCCEEDED");
+    // R1: la misma clave devuelve el mismo reembolso y no asienta otra vez.
+    let again = system_refund(&e, req.clone()).await.unwrap();
+    assert_eq!(again.refund_id, r1.refund_id);
+    assert_eq!(
+        balance(&e, &m.to_string(), T::MerchantPayable)
+            .await
+            .available_minor,
+        3_893 - 973
+    );
+    // El último (0 = remanente) usa el resto exacto: 75 de comisión y 5 de ITBMS.
+    req.idempotency_key = key();
+    req.amount = None;
+    let r2 = system_refund(&e, req.clone()).await.unwrap();
+    assert_eq!(r2.amount.unwrap().amount_minor, 3_000);
+    assert_eq!(
+        balance(&e, &m.to_string(), T::MerchantPayable)
+            .await
+            .available_minor,
+        0
+    );
+    assert_eq!(
+        balance(&e, &payer.to_string(), T::Wallet)
+            .await
+            .available_minor,
+        10_000
+    );
+    // Nada más por devolver.
+    req.idempotency_key = key();
+    req.amount = usd(1);
+    let err = system_refund(&e, req).await.unwrap_err();
+    assert_eq!(reason(&err), "REFUND_EXCEEDS_CAPTURED");
+    // Un asiento T7 por reembolso, y un RefundSucceeded por cada uno.
+    assert_eq!(
+        service_count(&e.pool, "SELECT count(*) FROM payments.outbox WHERE event_type = 'pp.payments.refund.succeeded.v1' AND aggregate_id = $1", &p.payment_id).await,
+        2
+    );
+}
+
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_6_marketplace_refund_only_touches_that_merchants_split() {
+    let e = env().await;
+    let (a, b) = (active_merchant(&e).await, active_merchant(&e).await);
+    let buyer = Uuid::new_v4();
+    fund(&e, buyer, 10_000).await;
+    let split = |m: Uuid, amount: i64| pb::Split {
+        merchant_party_id: m.to_string(),
+        amount: usd(amount),
+        reference: Some(pb::Reference {
+            r#type: "sub_order".into(),
+            id: Uuid::new_v4().to_string(),
+        }),
+    };
+    let i = e
+        .svc
+        .create_payment_intent(with_md(
+            pb::CreatePaymentIntentRequest {
+                idempotency_key: key(),
+                amount: usd(5_000),
+                rail: 1,
+                splits: vec![split(a, 3_000), split(b, 2_000)],
+                reference: Some(pb::Reference {
+                    r#type: "order".into(),
+                    id: Uuid::new_v4().to_string(),
+                }),
+                ..Default::default()
+            },
+            "orders",
+            Some(buyer),
+            None,
+            "",
+        ))
+        .await
+        .unwrap()
+        .into_inner();
+    let p = confirm(&e, buyer, &i.payment_intent_id, &key())
+        .await
+        .unwrap();
+    // Sin decir de qué comercio: el pago tiene dos splits.
+    let err = system_refund(&e, refund_req(&p.payment_id, 0, None))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&err), "REFUND_SPLIT_REQUIRED");
+    // B rechazó su sub-pedido: se devuelve todo su split (1946 neto + 54 de comisiones).
+    let r = system_refund(&e, refund_req(&p.payment_id, 0, Some(b)))
+        .await
+        .unwrap();
+    assert_eq!((r.status, r.merchant_party_id.clone()), (2, b.to_string()));
+    assert_eq!(
+        balance(&e, &b.to_string(), T::MerchantPayable)
+            .await
+            .available_minor,
+        0
+    );
+    assert_eq!(
+        balance(&e, &a.to_string(), T::MerchantPayable)
+            .await
+            .available_minor,
+        2_920
+    );
+    assert_eq!(
+        balance(&e, &buyer.to_string(), T::Wallet)
+            .await
+            .available_minor,
+        7_000
+    );
+}
+
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_6_merchant_without_balance_cannot_refund() {
+    let e = env().await;
+    let (m, _payer, p) = paid_4000(&e).await;
+    // El comercio ya retiró su saldo (T6b a su propia billetera).
+    e.ledger
+        .clone()
+        .post_transaction(as_payments(pb::ledger::PostTransactionRequest {
+            idempotency_key: format!("payout:{}", Uuid::new_v4()),
+            transaction_type: "PAYOUT_TO_WALLET".into(),
+            reference: Some(pb::Reference {
+                r#type: "settlement_batch".into(),
+                id: Uuid::new_v4().to_string(),
+            }),
+            currency: "USD".into(),
+            entries: vec![
+                pb::ledger::EntryInput {
+                    account: Some(account(&m.to_string(), T::MerchantPayable)),
+                    side: pb::ledger::EntrySide::Debit as i32,
+                    amount_minor: 3_893,
+                },
+                pb::ledger::EntryInput {
+                    account: Some(account(&m.to_string(), T::Wallet)),
+                    side: pb::ledger::EntrySide::Credit as i32,
+                    amount_minor: 3_893,
+                },
+            ],
+            ..Default::default()
+        }))
+        .await
+        .unwrap();
+    let err = system_refund(&e, refund_req(&p.payment_id, 1_000, None))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&err), "MERCHANT_BALANCE_INSUFFICIENT");
+    assert_eq!(
+        service_count(
+            &e.pool,
+            "SELECT count(*) FROM payments.refunds WHERE payment_id = $1::uuid AND status = 3",
+            &p.payment_id
+        )
+        .await,
+        1,
+        "queda registrado como FAILED; nada se borra"
+    );
+}
+
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_6_r5_people_need_step_up_and_only_refund_their_own_split() {
+    let e = env().await;
+    let (m, _payer, p) = paid_4000(&e).await;
+    let cashier = Uuid::new_v4();
+    let err = e
+        .svc
+        .refund_payment(merchant(
+            refund_req(&p.payment_id, 1_000, None),
+            cashier,
+            m,
+            "payments:refund",
+        ))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&err), "STEP_UP_REQUIRED");
+    assert_eq!(
+        service_count(
+            &e.pool,
+            "SELECT count(*) FROM payments.refunds WHERE payment_id = $1::uuid",
+            &p.payment_id
+        )
+        .await,
+        0,
+        "sin step-up no nace el reembolso"
+    );
+    let other = active_merchant(&e).await;
+    let err = e
+        .svc
+        .refund_payment(merchant(
+            refund_req(&p.payment_id, 1_000, None),
+            cashier,
+            other,
+            "payments:refund",
+        ))
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        reason(&err).as_str(),
+        "REFUND_SPLIT_REQUIRED" | "PERMISSION_DENIED" | "STEP_UP_REQUIRED"
+    ));
+    let err = e
+        .svc
+        .refund_payment(merchant(
+            refund_req(&p.payment_id, 1_000, None),
+            cashier,
+            m,
+            "payments:read",
+        ))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&err), "PERMISSION_DENIED");
+}
+
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn f11_6_refund_of_an_uncaptured_payment_is_rejected() {
+    let e = env().await;
+    let err = system_refund(&e, refund_req(&Uuid::new_v4().to_string(), 100, None))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&err), "NOT_FOUND");
+}

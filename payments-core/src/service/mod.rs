@@ -124,6 +124,8 @@ pub fn external_capture_entries(
 /// Operaciones con que se pide el reto de step-up (security-standards §4).
 pub const STEP_UP_CREATE: &str = "payments.intent.create";
 pub const STEP_UP_CONFIRM: &str = "payments.intent.confirm";
+/// R5: todo reembolso pedido por una persona exige step-up atado a la operación y al monto.
+pub const STEP_UP_REFUND: &str = "payments.refund";
 /// Vida del hold de wallet (domain-model §8.4: 15 min); la captura es inmediata.
 const HOLD_TTL_SECONDS: i32 = 900;
 const MAX_INTENT_TTL_SECONDS: i64 = 86_400;
@@ -158,6 +160,12 @@ pub enum Error {
     InvalidLabel,
     #[error("evidence required")]
     EvidenceRequired,
+    #[error("payment not captured")]
+    PaymentNotCaptured,
+    #[error("refund needs the merchant split")]
+    RefundSplitRequired,
+    #[error("merchant balance insufficient")]
+    MerchantBalanceInsufficient,
 }
 
 /// Quién llama, desde los metadatos (ADR 0011): nunca del cuerpo.
@@ -536,6 +544,15 @@ impl PaymentsCore {
                 return Err(Error::TerminalInactive);
             }
             (t.tenant_id, user, Some(user), Some(t.id))
+        } else if actor.service == "orders" && actor.tenant_id.is_none() {
+            // Pedido del marketplace (orders R3.4): un cobro con un split por comercio que paga la
+            // persona del contexto (el comprador). El dueño contable del intent es la plataforma;
+            // cada comercio cobra su split. Sin splits no hay a quién cobrar.
+            if cmd.splits.is_empty() {
+                return Err(DomainError::SplitsMismatch.into());
+            }
+            let buyer = actor.user()?;
+            (platform_party(), buyer, Some(buyer), None)
         } else if actor.has("payments:charge") || actor.is_internal_charger() {
             let tenant = actor.tenant_id.ok_or(Error::PermissionDenied)?;
             (tenant, actor.user_id.unwrap_or_else(Uuid::nil), None, None)
@@ -1508,5 +1525,258 @@ mod tests {
         assert!(a
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
+    }
+}
+
+// ── Reembolsos (F11.6, R11, domain-model §4.4, T7) ─────────────────────────────────────────
+
+/// Turno de quien conduce un reembolso antes de que el job lo retome.
+const REFUND_LEASE_SECONDS: i64 = 30;
+
+/// T7 (domain-model §5.2): D MERCHANT_PAYABLE(m) merchant_debit · D PLATFORM_FEES pf_r ·
+/// D TAX_PAYABLE tax_r · D RAIL_FEES_PAYABLE(riel) rf_r · C WALLET(pagador) o RAIL_RECEIVABLE(riel)
+/// lo que vuelve al pagador. Balanceado por construcción.
+pub fn refund_entries(ctx: &crate::store::refunds::RefundContext) -> Result<Vec<EntryLine>, Error> {
+    let r = &ctx.refund;
+    let rail = rails::external(ctx.payment.rail);
+    let rail_scope = rail.map(|x| x.name).unwrap_or("");
+    let mut out = Vec::new();
+    for (party, kind, scope, amount) in [
+        (
+            r.merchant_party_id.to_string(),
+            AccountType::MerchantPayable,
+            "",
+            r.fee_reversal.merchant_debit,
+        ),
+        (
+            PLATFORM_PARTY.to_string(),
+            AccountType::PlatformFees,
+            "",
+            r.fee_reversal.pf_r,
+        ),
+        (
+            PLATFORM_PARTY.to_string(),
+            AccountType::TaxPayable,
+            "",
+            r.fee_reversal.tax_r,
+        ),
+        (
+            PLATFORM_PARTY.to_string(),
+            AccountType::RailFeesPayable,
+            rail_scope,
+            r.fee_reversal.rf_r,
+        ),
+    ] {
+        if amount > 0 {
+            out.push(EntryLine {
+                party_id: party,
+                account_type: kind as i32,
+                scope_id: scope.into(),
+                debit: true,
+                amount_minor: amount,
+            });
+        }
+    }
+    let credit = match (rail, ctx.payment.payer_party_id) {
+        (None, Some(payer)) => EntryLine {
+            party_id: payer.to_string(),
+            account_type: AccountType::Wallet as i32,
+            scope_id: String::new(),
+            debit: false,
+            amount_minor: r.payer_credit_minor,
+        },
+        (Some(x), _) => EntryLine {
+            party_id: PLATFORM_PARTY.into(),
+            account_type: AccountType::RailReceivable as i32,
+            scope_id: x.name.into(),
+            debit: false,
+            amount_minor: r.payer_credit_minor,
+        },
+        (None, None) => return Err(StoreError::Corrupt("wallet payment without payer").into()),
+    };
+    out.push(credit);
+    Ok(out)
+}
+
+/// Lo que se devuelve al llamador.
+#[derive(Debug, Clone)]
+pub struct RefundView {
+    pub refund: crate::store::refunds::RefundRow,
+    pub currency: String,
+}
+
+impl PaymentsCore {
+    /// RefundPayment: una persona del comercio dueño del split (`payments:refund` + step-up) o un
+    /// servicio interno (orders/pos, reembolso de sistema auditado, sin step-up: orders R4).
+    #[tracing::instrument(skip_all, err, fields(pp.payment_id = %payment_id))]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn refund_payment(
+        &self,
+        actor: &Actor,
+        payment_id: Uuid,
+        merchant_party_id: Option<Uuid>,
+        amount_minor: i64,
+        reason: &str,
+        idempotency_key: &str,
+        step_up_token: &str,
+    ) -> Result<RefundView, Error> {
+        use crate::store::refunds::{NewRefund, RefundError};
+        request::idempotency_key(idempotency_key)?;
+        if amount_minor < 0 || reason.chars().count() > 300 {
+            return Err(DomainError::AmountOutOfRange.into());
+        }
+        let internal = actor.is_internal_charger();
+        let merchant = if internal {
+            merchant_party_id
+        } else {
+            if !actor.has("payments:refund") {
+                return Err(Error::PermissionDenied);
+            }
+            // Una persona solo reembolsa el split de su propio negocio y dice cuánto (R5 ata el
+            // step-up a ese monto).
+            let tenant = actor.tenant_id.ok_or(Error::PermissionDenied)?;
+            if merchant_party_id.is_some_and(|m| m != tenant) {
+                return Err(Error::PermissionDenied);
+            }
+            if amount_minor == 0 {
+                return Err(DomainError::AmountOutOfRange.into());
+            }
+            // R1: el reintento devuelve el original antes de gastar otro step-up.
+            if self
+                .store
+                .refund_by_key(tenant, idempotency_key)
+                .await?
+                .is_none()
+            {
+                let token = if step_up_token.is_empty() {
+                    actor.step_up.as_str()
+                } else {
+                    step_up_token
+                };
+                self.step_up(actor, token, STEP_UP_REFUND, amount_minor, "USD")
+                    .await?;
+            }
+            Some(tenant)
+        };
+        let created = self
+            .store
+            .create_refund(
+                NewRefund {
+                    payment_id,
+                    merchant_party_id: merchant,
+                    amount_minor,
+                    reason,
+                    idempotency_key,
+                    created_by: actor.user_id,
+                },
+                chrono::Duration::seconds(REFUND_LEASE_SECONDS),
+            )
+            .await;
+        let ctx = match created {
+            Ok(c) => c,
+            Err(RefundError::NotCaptured) => return Err(Error::PaymentNotCaptured),
+            Err(RefundError::SplitRequired) => return Err(Error::RefundSplitRequired),
+            Err(RefundError::Domain(d)) => return Err(d.into()),
+            Err(RefundError::Store(StoreError::NotFound)) => return Err(Error::NotFound),
+            Err(RefundError::Store(e)) => return Err(e.into()),
+        };
+        let currency = ctx.payment.currency.clone();
+        let refund = if ctx.refund.status == crate::store::refunds::REFUND_PENDING {
+            self.drive_refund(&actor.request_id, &ctx).await?
+        } else {
+            ctx.refund.clone()
+        };
+        if refund.status == crate::store::refunds::REFUND_FAILED
+            && refund.failure_code == "MERCHANT_BALANCE_INSUFFICIENT"
+            && ctx.created
+        {
+            return Err(Error::MerchantBalanceInsufficient);
+        }
+        self.metrics.inc_refund(refund.status);
+        Ok(RefundView { refund, currency })
+    }
+
+    /// Asienta T7 con la clave `refund:<id>` (idempotente en el ledger) y cierra el reembolso.
+    /// Ambiguo → sigue PENDING para el job (nunca se marca fallido sin saberlo).
+    async fn drive_refund(
+        &self,
+        request_id: &str,
+        ctx: &crate::store::refunds::RefundContext,
+    ) -> Result<crate::store::refunds::RefundRow, Error> {
+        let entries = refund_entries(ctx)?;
+        let key = format!("refund:{}", ctx.refund.id);
+        match self
+            .clients
+            .post_transaction(
+                request_id,
+                &key,
+                Some(ctx.refund.merchant_party_id),
+                "REFUND",
+                ("refund", &ctx.refund.id.to_string()),
+                &ctx.payment.currency,
+                &entries,
+            )
+            .await
+        {
+            Ok(tx) => Ok(self.store.refund_succeeded(ctx.refund.id, tx).await?),
+            Err(DependencyError::Definitive { reason, .. }) => {
+                let code = if reason == "INSUFFICIENT_FUNDS" {
+                    "MERCHANT_BALANCE_INSUFFICIENT"
+                } else {
+                    reason.as_str()
+                };
+                Ok(self.store.refund_failed(ctx.refund.id, code).await?)
+            }
+            Err(e) => {
+                tracing::warn!(pp.refund_id = %ctx.refund.id, error = %e, "refund posting ambiguous, left pending");
+                Ok(ctx.refund.clone())
+            }
+        }
+    }
+
+    /// Job: retoma los reembolsos PENDING cuyo turno venció (mismo asiento, misma clave).
+    pub async fn resume_refunds(&self) -> Result<usize, Error> {
+        let ids = self
+            .store
+            .due_refunds(50, chrono::Duration::seconds(60))
+            .await?;
+        let mut done: usize = 0;
+        for id in ids {
+            let ctx = self.store.refund_context(id).await?;
+            let r = self.drive_refund("job-refunds", &ctx).await?;
+            if r.status != crate::store::refunds::REFUND_PENDING {
+                done = done.saturating_add(1);
+            }
+        }
+        Ok(done)
+    }
+
+    /// GetRefund: el comercio del split (`payments:read`) o un servicio interno.
+    pub async fn get_refund(&self, actor: &Actor, id: Uuid) -> Result<RefundView, Error> {
+        let scope = if actor.is_internal_charger() {
+            Scope::service()
+        } else {
+            if !actor.has("payments:read") && !actor.has("payments:refund") {
+                return Err(Error::PermissionDenied);
+            }
+            Scope {
+                service: false,
+                tenant_id: actor.tenant_id.ok_or(Error::PermissionDenied)?.to_string(),
+                party_id: String::new(),
+            }
+        };
+        let refund = match self.store.refund(&scope, id).await {
+            Ok(r) => r,
+            Err(StoreError::NotFound) => return Err(Error::NotFound),
+            Err(e) => return Err(e.into()),
+        };
+        let payment = self
+            .store
+            .payment(&Scope::service(), refund.payment_id)
+            .await?;
+        Ok(RefundView {
+            refund,
+            currency: payment.currency,
+        })
     }
 }

@@ -22,6 +22,7 @@ var (
 	ErrInvalidWarehouse    = errors.New("invalid warehouse")
 	ErrKeyReused           = errors.New("idempotency key reused")
 	ErrServiceOnly         = errors.New("movement type reserved to services")
+	ErrInvalidTransition   = errors.New("invalid state transition")
 )
 
 // MovementType (inventory.proto MovementType).
@@ -165,4 +166,78 @@ func (w Warehouse) Validate() error {
 		return ErrInvalidWarehouse
 	}
 	return nil
+}
+
+// ReservationStatus (inventory.proto ReservationStatus).
+type ReservationStatus int16
+
+const (
+	ReservationActive    ReservationStatus = 1
+	ReservationCommitted ReservationStatus = 2
+	ReservationReleased  ReservationStatus = 3
+	ReservationExpired   ReservationStatus = 4
+)
+
+// Límites de una reserva (R4: ninguna reserva es indefinida).
+const (
+	DefaultReservationTTL = 900
+	MaxReservationTTL     = 24 * 3600
+	MaxReservationLines   = 50
+)
+
+// ReservationLine es un producto y su cantidad reservada.
+type ReservationLine struct {
+	ProductID string `json:"product_id"`
+	QtyMilli  int64  `json:"qty_milli"`
+}
+
+// Reservation protege existencias entre el carrito y el pago confirmado.
+type Reservation struct {
+	ID             string
+	TenantID       string
+	WarehouseID    string
+	Lines          []ReservationLine
+	Status         ReservationStatus
+	ReferenceType  string
+	ReferenceID    string
+	IdempotencyKey string
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
+}
+
+// Validate: al menos una línea, cantidades > 0, productos sin repetir.
+func (r Reservation) Validate() error {
+	if len(r.Lines) == 0 || len(r.Lines) > MaxReservationLines {
+		return ErrInvalidQty
+	}
+	seen := map[string]bool{}
+	for _, l := range r.Lines {
+		if l.QtyMilli <= 0 || l.ProductID == "" || seen[l.ProductID] {
+			return ErrInvalidQty
+		}
+		seen[l.ProductID] = true
+	}
+	return nil
+}
+
+// Reserve aparta `qty` (R2: available no queda < 0 salvo decisión explícita).
+func (l *Level) Reserve(qty int64, allowNegative bool) error {
+	if qty <= 0 {
+		return ErrInvalidQty
+	}
+	if !allowNegative && l.Available() < qty {
+		return ErrOutOfStock
+	}
+	l.ReservedMilli += qty
+	l.Version++
+	return nil
+}
+
+// Unreserve devuelve lo apartado (liberar o vencer).
+func (l *Level) Unreserve(qty int64) {
+	l.ReservedMilli -= qty
+	if l.ReservedMilli < 0 {
+		l.ReservedMilli = 0
+	}
+	l.Version++
 }

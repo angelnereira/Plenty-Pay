@@ -417,12 +417,50 @@ impl Payments for PaymentsService {
         Ok(Response::new(payment_pb(&p)))
     }
 
-    async fn refund_payment(&self, _: Request<pb::RefundPaymentRequest>) -> R<pb::Refund> {
-        Err(unimplemented("F11.6"))
+    #[tracing::instrument(skip_all, fields(rpc = "RefundPayment"))]
+    async fn refund_payment(&self, request: Request<pb::RefundPaymentRequest>) -> R<pb::Refund> {
+        let a = actor(request.metadata());
+        let req = request.into_inner();
+        let id = uuid(&req.payment_id)?;
+        let merchant = if req.merchant_party_id.is_empty() {
+            None
+        } else {
+            Some(uuid(&req.merchant_party_id)?)
+        };
+        let amount = req.amount.unwrap_or_default();
+        if !amount.currency.is_empty() && amount.currency != "USD" {
+            return Err(status(
+                tonic::Code::InvalidArgument,
+                "CURRENCY_MISMATCH",
+                "moneda distinta a la del cobro",
+            ));
+        }
+        let v = self
+            .core
+            .refund_payment(
+                &a,
+                id,
+                merchant,
+                amount.amount_minor,
+                &req.reason,
+                &req.idempotency_key,
+                &req.step_up_token,
+            )
+            .await
+            .map_err(|e| to_status(e, "RefundPayment", &a.request_id))?;
+        Ok(Response::new(refund_pb(&v)))
     }
 
-    async fn get_refund(&self, _: Request<pb::GetRefundRequest>) -> R<pb::Refund> {
-        Err(unimplemented("F11.6"))
+    #[tracing::instrument(skip_all, fields(rpc = "GetRefund"))]
+    async fn get_refund(&self, request: Request<pb::GetRefundRequest>) -> R<pb::Refund> {
+        let a = actor(request.metadata());
+        let id = uuid(&request.get_ref().refund_id)?;
+        let v = self
+            .core
+            .get_refund(&a, id)
+            .await
+            .map_err(|e| to_status(e, "GetRefund", &a.request_id))?;
+        Ok(Response::new(refund_pb(&v)))
     }
 
     #[tracing::instrument(skip_all, fields(rpc = "CreateTerminal"))]
@@ -610,6 +648,29 @@ impl Payments for PaymentsService {
 
     async fn post_memo_entry(&self, _: Request<pb::PostMemoEntryRequest>) -> R<pb::MemoEntry> {
         Err(unimplemented("F17"))
+    }
+}
+
+fn refund_pb(v: &crate::service::RefundView) -> pb::Refund {
+    let r = &v.refund;
+    let money = |amount_minor: i64| {
+        Some(pb::Money {
+            amount_minor,
+            currency: v.currency.clone(),
+        })
+    };
+    pb::Refund {
+        refund_id: r.id.to_string(),
+        payment_id: r.payment_id.to_string(),
+        amount: money(r.amount_minor),
+        status: i32::from(r.status),
+        reason: r.reason.clone(),
+        created_at: Some(prost_types::Timestamp {
+            seconds: r.created_at.timestamp(),
+            nanos: i32::try_from(r.created_at.timestamp_subsec_nanos()).unwrap_or(0),
+        }),
+        merchant_party_id: r.merchant_party_id.to_string(),
+        payer_credit: money(r.payer_credit_minor),
     }
 }
 

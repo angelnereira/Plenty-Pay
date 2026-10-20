@@ -80,3 +80,24 @@ func TestR7_StockLowAtMostOncePerDay(t *testing.T) {
 		t.Fatal("sobre el punto no avisa")
 	}
 }
+
+func TestR4_ReservationsAreAllOrNothingAndBounded(t *testing.T) {
+	if (Reservation{}).Validate() == nil {
+		t.Fatal("sin líneas")
+	}
+	dup := Reservation{Lines: []ReservationLine{{ProductID: "p", QtyMilli: 1}, {ProductID: "p", QtyMilli: 1}}}
+	if dup.Validate() == nil {
+		t.Fatal("producto repetido")
+	}
+	l := Level{OnHandMilli: 5000, ReservedMilli: 1000}
+	if !errors.Is(l.Reserve(5000, false), ErrOutOfStock) {
+		t.Fatal("reservar más de lo disponible")
+	}
+	if err := l.Reserve(4000, false); err != nil || l.Available() != 0 {
+		t.Fatalf("%v %+v", err, l)
+	}
+	l.Unreserve(4000)
+	if l.Available() != 4000 {
+		t.Fatalf("%+v", l)
+	}
+}

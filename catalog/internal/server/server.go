@@ -63,6 +63,14 @@ func toStatus(err error) error {
 		errors.Is(err, domain.ErrInvalidPrice), errors.Is(err, domain.ErrInvalidCurrency),
 		errors.Is(err, domain.ErrInvalidDescription), errors.Is(err, domain.ErrInvalidCategory):
 		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", err.Error())
+	case errors.Is(err, domain.ErrTenantNotActive):
+		return ErrorInfo(codes.FailedPrecondition, "TENANT_NOT_ACTIVE", "el negocio aún no está activo")
+	case errors.Is(err, domain.ErrListingIncomplete):
+		return ErrorInfo(codes.FailedPrecondition, "LISTING_INCOMPLETE", "al producto le falta foto, precio o modalidad de entrega")
+	case errors.Is(err, domain.ErrInvalidStorefront):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "datos de la tienda inválidos")
+	case errors.Is(err, client.ErrTenantNotFound):
+		return ErrorInfo(codes.NotFound, "NOT_FOUND", "no existe")
 	case errors.Is(err, client.ErrUnavailable):
 		return ErrorInfo(codes.Unavailable, "DEPENDENCY_UNAVAILABLE", "servicio temporalmente no disponible")
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
@@ -74,11 +82,12 @@ func toStatus(err error) error {
 // Server implementa pb.CatalogServer.
 type Server struct {
 	pb.UnimplementedCatalogServer
-	svc *service.Catalog
+	svc    *service.Catalog
+	market *service.Market
 }
 
 // New arma el adaptador.
-func New(svc *service.Catalog) *Server { return &Server{svc: svc} }
+func New(market *service.Market) *Server { return &Server{svc: market.Catalog, market: market} }
 
 // authorize exige tenant y el permiso (el gateway ya lo comprobó; aquí es segunda barrera).
 func authorize(ctx context.Context, permission string) (tenancy.Actor, error) {

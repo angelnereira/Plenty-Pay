@@ -18,6 +18,7 @@ import (
 var AllowedIdentityCallers = map[string]bool{
 	"api-gateway":   true,
 	"payments-core": true,
+	"catalog":       true,
 	"settlement":    true,
 	"orders":        true,
 	"logistics":     true,

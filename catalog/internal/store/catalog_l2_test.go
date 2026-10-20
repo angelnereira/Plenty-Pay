@@ -295,3 +295,149 @@ func TestPrivileges_ServiceRoleCannotDelete(t *testing.T) {
 		t.Fatal("catalog_svc pudo borrar productos: nada se borra, se archiva")
 	}
 }
+
+// directory simula identity.GetTenant (respaldo de la proyección).
+type directory map[string]int16
+
+func (d directory) TenantStatus(_ context.Context, _, tenantID string) (int16, error) {
+	return d[tenantID], nil
+}
+
+func newMarket(t *testing.T, dir directory) *service.Market {
+	return service.NewMarket(newSvc(t), open(t), dir)
+}
+
+func photoProduct(t *testing.T, m *service.Market, tenant, sku string, price int64) domain.Product {
+	t.Helper()
+	p := coffee(sku, "")
+	p.PriceMinor = price
+	p.ImageObjectKeys = []string{"/media/" + tenant + "/2026/foto.jpg"}
+	out, err := m.CreateProduct(context.Background(), tenant, "", "", p, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func TestR4_OnlyActiveTenantsPublishAndSuspensionUnlistsEverything(t *testing.T) {
+	ctx, a := context.Background(), tenant()
+	dir := directory{a: 1} // PENDING_REVIEW en identity
+	m := newMarket(t, dir)
+	p := photoProduct(t, m, a, "MK-1", 1500)
+	if _, err := m.SetListing(ctx, a, "", domain.Listing{ProductID: p.ID, Listed: true, Pickup: true}); !errors.Is(err, domain.ErrTenantNotActive) {
+		t.Fatalf("en revisión publicó: %v", err)
+	}
+	// identity aprueba: llega el evento y la proyección cambia.
+	if _, err := m.HandleTenantStatus(ctx, uuid.Must(uuid.NewV7()).String(), a, domain.TenantActive); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.SetListing(ctx, a, "", domain.Listing{ProductID: p.ID, Listed: true, Pickup: true}); err != nil {
+		t.Fatal(err)
+	}
+	found, _, err := m.Search(ctx, store.MarketFilter{TenantID: a, Limit: 10})
+	if err != nil || len(found) != 1 || found[0].Product.ID != p.ID {
+		t.Fatalf("publicado y no aparece: %v %v", found, err)
+	}
+	// Suspensión: todo se despublica con su ProductChanged, y la búsqueda ya no lo trae (R7).
+	before := outboxCount(t, a, p.ID)
+	if _, err := m.HandleTenantStatus(ctx, uuid.Must(uuid.NewV7()).String(), a, 3); err != nil {
+		t.Fatal(err)
+	}
+	found, _, err = m.Search(ctx, store.MarketFilter{TenantID: a, Limit: 10})
+	if err != nil || len(found) != 0 {
+		t.Fatalf("negocio suspendido sigue visible: %d %v", len(found), err)
+	}
+	if n := outboxCount(t, a, p.ID); n != before+1 {
+		t.Fatalf("despublicar debe emitir ProductChanged: %d → %d", before, n)
+	}
+	l, err := m.Listing(ctx, a, p.ID)
+	if err != nil || l.Listed {
+		t.Fatalf("el listado debe quedar despublicado: %+v %v", l, err)
+	}
+}
+
+func TestSPEC_SetListing_IncompleteProductIsRejected(t *testing.T) {
+	ctx, a := context.Background(), tenant()
+	m := newMarket(t, directory{a: domain.TenantActive})
+	p, err := m.CreateProduct(ctx, a, "", "", coffee("MK-2", ""), true) // sin foto
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.SetListing(ctx, a, "", domain.Listing{ProductID: p.ID, Listed: true, Pickup: true}); !errors.Is(err, domain.ErrListingIncomplete) {
+		t.Fatalf("sin foto publicó: %v", err)
+	}
+}
+
+func TestR7_ArchivedProductsNeverAppear(t *testing.T) {
+	ctx, a := context.Background(), tenant()
+	m := newMarket(t, directory{a: domain.TenantActive})
+	p := photoProduct(t, m, a, "MK-3", 900)
+	if _, err := m.SetListing(ctx, a, "", domain.Listing{ProductID: p.ID, Listed: true, Pickup: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.ArchiveProduct(ctx, a, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.MarketplaceProduct(ctx, p.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("archivado visible: %v", err)
+	}
+}
+
+func TestR5_InStockIsProjectedFromInventoryAndIdempotent(t *testing.T) {
+	ctx, a := context.Background(), tenant()
+	m := newMarket(t, directory{a: domain.TenantActive})
+	p := photoProduct(t, m, a, "MK-4", 700)
+	if _, err := m.SetListing(ctx, a, "", domain.Listing{ProductID: p.ID, Listed: true, Pickup: true}); err != nil {
+		t.Fatal(err)
+	}
+	it, err := m.MarketplaceProduct(ctx, p.ID)
+	if err != nil || it.InStock {
+		t.Fatalf("sin existencias debe salir agotado: %+v %v", it.InStock, err)
+	}
+	wh, ev := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+	for i := 0; i < 2; i++ { // el mismo evento dos veces
+		if _, err := m.HandleStock(ctx, ev, a, p.ID, wh, 3000); err != nil {
+			t.Fatal(err)
+		}
+	}
+	it, err = m.MarketplaceProduct(ctx, p.ID)
+	if err != nil || !it.InStock {
+		t.Fatalf("con existencia debe salir disponible: %+v %v", it.InStock, err)
+	}
+	if _, err := m.HandleStock(ctx, uuid.Must(uuid.NewV7()).String(), a, p.ID, wh, 0); err != nil {
+		t.Fatal(err)
+	}
+	if it, _ = m.MarketplaceProduct(ctx, p.ID); it.InStock {
+		t.Fatal("al agotarse debe salir agotado")
+	}
+}
+
+func TestSearchMarketplace_PriceFilterAndSort(t *testing.T) {
+	ctx, a := context.Background(), tenant()
+	m := newMarket(t, directory{a: domain.TenantActive})
+	for i, price := range []int64{3000, 1000, 2000} {
+		p := photoProduct(t, m, a, fmt.Sprintf("MK-S%d", i), price)
+		if _, err := m.SetListing(ctx, a, "", domain.Listing{ProductID: p.ID, Listed: true, Pickup: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, _, err := m.Search(ctx, store.MarketFilter{TenantID: a, Sort: "PRICE_ASC", MaxPrice: 2500, Limit: 10})
+	if err != nil || len(got) != 2 || got[0].Product.PriceMinor != 1000 || got[1].Product.PriceMinor != 2000 {
+		t.Fatalf("filtro y orden por precio: %v", err)
+	}
+}
+
+func TestStorefront_PublishingRequiresActiveTenant(t *testing.T) {
+	ctx, a, b := context.Background(), tenant(), tenant()
+	m := newMarket(t, directory{a: domain.TenantActive, b: 1})
+	if _, err := m.UpdateStorefront(ctx, b, "", domain.Storefront{DisplayName: "Tienda B", Published: true}); !errors.Is(err, domain.ErrTenantNotActive) {
+		t.Fatalf("negocio en revisión publicó su tienda: %v", err)
+	}
+	if _, err := m.UpdateStorefront(ctx, a, "", domain.Storefront{DisplayName: "Café del Casco", Description: "Café de altura", Published: true}); err != nil {
+		t.Fatal(err)
+	}
+	sf, verified, err := m.Storefront(ctx, "", a)
+	if err != nil || !verified || sf.DisplayName != "Café del Casco" || !sf.Published {
+		t.Fatalf("%+v %v %v", sf, verified, err)
+	}
+}

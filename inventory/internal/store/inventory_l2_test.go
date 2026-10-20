@@ -337,3 +337,121 @@ func TestOutbox_EveryMovementEmitsStockChanged(t *testing.T) {
 		t.Fatalf("%d StockChanged, se esperaban 3", n)
 	}
 }
+
+func orders(tenant string) service.Caller { return service.Caller{TenantID: tenant, Service: "orders"} }
+
+func reserve(s *service.Inventory, tenant, product string, qty int64, ttl int32) (domain.Reservation, error) {
+	return s.ReserveStock(context.Background(), orders(tenant), service.ReserveRequest{IdempotencyKey: key(),
+		Lines: []domain.ReservationLine{{ProductID: product, QtyMilli: qty}}, ReferenceType: "order", ReferenceID: id(), TTLSeconds: ttl})
+}
+
+func TestSPEC11_100ConcurrentReservationsOver50Units(t *testing.T) {
+	s, tenant, product := svc(t), id(), id()
+	receive(t, s, tenant, product, 50000)
+	var ok, out atomic.Int32
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := reserve(s, tenant, product, 1000, 900)
+			switch {
+			case err == nil:
+				ok.Add(1)
+			case errors.Is(err, domain.ErrOutOfStock):
+				out.Add(1)
+			default:
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	l, err := s.GetStock(context.Background(), tenant, product, "")
+	if err != nil || ok.Load() != 50 || out.Load() != 50 || l.ReservedMilli != 50000 || l.Available() != 0 {
+		t.Fatalf("ok=%d sin_stock=%d reservado=%d disponible=%d (%v)", ok.Load(), out.Load(), l.ReservedMilli, l.Available(), err)
+	}
+}
+
+func TestR4_ReservationIsAllOrNothing(t *testing.T) {
+	ctx, s, tenant, a, b := context.Background(), svc(t), id(), id(), id()
+	receive(t, s, tenant, a, 5000)
+	receive(t, s, tenant, b, 1000)
+	_, err := s.ReserveStock(ctx, orders(tenant), service.ReserveRequest{IdempotencyKey: key(), ReferenceType: "order", ReferenceID: id(),
+		Lines: []domain.ReservationLine{{ProductID: a, QtyMilli: 2000}, {ProductID: b, QtyMilli: 3000}}})
+	if !errors.Is(err, domain.ErrOutOfStock) {
+		t.Fatalf("una línea sin stock: %v", err)
+	}
+	la, _ := s.GetStock(ctx, tenant, a, "")
+	if la.ReservedMilli != 0 {
+		t.Fatalf("la otra línea quedó reservada: %d", la.ReservedMilli)
+	}
+}
+
+func TestReservation_CommitIsASaleAndReleaseReturns(t *testing.T) {
+	ctx, s, tenant, product := context.Background(), svc(t), id(), id()
+	receive(t, s, tenant, product, 10000)
+	r1, err := reserve(s, tenant, product, 3000, 900)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r2, err := reserve(s, tenant, product, 2000, 900)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ { // confirmar dos veces no vende dos veces
+		if _, err := s.CommitReservation(ctx, orders(tenant), r1.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.ReleaseReservation(ctx, orders(tenant), r2.ID); err != nil {
+		t.Fatal(err)
+	}
+	l, _ := s.GetStock(ctx, tenant, product, "")
+	if l.OnHandMilli != 7000 || l.ReservedMilli != 0 {
+		t.Fatalf("on_hand=%d reservado=%d (se esperaba 7000/0)", l.OnHandMilli, l.ReservedMilli)
+	}
+	if _, err := s.ReleaseReservation(ctx, orders(tenant), r1.ID); !errors.Is(err, domain.ErrInvalidTransition) {
+		t.Fatalf("liberar una reserva vendida: %v", err)
+	}
+	if n := count(t, tenant, `SELECT count(*) FROM movements WHERE product_id = $1 AND type = 2`, product); n != 1 {
+		t.Fatalf("movimientos de venta: %d", n)
+	}
+}
+
+func TestR4_ExpiredReservationsReturnStockAndCannotBeCommitted(t *testing.T) {
+	ctx, s, tenant, product := context.Background(), svc(t), id(), id()
+	receive(t, s, tenant, product, 4000)
+	r, err := reserve(s, tenant, product, 4000, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1100 * time.Millisecond)
+	if _, err := s.CommitReservation(ctx, orders(tenant), r.ID); !errors.Is(err, domain.ErrInvalidTransition) {
+		t.Fatalf("confirmar vencida: %v", err)
+	}
+	if n, err := s.ExpireReservations(ctx, 1000); err != nil || n < 1 {
+		t.Fatalf("job de vencimiento: %d %v", n, err)
+	}
+	l, _ := s.GetStock(ctx, tenant, product, "")
+	if l.ReservedMilli != 0 || l.Available() != 4000 {
+		t.Fatalf("la reserva vencida no devolvió el stock: %+v", l)
+	}
+}
+
+func TestReservation_IdempotentAndServiceOnly(t *testing.T) {
+	ctx, s, tenant, product := context.Background(), svc(t), id(), id()
+	receive(t, s, tenant, product, 4000)
+	req := service.ReserveRequest{IdempotencyKey: key(), ReferenceType: "order", ReferenceID: id(),
+		Lines: []domain.ReservationLine{{ProductID: product, QtyMilli: 1000}}}
+	r1, err := s.ReserveStock(ctx, orders(tenant), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r2, err := s.ReserveStock(ctx, orders(tenant), req)
+	if err != nil || r2.ID != r1.ID {
+		t.Fatalf("reintento creó otra reserva: %v", err)
+	}
+	if _, err := s.ReserveStock(ctx, person(tenant), req); !errors.Is(err, domain.ErrServiceOnly) {
+		t.Fatalf("una persona reservó: %v", err)
+	}
+}

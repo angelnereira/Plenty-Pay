@@ -112,3 +112,27 @@ func TestCategoryDepthAtMostFour(t *testing.T) {
 		t.Fatal("nombre vacío aceptado")
 	}
 }
+
+func TestSPEC_SetListing_RequiresActiveTenantPhotoPriceAndFulfillment(t *testing.T) {
+	p := valid()
+	p.Status = StatusActive
+	p.ImageObjectKeys = []string{"/media/t/2026/a.jpg"}
+	l := Listing{Listed: true, Pickup: true}
+	if err := l.CanPublish(p, TenantActive); err != nil {
+		t.Fatal(err)
+	}
+	if !errors.Is(l.CanPublish(p, 1), ErrTenantNotActive) {
+		t.Fatal("R4: un negocio en revisión no publica")
+	}
+	noPhoto := p
+	noPhoto.ImageObjectKeys = nil
+	if !errors.Is(l.CanPublish(noPhoto, TenantActive), ErrListingIncomplete) {
+		t.Fatal("sin foto no se publica")
+	}
+	if !errors.Is((Listing{Listed: true}).CanPublish(p, TenantActive), ErrListingIncomplete) {
+		t.Fatal("sin modalidad de entrega no se publica")
+	}
+	if err := (Listing{Listed: false}).CanPublish(p, 4); err != nil {
+		t.Fatal("despublicar siempre se puede")
+	}
+}

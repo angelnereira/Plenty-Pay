@@ -56,6 +56,19 @@ struct CapturedJson {
 }
 
 #[derive(Deserialize)]
+struct RefundJson {
+    refund_id: String,
+    payment_id: String,
+    tenant_id: String,
+    amount_minor: String,
+    currency: String,
+    #[serde(default)]
+    reference_type: String,
+    #[serde(default)]
+    reference_id: String,
+}
+
+#[derive(Deserialize)]
 struct FailedJson {
     payment_id: String,
     tenant_id: String,
@@ -161,6 +174,23 @@ pub fn build_envelope(
             (
                 "payments.payment.unknown",
                 to_any("plentypay.payments.v1.PaymentUnknown", &msg),
+            )
+        }
+        "pp.payments.refund.succeeded.v1" => {
+            let p: RefundJson = serde_json::from_value(payload)?;
+            let msg = pb::RefundSucceeded {
+                refund_id: p.refund_id,
+                payment_id: p.payment_id,
+                tenant_id: p.tenant_id,
+                amount: Some(pb::Money {
+                    amount_minor: amount(&p.amount_minor)?,
+                    currency: p.currency,
+                }),
+                reference: reference(p.reference_type, p.reference_id),
+            };
+            (
+                "payments.refund.succeeded",
+                to_any("plentypay.payments.v1.RefundSucceeded", &msg),
             )
         }
         other => return Err(EventError::UnknownEvent(other.to_string())),

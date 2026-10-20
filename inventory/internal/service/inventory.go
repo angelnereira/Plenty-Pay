@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -29,6 +30,11 @@ type Store interface {
 	ListStock(ctx context.Context, tenantID, warehouseID string, onlyLow bool, after string, limit int) ([]domain.Level, string, error)
 	ListMovements(ctx context.Context, tenantID, productID, warehouseID string, from, to time.Time,
 		after *store.MovementCursor, limit int) ([]domain.Movement, *store.MovementCursor, error)
+	Reserve(ctx context.Context, r domain.Reservation, hash []byte, allowNegative bool, newWarehouseID string,
+		now time.Time, events store.EventsFor) (domain.Reservation, error)
+	Finish(ctx context.Context, tenantID, id string, to domain.ReservationStatus, actorService string,
+		now time.Time, newID func() string, events store.EventsFor) (domain.Reservation, error)
+	DueReservations(ctx context.Context, now time.Time, limit int) ([]domain.Reservation, error)
 }
 
 // Products valida productos contra catalog.
@@ -226,4 +232,80 @@ func (s *Inventory) ListMovements(ctx context.Context, tenantID, productID, ware
 		from = to.AddDate(0, 0, -90)
 	}
 	return s.store.ListMovements(ctx, tenantID, productID, warehouseID, from, to, after, limit)
+}
+
+// ── Reservas (F16.3) ────────────────────────────────────────────────────────────────────────
+
+// ReserveRequest aparta existencias para un pedido.
+type ReserveRequest struct {
+	IdempotencyKey string
+	WarehouseID    string
+	Lines          []domain.ReservationLine
+	ReferenceType  string
+	ReferenceID    string
+	TTLSeconds     int32
+	AllowNegative  bool
+}
+
+// ReserveStock aparta todas las líneas o ninguna (R4). Solo pos y orders reservan.
+func (s *Inventory) ReserveStock(ctx context.Context, c Caller, r ReserveRequest) (domain.Reservation, error) {
+	if !domain.SellingServices[c.Service] {
+		return domain.Reservation{}, domain.ErrServiceOnly
+	}
+	ttl := r.TTLSeconds
+	if ttl == 0 {
+		ttl = domain.DefaultReservationTTL
+	}
+	if ttl < 1 || ttl > domain.MaxReservationTTL {
+		return domain.Reservation{}, domain.ErrInvalidQty
+	}
+	res := domain.Reservation{ID: s.newID(), TenantID: c.TenantID, WarehouseID: r.WarehouseID, Lines: r.Lines,
+		ReferenceType: r.ReferenceType, ReferenceID: r.ReferenceID, IdempotencyKey: r.IdempotencyKey,
+		ExpiresAt: s.now().Add(time.Duration(ttl) * time.Second)}
+	if err := res.Validate(); err != nil {
+		return res, err
+	}
+	parts := []string{"reserve", r.WarehouseID, r.ReferenceType, r.ReferenceID, fmt.Sprint(ttl), fmt.Sprint(r.AllowNegative)}
+	for _, l := range r.Lines {
+		if err := s.validateProduct(ctx, l.ProductID, domain.Sale); err != nil {
+			return res, err
+		}
+		parts = append(parts, l.ProductID, fmt.Sprint(l.QtyMilli))
+	}
+	return s.store.Reserve(ctx, res, requestHash(parts...), r.AllowNegative, s.newID(), s.now(), s.eventsFor)
+}
+
+// CommitReservation convierte la reserva en venta (SALE por línea).
+func (s *Inventory) CommitReservation(ctx context.Context, c Caller, id string) (domain.Reservation, error) {
+	if !domain.SellingServices[c.Service] {
+		return domain.Reservation{}, domain.ErrServiceOnly
+	}
+	return s.store.Finish(ctx, c.TenantID, id, domain.ReservationCommitted, c.Service, s.now(), s.newID, s.eventsFor)
+}
+
+// ReleaseReservation devuelve lo apartado.
+func (s *Inventory) ReleaseReservation(ctx context.Context, c Caller, id string) (domain.Reservation, error) {
+	if !domain.SellingServices[c.Service] {
+		return domain.Reservation{}, domain.ErrServiceOnly
+	}
+	return s.store.Finish(ctx, c.TenantID, id, domain.ReservationReleased, c.Service, s.now(), s.newID, s.eventsFor)
+}
+
+// ExpireReservations vence las reservas cuyo TTL pasó (job de 30 s, R4).
+func (s *Inventory) ExpireReservations(ctx context.Context, limit int) (int, error) {
+	due, err := s.store.DueReservations(ctx, s.now(), limit)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, r := range due {
+		if _, err := s.store.Finish(ctx, r.TenantID, r.ID, domain.ReservationExpired, "inventory", s.now(), s.newID, s.eventsFor); err != nil {
+			if errors.Is(err, domain.ErrInvalidTransition) {
+				continue // otro proceso la cerró entre la lectura y el bloqueo
+			}
+			return n, err
+		}
+		n++
+	}
+	return n, nil
 }

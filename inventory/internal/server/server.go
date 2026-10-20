@@ -53,6 +53,8 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.InvalidArgument, "SAME_WAREHOUSE", "elige dos bodegas distintas")
 	case errors.Is(err, domain.ErrInvalidWarehouse):
 		return ErrorInfo(codes.InvalidArgument, "INVALID_WAREHOUSE", "bodega inválida o inactiva")
+	case errors.Is(err, domain.ErrInvalidTransition):
+		return ErrorInfo(codes.FailedPrecondition, "INVALID_STATE_TRANSITION", "la reserva ya no está activa")
 	case errors.Is(err, domain.ErrKeyReused):
 		return ErrorInfo(codes.AlreadyExists, "IDEMPOTENCY_KEY_REUSED", "la clave de idempotencia ya se usó con otra operación")
 	case errors.Is(err, client.ErrUnavailable):
@@ -291,4 +293,58 @@ func decode[T any](t string) (T, error) {
 		return v, ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "page_token inválido")
 	}
 	return v, nil
+}
+
+func reservationPB(r domain.Reservation) *pb.Reservation {
+	out := &pb.Reservation{ReservationId: r.ID, WarehouseId: r.WarehouseID, Status: pb.ReservationStatus(r.Status),
+		Reference: &pb.Reference{Type: r.ReferenceType, Id: r.ReferenceID}, ExpiresAt: timestamppb.New(r.ExpiresAt)}
+	for _, l := range r.Lines {
+		out.Lines = append(out.Lines, &pb.ReservationLine{ProductId: l.ProductID, QuantityMilli: l.QtyMilli})
+	}
+	return out
+}
+
+func (s *Server) ReserveStock(ctx context.Context, req *pb.ReserveStockRequest) (*pb.Reservation, error) {
+	a, err := authorize(ctx, "inventory:adjust")
+	if err != nil {
+		return nil, err
+	}
+	if err := checkKey(req.GetIdempotencyKey()); err != nil {
+		return nil, err
+	}
+	var lines []domain.ReservationLine
+	for _, l := range req.GetLines() {
+		lines = append(lines, domain.ReservationLine{ProductID: l.GetProductId(), QtyMilli: l.GetQuantityMilli()})
+	}
+	r, err := s.svc.ReserveStock(ctx, caller(a), service.ReserveRequest{IdempotencyKey: req.GetIdempotencyKey(),
+		WarehouseID: req.GetWarehouseId(), Lines: lines, ReferenceType: req.GetReference().GetType(),
+		ReferenceID: req.GetReference().GetId(), TTLSeconds: req.GetTtlSeconds(), AllowNegative: req.GetAllowNegative()})
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return reservationPB(r), nil
+}
+
+func (s *Server) CommitReservation(ctx context.Context, req *pb.CommitReservationRequest) (*pb.Reservation, error) {
+	a, err := authorize(ctx, "inventory:adjust")
+	if err != nil {
+		return nil, err
+	}
+	r, err := s.svc.CommitReservation(ctx, caller(a), req.GetReservationId())
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return reservationPB(r), nil
+}
+
+func (s *Server) ReleaseReservation(ctx context.Context, req *pb.ReleaseReservationRequest) (*pb.Reservation, error) {
+	a, err := authorize(ctx, "inventory:adjust")
+	if err != nil {
+		return nil, err
+	}
+	r, err := s.svc.ReleaseReservation(ctx, caller(a), req.GetReservationId())
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return reservationPB(r), nil
 }

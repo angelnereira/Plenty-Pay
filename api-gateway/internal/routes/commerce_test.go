@@ -101,6 +101,13 @@ func TestF15_F17_CommerceRoutesRequireAuth(t *testing.T) {
 	for _, r := range routes.Table {
 		switch r.Backend {
 		case routes.BackendCatalog, routes.BackendInventory, routes.BackendPos:
+			// El marketplace lo lee cualquier persona con sesión (catalog SPEC §4 "autenticado").
+			if strings.HasPrefix(r.Path, "/v1/marketplace/") {
+				if !r.RequireAuth {
+					t.Errorf("%s %s sin sesión", r.Method, r.Path)
+				}
+				continue
+			}
 			if !r.RequireAuth || r.Permission == "" {
 				t.Errorf("%s %s: RequireAuth=%v Permission=%q", r.Method, r.Path, r.RequireAuth, r.Permission)
 			}

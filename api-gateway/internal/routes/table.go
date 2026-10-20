@@ -424,6 +424,22 @@ var Table = []Route{
 		NewResponse: func() proto.Message { return &pb.Terminal{} },
 	},
 
+	// ── Reembolsos (F11.6, R11): persona del comercio con payments:refund + step-up (R5) ──────
+	{
+		Method: "POST", Path: "/v1/payments/{payment_id}/refunds", RPC: "/plentypay.payments.v1.Payments/RefundPayment",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, StepUp: true, Permission: "payments:refund",
+		PathParams:  map[string]string{"payment_id": "payment_id"},
+		NewRequest:  func() proto.Message { return &pb.RefundPaymentRequest{} },
+		NewResponse: func() proto.Message { return &pb.Refund{} },
+	},
+	{
+		Method: "GET", Path: "/v1/refunds/{refund_id}", RPC: "/plentypay.payments.v1.Payments/GetRefund",
+		Backend: BackendPayments, RequireAuth: true, Permission: "payments:read",
+		PathParams:  map[string]string{"refund_id": "refund_id"},
+		NewRequest:  func() proto.Message { return &pb.GetRefundRequest{} },
+		NewResponse: func() proto.Message { return &pb.Refund{} },
+	},
+
 	// ── Políticas de comisión: lectura del negocio o de plataforma; alta solo plataforma ─────
 	{
 		Method: "GET", Path: "/v1/fee-policies", RPC: "/plentypay.payments.v1.Payments/ListFeePolicies",

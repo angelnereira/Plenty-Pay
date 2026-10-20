@@ -211,6 +211,19 @@ async fn run() -> Result<(), StartupError> {
     {
         let core = core.clone();
         spawn_job(
+            "resume_refunds",
+            Duration::from_secs(10),
+            metrics.clone(),
+            shutdown_rx.clone(),
+            move || {
+                let core = core.clone();
+                async move { core.resume_refunds().await.map(|_| ()) }
+            },
+        );
+    }
+    {
+        let core = core.clone();
+        spawn_job(
             "gauges",
             Duration::from_secs(15),
             metrics.clone(),

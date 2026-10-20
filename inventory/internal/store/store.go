@@ -306,32 +306,9 @@ func (s *Store) Apply(ctx context.Context, b Batch, events EventsFor) (Applied, 
 		for _, m := range b.Movements {
 			keys[levelKey(m.WarehouseID, m.ProductID)] = true
 		}
-		ordered := make([]string, 0, len(keys))
-		for k := range keys {
-			ordered = append(ordered, k)
-		}
-		sort.Strings(ordered)
-		levels := map[string]*domain.Level{}
-		for _, k := range ordered {
-			wh, prod, _ := strings.Cut(k, "/")
-			if _, err := tx.Exec(ctx, `
-				INSERT INTO stock_levels (tenant_id, warehouse_id, product_id, updated_at)
-				VALUES ($1, $2, $3, $4) ON CONFLICT (warehouse_id, product_id) DO NOTHING`, b.TenantID, wh, prod, b.Now); err != nil {
-				return fmt.Errorf("init stock level: %w", err)
-			}
-			var l domain.Level
-			var low *time.Time
-			if err := tx.QueryRow(ctx, `
-				SELECT tenant_id, warehouse_id, product_id, on_hand_milli, reserved_milli, reorder_point_milli,
-				       low_notified_on::timestamptz, version
-				FROM stock_levels WHERE warehouse_id = $1 AND product_id = $2 FOR UPDATE`, wh, prod).
-				Scan(&l.TenantID, &l.WarehouseID, &l.ProductID, &l.OnHandMilli, &l.ReservedMilli, &l.ReorderPointMilli, &low, &l.Version); err != nil {
-				return fmt.Errorf("lock stock level: %w", err)
-			}
-			if low != nil {
-				l.LowNotifiedOn = *low
-			}
-			levels[k] = &l
+		levels, ordered, err := lockLevels(ctx, tx, b.TenantID, keys, b.Now)
+		if err != nil {
+			return err
 		}
 
 		for _, m := range b.Movements {
@@ -360,23 +337,11 @@ func (s *Store) Apply(ctx context.Context, b Batch, events EventsFor) (Applied, 
 			out.Movements = append(out.Movements, mm)
 		}
 
-		lowNotify := map[string]bool{}
-		for _, k := range ordered {
-			l := levels[k]
-			notify := l.ShouldNotifyLow(b.Now)
-			var lowArg any
-			if notify {
-				lowNotify[k] = true
-				lowArg = b.Now.UTC().Format("2006-01-02")
-			}
-			if _, err := tx.Exec(ctx, `
-				UPDATE stock_levels SET on_hand_milli = $3, version = $4, updated_at = $5,
-					low_notified_on = coalesce($6::date, low_notified_on)
-				WHERE warehouse_id = $1 AND product_id = $2`, l.WarehouseID, l.ProductID, l.OnHandMilli, l.Version, b.Now, lowArg); err != nil {
-				return fmt.Errorf("update stock level: %w", err)
-			}
-			out.Levels = append(out.Levels, *l)
+		lowNotify, saved, err := saveLevels(ctx, tx, levels, ordered, b.Now)
+		if err != nil {
+			return err
 		}
+		out.Levels = saved
 		evs, err := events(out.Levels, lowNotify)
 		if err != nil {
 			return err
@@ -407,6 +372,62 @@ func (s *Store) Apply(ctx context.Context, b Batch, events EventsFor) (Applied, 
 }
 
 var errConcurrentKey = errors.New("idempotency key inserted concurrently")
+
+// lockLevels crea si faltan y bloquea las existencias en orden (warehouse_id, product_id) (R3).
+func lockLevels(ctx context.Context, tx pgx.Tx, tenantID string, keys map[string]bool, now time.Time) (map[string]*domain.Level, []string, error) {
+	ordered := make([]string, 0, len(keys))
+	for k := range keys {
+		ordered = append(ordered, k)
+	}
+	sort.Strings(ordered)
+	levels := map[string]*domain.Level{}
+	for _, k := range ordered {
+		wh, prod, _ := strings.Cut(k, "/")
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO stock_levels (tenant_id, warehouse_id, product_id, updated_at)
+			VALUES ($1, $2, $3, $4) ON CONFLICT (warehouse_id, product_id) DO NOTHING`, tenantID, wh, prod, now); err != nil {
+			return nil, nil, fmt.Errorf("init stock level: %w", err)
+		}
+		var l domain.Level
+		var low *time.Time
+		if err := tx.QueryRow(ctx, `
+			SELECT tenant_id, warehouse_id, product_id, on_hand_milli, reserved_milli, reorder_point_milli,
+			       low_notified_on::timestamptz, version
+			FROM stock_levels WHERE warehouse_id = $1 AND product_id = $2 FOR UPDATE`, wh, prod).
+			Scan(&l.TenantID, &l.WarehouseID, &l.ProductID, &l.OnHandMilli, &l.ReservedMilli, &l.ReorderPointMilli, &low, &l.Version); err != nil {
+			return nil, nil, fmt.Errorf("lock stock level: %w", err)
+		}
+		if low != nil {
+			l.LowNotifiedOn = *low
+		}
+		levels[k] = &l
+	}
+	return levels, ordered, nil
+}
+
+// saveLevels guarda las existencias bloqueadas y decide qué StockLow avisar (R7).
+func saveLevels(ctx context.Context, tx pgx.Tx, levels map[string]*domain.Level, ordered []string, now time.Time) (map[string]bool, []domain.Level, error) {
+	lowNotify := map[string]bool{}
+	var out []domain.Level
+	for _, k := range ordered {
+		l := levels[k]
+		notify := l.ShouldNotifyLow(now)
+		var lowArg any
+		if notify {
+			lowNotify[k] = true
+			lowArg = now.UTC().Format("2006-01-02")
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE stock_levels SET on_hand_milli = $3, reserved_milli = $4, version = $5, updated_at = $6,
+				low_notified_on = coalesce($7::date, low_notified_on)
+			WHERE warehouse_id = $1 AND product_id = $2`, l.WarehouseID, l.ProductID, l.OnHandMilli, l.ReservedMilli,
+			l.Version, now, lowArg); err != nil {
+			return nil, nil, fmt.Errorf("update stock level: %w", err)
+		}
+		out = append(out, *l)
+	}
+	return lowNotify, out, nil
+}
 
 // ── Lecturas ───────────────────────────────────────────────────────────────────────────────
 

@@ -2,6 +2,8 @@
 //! incluye la fila del pago, la del intento, la del intent y el outbox (ADR 0012, SPEC R8). Ninguna
 //! transacción abarca una llamada al ledger ni a un riel (R6).
 
+pub mod refunds;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;

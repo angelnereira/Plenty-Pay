@@ -136,6 +136,7 @@ func main() {
 		logger.Warn("outbox relay disabled: PP_NATS_URL empty")
 	}
 	go backlogGauge(jobs, st, metrics, reporter)
+	go expireReservations(jobs, svc, metrics, reporter)
 
 	lis, err := net.Listen("tcp", ":"+cfg.Port)
 	if err != nil {
@@ -194,6 +195,25 @@ func backlogGauge(ctx context.Context, st *store.Store, metrics *observability.M
 				continue
 			}
 			metrics.Set("pp_outbox_pending", float64(n))
+		}
+	}
+}
+
+// expireReservations vence cada 30 s las reservas cuyo TTL pasó (R4): ninguna es indefinida.
+func expireReservations(ctx context.Context, svc *service.Inventory, metrics *observability.Metrics, reporter *observability.Reporter) {
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			n, err := svc.ExpireReservations(ctx, 200)
+			if err != nil {
+				reporter.Dependency(ctx, "reservation expiry failed", "postgres-db", observability.Wrap(err, "expire reservations"))
+				continue
+			}
+			metrics.Add("pp_inventory_reservations_expired_total", float64(n))
 		}
 	}
 }

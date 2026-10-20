@@ -94,7 +94,17 @@ func main() {
 			reporter.Dependency(ctx, "close infra client failed", "infra-management", err)
 		}
 	}()
+	tenants, err := client.NewIdentity(cfg.IdentityAddr, cfg.IdentityTimeout)
+	if err != nil {
+		fatal("identity client failed", err)
+	}
+	defer func() {
+		if err := tenants.Close(); err != nil {
+			reporter.Dependency(ctx, "close identity client failed", "identity", err)
+		}
+	}()
 	svc := service.New(st, infra, func() time.Time { return time.Now().UTC() }, service.NewUUIDv7)
+	market := service.NewMarket(svc, st, tenants)
 
 	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
 	if err != nil {
@@ -117,7 +127,7 @@ func main() {
 		observability.UnaryServerInterceptor(logger, reporter, metrics),
 		server.IdempotencyInterceptor(idem, reporter),
 	))
-	pb.RegisterCatalogServer(grpcServer, server.New(svc))
+	pb.RegisterCatalogServer(grpcServer, server.New(market))
 	healthSrv := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthSrv)
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
@@ -132,6 +142,17 @@ func main() {
 			fatal("outbox relay failed", err)
 		}
 		go relay.Run(jobs)
+		// Proyecciones R4 (estado del negocio) y R5 (existencias): consumidores durables.
+		go func() {
+			if err := relay.ConsumeTenantStatus(jobs, market.HandleTenantStatus); err != nil {
+				fatal("tenant status consumer failed", err)
+			}
+		}()
+		go func() {
+			if err := relay.ConsumeStock(jobs, market.HandleStock); err != nil {
+				fatal("stock consumer failed", err)
+			}
+		}()
 	} else {
 		logger.Warn("outbox relay disabled: PP_NATS_URL empty")
 	}

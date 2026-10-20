@@ -207,3 +207,142 @@ func (c *Catalog) ListCategories(ctx context.Context, tenantID string) ([]domain
 func (c *Catalog) ListTaxRates(ctx context.Context, requestID string) ([]client.NamedRate, error) {
 	return c.taxes.NamedTaxRates(ctx, requestID)
 }
+
+// ── Marketplace (F15.4–F15.5) ───────────────────────────────────────────────────────────────
+
+// MarketStore es lo que el marketplace usa de la persistencia.
+type MarketStore interface {
+	TenantStatus(ctx context.Context, tenantID string) (int16, bool, error)
+	ApplyTenantStatus(ctx context.Context, eventID, tenantID string, status int16, at time.Time,
+		event func(domain.Product) (store.OutboxEvent, error)) (bool, error)
+	ApplyStock(ctx context.Context, eventID, tenantID, productID, warehouseID string, availableMilli int64, at time.Time) (bool, error)
+	SetListing(ctx context.Context, l domain.Listing, check func(domain.Product) error,
+		event func(domain.Product) (store.OutboxEvent, error)) (domain.Listing, error)
+	Listing(ctx context.Context, tenantID, productID string) (domain.Listing, error)
+	UpsertStorefront(ctx context.Context, sf domain.Storefront) error
+	Storefront(ctx context.Context, tenantID string) (domain.Storefront, error)
+	SearchMarketplace(ctx context.Context, f store.MarketFilter) ([]domain.MarketItem, bool, error)
+	MarketplaceProduct(ctx context.Context, productID string) (domain.MarketItem, error)
+}
+
+// TenantDirectory es identity (respaldo de la proyección).
+type TenantDirectory interface {
+	TenantStatus(ctx context.Context, requestID, tenantID string) (int16, error)
+}
+
+// Market implementa listados, vitrina y búsqueda.
+type Market struct {
+	*Catalog
+	market  MarketStore
+	tenants TenantDirectory
+}
+
+// NewMarket arma el marketplace sobre el catálogo.
+func NewMarket(c *Catalog, ms MarketStore, tenants TenantDirectory) *Market {
+	return &Market{Catalog: c, market: ms, tenants: tenants}
+}
+
+func (m *Market) changed(listed bool) func(domain.Product) (store.OutboxEvent, error) {
+	return func(p domain.Product) (store.OutboxEvent, error) {
+		e, err := m.productChanged(p)
+		if err != nil {
+			return e, err
+		}
+		msg := &pb.ProductChanged{ProductId: p.ID, TenantId: p.TenantID, Status: pb.ProductStatus(p.Status), Name: p.Name,
+			CategoryId: p.CategoryID, PriceMinor: p.PriceMinor, Currency: p.Currency, ListedInMarketplace: listed}
+		b, err := proto.Marshal(msg)
+		if err != nil {
+			return e, fmt.Errorf("marshal ProductChanged: %w", err)
+		}
+		e.Payload = b
+		return e, nil
+	}
+}
+
+// TenantStatus: proyección; si nunca llegó un evento, identity, y se guarda como dato (R4).
+func (m *Market) TenantStatus(ctx context.Context, requestID, tenantID string) (int16, error) {
+	st, ok, err := m.market.TenantStatus(ctx, tenantID)
+	if err != nil || ok {
+		return st, err
+	}
+	st, err = m.tenants.TenantStatus(ctx, requestID, tenantID)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := m.market.ApplyTenantStatus(ctx, "", tenantID, st, m.now(), m.changed(false)); err != nil {
+		return 0, err
+	}
+	return st, nil
+}
+
+// SetListing publica o despublica (SPEC SetListing; R4).
+func (m *Market) SetListing(ctx context.Context, tenantID, requestID string, l domain.Listing) (domain.Listing, error) {
+	st, err := m.TenantStatus(ctx, requestID, tenantID)
+	if err != nil {
+		return l, err
+	}
+	l.TenantID, l.UpdatedAt = tenantID, m.now()
+	return m.market.SetListing(ctx, l, func(p domain.Product) error { return l.CanPublish(p, st) }, m.changed(l.Listed))
+}
+
+// Listing lee la publicación de un producto.
+func (m *Market) Listing(ctx context.Context, tenantID, productID string) (domain.Listing, error) {
+	return m.market.Listing(ctx, tenantID, productID)
+}
+
+// UpdateStorefront guarda la vitrina; publicarla exige negocio ACTIVE.
+func (m *Market) UpdateStorefront(ctx context.Context, tenantID, requestID string, sf domain.Storefront) (domain.Storefront, error) {
+	if err := sf.Validate(); err != nil {
+		return sf, err
+	}
+	if sf.Published {
+		st, err := m.TenantStatus(ctx, requestID, tenantID)
+		if err != nil {
+			return sf, err
+		}
+		if st != domain.TenantActive {
+			return sf, domain.ErrTenantNotActive
+		}
+	}
+	sf.TenantID, sf.UpdatedAt = tenantID, m.now()
+	if err := m.market.UpsertStorefront(ctx, sf); err != nil {
+		return sf, err
+	}
+	return sf, nil
+}
+
+// Storefront lee la vitrina; `verified` = negocio ACTIVE.
+func (m *Market) Storefront(ctx context.Context, requestID, tenantID string) (domain.Storefront, bool, error) {
+	sf, err := m.market.Storefront(ctx, tenantID)
+	if err != nil {
+		return sf, false, err
+	}
+	st, err := m.TenantStatus(ctx, requestID, tenantID)
+	if err != nil {
+		return sf, false, err
+	}
+	return sf, st == domain.TenantActive, nil
+}
+
+// Search busca en el marketplace (R7).
+func (m *Market) Search(ctx context.Context, f store.MarketFilter) ([]domain.MarketItem, bool, error) {
+	if !domain.MarketSort[f.Sort] {
+		return nil, false, domain.ErrInvalidCategory
+	}
+	return m.market.SearchMarketplace(ctx, f)
+}
+
+// MarketplaceProduct lee un producto publicado.
+func (m *Market) MarketplaceProduct(ctx context.Context, productID string) (domain.MarketItem, error) {
+	return m.market.MarketplaceProduct(ctx, productID)
+}
+
+// HandleTenantStatus aplica identity.TenantStatusChanged (consumidor).
+func (m *Market) HandleTenantStatus(ctx context.Context, eventID, tenantID string, status int16) (bool, error) {
+	return m.market.ApplyTenantStatus(ctx, eventID, tenantID, status, m.now(), m.changed(false))
+}
+
+// HandleStock aplica inventory.StockChanged (consumidor, R5).
+func (m *Market) HandleStock(ctx context.Context, eventID, tenantID, productID, warehouseID string, available int64) (bool, error) {
+	return m.market.ApplyStock(ctx, eventID, tenantID, productID, warehouseID, available, m.now())
+}
