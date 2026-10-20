@@ -77,7 +77,20 @@ func (r Route) DecodeRequest(req *http.Request) (proto.Message, error) {
 	}
 	msg := r.NewRequest()
 
-	// Parámetros de ruta: /v1/business/{id} → campo id.
+	if req.Body != nil && req.ContentLength != 0 {
+		body, err := readAll(req)
+		if err != nil {
+			return nil, err
+		}
+		if len(strings.TrimSpace(string(body))) > 0 {
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, msg); err != nil {
+				return nil, fmt.Errorf("json inválido: %w", err)
+			}
+		}
+	}
+
+	// Ruta y query DESPUÉS del cuerpo: protojson reinicia el mensaje al decodificar, y el recurso
+	// lo identifica el path (un `user_id` del cuerpo nunca reemplaza al de la ruta).
 	if len(r.PathParams) > 0 {
 		values := PathValues(r.Path, req.URL.Path)
 		for name, field := range r.PathParams {
@@ -97,18 +110,6 @@ func (r Route) DecodeRequest(req *http.Request) (proto.Message, error) {
 				if err := setField(msg, field, v); err != nil {
 					return nil, fmt.Errorf("query %s: %w", name, err)
 				}
-			}
-		}
-	}
-
-	if req.Body != nil && req.ContentLength != 0 {
-		body, err := readAll(req)
-		if err != nil {
-			return nil, err
-		}
-		if len(strings.TrimSpace(string(body))) > 0 {
-			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, msg); err != nil {
-				return nil, fmt.Errorf("json inválido: %w", err)
 			}
 		}
 	}

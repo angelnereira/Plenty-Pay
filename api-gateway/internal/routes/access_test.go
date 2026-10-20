@@ -76,3 +76,23 @@ func TestF09_3_Int32QueryParam(t *testing.T) {
 		t.Fatalf("page_size: %v %+v", err, msg)
 	}
 }
+
+// Regresión 2026-10-20: con path y cuerpo, protojson reiniciaba el mensaje y borraba el id del path
+// (aprobar negocio y cambiar membresía respondían INTERNAL por uuid vacío). El path manda.
+func TestF09_3_PathParamSurvivesBodyAndWins(t *testing.T) {
+	r, _ := routes.Find("PUT", "/v1/business/staff/u-ruta/membership")
+	req := httptest.NewRequest(http.MethodPut, "/v1/business/staff/u-ruta/membership", strings.NewReader(`{"user_id":"u-cuerpo","role_id":"r1","scope":"TENANT"}`))
+	msg, err := r.DecodeRequest(req)
+	if err != nil {
+		t.Fatalf("DecodeRequest: %v", err)
+	}
+	m := msg.(*pb.UpdateMembershipRequest)
+	if m.GetUserId() != "u-ruta" || m.GetRoleId() != "r1" {
+		t.Fatalf("mensaje = %+v", m)
+	}
+	rv, _ := routes.Find("POST", "/v1/platform/tenants/t-1/review")
+	msg, err = rv.DecodeRequest(httptest.NewRequest(http.MethodPost, "/v1/platform/tenants/t-1/review", strings.NewReader(`{"approve":true}`)))
+	if err != nil || msg.(*pb.ReviewBusinessRequest).GetTenantId() != "t-1" || !msg.(*pb.ReviewBusinessRequest).GetApprove() {
+		t.Fatalf("review: %v %+v", err, msg)
+	}
+}

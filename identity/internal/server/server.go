@@ -129,7 +129,7 @@ func (s *IdentityServer) Register(ctx context.Context, req *pb.RegisterRequest) 
 		Consents: grantsFrom(req), Now: s.now(),
 	})
 	if err != nil {
-		return nil, status.Error(codes.Internal, "error interno")
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "Register").Error())
 	}
 	return toPB(res), nil
 }
@@ -138,7 +138,7 @@ func (s *IdentityServer) Register(ctx context.Context, req *pb.RegisterRequest) 
 func (s *IdentityServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.AuthResult, error) {
 	res, err := s.svc.Login(ctx, req.Email, req.Password)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "error interno")
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "Login").Error())
 	}
 	return toPB(res), nil
 }
@@ -189,7 +189,7 @@ func (s *IdentityServer) GetUserPermissions(ctx context.Context, req *pb.GetUser
 func (s *IdentityServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.AuthResult, error) {
 	res, err := s.svc.Refresh(ctx, req.RefreshToken)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "error interno")
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "Refresh").Error())
 	}
 	return toPB(res), nil
 }
@@ -280,7 +280,7 @@ func (s *IdentityServer) CreateBusiness(ctx context.Context, req *pb.CreateBusin
 		PrimaryVertical: req.GetPrimaryVertical(), TraitAnswers: req.GetTraitAnswers(), BranchName: req.GetBranchName(),
 	})
 	if err != nil {
-		return nil, status.Error(codes.Internal, "error interno")
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "CreateBusiness").Error())
 	}
 	if !res.Success {
 		return &pb.CreateBusinessResult{Success: false, Reason: res.Reason, ErrorMessage: res.ErrorMessage}, nil
@@ -291,8 +291,11 @@ func (s *IdentityServer) CreateBusiness(ctx context.Context, req *pb.CreateBusin
 // ReviewBusiness cambia el estado del negocio (solo plataforma).
 func (s *IdentityServer) ReviewBusiness(ctx context.Context, req *pb.ReviewBusinessRequest) (*pb.Tenant, error) {
 	review, err := s.svc.ReviewBusiness(ctx, req.TenantId, req.Approve, req.Notes)
+	if errors.Is(err, domain.ErrTenantNotFound) {
+		return nil, ErrorInfo(codes.NotFound, ReasonNotFound, "negocio no encontrado")
+	}
 	if err != nil {
-		return nil, status.Error(codes.Internal, "error interno")
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "ReviewBusiness").Error())
 	}
 	if review == nil {
 		// Sin cambio de estado: la transicion no es valida (dominio 3.3).
