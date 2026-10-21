@@ -66,11 +66,11 @@ func toStatus(err error) error {
 // Server implementa pb.FiscalInvoicingServer.
 type Server struct {
 	pb.UnimplementedFiscalInvoicingServer
-	svc *service.Service
+	svc *service.Invoicing
 }
 
 // New arma el adaptador.
-func New(svc *service.Service) *Server { return &Server{svc: svc} }
+func New(svc *service.Invoicing) *Server { return &Server{svc: svc} }
 
 func profileToPB(p domain.Profile) *pb.FiscalProfile {
 	out := &pb.FiscalProfile{

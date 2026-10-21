@@ -20,9 +20,11 @@ import (
 
 	"plentypay/fiscal-invoicing/internal/client"
 	"plentypay/fiscal-invoicing/internal/config"
+	"plentypay/fiscal-invoicing/internal/domain"
 	"plentypay/fiscal-invoicing/internal/events"
 	"plentypay/fiscal-invoicing/internal/migrate"
 	"plentypay/fiscal-invoicing/internal/observability"
+	"plentypay/fiscal-invoicing/internal/pac"
 	"plentypay/fiscal-invoicing/internal/pb"
 	"plentypay/fiscal-invoicing/internal/server"
 	"plentypay/fiscal-invoicing/internal/service"
@@ -92,16 +94,22 @@ func main() {
 	if err != nil {
 		fatal("security client failed", err)
 	}
+	now := func() time.Time { return time.Now().UTC() }
+	infra, err := client.NewInfra(cfg.InfraAddr, cfg.CallTimeout, now)
+	if err != nil {
+		fatal("infra-management client failed", err)
+	}
 	defer func() {
-		for name, c := range map[string]interface{ Close() error }{"identity": identity, "security": secrets} {
+		for name, c := range map[string]interface{ Close() error }{"identity": identity, "security": secrets, "infra-management": infra} {
 			if err := c.Close(); err != nil {
 				reporter.Dependency(ctx, "close client failed", name, err)
 			}
 		}
 	}()
-	now := func() time.Time { return time.Now().UTC() }
 	newID := func() string { return uuid.Must(uuid.NewV7()).String() }
-	svc := service.New(st, identity, secrets, now, newID)
+	// R9/R10: DEMO usa el simulador; PROD no tiene adaptador hasta elegir PAC (Q-11).
+	pacs := map[string]pac.Client{domain.ProviderSimulator: pac.NewSimulator()}
+	svc := service.NewInvoicing(service.New(st, identity, secrets, now, newID), st, infra, pacs, metrics, reporter)
 
 	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
 	if err != nil {
@@ -141,6 +149,7 @@ func main() {
 		logger.Warn("outbox relay disabled: PP_NATS_URL empty")
 	}
 	go backlogGauge(jobs, st, metrics, reporter)
+	go sendWorker(jobs, svc, reporter)
 
 	lis, err := net.Listen("tcp", ":"+cfg.Port)
 	if err != nil {
@@ -182,6 +191,22 @@ func main() {
 		fatal("grpc server failed", err)
 	}
 	<-done
+}
+
+// sendWorker envía al PAC cada 5 s los documentos vencidos (R3), fuera de las transacciones.
+func sendWorker(ctx context.Context, svc *service.Invoicing, reporter *observability.Reporter) {
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if _, err := svc.ProcessDue(ctx, 50); err != nil {
+				reporter.Dependency(ctx, "invoice send loop failed", "postgres-db", err)
+			}
+		}
+	}
 }
 
 // backlogGauge publica cada 15 s cuántos eventos esperan en el outbox (alerta si crece).
