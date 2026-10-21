@@ -25,7 +25,7 @@ Vacío: "Aún no tienes productos." con "Nuevo producto" e "Importar desde un ar
 | Básico | Nombre | 2–120 caracteres, obligatorio |
 | | Descripción | ≤ 4 000 caracteres; obligatoria para publicar |
 | | Categoría | Lista; obligatoria. Determina descuentos de ley y restricciones |
-| | Fotos | Hasta 8, JPEG/PNG/WebP ≤ 5 MB; la primera es la principal; texto alternativo por foto |
+| | Fotos | Hasta 8, JPEG/PNG/WebP ≤ 5 MB; la primera es la principal; texto alternativo por foto. "Agregar foto" ofrece "Tomar foto" (cámara, donde el equipo la tenga) y "Elegir de la galería"; sin cámara abre la galería directamente (ADR 0021) |
 | Identificación | SKU | Único en el negocio; se genera si se deja vacío |
 | | Código de barras | GTIN de 8, 12, 13 o 14 dígitos con dígito de control válido (N-STD-23): "El código de barras no es válido." Botón de escanear. Un código que empieza por `02` o `20`–`29` se guarda como **código interno** con el aviso "Este código es de uso interno de tienda; no identifica el producto fuera de tu negocio." (N-STD-24). Sin código del fabricante: botón "Generar código interno" (prefijo `2`, N-STD-26) |
 | Venta | Unidad de medida | Unidad (ud) · kg · g · L · mL · m · cm · m². Obligatoria. No se puede cambiar si hay movimientos |

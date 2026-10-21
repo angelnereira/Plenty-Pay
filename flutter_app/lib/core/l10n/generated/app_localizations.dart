@@ -6494,6 +6494,30 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Las contraseñas no coinciden.'**
   String get passwordMismatch;
+
+  /// No description provided for @catTakePhoto.
+  ///
+  /// In es, this message translates to:
+  /// **'Tomar foto'**
+  String get catTakePhoto;
+
+  /// No description provided for @catChooseFromGallery.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegir de la galería'**
+  String get catChooseFromGallery;
+
+  /// No description provided for @error_FILE_TOO_LARGE.
+  ///
+  /// In es, this message translates to:
+  /// **'La foto supera 5 MB. Elige una más liviana.'**
+  String get error_FILE_TOO_LARGE;
+
+  /// No description provided for @error_UNSUPPORTED_FILE_TYPE.
+  ///
+  /// In es, this message translates to:
+  /// **'La foto debe ser JPEG, PNG o WebP.'**
+  String get error_UNSUPPORTED_FILE_TYPE;
 }
 
 class _AppLocalizationsDelegate

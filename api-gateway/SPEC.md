@@ -119,6 +119,7 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | POST `/v1/catalog/import` (multipart CSV → stream) | BulkImportProducts | `catalog:import` |
 | GET/PUT `/v1/catalog/categories` | List/UpsertCategory | `catalog:read` / `catalog:write` |
 | POST `/v1/catalog/upload-url` | CreateUploadUrl | `catalog:write` |
+| POST `/v1/media/upload` · GET `/media/{clave}` | escritura y lectura en `pp-catalog-media` desde el gateway (ADR 0021: JPEG/PNG/WebP ≤ 5 MB, clave del servidor bajo el tenant) | `catalog:write` · público |
 | PUT `/v1/catalog/products/{id}/listing` | SetListing | `catalog:listing:manage` |
 | GET/PUT `/v1/storefront` | Get/UpdateStorefront | `catalog:listing:manage` |
 | GET `/v1/market/search?q=&category=&near=` | SearchMarketplace | autenticado |

@@ -50,7 +50,7 @@ Scylla `catalog_attrs.product_attributes (tenant_id, product_id, attr_key, attr_
 | GetProduct / ListProducts / LookupByBarcode | `catalog:read` | filtros por categoría, texto, estado; barcode exacto por tenant | `NOT_FOUND` |
 | BulkImportProducts (stream) | `catalog:import` | CSV normalizado fila a fila; resultado por fila (creado/actualizado/error) sin abortar el lote; máx. 50 000 filas | `RATE_LIMITED` |
 | UpsertCategory / ListCategories | `catalog:write` / `catalog:read` | árbol ≤ 4 niveles | `CATEGORY_DEPTH_EXCEEDED`, `NOT_FOUND` |
-| CreateUploadUrl | `catalog:write` (o `admin:business:manage` con propósito `kyb`) | URL PUT prefirmada 10 min, tipo y tamaño máximos (imagen ≤ 5 MB jpg/png/webp; kyb ≤ 10 MB pdf/jpg/png) | `UNSUPPORTED_FILE_TYPE`, `FILE_TOO_LARGE` |
+| CreateUploadUrl (hoy la subida pasa por el gateway, ADR 0021) | `catalog:write` (o `admin:business:manage` con propósito `kyb`) | URL PUT prefirmada 10 min, tipo y tamaño máximos (imagen ≤ 5 MB jpg/png/webp; kyb ≤ 10 MB pdf/jpg/png) | `UNSUPPORTED_FILE_TYPE`, `FILE_TOO_LARGE` |
 | SetListing | `catalog:listing:manage` | publicar en marketplace requiere tenant ACTIVE, ≥ 1 imagen, precio > 0, categoría global | `TENANT_NOT_ACTIVE`, `LISTING_INCOMPLETE`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
 | SearchMarketplace | autenticado | texto (tsvector es) + categoría + cercanía (`near` lat/lng con radio de entrega) + solo `in_stock`; keyset por `rank_score` | `RATE_LIMITED` |
 | GetMarketplaceProduct / GetStorefront | autenticado | datos públicos del listado/comercio | `NOT_FOUND` |

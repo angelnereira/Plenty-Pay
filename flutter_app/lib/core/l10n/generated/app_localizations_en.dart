@@ -3492,4 +3492,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get passwordMismatch => 'The passwords don\'t match.';
+
+  @override
+  String get catTakePhoto => 'Take photo';
+
+  @override
+  String get catChooseFromGallery => 'Choose from gallery';
+
+  @override
+  String get error_FILE_TOO_LARGE =>
+      'The photo is over 5 MB. Choose a smaller one.';
+
+  @override
+  String get error_UNSUPPORTED_FILE_TYPE =>
+      'The photo must be JPEG, PNG or WebP.';
 }

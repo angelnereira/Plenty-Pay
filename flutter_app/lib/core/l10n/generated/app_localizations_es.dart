@@ -3495,6 +3495,20 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get passwordMismatch => 'Las contraseñas no coinciden.';
+
+  @override
+  String get catTakePhoto => 'Tomar foto';
+
+  @override
+  String get catChooseFromGallery => 'Elegir de la galería';
+
+  @override
+  String get error_FILE_TOO_LARGE =>
+      'La foto supera 5 MB. Elige una más liviana.';
+
+  @override
+  String get error_UNSUPPORTED_FILE_TYPE =>
+      'La foto debe ser JPEG, PNG o WebP.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

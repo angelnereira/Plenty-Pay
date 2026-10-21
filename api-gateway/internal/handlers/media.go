@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,75 +34,67 @@ func (m *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Limite de 10 MB (object-storage SPEC §4 R2)
-	const maxUploadSize = 10 * 1024 * 1024
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+	// ADR 0021: mismas reglas que catalog.CreateUploadUrl. Solo quien edita el catálogo de un
+	// negocio sube fotos; el tenant sale de la identidad validada, nunca del cliente (ADR 0011).
+	caller := pmd.FromContext(r.Context())
+	if caller.TenantID == "" || !slices.Contains(caller.Permissions, "catalog:write") {
+		middleware.WriteError(w, http.StatusForbidden, "PERMISSION_DENIED", "no tienes permiso para subir fotos de productos")
+		return
+	}
+	// ≤ 5 MB (catalog SPEC §4); un poco de margen para las cabeceras del multipart.
+	const maxImageSize = 5 * 1024 * 1024
+	r.Body = http.MaxBytesReader(w, r.Body, maxImageSize+64*1024)
 
 	var data []byte
 	var ext string
 	contentType := r.Header.Get("Content-Type")
 
 	if strings.HasPrefix(contentType, "multipart/form-data") {
-		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			middleware.WriteError(w, http.StatusBadRequest, "FILE_TOO_LARGE", "el archivo excede el tamaño máximo permitido de 10 MB")
+		if err := r.ParseMultipartForm(maxImageSize); err != nil {
+			middleware.WriteError(w, http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE", "la foto supera 5 MB")
 			return
 		}
-		file, handler, err := r.FormFile("file")
+		file, _, err := r.FormFile("file") // el nombre del archivo del cliente no decide nada (ADR 0021)
 		if err != nil {
-			middleware.WriteError(w, http.StatusBadRequest, "MISSING_FILE", "campo 'file' requerido en multipart")
+			middleware.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "falta el campo 'file'")
 			return
 		}
 		defer func() { _ = file.Close() }()
 		data, err = io.ReadAll(file)
 		if err != nil {
-			middleware.WriteError(w, http.StatusBadRequest, "READ_ERROR", "error al leer el archivo")
+			middleware.WriteError(w, http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE", "la foto supera 5 MB")
 			return
 		}
-		ext = strings.ToLower(path.Ext(handler.Filename))
 	} else {
 		var err error
 		data, err = io.ReadAll(r.Body)
 		if err != nil {
-			middleware.WriteError(w, http.StatusBadRequest, "READ_ERROR", "error al leer el cuerpo de la peticion")
+			middleware.WriteError(w, http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE", "la foto supera 5 MB")
 			return
 		}
 	}
 
 	if len(data) == 0 {
-		middleware.WriteError(w, http.StatusBadRequest, "EMPTY_FILE", "el archivo no puede estar vacío")
+		middleware.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "la foto está vacía")
+		return
+	}
+	if len(data) > maxImageSize {
+		middleware.WriteError(w, http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE", "la foto supera 5 MB")
 		return
 	}
 
 	// Verificación de tipo MIME seguro (magic bytes)
 	detectedType := http.DetectContentType(data)
-	switch detectedType {
-	case "image/jpeg":
-		if ext == "" || ext == ".bin" {
-			ext = ".jpg"
-		}
-	case "image/png":
-		if ext == "" || ext == ".bin" {
-			ext = ".png"
-		}
-	case "image/webp":
-		if ext == "" || ext == ".bin" {
-			ext = ".webp"
-		}
-	case "image/gif":
-		if ext == "" || ext == ".bin" {
-			ext = ".gif"
-		}
-	default:
-		middleware.WriteError(w, http.StatusBadRequest, "UNSUPPORTED_TYPE", "formato de imagen no soportado (se requiere JPG, PNG, WEBP o GIF)")
+	// La extensión sale del tipo detectado, nunca del nombre que manda el cliente.
+	ext = map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[detectedType]
+	if ext == "" {
+		middleware.WriteError(w, http.StatusBadRequest, "UNSUPPORTED_FILE_TYPE", "la foto debe ser JPEG, PNG o WebP")
 		return
 	}
 
 	// R1: Claves generadas por el servidor (<tenant>/<año>/<uuid>.<ext>)
 	// El tenant sale de la identidad validada, nunca de una cabecera del cliente (ADR 0011).
-	tenant := pmd.FromContext(r.Context()).TenantID
-	if tenant == "" {
-		tenant = "personal"
-	}
+	tenant := caller.TenantID
 	year := time.Now().UTC().Format("2006")
 	randomBytes := make([]byte, 16)
 	if _, err := rand.Read(randomBytes); err != nil {
@@ -115,7 +107,7 @@ func (m *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// Subida a object-storage
 	if err := m.client.PutObject(r.Context(), objectKey, detectedType, data); err != nil {
-		middleware.WriteError(w, http.StatusInternalServerError, "STORAGE_ERROR", "error al guardar el archivo multimedia")
+		middleware.WriteError(w, http.StatusServiceUnavailable, "DEPENDENCY_UNAVAILABLE", "no pudimos guardar la foto; inténtalo de nuevo")
 		return
 	}
 

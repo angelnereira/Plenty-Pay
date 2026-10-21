@@ -113,10 +113,37 @@ class _ProductScreenState extends State<ProductScreen> {
         if (!_exempt && _rateBps == 0) l10n.catTaxRate,
       ];
 
+  /// S-CAT-02 Fotos: "Tomar foto" o "Elegir de la galería"; sin cámara, directo a la galería.
+  Future<ImageSource?> _chooseSource(ImagePicker picker) async {
+    if (!picker.supportsImageSource(ImageSource.camera)) return ImageSource.gallery;
+    final l10n = AppLocalizations.of(context);
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: Text(l10n.catTakePhoto),
+            onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: Text(l10n.catChooseFromGallery),
+            onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+          ),
+        ]),
+      ),
+    );
+  }
+
   Future<void> _pickPhoto() async {
     final l10n = AppLocalizations.of(context);
-    final photo = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
+    final picker = ImagePicker();
+    final source = await _chooseSource(picker);
+    if (source == null || !mounted) return;
+    final photo = await picker.pickImage(
+        source: source,
         maxWidth: 1920,
         maxHeight: 1920,
         imageQuality: 85);

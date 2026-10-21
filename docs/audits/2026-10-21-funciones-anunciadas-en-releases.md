@@ -15,11 +15,10 @@ datos y qué commit cambió cada cosa.
    600 ms. Esta máquina es producción (AGENTS.md §3.1: «nada de simulaciones ni datos de
    demostración»), así que entre el 2026-10-20 y el 2026-10-21 se desconectaron o se reescribieron
    sobre servicios reales.
-3. **Las notas de v0.1.0 y v0.1.1 sobrestimaron el avance.** Ejemplos verificados: «Subida
-   automática multipart … al bucket de medios» de fotos de productos — la app solo mostraba la foto
-   en el teléfono (`_productImageUrl = photo.path`) y nunca la subía; catalog no implementa
-   `CreateUploadUrl` y el gateway no tiene la ruta. «Reclamos N-CON-10» — el formulario no enviaba el
-   reclamo a ningún lado.
+3. **Las notas de v0.1.0 y v0.1.1 sobrestimaron el avance.** Ejemplos verificados: en v0.1.1 la
+   foto del producto solo se mostraba en el teléfono (`_productImageUrl = photo.path`, commit
+   `fc08160`) y no se subía; hoy sí se sube (gateway `POST /v1/media/upload`) y se guarda con el
+   producto. «Reclamos N-CON-10»: el formulario no enviaba el reclamo a ningún lado.
 4. **Los servicios de los módulos ocultos no están desplegados**: fiscal-invoicing, settlement,
    payroll, logistics y analytics-bi no corren en producción.
 
@@ -58,7 +57,7 @@ Además, 18 pantallas **nunca** tuvieron entrada, tampoco en v0.1.1 (p. ej. `Pas
 
 | Función (release) | Qué pasó | Commit |
 |---|---|---|
-| Fotos de productos con la cámara (v0.1.1) | Se quitó al reescribir catálogo sobre el servicio real; nunca se subían | `9603e79` |
+| Tomar la foto del producto con la cámara (v0.1.1) | Hoy las fotos se suben y se guardan de verdad, pero solo desde la galería; la opción de cámara se quitó al reescribir el catálogo | `9603e79` |
 | Carrito de catálogo y pantalla de reclamos (v0.1.0) | Borradas; el carrito real vive en `marketplace/cart_screen.dart`; reclamos no tiene servicio | `f77349e` |
 | Devolución con nota de crédito en caja (v0.1.0) | Borrada: sin entrada y simulaba la nota de crédito | `407b33d` |
 | Inicio con tarjetas de resumen (v0.1.0) | Reescrito: ~700 líneas de cifras inventadas reemplazadas por saldo y movimientos reales | `2497f55` |
@@ -69,15 +68,19 @@ Billetera (saldo, movimientos, recarga y pago con QR en modo de prueba), puntos 
 marketplace (vitrina, carrito, checkout, pedidos del comercio), catálogo, inventario, caja (venta,
 cobro, movimientos de efectivo, pantalla del cliente), Mi negocio (perfil, sucursales, equipo, roles,
 módulos), plataforma (flags, parámetros legales, pagos desconocidos, conciliación, cumplimiento),
-escáner de cámara, y desde v0.3.0 la confirmación fuerte con PIN.
+escáner de cámara, fotos de productos (desde la galería), cierre de caja y recibos, y desde v0.3.0 la confirmación fuerte con PIN.
 
 ## 3. Opciones para recuperar lo perdido (decide el dueño del producto)
 
 1. **Reconectar cada pantalla cuando su servicio esté desplegado** (la regla actual). Orden sugerido
-   por impacto: fotos de productos (catalog `CreateUploadUrl` + ruta en el gateway; los buckets ya
-   existen, F07.9), facturación DGI (fiscal-invoicing; depende del PAC, Q-11), liquidación,
+   por impacto: cámara en la foto del producto (la subida ya funciona), facturación DGI (fiscal-invoicing; depende del PAC, Q-11), liquidación,
    nómina, logística, analítica.
 2. **Mostrar las pantallas como vista previa sin datos**: entradas visibles con su estado vacío y la
    franja «Disponible próximamente», sin cifras inventadas. Cumple §3.1 y deja ver el diseño.
 3. Volver a mostrar datos de ejemplo: **no recomendado**; contradice AGENTS.md §3.1 y engañó a
    personas reales (saldos y pagos «completados» que no existían).
+
+## 4. Corrección (2026-10-21, mismo día)
+La primera versión de esta auditoría decía que las fotos de productos ya no existían. Era falso: la
+búsqueda usó `\|` dentro de una expresión `grep -E` y no encontró nada. Se repitió con la expresión
+correcta; las demás filas se verificaron leyendo el código.

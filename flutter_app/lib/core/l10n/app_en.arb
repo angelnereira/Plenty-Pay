@@ -1128,5 +1128,9 @@
   "securityPinNotSet": "Not set up",
   "securityPinLocked": "Locked after too many attempts",
   "fieldRepeatNewPassword": "Repeat the new password",
-  "passwordMismatch": "The passwords don't match."
+  "passwordMismatch": "The passwords don't match.",
+  "catTakePhoto": "Take photo",
+  "catChooseFromGallery": "Choose from gallery",
+  "error_FILE_TOO_LARGE": "The photo is over 5 MB. Choose a smaller one.",
+  "error_UNSUPPORTED_FILE_TYPE": "The photo must be JPEG, PNG or WebP."
 }

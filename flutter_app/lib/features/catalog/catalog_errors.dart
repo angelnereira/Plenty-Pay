@@ -40,6 +40,8 @@ String catalogErrorMessage(AppLocalizations l10n, Object error) {
     'TENANT_REQUIRED' => l10n.error_TENANT_REQUIRED,
     'INVALID_STATE_TRANSITION' => l10n.error_INVALID_STATE_TRANSITION,
     'PERMISSION_DENIED' => l10n.error_PERMISSION_DENIED,
+    'FILE_TOO_LARGE' => l10n.error_FILE_TOO_LARGE,
+    'UNSUPPORTED_FILE_TYPE' => l10n.error_UNSUPPORTED_FILE_TYPE,
     _ => l10n.errorGeneric(error.reason),
   };
 }
