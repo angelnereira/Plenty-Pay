@@ -116,3 +116,26 @@ func (s *Server) ListInvoices(ctx context.Context, req *pb.ListInvoicesRequest) 
 	}
 	return out, nil
 }
+
+func (s *Server) issueNote(ctx context.Context, docType int, req *pb.IssueNoteRequest) (*pb.Invoice, error) {
+	hash, err := requestHash(req)
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	inv, err := s.svc.IssueNote(ctx, docType, service.NoteInput{IdempotencyKey: strings.TrimSpace(req.GetIdempotencyKey()),
+		RequestHash: hash, RelatedInvoiceID: req.GetRelatedInvoiceId(), Lines: linesFromPB(req.GetLines()), Reason: req.GetReason()})
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return invoiceToPB(inv), nil
+}
+
+// IssueCreditNote corrige una factura aceptada a la baja; por el total, la factura queda VOIDED (R7).
+func (s *Server) IssueCreditNote(ctx context.Context, req *pb.IssueNoteRequest) (*pb.Invoice, error) {
+	return s.issueNote(ctx, domain.DocCreditNote, req)
+}
+
+// IssueDebitNote corrige una factura aceptada al alza.
+func (s *Server) IssueDebitNote(ctx context.Context, req *pb.IssueNoteRequest) (*pb.Invoice, error) {
+	return s.issueNote(ctx, domain.DocDebitNote, req)
+}

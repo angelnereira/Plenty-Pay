@@ -45,6 +45,8 @@ var errorTable = []struct {
 	{domain.ErrPacNotConfigured, codes.FailedPrecondition, "PAC_NOT_CONFIGURED"},
 	{domain.ErrInvalidRequest, codes.InvalidArgument, "INVALID_REQUEST"},
 	{domain.ErrIdempotencyReused, codes.AlreadyExists, "IDEMPOTENCY_KEY_REUSED"},
+	{domain.ErrRelatedNotAccepted, codes.FailedPrecondition, "RELATED_NOT_ACCEPTED"},
+	{domain.ErrExceedsOriginal, codes.FailedPrecondition, "EXCEEDS_ORIGINAL"},
 	{domain.ErrDependency, codes.Unavailable, "DEPENDENCY_UNAVAILABLE"},
 	{client.ErrUnavailable, codes.Unavailable, "DEPENDENCY_UNAVAILABLE"},
 }

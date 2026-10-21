@@ -16,7 +16,7 @@ const (
 )
 
 // Orígenes de un documento (SPEC §3 invoices.source_type).
-var sourceTypes = map[string]bool{"sale": true, "sub_order": true, "manual": true, "platform_fee": true}
+var sourceTypes = map[string]bool{"sale": true, "sub_order": true, "manual": true, "platform_fee": true, "note": true}
 
 var currencyRe = regexp.MustCompile(`^[A-Z]{3}$`)
 

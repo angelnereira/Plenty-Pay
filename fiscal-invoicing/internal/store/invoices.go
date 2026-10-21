@@ -127,6 +127,11 @@ func (s *Store) CreateInvoice(ctx context.Context, inv domain.Invoice) (domain.I
 		case !errors.Is(err, domain.ErrNotFound):
 			return err
 		}
+		if inv.RelatedInvoiceID != "" {
+			if err := checkRelated(ctx, tx, inv); err != nil {
+				return err
+			}
+		}
 		if inv.Number, err = AllocateNumber(ctx, tx, inv.TenantID, inv.DocType, inv.PointOfSaleCode); err != nil {
 			return err
 		}
@@ -164,6 +169,37 @@ func (s *Store) CreateInvoice(ctx context.Context, inv domain.Invoice) (domain.I
 		return err
 	})
 	return out, created, err
+}
+
+// checkRelated bloquea la factura de referencia y aplica N-FIS-08/R7: debe estar aceptada y la suma de
+// notas de crédito no rechazadas, más la nueva, no puede superar su total. El bloqueo hace que dos notas
+// simultáneas se evalúen una detrás de otra.
+func checkRelated(ctx context.Context, tx pgx.Tx, note domain.Invoice) error {
+	var status int
+	var total int64
+	err := tx.QueryRow(ctx, `SELECT status, total_minor FROM invoices WHERE id::text = $1 AND tenant_id = $2
+		AND doc_type = $3 FOR UPDATE`, note.RelatedInvoiceID, note.TenantID, domain.DocFiscalInvoice).Scan(&status, &total)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("lock related invoice: %w", err)
+	}
+	if status != domain.StatusAccepted {
+		return domain.ErrRelatedNotAccepted
+	}
+	if note.DocType != domain.DocCreditNote {
+		return nil
+	}
+	var credited int64
+	if err := tx.QueryRow(ctx, `SELECT coalesce(sum(total_minor), 0) FROM invoices WHERE related_invoice_id::text = $1
+		AND doc_type = $2 AND status <> $3`, note.RelatedInvoiceID, domain.DocCreditNote, domain.StatusRejected).Scan(&credited); err != nil {
+		return fmt.Errorf("sum credit notes: %w", err)
+	}
+	if credited+note.Totals.TotalMinor > total {
+		return domain.ErrExceedsOriginal
+	}
+	return nil
 }
 
 // GetInvoice devuelve un documento del tenant (de otro tenant = no existe).
@@ -275,8 +311,32 @@ func (s *Store) MarkAccepted(ctx context.Context, id, cufe, qr string, at time.T
 		if tag.RowsAffected() != 1 {
 			return nil // otro worker ya lo resolvió: el evento no se duplica
 		}
+		if err := voidIfFullyCredited(ctx, tx, id, at); err != nil {
+			return err
+		}
 		return insertOutbox(ctx, tx, ev)
 	})
+}
+
+// voidIfFullyCredited aplica R7: cuando las notas de crédito aceptadas suman el total de la factura,
+// la factura pasa a VOIDED (domain-model §8.8). El disparador de N-FIS-08 solo permite ese cambio.
+func voidIfFullyCredited(ctx context.Context, tx pgx.Tx, noteID string, at time.Time) error {
+	var related *string
+	var docType int
+	if err := tx.QueryRow(ctx, `SELECT related_invoice_id::text, doc_type FROM invoices WHERE id = $1`, noteID).Scan(&related, &docType); err != nil {
+		return fmt.Errorf("load accepted document: %w", err)
+	}
+	if docType != domain.DocCreditNote || related == nil {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `UPDATE invoices o SET status = $2, updated_at = $3
+		WHERE o.id::text = $1 AND o.status = $4 AND o.total_minor = (
+			SELECT coalesce(sum(n.total_minor), 0) FROM invoices n
+			WHERE n.related_invoice_id = o.id AND n.doc_type = $5 AND n.status = $4)`,
+		*related, domain.StatusVoided, at, domain.StatusAccepted, domain.DocCreditNote); err != nil {
+		return fmt.Errorf("void fully credited invoice: %w", err)
+	}
+	return nil
 }
 
 // MarkRejected guarda el rechazo del PAC y su evento.

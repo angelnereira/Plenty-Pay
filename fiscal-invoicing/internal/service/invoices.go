@@ -199,7 +199,7 @@ func (s *Invoicing) send(ctx context.Context, inv domain.Invoice) {
 			err = s.invoices.MarkAccepted(ctx, inv.ID, res.CUFE, res.QR, at, store.OutboxEvent{ID: s.newID(),
 				TenantID: inv.TenantID, AggregateID: inv.ID, Subject: events.SubjectInvoiceAccepted, Payload: payload, CreatedAt: at})
 		}
-		s.finish(ctx, err, "ACCEPTED")
+		s.finish(ctx, inv.DocType, err, "ACCEPTED")
 		return
 	}
 	payload, err := proto.Marshal(&pb.InvoiceRejected{InvoiceId: inv.ID, TenantId: inv.TenantID, Reason: res.RejectionReason, Source: ref})
@@ -207,10 +207,10 @@ func (s *Invoicing) send(ctx context.Context, inv domain.Invoice) {
 		err = s.invoices.MarkRejected(ctx, inv.ID, res.RejectionReason, at, store.OutboxEvent{ID: s.newID(),
 			TenantID: inv.TenantID, AggregateID: inv.ID, Subject: events.SubjectInvoiceRejected, Payload: payload, CreatedAt: at})
 	}
-	s.finish(ctx, err, "REJECTED")
+	s.finish(ctx, inv.DocType, err, "REJECTED")
 }
 
-func (s *Invoicing) finish(ctx context.Context, err error, status string) {
+func (s *Invoicing) finish(ctx context.Context, docType int, err error, status string) {
 	if err != nil {
 		// La respuesta del PAC no se pudo guardar: el lease vence y el documento se reintenta.
 		if s.reporter != nil {
@@ -219,7 +219,7 @@ func (s *Invoicing) finish(ctx context.Context, err error, status string) {
 		return
 	}
 	if s.metrics != nil {
-		s.metrics.Inc("pp_invoices_total", "doc_type", "FISCAL_INVOICE", "status", status)
+		s.metrics.Inc("pp_invoices_total", "doc_type", docTypeName(docType), "status", status)
 	}
 }
 
@@ -243,4 +243,80 @@ func providerFor(env string) string {
 func panamaDate(t time.Time) time.Time {
 	p := t.UTC().Add(-5 * time.Hour)
 	return time.Date(p.Year(), p.Month(), p.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+// NoteInput es la solicitud de nota de crédito o débito (fiscal_invoicing.proto IssueNoteRequest).
+type NoteInput struct {
+	IdempotencyKey   string
+	RequestHash      []byte
+	RelatedInvoiceID string
+	Lines            []domain.Line
+	Reason           string
+}
+
+// IssueNote emite una nota que corrige una factura aceptada (N-FIS-08, R7). Lleva el receptor, la
+// moneda, el entorno y el punto de facturación de la factura original.
+func (s *Invoicing) IssueNote(ctx context.Context, docType int, in NoteInput) (domain.Invoice, error) {
+	a, err := actorWith(ctx, PermNoteIssue)
+	if err != nil {
+		return domain.Invoice{}, err
+	}
+	in.Reason = strings.TrimSpace(in.Reason)
+	if (docType != domain.DocCreditNote && docType != domain.DocDebitNote) || in.RelatedInvoiceID == "" ||
+		in.Reason == "" || len([]rune(in.Reason)) > 200 {
+		return domain.Invoice{}, domain.ErrInvalidRequest
+	}
+	if err := domain.ValidateRequest(in.IdempotencyKey, "note", in.IdempotencyKey, "USD", nil); err != nil {
+		return domain.Invoice{}, err
+	}
+	orig, err := s.invoices.GetInvoice(ctx, a.TenantID, in.RelatedInvoiceID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.Invoice{}, err
+		}
+		return domain.Invoice{}, observability.Wrap(err, "load related invoice")
+	}
+	if orig.DocType != domain.DocFiscalInvoice || orig.Status != domain.StatusAccepted {
+		return domain.Invoice{}, domain.ErrRelatedNotAccepted
+	}
+	rates, err := s.rates.TaxRates(ctx, a.RequestID)
+	if err != nil {
+		return domain.Invoice{}, fmt.Errorf("%w: %v", domain.ErrDependency, err)
+	}
+	lines, totals, err := domain.ComputeLines(in.Lines, rates.Allowed)
+	if err != nil {
+		return domain.Invoice{}, err
+	}
+	now := s.now()
+	note := domain.Invoice{
+		ID: s.newID(), TenantID: a.TenantID, DocType: docType, Environment: orig.Environment,
+		PointOfSaleCode: orig.PointOfSaleCode, RelatedInvoiceID: orig.ID, SourceType: "note", SourceID: in.IdempotencyKey,
+		Customer: orig.Customer, Lines: lines, Totals: totals, Currency: orig.Currency, DocumentDate: panamaDate(now),
+		LegalParamVersion: rates.Version, Reason: in.Reason, IdempotencyKey: in.IdempotencyKey, RequestHash: in.RequestHash,
+		CreatedAt: now,
+	}
+	out, created, err := s.invoices.CreateInvoice(ctx, note)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrIdempotencyReused), errors.Is(err, domain.ErrRelatedNotAccepted),
+			errors.Is(err, domain.ErrExceedsOriginal), errors.Is(err, domain.ErrNotFound), errors.Is(err, domain.ErrProfileMissing):
+			return domain.Invoice{}, err
+		}
+		return domain.Invoice{}, observability.Wrap(err, "create note")
+	}
+	if created && s.metrics != nil {
+		s.metrics.Inc("pp_invoices_total", "doc_type", docTypeName(docType), "status", "QUEUED")
+	}
+	return out, nil
+}
+
+// docTypeName es la etiqueta de métrica del tipo de documento (valores acotados).
+func docTypeName(t int) string {
+	switch t {
+	case domain.DocCreditNote:
+		return "CREDIT_NOTE"
+	case domain.DocDebitNote:
+		return "DEBIT_NOTE"
+	}
+	return "FISCAL_INVOICE"
 }

@@ -42,14 +42,16 @@ func (noIdentity) ConsumeStepUp(context.Context, string, string, string, string)
 
 type noSecrets struct{}
 
-func (noSecrets) PutSecret(context.Context, string, string, []byte, string) (string, error) { return "", nil }
+func (noSecrets) PutSecret(context.Context, string, string, []byte, string) (string, error) {
+	return "", nil
+}
 
 type clock struct {
 	mu sync.Mutex
 	t  time.Time
 }
 
-func (c *clock) now() time.Time { c.mu.Lock(); defer c.mu.Unlock(); return c.t }
+func (c *clock) now() time.Time      { c.mu.Lock(); defer c.mu.Unlock(); return c.t }
 func (c *clock) add(d time.Duration) { c.mu.Lock(); defer c.mu.Unlock(); c.t = c.t.Add(d) }
 
 func invoicing(t *testing.T, s *store.Store, r rates) (*service.Invoicing, *pac.Simulator, *clock) {

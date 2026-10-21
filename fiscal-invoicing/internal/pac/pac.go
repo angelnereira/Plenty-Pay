@@ -52,10 +52,10 @@ const DemoQRNotice = "PLENTYPAY DOCUMENTO DE PRUEBA SIN VALIDEZ FISCAL "
 // Simulator acepta todo documento con un CUFE determinista con prefijo DEMO- (R9). Para las pruebas
 // puede fallar de forma transitoria las primeras veces o rechazar.
 type Simulator struct {
-	mu            sync.Mutex
-	failuresLeft  int
-	rejectReason  string
-	sent          []Document
+	mu           sync.Mutex
+	failuresLeft int
+	rejectReason string
+	sent         []Document
 }
 
 // NewSimulator crea el simulador del entorno DEMO.
