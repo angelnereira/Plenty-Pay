@@ -96,3 +96,20 @@ func TestF09_3_PathParamSurvivesBodyAndWins(t *testing.T) {
 		t.Fatalf("review: %v %+v", err, msg)
 	}
 }
+
+// ADR 0020: el estado del PIN es de lectura con sesión; crearlo o cambiarlo se marca 🔒 (identity
+// consume el token de identity.pin.set) y exige Idempotency-Key.
+func TestR28_StepUpPinRoutes(t *testing.T) {
+	get, ok := routes.Find("GET", "/v1/me/step-up-pin")
+	if !ok || !strings.HasSuffix(get.RPC, "/GetStepUpPinStatus") || !get.RequireAuth || get.StepUp {
+		t.Fatalf("GET /v1/me/step-up-pin: %+v", get)
+	}
+	put, ok := routes.Find("PUT", "/v1/me/step-up-pin")
+	if !ok || !strings.HasSuffix(put.RPC, "/SetStepUpPin") || !put.RequireAuth || !put.StepUp || !put.Idempotency {
+		t.Fatalf("PUT /v1/me/step-up-pin: %+v", put)
+	}
+	msg, err := put.DecodeRequest(httptest.NewRequest(http.MethodPut, "/v1/me/step-up-pin", strings.NewReader(`{"pin":"482915"}`)))
+	if err != nil || msg.(*pb.SetStepUpPinRequest).GetPin() != "482915" {
+		t.Fatalf("el cuerpo llega al proto: %v %v", err, msg)
+	}
+}

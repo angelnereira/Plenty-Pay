@@ -83,6 +83,19 @@ var Table = []Route{
 		NewRequest:  func() proto.Message { return &pb.VerifyStepUpRequest{} },
 		NewResponse: func() proto.Message { return &pb.StepUpToken{} },
 	},
+	{
+		// PIN de confirmación (ADR 0020, identity R28). Solo el estado: el PIN nunca sale de identity.
+		Method: "GET", Path: "/v1/me/step-up-pin", RPC: "/plentypay.identity.v1.Identity/GetStepUpPinStatus", RequireAuth: true,
+		NewRequest:  func() proto.Message { return &pb.GetStepUpPinStatusRequest{} },
+		NewResponse: func() proto.Message { return &pb.StepUpPinStatus{} },
+	},
+	{
+		// 🔒 identity.pin.set (nivel 3: el token se obtiene con la contraseña).
+		Method: "PUT", Path: "/v1/me/step-up-pin", RPC: "/plentypay.identity.v1.Identity/SetStepUpPin",
+		RequireAuth: true, StepUp: true, Idempotency: true,
+		NewRequest:  func() proto.Message { return &pb.SetStepUpPinRequest{} },
+		NewResponse: func() proto.Message { return &pb.SimpleResult{} },
+	},
 
 	// ── Modelo de acceso (ADR 0018, SPEC §4.1). Van antes de /v1/business/{tenant_id}: Find
 	// recorre la tabla en orden y los segmentos literales deben ganar al comodín. ──────────
