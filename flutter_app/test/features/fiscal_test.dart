@@ -37,6 +37,14 @@ Map<String, Object> pacProviders({bool prod = false}) => {
           'display_name': 'The Factory HKA',
           'environments': ['DEMO', if (prod) 'PROD'],
           'credential_keys': ['token_empresa', 'token_password'],
+          'credential_fields': [
+            {'key': 'token_empresa', 'label': 'Token de empresa'},
+            {
+              'key': 'token_password',
+              'label': 'Contraseña del token',
+              'secret': true
+            },
+          ],
         },
       ]
     };
@@ -284,7 +292,7 @@ void main() {
   });
 
   testWidgets(
-      'S-FIN-09 e2/e3 (ADR 0022): con HKA se piden sus credenciales y viajan una sola vez',
+      'S-FIN-09 e2/e3 (ADR 0022): se piden las credenciales que declara el PAC y viajan una sola vez',
       (tester) async {
     final calls = <http.Request>[];
     final api = fakeApi({

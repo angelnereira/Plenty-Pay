@@ -7077,18 +7077,6 @@ abstract class AppLocalizations {
   /// **'Entidad del Estado'**
   String get fiscalIdGobierno;
 
-  /// No description provided for @fiscalPacTokenEmpresa.
-  ///
-  /// In es, this message translates to:
-  /// **'Token de empresa'**
-  String get fiscalPacTokenEmpresa;
-
-  /// No description provided for @fiscalPacTokenPassword.
-  ///
-  /// In es, this message translates to:
-  /// **'Contraseña del token'**
-  String get fiscalPacTokenPassword;
-
   /// No description provided for @fiscalPacCredentials.
   ///
   /// In es, this message translates to:
@@ -7134,7 +7122,7 @@ abstract class AppLocalizations {
   /// No description provided for @fiscalAddressHelp.
   ///
   /// In es, this message translates to:
-  /// **'El PAC la exige para facturar a un RUC.'**
+  /// **'La DGI la exige para facturar a un RUC.'**
   String get fiscalAddressHelp;
 
   /// No description provided for @fiscalAddressInvalid.

@@ -267,13 +267,31 @@ class FiscalProfileItem {
   bool get isDemo => environment != 'PROD';
 }
 
+/// Una credencial que pide un PAC (fiscal.PacCredentialField): la etiqueta y si es secreta vienen
+/// del servidor, así la app no conoce a ningún proveedor (ADR 0022).
+class PacCredentialField {
+  const PacCredentialField(
+      {required this.key, required this.label, required this.secret});
+
+  factory PacCredentialField.fromJson(Map<String, dynamic> j) =>
+      PacCredentialField(
+        key: j['key'] as String? ?? '',
+        label: j['label'] as String? ?? '',
+        secret: j['secret'] as bool? ?? false,
+      );
+
+  final String key;
+  final String label;
+  final bool secret;
+}
+
 /// Adaptador de PAC elegible (fiscal.PacProvider, ADR 0022).
 class PacProviderItem {
   const PacProviderItem({
     required this.id,
     required this.displayName,
     required this.environments,
-    required this.credentialKeys,
+    required this.credentialFields,
   });
 
   factory PacProviderItem.fromJson(Map<String, dynamic> j) => PacProviderItem(
@@ -283,35 +301,25 @@ class PacProviderItem {
           for (final e in (j['environments'] as List<dynamic>? ?? const []))
             '$e'
         ],
-        credentialKeys: [
-          for (final k in (j['credential_keys'] as List<dynamic>? ?? const []))
-            '$k'
+        credentialFields: [
+          for (final f
+              in (j['credential_fields'] as List<dynamic>? ?? const []))
+            PacCredentialField.fromJson(f as Map<String, dynamic>)
         ],
       );
 
   final String id;
   final String displayName;
   final List<String> environments;
-  final List<String> credentialKeys;
+  final List<PacCredentialField> credentialFields;
 
   bool get offersProduction => environments.contains('PROD');
-  bool get needsCredentials => credentialKeys.isNotEmpty;
+  bool get needsCredentials => credentialFields.isNotEmpty;
 }
 
 /// Nombre del adaptador para la persona: el simulador se traduce; un PAC real es nombre propio.
 String pacProviderLabel(AppLocalizations l10n, PacProviderItem p) =>
     p.id == 'simulator' ? l10n.fiscalPacSimulator : p.displayName;
-
-/// Etiqueta de cada credencial que pide un PAC; una clave desconocida se muestra tal cual.
-String pacCredentialLabel(AppLocalizations l10n, String key) => switch (key) {
-      'token_empresa' => l10n.fiscalPacTokenEmpresa,
-      'token_password' => l10n.fiscalPacTokenPassword,
-      _ => key,
-    };
-
-/// Las credenciales que son contraseñas se escriben ocultas.
-bool pacCredentialIsSecret(String key) =>
-    key.contains('password') || key.contains('secret');
 
 /// Adaptadores de PAC disponibles para el selector (S-FIN-09 e2).
 Future<List<PacProviderItem>> loadPacProviders(ApiClient api) async {

@@ -1634,8 +1634,6 @@
   "fiscalNoProfileYet": "Aún no tienes perfil fiscal. Complétalo para facturar.",
   "stepUpOpCredentials": "Configurar la facturación electrónica",
   "fiscalIdGobierno": "Entidad del Estado",
-  "fiscalPacTokenEmpresa": "Token de empresa",
-  "fiscalPacTokenPassword": "Contraseña del token",
   "fiscalPacCredentials": "Credenciales del PAC",
   "fiscalPacConfigured": "Configurado",
   "fiscalPacChangeCredentials": "Cambiar credenciales",
@@ -1650,7 +1648,7 @@
   },
   "fiscalAddress": "Dirección",
   "fiscalAddressOptional": "Dirección (opcional)",
-  "fiscalAddressHelp": "El PAC la exige para facturar a un RUC.",
+  "fiscalAddressHelp": "La DGI la exige para facturar a un RUC.",
   "fiscalAddressInvalid": "Escribe entre 5 y 100 caracteres.",
   "fiscalLocation": "Provincia-distrito-corregimiento (opcional)",
   "fiscalLocationInvalid": "Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7."

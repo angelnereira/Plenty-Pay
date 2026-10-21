@@ -3809,12 +3809,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get fiscalIdGobierno => 'Entidad del Estado';
 
   @override
-  String get fiscalPacTokenEmpresa => 'Token de empresa';
-
-  @override
-  String get fiscalPacTokenPassword => 'Contraseña del token';
-
-  @override
   String get fiscalPacCredentials => 'Credenciales del PAC';
 
   @override
@@ -3838,7 +3832,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get fiscalAddressOptional => 'Dirección (opcional)';
 
   @override
-  String get fiscalAddressHelp => 'El PAC la exige para facturar a un RUC.';
+  String get fiscalAddressHelp => 'La DGI la exige para facturar a un RUC.';
 
   @override
   String get fiscalAddressInvalid => 'Escribe entre 5 y 100 caracteres.';

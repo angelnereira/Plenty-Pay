@@ -84,7 +84,7 @@ Lista y editor.
 | DV | 2 dígitos; obligatorio con RUC. `INVALID_RUC` |
 | Nombre o razón social | Obligatorio |
 | Correo | Opcional; recibe el documento |
-| Dirección | 5 a 100 caracteres. Obligatoria para una entidad del Estado; el PAC (HKA) también la exige al facturar a un RUC, y la emisión lo avisa con `INVALID_TAXPAYER` "Revisa los datos del cliente: falta la dirección o no es válida." (ADR 0022) |
+| Dirección | 5 a 100 caracteres. Obligatoria para una entidad del Estado; la DGI también la exige al facturar a un RUC (ayuda: «La DGI la exige para facturar a un RUC.»), y la emisión lo avisa con `INVALID_TAXPAYER` (ADR 0022 §8) |
 | Ubicación | Opcional: provincia-distrito-corregimiento de la DGI, p. ej. «8-8-7» |
 
 Lista con buscador (nombre o identificación) y "Agregar cliente" como botón primario.
@@ -95,8 +95,8 @@ Lista con buscador (nombre o identificación) y "Agregar cliente" como botón pr
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
 | e1 | Datos del emisor | RUC · DV · Razón social · Sucursal (código) · Punto de facturación (código) | RUC y razón social vienen del negocio; solo lectura |
-| e2 | Selector | Proveedor de facturación (PAC) | Los adaptadores de `GET /v1/fiscal/pac-providers` (ADR 0022): «The Factory HKA» y «Simulador de PlentyPay (sin validez fiscal)» |
-| e3 | Credenciales | Un campo por cada credencial que pide el PAC: con HKA, «Token de empresa» y «Contraseña del token» (oculta) | Se envían una sola vez y se guardan cifradas en security; después solo se ve «Configurado» con la acción «Cambiar credenciales». Obligatorias la primera vez y al cambiar de PAC. No se muestra con el simulador, que no las usa. HKA firma los documentos: no pide certificado. *Pendiente*: «Probar conexión» |
+| e2 | Selector | Proveedor de facturación (PAC) | Los adaptadores que ofrece el servidor en `GET /v1/fiscal/pac-providers` (ADR 0022), con el nombre que declara cada uno; hoy «The Factory HKA» y «Simulador (pruebas)». La app no conoce a ningún PAC |
+| e3 | Credenciales | Un campo por cada credencial que declara el PAC elegido (`credential_fields`: etiqueta y si es secreta, p. ej. con HKA «Token de empresa» y «Contraseña del token») | Se envían una sola vez y se guardan cifradas en security; después solo se ve «Configurado» con la acción «Cambiar credenciales». Obligatorias la primera vez y al cambiar de PAC. No se muestra si el PAC no pide credenciales (simulador). *Pendiente*: «Probar conexión» |
 | e4 | Selector | Ambiente: Pruebas / Producción | Producción solo si el PAC la ofrece (`environments`); si no, deshabilitada con la nota «Producción se habilita tras la validación legal.» (`PAC_NOT_CONFIGURED`, `FISCAL_PROD_ENABLED`). Pasar a Producción: C-05 «Tus facturas tendrán validez fiscal.» |
 | e5 | Selector | Qué documento emitir: Siempre factura / Solo recibo interno / Preguntar / Automático desde {monto} | — |
 | e6 | Folios | Disponibles {n} · Aviso al quedar {mínimo} · En tu cuenta del PAC: {n} | Sin tope contratado: "Sin límite de folios". La línea del PAC solo si lo informa (`pac_remaining` ≥ 0). *Pendiente*: "Comprar folios" |

@@ -1226,8 +1226,6 @@
   "fiscalNoProfileYet": "You don't have a tax profile yet. Complete it to issue invoices.",
   "stepUpOpCredentials": "Set up electronic invoicing",
   "fiscalIdGobierno": "Government entity",
-  "fiscalPacTokenEmpresa": "Company token",
-  "fiscalPacTokenPassword": "Token password",
   "fiscalPacCredentials": "PAC credentials",
   "fiscalPacConfigured": "Configured",
   "fiscalPacChangeCredentials": "Change credentials",
@@ -1235,7 +1233,7 @@
   "fiscalPacFolios": "In your PAC account: {count}",
   "fiscalAddress": "Address",
   "fiscalAddressOptional": "Address (optional)",
-  "fiscalAddressHelp": "The PAC requires it to invoice a RUC.",
+  "fiscalAddressHelp": "The DGI requires it to invoice a RUC.",
   "fiscalAddressInvalid": "Enter 5 to 100 characters.",
   "fiscalLocation": "Province-district-township (optional)",
   "fiscalLocationInvalid": "Use the province-district-township format, for example 8-8-7."

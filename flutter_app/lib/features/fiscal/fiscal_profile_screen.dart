@@ -164,7 +164,7 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
     Map<String, String>? credentials;
     if (_askCreds(pac, data.profile)) {
       credentials = {
-        for (final k in pac!.credentialKeys) k: _cred(k).text.trim()
+        for (final f in pac!.credentialFields) f.key: _cred(f.key).text.trim()
       };
       final missing = credentials.values.any((v) => v.isEmpty);
       setState(() => _credsError = missing ? l10n.fiscalFieldRequired : null);
@@ -241,13 +241,13 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
     return [
       const SizedBox(height: AppTokens.spacingMd),
       Text(l10n.fiscalPacCredentials, style: theme.textTheme.titleSmall),
-      for (final k in pac.credentialKeys) ...[
+      for (final f in pac.credentialFields) ...[
         const SizedBox(height: AppTokens.spacingSm),
         PPTextField(
-          controller: _cred(k),
-          labelText: pacCredentialLabel(l10n, k),
-          obscureText: pacCredentialIsSecret(k),
-          error: _cred(k).text.trim().isEmpty ? _credsError : null,
+          controller: _cred(f.key),
+          labelText: f.label.isEmpty ? f.key : f.label,
+          obscureText: f.secret,
+          error: _cred(f.key).text.trim().isEmpty ? _credsError : null,
         ),
       ],
     ];
