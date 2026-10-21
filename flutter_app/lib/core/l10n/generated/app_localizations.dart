@@ -6534,7 +6534,7 @@ abstract class AppLocalizations {
   /// No description provided for @error_INVALID_TAXPAYER.
   ///
   /// In es, this message translates to:
-  /// **'Revisa los datos del cliente fiscal.'**
+  /// **'Revisa los datos del cliente fiscal: falta la dirección o algún dato no es válido.'**
   String get error_INVALID_TAXPAYER;
 
   /// No description provided for @error_TOTALS_MISMATCH.
@@ -6546,7 +6546,7 @@ abstract class AppLocalizations {
   /// No description provided for @error_PAC_NOT_CONFIGURED.
   ///
   /// In es, this message translates to:
-  /// **'Producción estará disponible cuando se contrate el proveedor de facturación.'**
+  /// **'Producción se habilita tras la validación legal.'**
   String get error_PAC_NOT_CONFIGURED;
 
   /// No description provided for @error_RELATED_NOT_ACCEPTED.
@@ -7002,7 +7002,7 @@ abstract class AppLocalizations {
   /// No description provided for @fiscalProdUnavailable.
   ///
   /// In es, this message translates to:
-  /// **'Disponible cuando se contrate el PAC.'**
+  /// **'Producción se habilita tras la validación legal.'**
   String get fiscalProdUnavailable;
 
   /// No description provided for @fiscalPreference.
@@ -7070,6 +7070,90 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Configurar la facturación electrónica'**
   String get stepUpOpCredentials;
+
+  /// No description provided for @fiscalIdGobierno.
+  ///
+  /// In es, this message translates to:
+  /// **'Entidad del Estado'**
+  String get fiscalIdGobierno;
+
+  /// No description provided for @fiscalPacTokenEmpresa.
+  ///
+  /// In es, this message translates to:
+  /// **'Token de empresa'**
+  String get fiscalPacTokenEmpresa;
+
+  /// No description provided for @fiscalPacTokenPassword.
+  ///
+  /// In es, this message translates to:
+  /// **'Contraseña del token'**
+  String get fiscalPacTokenPassword;
+
+  /// No description provided for @fiscalPacCredentials.
+  ///
+  /// In es, this message translates to:
+  /// **'Credenciales del PAC'**
+  String get fiscalPacCredentials;
+
+  /// No description provided for @fiscalPacConfigured.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurado'**
+  String get fiscalPacConfigured;
+
+  /// No description provided for @fiscalPacChangeCredentials.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar credenciales'**
+  String get fiscalPacChangeCredentials;
+
+  /// No description provided for @fiscalProdConfirm.
+  ///
+  /// In es, this message translates to:
+  /// **'Tus facturas tendrán validez fiscal.'**
+  String get fiscalProdConfirm;
+
+  /// No description provided for @fiscalPacFolios.
+  ///
+  /// In es, this message translates to:
+  /// **'En tu cuenta del PAC: {count}'**
+  String fiscalPacFolios(int count);
+
+  /// No description provided for @fiscalAddress.
+  ///
+  /// In es, this message translates to:
+  /// **'Dirección'**
+  String get fiscalAddress;
+
+  /// No description provided for @fiscalAddressOptional.
+  ///
+  /// In es, this message translates to:
+  /// **'Dirección (opcional)'**
+  String get fiscalAddressOptional;
+
+  /// No description provided for @fiscalAddressHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'El PAC la exige para facturar a un RUC.'**
+  String get fiscalAddressHelp;
+
+  /// No description provided for @fiscalAddressInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe entre 5 y 100 caracteres.'**
+  String get fiscalAddressInvalid;
+
+  /// No description provided for @fiscalLocation.
+  ///
+  /// In es, this message translates to:
+  /// **'Provincia-distrito-corregimiento (opcional)'**
+  String get fiscalLocation;
+
+  /// No description provided for @fiscalLocationInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7.'**
+  String get fiscalLocationInvalid;
 }
 
 class _AppLocalizationsDelegate

@@ -1532,9 +1532,9 @@
   "error_UNSUPPORTED_FILE_TYPE": "La foto debe ser JPEG, PNG o WebP.",
   "error_PROFILE_MISSING": "Completa tu perfil fiscal para facturar.",
   "error_INVALID_RUC": "Revisa el RUC y el DV: el DV son 2 dígitos.",
-  "error_INVALID_TAXPAYER": "Revisa los datos del cliente fiscal.",
+  "error_INVALID_TAXPAYER": "Revisa los datos del cliente fiscal: falta la dirección o algún dato no es válido.",
   "error_TOTALS_MISMATCH": "Los montos no cuadran. Revisa las líneas.",
-  "error_PAC_NOT_CONFIGURED": "Producción estará disponible cuando se contrate el proveedor de facturación.",
+  "error_PAC_NOT_CONFIGURED": "Producción se habilita tras la validación legal.",
   "error_RELATED_NOT_ACCEPTED": "Solo se emiten notas sobre facturas autorizadas.",
   "error_EXCEEDS_ORIGINAL": "Las notas de crédito superan el total de la factura.",
   "fiscalInvoicesTitle": "Documentos fiscales",
@@ -1621,7 +1621,7 @@
   "fiscalEnvironment": "Ambiente",
   "fiscalEnvTest": "Pruebas",
   "fiscalEnvProd": "Producción",
-  "fiscalProdUnavailable": "Disponible cuando se contrate el PAC.",
+  "fiscalProdUnavailable": "Producción se habilita tras la validación legal.",
   "fiscalPreference": "Qué documento emitir",
   "fiscalPrefAlways": "Siempre factura",
   "fiscalPrefInternal": "Solo recibo interno",
@@ -1632,5 +1632,26 @@
   "fiscalFoliosUnlimited": "Sin límite de folios",
   "fiscalProfileSaved": "Perfil fiscal guardado.",
   "fiscalNoProfileYet": "Aún no tienes perfil fiscal. Complétalo para facturar.",
-  "stepUpOpCredentials": "Configurar la facturación electrónica"
+  "stepUpOpCredentials": "Configurar la facturación electrónica",
+  "fiscalIdGobierno": "Entidad del Estado",
+  "fiscalPacTokenEmpresa": "Token de empresa",
+  "fiscalPacTokenPassword": "Contraseña del token",
+  "fiscalPacCredentials": "Credenciales del PAC",
+  "fiscalPacConfigured": "Configurado",
+  "fiscalPacChangeCredentials": "Cambiar credenciales",
+  "fiscalProdConfirm": "Tus facturas tendrán validez fiscal.",
+  "fiscalPacFolios": "En tu cuenta del PAC: {count}",
+  "@fiscalPacFolios": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiscalAddress": "Dirección",
+  "fiscalAddressOptional": "Dirección (opcional)",
+  "fiscalAddressHelp": "El PAC la exige para facturar a un RUC.",
+  "fiscalAddressInvalid": "Escribe entre 5 y 100 caracteres.",
+  "fiscalLocation": "Provincia-distrito-corregimiento (opcional)",
+  "fiscalLocationInvalid": "Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7."
 }

@@ -79,12 +79,13 @@ Lista y editor.
 
 | Campo | Validación |
 |---|---|
-| Tipo de identificación | RUC persona jurídica · RUC persona natural · Cédula · Pasaporte · Identificación extranjera (los del contrato, `Taxpayer.tax_id_type`). El consumidor final no se guarda: es la factura sin cliente |
+| Tipo de identificación | RUC persona jurídica · RUC persona natural · Entidad del Estado · Cédula · Pasaporte · Identificación extranjera (los del contrato, `Taxpayer.tax_id_type`). El consumidor final no se guarda: es la factura sin cliente |
 | RUC o identificación | RUC con el formato de N-FMT-06; cédula con N-FMT-05; pasaporte o extranjera hasta 30 caracteres |
 | DV | 2 dígitos; obligatorio con RUC. `INVALID_RUC` |
 | Nombre o razón social | Obligatorio |
 | Correo | Opcional; recibe el documento |
-| Dirección | *Pendiente*: el contrato `Taxpayer` aún no la tiene (se agrega antes de producción, N-FIS-07) |
+| Dirección | 5 a 100 caracteres. Obligatoria para una entidad del Estado; el PAC (HKA) también la exige al facturar a un RUC, y la emisión lo avisa con `INVALID_TAXPAYER` "Revisa los datos del cliente: falta la dirección o no es válida." (ADR 0022) |
+| Ubicación | Opcional: provincia-distrito-corregimiento de la DGI, p. ej. «8-8-7» |
 
 Lista con buscador (nombre o identificación) y "Agregar cliente" como botón primario.
 
@@ -94,11 +95,11 @@ Lista con buscador (nombre o identificación) y "Agregar cliente" como botón pr
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
 | e1 | Datos del emisor | RUC · DV · Razón social · Sucursal (código) · Punto de facturación (código) | RUC y razón social vienen del negocio; solo lectura |
-| e2 | Selector | Proveedor de facturación (PAC) | Lista de adaptadores disponibles. Hoy solo "Simulador (pruebas)" (Q-11) |
-| e3 | Credenciales | Usuario o token del PAC · Certificado | Se guardan cifradas en security; después solo se ve "Configurado". No se muestra con el simulador, que no las usa. *Pendiente*: "Probar conexión" (con un PAC real) |
-| e4 | Selector | Ambiente: Pruebas / Producción | Producción deshabilitada con la nota "Disponible cuando se contrate el PAC." (`PAC_NOT_CONFIGURED`, Q-11). Pasar a Producción: C-05 "Tus facturas tendrán validez fiscal." |
+| e2 | Selector | Proveedor de facturación (PAC) | Los adaptadores de `GET /v1/fiscal/pac-providers` (ADR 0022): «The Factory HKA» y «Simulador de PlentyPay (sin validez fiscal)» |
+| e3 | Credenciales | Un campo por cada credencial que pide el PAC: con HKA, «Token de empresa» y «Contraseña del token» (oculta) | Se envían una sola vez y se guardan cifradas en security; después solo se ve «Configurado» con la acción «Cambiar credenciales». Obligatorias la primera vez y al cambiar de PAC. No se muestra con el simulador, que no las usa. HKA firma los documentos: no pide certificado. *Pendiente*: «Probar conexión» |
+| e4 | Selector | Ambiente: Pruebas / Producción | Producción solo si el PAC la ofrece (`environments`); si no, deshabilitada con la nota «Producción se habilita tras la validación legal.» (`PAC_NOT_CONFIGURED`, `FISCAL_PROD_ENABLED`). Pasar a Producción: C-05 «Tus facturas tendrán validez fiscal.» |
 | e5 | Selector | Qué documento emitir: Siempre factura / Solo recibo interno / Preguntar / Automático desde {monto} | — |
-| e6 | Folios | Disponibles {n} · Aviso al quedar {mínimo} | Sin tope contratado: "Sin límite de folios". *Pendiente*: "Comprar folios" (con un PAC real) |
+| e6 | Folios | Disponibles {n} · Aviso al quedar {mínimo} · En tu cuenta del PAC: {n} | Sin tope contratado: "Sin límite de folios". La línea del PAC solo si lo informa (`pac_remaining` ≥ 0). *Pendiente*: "Comprar folios" |
 | e7 | Texto | El facturador gratuito de la DGI solo aplica hasta {tope anual} al año y {tope mensual} documentos al mes. PlentyPay factura a través de tu PAC. | *Pendiente*: los topes son valores legales (N-FIS-10) y deben leerse de `legal.pa.*` (AGENTS.md §2.13); no se muestra hasta que existan esos parámetros |
 | e8 | `PPButton.primary` | Guardar | S-GEN-21 |
 

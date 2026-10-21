@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:plentypay/core/api/api_client.dart';
+import 'package:plentypay/core/widgets/pp_text_field.dart';
 import 'package:plentypay/features/finance/finance_screen.dart';
 import 'package:plentypay/features/finance/taxpayers_screen.dart';
 import 'package:plentypay/features/fiscal/fiscal_data.dart';
@@ -22,6 +23,22 @@ Map<String, Object> profile({String env = 'DEMO'}) => {
       'branch_code': '0000',
       'point_of_sale_code': '001',
       'pac_provider': 'simulator',
+    };
+
+Map<String, Object> pacProviders({bool prod = false}) => {
+      'providers': [
+        {
+          'id': 'simulator',
+          'display_name': 'Simulador de PlentyPay (sin validez fiscal)',
+          'environments': ['DEMO'],
+        },
+        {
+          'id': 'hka',
+          'display_name': 'The Factory HKA',
+          'environments': ['DEMO', if (prod) 'PROD'],
+          'credential_keys': ['token_empresa', 'token_password'],
+        },
+      ]
     };
 
 Map<String, Object> money(int v) => {'amount_minor': '$v', 'currency': 'USD'};
@@ -52,6 +69,11 @@ Map<String, Object> invoice(
       ],
       'issued_at': '2026-10-21T15:00:00Z',
     };
+
+/// El `TextField` de un `PPTextField` por su etiqueta.
+Finder inputOf(String label) => find.descendant(
+    of: find.widgetWithText(PPTextField, label),
+    matching: find.byType(TextField));
 
 Map<String, dynamic> body(http.Request r) =>
     jsonDecode(r.body) as Map<String, dynamic>;
@@ -202,12 +224,16 @@ void main() {
     final sheet = find.byType(TextField);
     await tester.enterText(sheet.at(1), '2588017-1-831938');
     await tester.enterText(sheet.at(3), 'Distribuidora, S.A.');
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Guardar'));
     await tester.pumpAndSettle();
     expect(find.text('Revisa el RUC y el DV: el DV son 2 dígitos.'),
         findsOneWidget);
     expect(calls.where((r) => r.method == 'PUT'), isEmpty);
     await tester.enterText(find.byType(TextField).at(2), '20');
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Guardar'));
     await tester.pumpAndSettle();
     final put = calls.firstWhere((r) => r.method == 'PUT');
@@ -216,7 +242,7 @@ void main() {
   });
 
   testWidgets(
-      'S-FIN-09: el emisor sale del negocio y Producción está deshabilitada (Q-11)',
+      'S-FIN-09: el emisor sale del negocio y Producción está deshabilitada (ADR 0022)',
       (tester) async {
     final calls = <http.Request>[];
     final api = fakeApi({
@@ -233,6 +259,7 @@ void main() {
             'dv': '20'
           }),
       'GET /v1/fiscal/profile': (_) => gatewayError(409, 'PROFILE_MISSING'),
+      'GET /v1/fiscal/pac-providers': (_) => json(pacProviders()),
       'PUT /v1/fiscal/profile': (_) => json(profile()),
     }, calls: calls);
     await tester.pumpWidget(harness(FiscalProfileScreen(api: api)));
@@ -240,7 +267,10 @@ void main() {
     expect(find.text('Café La Esquina, S.A.'), findsOneWidget);
     expect(find.text('RUC 2588017-1-831938 · DV 20'), findsOneWidget);
     expect(find.text('Simulador (pruebas)'), findsOneWidget);
-    expect(find.text('Disponible cuando se contrate el PAC.'), findsOneWidget);
+    expect(find.text('Producción se habilita tras la validación legal.'),
+        findsOneWidget);
+    expect(find.text('Credenciales del PAC'), findsNothing,
+        reason: 'el simulador no usa credenciales');
     expect(find.textContaining('36,000'), findsNothing,
         reason: 'AGENTS.md §2.13: ningún tope legal en el código');
     await tester.ensureVisible(find.text('Guardar'));
@@ -250,6 +280,113 @@ void main() {
     final put = calls.firstWhere((r) => r.method == 'PUT');
     expect((body(put)['profile'] as Map)['environment'], 'DEMO');
     expect((body(put)['profile'] as Map)['pac_provider'], 'simulator');
+    expect(body(put).containsKey('pac_credentials'), isFalse);
+  });
+
+  testWidgets(
+      'S-FIN-09 e2/e3 (ADR 0022): con HKA se piden sus credenciales y viajan una sola vez',
+      (tester) async {
+    final calls = <http.Request>[];
+    final api = fakeApi({
+      'GET /v1/me': (_) => json({
+            'valid': true,
+            'user_id': 'u',
+            'tenant_id': tenantId,
+            'role': 'BUSINESS_OWNER'
+          }),
+      'GET /v1/business/$tenantId': (_) => json({
+            'tenant_id': tenantId,
+            'legal_name': 'Café La Esquina, S.A.',
+            'tax_id': '2588017-1-831938',
+            'dv': '20'
+          }),
+      'GET /v1/fiscal/profile': (_) => gatewayError(409, 'PROFILE_MISSING'),
+      'GET /v1/fiscal/pac-providers': (_) => json(pacProviders()),
+      'PUT /v1/fiscal/profile': (_) => json({
+            ...profile(),
+            'pac_provider': 'hka',
+            'credentials_configured': true
+          }),
+    }, calls: calls);
+    await tester.pumpWidget(harness(FiscalProfileScreen(api: api)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Simulador (pruebas)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('The Factory HKA').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Credenciales del PAC'), findsOneWidget);
+    expect(find.text('Token de empresa'), findsOneWidget);
+    expect(find.text('Contraseña del token'), findsOneWidget);
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Guardar'));
+    await tester.pumpAndSettle();
+    expect(calls.where((r) => r.method == 'PUT'), isEmpty,
+        reason: 'sin credenciales no se envía');
+    final fields = find.byType(TextField);
+    await tester.enterText(inputOf('Token de empresa'), 'emp-123');
+    await tester.enterText(inputOf('Contraseña del token'), 'pass-456');
+    expect(fields, findsWidgets);
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.tap(find.text('Guardar'));
+    await tester.pumpAndSettle();
+    final put = calls.firstWhere((r) => r.method == 'PUT');
+    expect((body(put)['profile'] as Map)['pac_provider'], 'hka');
+    final creds = jsonDecode(
+            utf8.decode(base64Decode(body(put)['pac_credentials'] as String)))
+        as Map<String, dynamic>;
+    expect(creds, {'token_empresa': 'emp-123', 'token_password': 'pass-456'});
+  });
+
+  testWidgets('S-FIN-08 (ADR 0022): una entidad del Estado exige dirección',
+      (tester) async {
+    final calls = <http.Request>[];
+    final api = fakeApi({
+      'GET /v1/fiscal/taxpayers': (_) => json({
+            'taxpayers': [],
+            'page': {'next_page_token': ''}
+          }),
+      'PUT /v1/fiscal/taxpayers': (r) => json({
+            'taxpayer_id': 't1',
+            ...(body(r)['taxpayer'] as Map<String, dynamic>)
+                .cast<String, Object>(),
+          }),
+    }, calls: calls);
+    await tester.pumpWidget(harness(TaxpayersScreen(api: api)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Agregar cliente'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('RUC persona jurídica'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Entidad del Estado').last);
+    await tester.pumpAndSettle();
+    Finder input(String label) => inputOf(label);
+    await tester.enterText(input('RUC o identificación'), '1234567-1-123456');
+    await tester.enterText(input('DV'), '01');
+    await tester.enterText(input('Nombre o razón social'), 'Ministerio');
+    await tester.enterText(
+        input('Provincia-distrito-corregimiento (opcional)'), 'Panamá');
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.tap(find.text('Guardar'));
+    await tester.pumpAndSettle();
+    expect(calls.where((r) => r.method == 'PUT'), isEmpty);
+    expect(
+        find.text(
+            'Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7.'),
+        findsOneWidget);
+    expect(find.text('Este campo es obligatorio.'), findsWidgets,
+        reason: 'la dirección es obligatoria para una entidad del Estado');
+    await tester.enterText(input('Dirección'), 'Avenida Perú, Calidonia');
+    await tester.enterText(
+        input('Provincia-distrito-corregimiento (opcional)'), '8-8-7');
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.tap(find.text('Guardar'));
+    await tester.pumpAndSettle();
+    final put = calls.firstWhere((r) => r.method == 'PUT');
+    final t = body(put)['taxpayer'] as Map;
+    expect(t['tax_id_type'], 'GOBIERNO');
+    expect((t['address'] as Map)['line1'], 'Avenida Perú, Calidonia');
+    expect(t['location_code'], '8-8-7');
   });
 
   testWidgets(
@@ -319,6 +456,7 @@ void main() {
               'dv': '20'
             }),
         'GET /v1/fiscal/profile': (_) => json(profile()),
+        'GET /v1/fiscal/pac-providers': (_) => json(pacProviders()),
         'GET /v1/fiscal/folios': (_) => json({'remaining': '-1'}),
       });
       await pumpAt(tester, screen(api));

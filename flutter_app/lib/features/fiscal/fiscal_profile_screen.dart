@@ -24,18 +24,23 @@ class _Loaded {
   const _Loaded(
       {required this.issuer,
       required this.profile,
-      required this.foliosRemaining});
+      required this.providers,
+      required this.foliosRemaining,
+      required this.pacRemaining});
   final _Issuer issuer;
   final FiscalProfileItem? profile;
+  final List<PacProviderItem> providers;
   final int? foliosRemaining; // -1 = sin tope; null = sin perfil
+  final int pacRemaining; // -1 = el PAC no lo informa
 }
 
 /// S-FIN-09 · `/finance/fiscal-profile` · Perfil fiscal. `fiscal:profile:manage` · 🔒.
 ///
-/// e1 emisor (identity, solo lectura) · e2 PAC: hoy solo el simulador (Q-11) · e3 credenciales: no se
-/// muestran con el simulador · e4 ambiente: Producción deshabilitada (`PAC_NOT_CONFIGURED`) · e5 qué
-/// documento emitir · e6 folios · e8 Guardar con S-GEN-21 (`security.credentials.update`). e7 queda
-/// pendiente: sus topes son valores legales que deben leerse de `legal.pa.*` (AGENTS.md §2.13).
+/// e1 emisor (identity, solo lectura) · e2 PAC de `/v1/fiscal/pac-providers` (ADR 0022) · e3 un campo
+/// por credencial que pide el PAC; guardadas, solo «Configurado» · e4 ambiente: Producción solo si el
+/// PAC la ofrece, con C-05 · e5 qué documento emitir · e6 folios propios y del PAC · e8 Guardar con
+/// S-GEN-21 (`security.credentials.update`). e7 queda pendiente: sus topes son valores legales que
+/// deben leerse de `legal.pa.*` (AGENTS.md §2.13).
 class FiscalProfileScreen extends StatefulWidget {
   const FiscalProfileScreen({super.key, required this.api});
   final ApiClient api;
@@ -52,6 +57,12 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
   // Una clave por formulario abierto: un reintento no consume otra confirmación (C-07).
   String _key = newRequestId();
   String _preference = 'CHECKOUT_PREFERENCE_ALWAYS_FISCAL';
+  String _provider = 'simulator';
+  String _environment = 'DEMO';
+  // Credenciales del PAC: se escriben, se envían una vez y no se vuelven a mostrar.
+  final Map<String, TextEditingController> _creds = {};
+  bool _changeCreds = false;
+  String? _credsError;
   bool _filled = false;
   bool _saving = false;
   String? _error;
@@ -61,10 +72,13 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
     final me = await widget.api.me();
     final tenant = await widget.api.getTenant(me.tenantId);
     final profile = await loadFiscalProfile(widget.api);
+    final providers = await loadPacProviders(widget.api);
     int? folios;
+    var pacFolios = -1;
     if (profile != null) {
       final status = await widget.api.getFolioStatus();
       folios = int.tryParse('${status['remaining'] ?? -1}') ?? -1;
+      pacFolios = int.tryParse('${status['pac_remaining'] ?? -1}') ?? -1;
     }
     return _Loaded(
       issuer: _Issuer(
@@ -72,13 +86,36 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
           ruc: tenant['tax_id'] as String? ?? '',
           dv: tenant['dv'] as String? ?? ''),
       profile: profile,
+      providers: providers,
       foliosRemaining: folios,
+      pacRemaining: pacFolios,
     );
   }
+
+  PacProviderItem? _selected(List<PacProviderItem> providers) {
+    for (final p in providers) {
+      if (p.id == _provider) return p;
+    }
+    return null;
+  }
+
+  TextEditingController _cred(String key) =>
+      _creds.putIfAbsent(key, TextEditingController.new);
+
+  /// Las credenciales se piden si el PAC las usa y no hay unas guardadas para ese mismo PAC.
+  bool _askCreds(PacProviderItem? pac, FiscalProfileItem? profile) =>
+      pac != null &&
+      pac.needsCredentials &&
+      (_changeCreds ||
+          profile == null ||
+          !profile.credentialsConfigured ||
+          profile.pacProvider != pac.id);
 
   void _fill(FiscalProfileItem? p) {
     if (_filled || p == null) return;
     _filled = true;
+    _provider = p.pacProvider;
+    _environment = p.environment;
     _preference = p.checkoutPreference;
     _branch.text = p.branchCode;
     _pos.text = p.pointOfSaleCode;
@@ -92,11 +129,47 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
     _threshold.dispose();
     _branch.dispose();
     _pos.dispose();
+    for (final c in _creds.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _save() async {
+  /// C-05: pasar a Producción da validez fiscal a las facturas.
+  Future<void> _chooseEnvironment(String env) async {
+    if (env == 'PROD' && _environment != 'PROD') {
+      final l10n = AppLocalizations.of(context);
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          content: Text(l10n.fiscalProdConfirm),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.actionCancel)),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.fiscalEnvProd)),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    setState(() => _environment = env);
+  }
+
+  Future<void> _save(_Loaded data) async {
     final l10n = AppLocalizations.of(context);
+    final pac = _selected(data.providers);
+    Map<String, String>? credentials;
+    if (_askCreds(pac, data.profile)) {
+      credentials = {
+        for (final k in pac!.credentialKeys) k: _cred(k).text.trim()
+      };
+      final missing = credentials.values.any((v) => v.isEmpty);
+      setState(() => _credsError = missing ? l10n.fiscalFieldRequired : null);
+      if (missing) return;
+    }
     int? threshold;
     if (_preference == 'CHECKOUT_PREFERENCE_AUTO_THRESHOLD') {
       threshold = MoneyText.parse(_threshold.text);
@@ -117,18 +190,26 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
           operation: 'security.credentials.update',
           title: l10n.fiscalProfileTitle,
           run: (token) => widget.api.configureFiscalProfile({
-                'environment': 'DEMO',
-                'pac_provider': 'simulator',
+                'environment':
+                    pac != null && pac.offersProduction ? _environment : 'DEMO',
+                'pac_provider': _provider,
                 'checkout_preference': _preference,
                 if (threshold != null) 'auto_threshold_minor': '$threshold',
                 'branch_code': _branch.text.trim(),
                 'point_of_sale_code': _pos.text.trim(),
-              }, idempotencyKey: _key, stepUpToken: token));
+              },
+                  idempotencyKey: _key,
+                  stepUpToken: token,
+                  pacCredentials: credentials));
       if (saved == null || !mounted) return;
       messenger.showSnackBar(SnackBar(content: Text(l10n.fiscalProfileSaved)));
       setState(() {
         _key = newRequestId();
         _filled = false;
+        _changeCreds = false;
+        for (final c in _creds.values) {
+          c.clear();
+        }
         _future = _load();
       });
     } on Object catch (e) {
@@ -136,6 +217,40 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// e3: un campo por credencial del PAC elegido; guardadas, solo «Configurado».
+  List<Widget> _credentials(
+      _Loaded data, ThemeData theme, AppLocalizations l10n) {
+    final pac = _selected(data.providers);
+    if (pac == null || !pac.needsCredentials) return const [];
+    if (!_askCreds(pac, data.profile)) {
+      return [
+        const SizedBox(height: AppTokens.spacingSm),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.verified_user_outlined),
+          title: Text(l10n.fiscalPacCredentials),
+          subtitle: Text(l10n.fiscalPacConfigured),
+          trailing: TextButton(
+              onPressed: () => setState(() => _changeCreds = true),
+              child: Text(l10n.fiscalPacChangeCredentials)),
+        ),
+      ];
+    }
+    return [
+      const SizedBox(height: AppTokens.spacingMd),
+      Text(l10n.fiscalPacCredentials, style: theme.textTheme.titleSmall),
+      for (final k in pac.credentialKeys) ...[
+        const SizedBox(height: AppTokens.spacingSm),
+        PPTextField(
+          controller: _cred(k),
+          labelText: pacCredentialLabel(l10n, k),
+          obscureText: pacCredentialIsSecret(k),
+          error: _cred(k).text.trim().isEmpty ? _credsError : null,
+        ),
+      ],
+    ];
   }
 
   @override
@@ -203,10 +318,26 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
                       ]),
                       const SizedBox(height: AppTokens.spacingLg),
                       // e2 PAC
-                      Text(l10n.fiscalPac, style: theme.textTheme.titleSmall),
-                      const SizedBox(height: AppTokens.spacingXs),
-                      Text(l10n.fiscalPacSimulator,
-                          style: theme.textTheme.bodyLarge),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selected(data.providers)?.id,
+                        isExpanded: true,
+                        decoration: InputDecoration(labelText: l10n.fiscalPac),
+                        items: [
+                          for (final p in data.providers)
+                            DropdownMenuItem(
+                                value: p.id,
+                                child: Text(pacProviderLabel(l10n, p))),
+                        ],
+                        onChanged: (v) => setState(() {
+                          _provider = v ?? _provider;
+                          final pac = _selected(data.providers);
+                          if (pac == null || !pac.offersProduction) {
+                            _environment = 'DEMO';
+                          }
+                        }),
+                      ),
+                      // e3 credenciales del PAC
+                      ..._credentials(data, theme, l10n),
                       const SizedBox(height: AppTokens.spacingLg),
                       // e4 ambiente
                       Text(l10n.fiscalEnvironment,
@@ -219,14 +350,19 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
                           ButtonSegment(
                               value: 'PROD',
                               label: Text(l10n.fiscalEnvProd),
-                              enabled: false),
+                              enabled:
+                                  _selected(data.providers)?.offersProduction ??
+                                      false),
                         ],
-                        selected: const {'DEMO'},
-                        onSelectionChanged: (_) {},
+                        selected: {_environment},
+                        onSelectionChanged: (v) => _chooseEnvironment(v.first),
                       ),
-                      const SizedBox(height: AppTokens.spacingXs),
-                      Text(l10n.fiscalProdUnavailable,
-                          style: theme.textTheme.bodySmall),
+                      if (!(_selected(data.providers)?.offersProduction ??
+                          false)) ...[
+                        const SizedBox(height: AppTokens.spacingXs),
+                        Text(l10n.fiscalProdUnavailable,
+                            style: theme.textTheme.bodySmall),
+                      ],
                       const SizedBox(height: AppTokens.spacingLg),
                       // e5 qué documento emitir
                       Text(l10n.fiscalPreference,
@@ -278,6 +414,9 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
                               : l10n.fiscalFolios(data.foliosRemaining!),
                           style: theme.textTheme.bodyLarge,
                         ),
+                        if (data.pacRemaining >= 0)
+                          Text(l10n.fiscalPacFolios(data.pacRemaining),
+                              style: theme.textTheme.bodyMedium),
                       ],
                       if (_error != null) ...[
                         const SizedBox(height: AppTokens.spacingMd),
@@ -287,7 +426,7 @@ class _FiscalProfileScreenState extends State<FiscalProfileScreen> {
                       const SizedBox(height: AppTokens.spacingLg),
                       PPButton.primary(
                           label: l10n.actionSave,
-                          onPressed: _saving ? null : _save),
+                          onPressed: _saving ? null : () => _save(data)),
                     ]);
               },
             ),

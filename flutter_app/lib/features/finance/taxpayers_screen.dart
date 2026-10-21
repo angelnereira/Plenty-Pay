@@ -153,13 +153,20 @@ class _TaxpayerSheetState extends State<_TaxpayerSheet> {
   late final _name =
       TextEditingController(text: widget.current?.legalName ?? '');
   late final _email = TextEditingController(text: widget.current?.email ?? '');
+  late final _address =
+      TextEditingController(text: widget.current?.address ?? '');
+  late final _location =
+      TextEditingController(text: widget.current?.locationCode ?? '');
   final String _key = newRequestId();
   bool _saving = false;
   String? _error;
   String? _dvError;
   String? _required;
+  String? _addressError;
+  String? _locationError;
 
-  bool get _isRuc => _type == 'RUC_JURIDICO' || _type == 'RUC_NATURAL';
+  bool get _isRuc =>
+      _type == 'RUC_JURIDICO' || _type == 'RUC_NATURAL' || _type == 'GOBIERNO';
 
   @override
   void dispose() {
@@ -167,6 +174,8 @@ class _TaxpayerSheetState extends State<_TaxpayerSheet> {
     _dv.dispose();
     _name.dispose();
     _email.dispose();
+    _address.dispose();
+    _location.dispose();
     super.dispose();
   }
 
@@ -179,8 +188,25 @@ class _TaxpayerSheetState extends State<_TaxpayerSheet> {
       _dvError = _isRuc && !RegExp(r'^\d{2}$').hasMatch(_dv.text.trim())
           ? l10n.error_INVALID_RUC
           : null;
+      // ADR 0022: dirección de 5 a 100 caracteres; obligatoria para una entidad del Estado.
+      final address = _address.text.trim().length;
+      _addressError = (address == 0 && _type == 'GOBIERNO')
+          ? l10n.fiscalFieldRequired
+          : (address != 0 && (address < 5 || address > 100))
+              ? l10n.fiscalAddressInvalid
+              : null;
+      final location = _location.text.trim();
+      _locationError =
+          location.isNotEmpty && !locationCodePattern.hasMatch(location)
+              ? l10n.fiscalLocationInvalid
+              : null;
     });
-    if (_required != null || _dvError != null) return;
+    if (_required != null ||
+        _dvError != null ||
+        _addressError != null ||
+        _locationError != null) {
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -192,7 +218,9 @@ class _TaxpayerSheetState extends State<_TaxpayerSheet> {
           taxIdType: _type,
           checkDigit: _isRuc ? _dv.text.trim() : '',
           legalName: _name.text.trim(),
-          email: _email.text.trim());
+          email: _email.text.trim(),
+          address: _address.text.trim(),
+          locationCode: _location.text.trim());
       final saved = TaxpayerItem.fromJson(
           await widget.api.upsertTaxpayer(item.toJson(), idempotencyKey: _key));
       if (!mounted) return;
@@ -262,6 +290,21 @@ class _TaxpayerSheetState extends State<_TaxpayerSheet> {
                   controller: _email,
                   labelText: l10n.fiscalEmail,
                   keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: AppTokens.spacingSm),
+              PPTextField(
+                  controller: _address,
+                  labelText: _type == 'GOBIERNO'
+                      ? l10n.fiscalAddress
+                      : l10n.fiscalAddressOptional,
+                  helperText: _isRuc ? l10n.fiscalAddressHelp : null,
+                  error: _addressError),
+              const SizedBox(height: AppTokens.spacingSm),
+              PPTextField(
+                  controller: _location,
+                  labelText: l10n.fiscalLocation,
+                  hint: '8-8-7',
+                  keyboardType: TextInputType.text,
+                  error: _locationError),
               if (_error != null) ...[
                 const SizedBox(height: AppTokens.spacingSm),
                 Text(_error!, style: TextStyle(color: theme.colorScheme.error)),

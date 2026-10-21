@@ -60,14 +60,16 @@ class StepUpChallenge {
 
 /// Estado del PIN de confirmación (identity.StepUpPinStatus).
 class StepUpPinStatus {
-  StepUpPinStatus({required this.isSet, required this.attemptsRemaining, this.lockedUntil});
+  StepUpPinStatus(
+      {required this.isSet, required this.attemptsRemaining, this.lockedUntil});
 
   factory StepUpPinStatus.fromJson(Map<String, dynamic> j) {
     final locked = j['locked_until'] as String?;
     return StepUpPinStatus(
       isSet: j['is_set'] == true,
       attemptsRemaining: (j['attempts_remaining'] as num?)?.toInt() ?? 0,
-      lockedUntil: locked == null || locked.isEmpty ? null : DateTime.tryParse(locked),
+      lockedUntil:
+          locked == null || locked.isEmpty ? null : DateTime.tryParse(locked),
     );
   }
 
@@ -484,18 +486,33 @@ class ApiClient {
 
   Future<Map<String, dynamic>> getFiscalProfile() => _get('/v1/fiscal/profile');
 
-  /// 🔒 `security.credentials.update`: sin token responde STEP_UP_REQUIRED.
-  Future<Map<String, dynamic>> configureFiscalProfile(Map<String, Object?> profile,
-          {required String idempotencyKey, String? stepUpToken}) =>
+  /// 🔒 `security.credentials.update`: sin token responde STEP_UP_REQUIRED. Las credenciales del
+  /// PAC viajan una sola vez (bytes del contrato = JSON en base64) y van a security (ADR 0022).
+  Future<Map<String, dynamic>> configureFiscalProfile(
+          Map<String, Object?> profile,
+          {required String idempotencyKey,
+          String? stepUpToken,
+          Map<String, String>? pacCredentials}) =>
       _put('/v1/fiscal/profile',
-          data: {'profile': profile},
+          data: {
+            'profile': profile,
+            if (pacCredentials != null)
+              'pac_credentials':
+                  base64Encode(utf8.encode(jsonEncode(pacCredentials))),
+          },
           headers: _stepUpHeaders(stepUpToken),
           idempotencyKey: idempotencyKey);
+
+  /// Adaptadores de PAC elegibles en el perfil fiscal (ADR 0022).
+  Future<Map<String, dynamic>> listPacProviders() =>
+      _get('/v1/fiscal/pac-providers');
 
   Future<Map<String, dynamic>> getFolioStatus() => _get('/v1/fiscal/folios');
 
   Future<Map<String, dynamic>> listInvoices(
-          {String status = '', String documentType = '', String pageToken = ''}) =>
+          {String status = '',
+          String documentType = '',
+          String pageToken = ''}) =>
       _get('/v1/fiscal/invoices', queryParameters: {
         if (status.isNotEmpty) 'status': status,
         if (documentType.isNotEmpty) 'document_type': documentType,
@@ -520,7 +537,8 @@ class ApiClient {
           data: body,
           idempotencyKey: idempotencyKey);
 
-  Future<Map<String, dynamic>> searchTaxpayers(String query, {String pageToken = ''}) =>
+  Future<Map<String, dynamic>> searchTaxpayers(String query,
+          {String pageToken = ''}) =>
       _get('/v1/fiscal/taxpayers', queryParameters: {
         'q': query,
         if (pageToken.isNotEmpty) 'page_token': pageToken,

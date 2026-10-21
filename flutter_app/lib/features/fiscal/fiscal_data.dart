@@ -20,6 +20,8 @@ class TaxpayerItem {
     required this.checkDigit,
     required this.legalName,
     required this.email,
+    this.address = '',
+    this.locationCode = '',
   });
 
   factory TaxpayerItem.fromJson(Map<String, dynamic> j) => TaxpayerItem(
@@ -29,6 +31,9 @@ class TaxpayerItem {
         checkDigit: j['check_digit'] as String? ?? '',
         legalName: j['legal_name'] as String? ?? '',
         email: j['email'] as String? ?? '',
+        address:
+            (j['address'] as Map<String, dynamic>?)?['line1'] as String? ?? '',
+        locationCode: j['location_code'] as String? ?? '',
       );
 
   final String id;
@@ -38,7 +43,17 @@ class TaxpayerItem {
   final String legalName;
   final String email;
 
-  bool get isRuc => taxIdType == 'RUC_JURIDICO' || taxIdType == 'RUC_NATURAL';
+  /// Dirección (address.line1 del contrato, 5–100 caracteres; ADR 0022).
+  final String address;
+
+  /// Provincia-distrito-corregimiento de la DGI, p. ej. "8-8-7".
+  final String locationCode;
+
+  /// Lleva RUC + DV: persona jurídica, natural o entidad del Estado.
+  bool get isRuc =>
+      taxIdType == 'RUC_JURIDICO' ||
+      taxIdType == 'RUC_NATURAL' ||
+      taxIdType == 'GOBIERNO';
 
   Map<String, Object?> toJson() => {
         'tax_id': taxId,
@@ -46,13 +61,19 @@ class TaxpayerItem {
         'check_digit': checkDigit,
         'legal_name': legalName,
         'email': email,
+        if (address.isNotEmpty) 'address': {'line1': address, 'country': 'PA'},
+        if (locationCode.isNotEmpty) 'location_code': locationCode,
       };
 }
+
+/// Código de ubicación de la DGI: provincia-distrito-corregimiento.
+final locationCodePattern = RegExp(r'^\d{1,2}-\d{1,2}-\d{1,2}$');
 
 /// Tipos de identificación del contrato (Taxpayer.tax_id_type), en el orden del formulario.
 const taxIdTypes = [
   'RUC_JURIDICO',
   'RUC_NATURAL',
+  'GOBIERNO',
   'CEDULA',
   'PASAPORTE',
   'EXTRANJERO'
@@ -63,6 +84,7 @@ String taxIdTypeLabel(AppLocalizations l10n, String t) => switch (t) {
       'RUC_NATURAL' => l10n.fiscalIdRucNatural,
       'CEDULA' => l10n.fiscalIdCedula,
       'PASAPORTE' => l10n.fiscalIdPasaporte,
+      'GOBIERNO' => l10n.fiscalIdGobierno,
       _ => l10n.fiscalIdExtranjero,
     };
 
@@ -217,6 +239,7 @@ class FiscalProfileItem {
     required this.branchCode,
     required this.pointOfSaleCode,
     required this.pacProvider,
+    this.credentialsConfigured = false,
   });
 
   factory FiscalProfileItem.fromJson(Map<String, dynamic> j) =>
@@ -228,6 +251,7 @@ class FiscalProfileItem {
         branchCode: j['branch_code'] as String? ?? '0000',
         pointOfSaleCode: j['point_of_sale_code'] as String? ?? '001',
         pacProvider: j['pac_provider'] as String? ?? 'simulator',
+        credentialsConfigured: j['credentials_configured'] as bool? ?? false,
       );
 
   final String environment;
@@ -237,7 +261,65 @@ class FiscalProfileItem {
   final String pointOfSaleCode;
   final String pacProvider;
 
+  /// Hay credenciales del PAC guardadas en security (nunca se devuelven).
+  final bool credentialsConfigured;
+
   bool get isDemo => environment != 'PROD';
+}
+
+/// Adaptador de PAC elegible (fiscal.PacProvider, ADR 0022).
+class PacProviderItem {
+  const PacProviderItem({
+    required this.id,
+    required this.displayName,
+    required this.environments,
+    required this.credentialKeys,
+  });
+
+  factory PacProviderItem.fromJson(Map<String, dynamic> j) => PacProviderItem(
+        id: j['id'] as String? ?? '',
+        displayName: j['display_name'] as String? ?? '',
+        environments: [
+          for (final e in (j['environments'] as List<dynamic>? ?? const []))
+            '$e'
+        ],
+        credentialKeys: [
+          for (final k in (j['credential_keys'] as List<dynamic>? ?? const []))
+            '$k'
+        ],
+      );
+
+  final String id;
+  final String displayName;
+  final List<String> environments;
+  final List<String> credentialKeys;
+
+  bool get offersProduction => environments.contains('PROD');
+  bool get needsCredentials => credentialKeys.isNotEmpty;
+}
+
+/// Nombre del adaptador para la persona: el simulador se traduce; un PAC real es nombre propio.
+String pacProviderLabel(AppLocalizations l10n, PacProviderItem p) =>
+    p.id == 'simulator' ? l10n.fiscalPacSimulator : p.displayName;
+
+/// Etiqueta de cada credencial que pide un PAC; una clave desconocida se muestra tal cual.
+String pacCredentialLabel(AppLocalizations l10n, String key) => switch (key) {
+      'token_empresa' => l10n.fiscalPacTokenEmpresa,
+      'token_password' => l10n.fiscalPacTokenPassword,
+      _ => key,
+    };
+
+/// Las credenciales que son contraseñas se escriben ocultas.
+bool pacCredentialIsSecret(String key) =>
+    key.contains('password') || key.contains('secret');
+
+/// Adaptadores de PAC disponibles para el selector (S-FIN-09 e2).
+Future<List<PacProviderItem>> loadPacProviders(ApiClient api) async {
+  final j = await api.listPacProviders();
+  return [
+    for (final p in (j['providers'] as List<dynamic>? ?? const []))
+      PacProviderItem.fromJson(p as Map<String, dynamic>)
+  ];
 }
 
 /// Carga el perfil; null si el negocio aún no tiene (PROFILE_MISSING).

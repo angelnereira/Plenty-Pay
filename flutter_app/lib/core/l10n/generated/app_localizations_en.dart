@@ -3515,7 +3515,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_INVALID_RUC => 'Check the RUC and DV: the DV has 2 digits.';
 
   @override
-  String get error_INVALID_TAXPAYER => 'Check the tax customer details.';
+  String get error_INVALID_TAXPAYER =>
+      'Check the tax customer details: the address is missing or something is not valid.';
 
   @override
   String get error_TOTALS_MISMATCH =>
@@ -3523,7 +3524,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get error_PAC_NOT_CONFIGURED =>
-      'Production will be available once the invoicing provider is contracted.';
+      'Production is enabled after legal validation.';
 
   @override
   String get error_RELATED_NOT_ACCEPTED =>
@@ -3760,7 +3761,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiscalEnvProd => 'Production';
 
   @override
-  String get fiscalProdUnavailable => 'Available once the PAC is contracted.';
+  String get fiscalProdUnavailable =>
+      'Production is enabled after legal validation.';
 
   @override
   String get fiscalPreference => 'Which document to issue';
@@ -3797,4 +3799,49 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepUpOpCredentials => 'Set up electronic invoicing';
+
+  @override
+  String get fiscalIdGobierno => 'Government entity';
+
+  @override
+  String get fiscalPacTokenEmpresa => 'Company token';
+
+  @override
+  String get fiscalPacTokenPassword => 'Token password';
+
+  @override
+  String get fiscalPacCredentials => 'PAC credentials';
+
+  @override
+  String get fiscalPacConfigured => 'Configured';
+
+  @override
+  String get fiscalPacChangeCredentials => 'Change credentials';
+
+  @override
+  String get fiscalProdConfirm => 'Your invoices will have tax validity.';
+
+  @override
+  String fiscalPacFolios(int count) {
+    return 'In your PAC account: $count';
+  }
+
+  @override
+  String get fiscalAddress => 'Address';
+
+  @override
+  String get fiscalAddressOptional => 'Address (optional)';
+
+  @override
+  String get fiscalAddressHelp => 'The PAC requires it to invoice a RUC.';
+
+  @override
+  String get fiscalAddressInvalid => 'Enter 5 to 100 characters.';
+
+  @override
+  String get fiscalLocation => 'Province-district-township (optional)';
+
+  @override
+  String get fiscalLocationInvalid =>
+      'Use the province-district-township format, for example 8-8-7.';
 }

@@ -3518,7 +3518,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get error_INVALID_RUC => 'Revisa el RUC y el DV: el DV son 2 dígitos.';
 
   @override
-  String get error_INVALID_TAXPAYER => 'Revisa los datos del cliente fiscal.';
+  String get error_INVALID_TAXPAYER =>
+      'Revisa los datos del cliente fiscal: falta la dirección o algún dato no es válido.';
 
   @override
   String get error_TOTALS_MISMATCH =>
@@ -3526,7 +3527,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get error_PAC_NOT_CONFIGURED =>
-      'Producción estará disponible cuando se contrate el proveedor de facturación.';
+      'Producción se habilita tras la validación legal.';
 
   @override
   String get error_RELATED_NOT_ACCEPTED =>
@@ -3765,7 +3766,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get fiscalEnvProd => 'Producción';
 
   @override
-  String get fiscalProdUnavailable => 'Disponible cuando se contrate el PAC.';
+  String get fiscalProdUnavailable =>
+      'Producción se habilita tras la validación legal.';
 
   @override
   String get fiscalPreference => 'Qué documento emitir';
@@ -3802,6 +3804,51 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stepUpOpCredentials => 'Configurar la facturación electrónica';
+
+  @override
+  String get fiscalIdGobierno => 'Entidad del Estado';
+
+  @override
+  String get fiscalPacTokenEmpresa => 'Token de empresa';
+
+  @override
+  String get fiscalPacTokenPassword => 'Contraseña del token';
+
+  @override
+  String get fiscalPacCredentials => 'Credenciales del PAC';
+
+  @override
+  String get fiscalPacConfigured => 'Configurado';
+
+  @override
+  String get fiscalPacChangeCredentials => 'Cambiar credenciales';
+
+  @override
+  String get fiscalProdConfirm => 'Tus facturas tendrán validez fiscal.';
+
+  @override
+  String fiscalPacFolios(int count) {
+    return 'En tu cuenta del PAC: $count';
+  }
+
+  @override
+  String get fiscalAddress => 'Dirección';
+
+  @override
+  String get fiscalAddressOptional => 'Dirección (opcional)';
+
+  @override
+  String get fiscalAddressHelp => 'El PAC la exige para facturar a un RUC.';
+
+  @override
+  String get fiscalAddressInvalid => 'Escribe entre 5 y 100 caracteres.';
+
+  @override
+  String get fiscalLocation => 'Provincia-distrito-corregimiento (opcional)';
+
+  @override
+  String get fiscalLocationInvalid =>
+      'Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).
