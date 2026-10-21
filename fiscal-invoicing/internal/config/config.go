@@ -21,6 +21,12 @@ type Config struct {
 	SecurityAddr string
 	InfraAddr    string
 	CallTimeout  time.Duration
+
+	// PAC (ADR 0022). FiscalProdEnabled es el interruptor operativo de producción (F30.3).
+	FiscalProdEnabled bool
+	HKADemoEndpoint   string
+	HKAProdEndpoint   string
+	PACTimeout        time.Duration
 }
 
 func env(key, def string) string {
@@ -49,6 +55,20 @@ func Load() (Config, error) {
 		return c, fmt.Errorf("PP_CALL_TIMEOUT no es una duración válida")
 	}
 	c.CallTimeout = d
+	pt, err := time.ParseDuration(env("PP_PAC_TIMEOUT", "30s"))
+	if err != nil || pt <= 0 {
+		return c, fmt.Errorf("PP_PAC_TIMEOUT no es una duración válida")
+	}
+	c.PACTimeout = pt
+	switch v := env("FISCAL_PROD_ENABLED", "false"); v {
+	case "true":
+		c.FiscalProdEnabled = true
+	case "false":
+	default:
+		return c, fmt.Errorf("FISCAL_PROD_ENABLED debe ser true o false")
+	}
+	c.HKADemoEndpoint = os.Getenv("PP_HKA_DEMO_ENDPOINT") // vacío = el publicado por HKA
+	c.HKAProdEndpoint = os.Getenv("PP_HKA_PROD_ENDPOINT")
 	return c, nil
 }
 

@@ -52,9 +52,16 @@ type Invoice struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 
-	// Datos del emisor que viajan al PAC (vienen del perfil, no se guardan en la fila).
-	IssuerRUC string
-	IssuerDV  string
+	PacProvider string // adaptador con que se emitió (R10); las notas heredan el de su factura
+	BranchCode  string // sucursal del perfil al emitir
+
+	// Datos que viajan al PAC y no se guardan en la fila: emisor y credenciales (del perfil) y la
+	// factura que corrige una nota.
+	IssuerRUC         string
+	IssuerDV          string
+	CredentialsSecret string // nombre del secreto en security, nunca el valor
+	RelatedCUFE       string
+	RelatedCreatedAt  time.Time
 }
 
 // ValidateRequest revisa lo que manda quien emite, antes de calcular (SPEC §4 IssueInvoice).

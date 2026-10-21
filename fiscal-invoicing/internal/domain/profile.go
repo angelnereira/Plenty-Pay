@@ -12,8 +12,14 @@ const (
 	EnvProd = "PROD"
 )
 
-// ProviderSimulator es el único adaptador de PAC disponible mientras no se elija uno real (Q-11).
-const ProviderSimulator = "simulator"
+// Adaptadores de PAC (SPEC R10, ADR 0022).
+const (
+	ProviderSimulator = "simulator"
+	ProviderHKA       = "hka"
+)
+
+// Supports dice si un adaptador de PAC registrado atiende un entorno (lo arma el registro de pac).
+type Supports func(provider, environment string) bool
 
 // CheckoutPreference (domain-model §8.8; mismos números que el enum del contrato).
 const (
@@ -68,15 +74,16 @@ func ValidRUCFormat(ruc, dv string) bool {
 // ValidCedula aplica N-FMT-05.
 func ValidCedula(id string) bool { return cedulaRe.MatchString(strings.ToUpper(strings.TrimSpace(id))) }
 
-// Validate revisa el perfil antes de guardarlo (SPEC §4 ConfigureFiscalProfile, R9).
-func (p Profile) Validate() error {
+// Validate revisa el perfil antes de guardarlo (SPEC §4 ConfigureFiscalProfile, R9, R10).
+func (p Profile) Validate(supports Supports) error {
 	if !ValidRUCFormat(p.RUC, p.DV) {
 		return ErrInvalidRUC
 	}
 	if n := len([]rune(strings.TrimSpace(p.LegalName))); n == 0 || n > 200 {
 		return ErrInvalidRequest
 	}
-	if !branchRe.MatchString(p.BranchCode) || !posRe.MatchString(p.PointOfSaleCode) {
+	// La DGI no admite el punto de facturación 000.
+	if !branchRe.MatchString(p.BranchCode) || !posRe.MatchString(p.PointOfSaleCode) || p.PointOfSaleCode == "000" {
 		return ErrInvalidRequest
 	}
 	switch p.CheckoutPreference {
@@ -90,12 +97,14 @@ func (p Profile) Validate() error {
 	}
 	switch p.Environment {
 	case EnvDemo:
-		if p.PACProvider != ProviderSimulator {
+		if supports == nil || !supports(p.PACProvider, EnvDemo) {
 			return ErrInvalidRequest
 		}
 	case EnvProd:
-		// R9: producción exige un adaptador de PAC real; todavía no existe ninguno (Q-11).
-		return ErrPacNotConfigured
+		// R9: producción exige un PAC real habilitado por el operador (FISCAL_PROD_ENABLED).
+		if p.PACProvider == ProviderSimulator || supports == nil || !supports(p.PACProvider, EnvProd) {
+			return ErrPacNotConfigured
+		}
 	default:
 		return ErrInvalidRequest
 	}

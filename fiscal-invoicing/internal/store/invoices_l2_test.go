@@ -46,6 +46,8 @@ func (noSecrets) PutSecret(context.Context, string, string, []byte, string) (str
 	return "", nil
 }
 
+func (noSecrets) GetSecret(context.Context, string, string) ([]byte, error) { return nil, nil }
+
 type clock struct {
 	mu sync.Mutex
 	t  time.Time
@@ -58,8 +60,8 @@ func invoicing(t *testing.T, s *store.Store, r rates) (*service.Invoicing, *pac.
 	t.Helper()
 	sim := pac.NewSimulator()
 	c := &clock{t: time.Now().UTC().Truncate(time.Microsecond)}
-	base := service.New(s, noIdentity{}, noSecrets{}, c.now, func() string { return uuid.Must(uuid.NewV7()).String() })
-	return service.NewInvoicing(base, s, r, map[string]pac.Client{domain.ProviderSimulator: sim}, nil, nil), sim, c
+	base := service.New(s, noIdentity{}, noSecrets{}, pac.NewRegistry(sim), c.now, func() string { return uuid.Must(uuid.NewV7()).String() })
+	return service.NewInvoicing(base, s, r, nil, nil), sim, c
 }
 
 func cashier(tenant string) context.Context {

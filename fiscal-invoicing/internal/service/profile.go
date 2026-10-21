@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"plentypay/fiscal-invoicing/internal/client"
 	"plentypay/fiscal-invoicing/internal/domain"
 	"plentypay/fiscal-invoicing/internal/observability"
+	"plentypay/fiscal-invoicing/internal/pac"
 	"plentypay/fiscal-invoicing/internal/store"
 	"plentypay/fiscal-invoicing/internal/tenancy"
 )
@@ -35,9 +37,10 @@ type IdentityAPI interface {
 	ConsumeStepUp(ctx context.Context, requestID, token, userID, operation string) (string, error)
 }
 
-// SecretsAPI guarda las credenciales del PAC en security.
+// SecretsAPI guarda y lee las credenciales del PAC en security.
 type SecretsAPI interface {
 	PutSecret(ctx context.Context, requestID, name string, value []byte, idempotencyKey string) (string, error)
+	GetSecret(ctx context.Context, requestID, name string) ([]byte, error)
 }
 
 // Store es lo que el servicio necesita de la persistencia.
@@ -54,13 +57,14 @@ type Service struct {
 	store    Store
 	identity IdentityAPI
 	secrets  SecretsAPI
+	pacs     *pac.Registry // selector de PAC (R10, ADR 0022)
 	now      func() time.Time
 	newID    func() string
 }
 
 // New arma el servicio.
-func New(st Store, identity IdentityAPI, secrets SecretsAPI, now func() time.Time, newID func() string) *Service {
-	return &Service{store: st, identity: identity, secrets: secrets, now: now, newID: newID}
+func New(st Store, identity IdentityAPI, secrets SecretsAPI, pacs *pac.Registry, now func() time.Time, newID func() string) *Service {
+	return &Service{store: st, identity: identity, secrets: secrets, pacs: pacs, now: now, newID: newID}
 }
 
 // actorWith exige un negocio y alguno de los permisos (deny-by-default). Un servicio interno (pos,
@@ -108,9 +112,12 @@ func (s *Service) ConfigureProfile(ctx context.Context, in ConfigureInput) (doma
 	if n := len(key); n < 16 || n > 100 {
 		return domain.Profile{}, domain.ErrInvalidRequest
 	}
-	if prev, err := s.store.GetProfile(ctx, a.TenantID); err == nil && prev.IdempotencyKey == key {
+	prev, err := s.store.GetProfile(ctx, a.TenantID)
+	hasPrev := err == nil
+	switch {
+	case hasPrev && prev.IdempotencyKey == key:
 		return prev, nil // reintento de la misma configuración: no consume otro step-up
-	} else if err != nil && !errors.Is(err, domain.ErrProfileMissing) {
+	case err != nil && !errors.Is(err, domain.ErrProfileMissing):
 		return domain.Profile{}, observability.Wrap(err, "load fiscal profile")
 	}
 	legal, err := s.identity.TenantLegal(ctx, a.RequestID, a.TenantID)
@@ -131,8 +138,19 @@ func (s *Service) ConfigureProfile(ctx context.Context, in ConfigureInput) (doma
 		CheckoutPreference: in.CheckoutPreference, AutoThresholdMinor: in.AutoThresholdMinor,
 		Environment: in.Environment, IdempotencyKey: key, UpdatedAt: s.now(),
 	}
-	if err := p.Validate(); err != nil {
+	if err := p.Validate(s.pacs.Supports); err != nil {
 		return domain.Profile{}, err
+	}
+	// R10: el adaptador elegido dice qué credenciales pide. Se revisan antes de gastar el step-up.
+	keys := s.pacs.Get(provider).Info().CredentialKeys
+	if len(keys) == 0 {
+		in.PACCredentials = nil // el simulador no usa credenciales: no se guardan
+	} else if len(in.PACCredentials) > 0 {
+		if err := checkCredentials(in.PACCredentials, keys); err != nil {
+			return domain.Profile{}, err
+		}
+	} else if !hasPrev || prev.PACCredentialsSecret == "" || prev.PACProvider != provider {
+		return domain.Profile{}, fmt.Errorf("%w: el PAC %s pide credenciales", domain.ErrInvalidRequest, provider)
 	}
 	token := tenancy.StepUpToken(ctx)
 	if token == "" {
@@ -154,7 +172,7 @@ func (s *Service) ConfigureProfile(ctx context.Context, in ConfigureInput) (doma
 			return domain.Profile{}, fmt.Errorf("%w: %v", domain.ErrDependency, err)
 		}
 		p.PACCredentialsSecret = name
-	} else if prev, err := s.store.GetProfile(ctx, a.TenantID); err == nil {
+	} else if hasPrev && len(keys) > 0 {
 		p.PACCredentialsSecret = prev.PACCredentialsSecret
 	}
 	out, err := s.store.UpsertProfile(ctx, p)
@@ -175,6 +193,29 @@ func (s *Service) GetProfile(ctx context.Context) (domain.Profile, error) {
 		return p, observability.Wrap(err, "load fiscal profile")
 	}
 	return p, err
+}
+
+// checkCredentials exige un objeto JSON con exactamente las claves del adaptador, todas con valor.
+// El contenido nunca se registra (AGENTS.md §2.16).
+func checkCredentials(raw []byte, keys []string) error {
+	var m map[string]string
+	if len(raw) > 4096 || json.Unmarshal(raw, &m) != nil || len(m) != len(keys) {
+		return fmt.Errorf("%w: credenciales del PAC ilegibles", domain.ErrInvalidRequest)
+	}
+	for _, k := range keys {
+		if v := strings.TrimSpace(m[k]); v == "" || len(v) > 512 {
+			return fmt.Errorf("%w: falta la credencial %s", domain.ErrInvalidRequest, k)
+		}
+	}
+	return nil
+}
+
+// ListPacProviders describe los adaptadores elegibles para el selector (R10).
+func (s *Service) ListPacProviders(ctx context.Context) ([]pac.Info, error) {
+	if _, err := actorWith(ctx, PermProfileManage, PermRead); err != nil {
+		return nil, err
+	}
+	return s.pacs.List(), nil
 }
 
 // FolioStatus devuelve los folios restantes del punto de facturación del perfil.

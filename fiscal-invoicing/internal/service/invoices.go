@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"plentypay/fiscal-invoicing/internal/pac"
 	"plentypay/fiscal-invoicing/internal/pb"
 	"plentypay/fiscal-invoicing/internal/store"
+	"plentypay/fiscal-invoicing/internal/tenancy"
 )
 
 // RatesAPI da las tasas legal.pa.itbms.* vigentes (infra-management).
@@ -40,15 +43,35 @@ type Invoicing struct {
 	*Service
 	invoices InvoiceStore
 	rates    RatesAPI
-	pacs     map[string]pac.Client // por proveedor (R10)
 	metrics  *observability.Metrics
 	reporter *observability.Reporter
 }
 
-// NewInvoicing arma la emisión sobre el servicio base.
-func NewInvoicing(base *Service, invoices InvoiceStore, rates RatesAPI, pacs map[string]pac.Client,
+// NewInvoicing arma la emisión sobre el servicio base (que tiene el registro de PAC).
+func NewInvoicing(base *Service, invoices InvoiceStore, rates RatesAPI,
 	metrics *observability.Metrics, reporter *observability.Reporter) *Invoicing {
-	return &Invoicing{Service: base, invoices: invoices, rates: rates, pacs: pacs, metrics: metrics, reporter: reporter}
+	return &Invoicing{Service: base, invoices: invoices, rates: rates, metrics: metrics, reporter: reporter}
+}
+
+// pacDocument es lo que viaja al adaptador. La clase de cada tasa sale de los parámetros legales
+// guardados en el documento (AGENTS.md §2.13).
+func pacDocument(inv domain.Invoice) pac.Document {
+	return pac.Document{InvoiceID: inv.ID, TenantID: inv.TenantID, Environment: inv.Environment, IssuerRUC: inv.IssuerRUC,
+		IssuerDV: inv.IssuerDV, BranchCode: inv.BranchCode, DocType: inv.DocType, PointOfSaleCode: inv.PointOfSaleCode,
+		Number: inv.Number, Customer: inv.Customer, Lines: inv.Lines, Totals: inv.Totals, Currency: inv.Currency,
+		PaymentMethods: inv.PaymentMethods, RateClasses: domain.RateClasses(inv.LegalParamVersion),
+		RelatedCUFE: inv.RelatedCUFE, RelatedIssuedAt: inv.RelatedCreatedAt, IssuedAt: inv.CreatedAt}
+}
+
+// precheck valida el documento con las reglas del PAC antes de numerarlo (R2: un folio no se gasta
+// en un documento que el PAC rechazaría por formato). El número aún no existe: se usa 1.
+func (s *Invoicing) precheck(inv domain.Invoice) error {
+	cl := s.pacs.Get(inv.PacProvider)
+	if cl == nil || !s.pacs.Supports(inv.PacProvider, inv.Environment) {
+		return domain.ErrPacNotConfigured
+	}
+	inv.Number = 1
+	return cl.Check(pacDocument(inv))
 }
 
 // IssueInput es la solicitud de factura (fiscal_invoicing.proto IssueInvoiceRequest).
@@ -104,7 +127,11 @@ func (s *Invoicing) IssueInvoice(ctx context.Context, in IssueInput) (domain.Inv
 		PointOfSaleCode: p.PointOfSaleCode, SourceType: in.SourceType, SourceID: in.SourceID, Customer: in.Customer,
 		Lines: lines, Totals: totals, Currency: in.Currency, PaymentMethods: in.PaymentMethods,
 		DocumentDate: panamaDate(now), LegalParamVersion: rates.Version, IdempotencyKey: in.IdempotencyKey,
-		RequestHash: in.RequestHash, CreatedAt: now,
+		RequestHash: in.RequestHash, CreatedAt: now, PacProvider: p.PACProvider, BranchCode: p.BranchCode,
+		IssuerRUC: p.RUC, IssuerDV: p.DV,
+	}
+	if err := s.precheck(inv); err != nil {
+		return domain.Invoice{}, err
 	}
 	out, created, err := s.invoices.CreateInvoice(ctx, inv)
 	if err != nil {
@@ -171,24 +198,54 @@ func (s *Invoicing) ProcessDue(ctx context.Context, limit int) (int, error) {
 	return len(due), nil
 }
 
+// credentials lee de security las credenciales del negocio para el adaptador (nunca se registran).
+func (s *Invoicing) credentials(ctx context.Context, cl pac.Client, inv domain.Invoice) (pac.Credentials, error) {
+	if len(cl.Info().CredentialKeys) == 0 {
+		return nil, nil
+	}
+	if inv.CredentialsSecret == "" {
+		return nil, &pac.RetryError{Message: "faltan las credenciales del PAC", Alert: true}
+	}
+	raw, err := s.secrets.GetSecret(ctx, s.newID(), inv.CredentialsSecret)
+	if err != nil {
+		return nil, &pac.RetryError{Message: "no se pudieron leer las credenciales del PAC", Err: err}
+	}
+	var creds pac.Credentials
+	if err := json.Unmarshal(raw, &creds); err != nil {
+		return nil, &pac.RetryError{Message: "las credenciales del PAC están dañadas", Alert: true,
+			Err: errors.New("decode pac credentials")} // sin el contenido: podría llevar el token
+	}
+	return creds, nil
+}
+
 func (s *Invoicing) send(ctx context.Context, inv domain.Invoice) {
-	client := s.pacs[providerFor(inv.Environment)]
-	if client == nil {
-		s.reschedule(ctx, inv, "no hay adaptador de PAC para el entorno "+inv.Environment)
+	cl := s.pacs.Get(inv.PacProvider)
+	if cl == nil {
+		s.retry(ctx, inv, &pac.RetryError{Message: "el adaptador de PAC del documento no está disponible", Alert: true,
+			Err: fmt.Errorf("pac provider %q not registered", inv.PacProvider)})
+		return
+	}
+	provider := cl.Info().ID
+	creds, err := s.credentials(ctx, cl, inv)
+	if err != nil {
+		s.retry(ctx, inv, err)
 		return
 	}
 	start := time.Now()
-	res, err := client.Send(ctx, pac.Document{InvoiceID: inv.ID, TenantID: inv.TenantID, IssuerRUC: inv.IssuerRUC,
-		IssuerDV: inv.IssuerDV, DocType: inv.DocType, PointOfSaleCode: inv.PointOfSaleCode, Number: inv.Number,
-		TotalMinor: inv.Totals.TotalMinor, TaxMinor: inv.Totals.TaxMinor, IssuedAt: inv.CreatedAt})
+	res, err := cl.Send(ctx, creds, pacDocument(inv))
 	if s.metrics != nil {
-		s.metrics.Observe("pp_pac_latency_seconds", time.Since(start).Seconds(), "provider", client.Provider())
+		s.metrics.Observe("pp_pac_latency_seconds", time.Since(start).Seconds(), "provider", provider)
+	}
+	if errors.Is(err, pac.ErrInvalidDocument) {
+		// Precheck lo debió impedir: es un defecto. El documento se rechaza para no reintentarlo sin fin.
+		if s.reporter != nil {
+			s.reporter.Defect(ctx, "pac rejected document format", observability.Wrap(err, "build pac document"),
+				slog.String("pp.pac_provider", provider), slog.String("pp.invoice_id", inv.ID))
+		}
+		res, err = pac.Result{Accepted: false, RejectionReason: "el documento no cumple el formato del PAC"}, nil
 	}
 	if err != nil {
-		s.reschedule(ctx, inv, "el PAC no respondió")
-		if !errors.Is(err, pac.ErrTransient) && s.reporter != nil {
-			s.reporter.Defect(ctx, "pac send failed", observability.Wrap(err, "send invoice to pac"))
-		}
+		s.retry(ctx, inv, err)
 		return
 	}
 	at := s.now()
@@ -223,19 +280,32 @@ func (s *Invoicing) finish(ctx context.Context, docType int, err error, status s
 	}
 }
 
+// retry deja el documento en cola con el mensaje para la persona. Lo que pide atención (credenciales,
+// folios, PAC no disponible) se registra como fallo de dependencia; un error inesperado, como defecto.
+func (s *Invoicing) retry(ctx context.Context, inv domain.Invoice, err error) {
+	why := "el PAC no respondió"
+	var re *pac.RetryError
+	if errors.As(err, &re) {
+		why = re.Message
+	}
+	s.reschedule(ctx, inv, why)
+	if s.reporter == nil {
+		return
+	}
+	attrs := []slog.Attr{slog.String("pp.pac_provider", inv.PacProvider), slog.String("pp.invoice_id", inv.ID)}
+	switch {
+	case re != nil && re.Alert:
+		s.reporter.Dependency(ctx, "pac needs attention", "pac-"+inv.PacProvider, observability.Wrap(err, "send invoice to pac"), attrs...)
+	case !errors.Is(err, pac.ErrTransient):
+		s.reporter.Defect(ctx, "pac send failed", observability.Wrap(err, "send invoice to pac"), attrs...)
+	}
+}
+
 func (s *Invoicing) reschedule(ctx context.Context, inv domain.Invoice, why string) {
 	now := s.now()
 	if err := s.invoices.Reschedule(ctx, inv.ID, now.Add(domain.NextRetry(inv.PacAttempts)), why, now); err != nil && s.reporter != nil {
 		s.reporter.Dependency(ctx, "reschedule invoice failed", "postgres-db", observability.Wrap(err, "reschedule invoice"))
 	}
-}
-
-// providerFor: DEMO usa el simulador; PROD usará el PAC elegido (Q-11).
-func providerFor(env string) string {
-	if env == domain.EnvDemo {
-		return domain.ProviderSimulator
-	}
-	return ""
 }
 
 // panamaDate es la fecha del documento en la zona de negocio (domain-model §10.2: UTC−5 sin horario de
@@ -293,7 +363,11 @@ func (s *Invoicing) IssueNote(ctx context.Context, docType int, in NoteInput) (d
 		PointOfSaleCode: orig.PointOfSaleCode, RelatedInvoiceID: orig.ID, SourceType: "note", SourceID: in.IdempotencyKey,
 		Customer: orig.Customer, Lines: lines, Totals: totals, Currency: orig.Currency, DocumentDate: panamaDate(now),
 		LegalParamVersion: rates.Version, Reason: in.Reason, IdempotencyKey: in.IdempotencyKey, RequestHash: in.RequestHash,
-		CreatedAt: now,
+		CreatedAt: now, PaymentMethods: orig.PaymentMethods, PacProvider: orig.PacProvider, BranchCode: orig.BranchCode,
+		RelatedCUFE: orig.CUFE, RelatedCreatedAt: orig.CreatedAt,
+	}
+	if err := s.precheck(note); err != nil {
+		return domain.Invoice{}, err
 	}
 	out, created, err := s.invoices.CreateInvoice(ctx, note)
 	if err != nil {
@@ -319,4 +393,41 @@ func docTypeName(t int) string {
 		return "DEBIT_NOTE"
 	}
 	return "FISCAL_INVOICE"
+}
+
+// FolioStatus son los folios del punto de facturación y, si el PAC lo informa, los de su cuenta.
+type FolioStatus struct {
+	store.FolioStatus
+	PacRemaining int64 // -1 = el PAC no lo informa o no respondió
+}
+
+// FolioStatus agrega a los folios propios (R2) los que el PAC reporta disponibles (ADR 0022). Si el
+// PAC no responde, la consulta no falla: PacRemaining queda en -1 y el fallo se registra.
+func (s *Invoicing) FolioStatus(ctx context.Context) (FolioStatus, error) {
+	st, err := s.Service.FolioStatus(ctx)
+	out := FolioStatus{FolioStatus: st, PacRemaining: -1}
+	if err != nil {
+		return out, err
+	}
+	a := tenancy.FromContext(ctx)
+	p, err := s.store.GetProfile(ctx, a.TenantID)
+	if err != nil {
+		return out, observability.Wrap(err, "load fiscal profile")
+	}
+	cl := s.pacs.Get(p.PACProvider)
+	counter, ok := cl.(pac.FolioCounter)
+	if !ok || p.PACCredentialsSecret == "" {
+		return out, nil
+	}
+	creds, err := s.credentials(ctx, cl, domain.Invoice{CredentialsSecret: p.PACCredentialsSecret})
+	if err == nil {
+		out.PacRemaining, err = counter.RemainingFolios(ctx, p.Environment, creds)
+	}
+	if err != nil {
+		out.PacRemaining = -1
+		if s.reporter != nil {
+			s.reporter.Dependency(ctx, "pac folios unavailable", "pac-"+p.PACProvider, observability.Wrap(err, "query pac folios"))
+		}
+	}
+	return out, nil
 }

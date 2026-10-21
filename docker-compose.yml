@@ -152,7 +152,10 @@ services:
       PP_NATS_URL: "${FISCAL_NATS_URL:-nats://event-bus:4222}"
       PP_NATS_USER: "${FISCAL_NATS_USER:-fiscal_svc}"
       PP_NATS_PASS: "${FISCAL_NATS_PASS:-fiscal_nats_secret}"
-    networks: [services, data]
+      # ADR 0022: PROD del PAC solo tras la validación legal (F30.3).
+      FISCAL_PROD_ENABLED: "${FISCAL_PROD_ENABLED:-false}"
+    # pac-egress: única salida a internet de un servicio interno, para llegar al PAC por HTTPS.
+    networks: [services, data, pac-egress]
     healthcheck: *healthcheck
     depends_on:
       pgbouncer:
@@ -523,6 +526,9 @@ networks:
     internal: true
   data:
     internal: true
+  # Salida a internet solo para fiscal-invoicing → PAC (ADR 0022). Pendiente: limitarla a los
+  # dominios del PAC con un proxy de salida.
+  pac-egress: {}
 
 volumes:
   prometheus-data:

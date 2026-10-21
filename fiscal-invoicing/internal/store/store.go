@@ -217,11 +217,11 @@ func (s *Store) GetFolioStatus(ctx context.Context, tenantID, pos string) (Folio
 
 // ── Contribuyentes frecuentes ──────────────────────────────────────────────────────────────
 
-const taxpayerCols = `id, tenant_id, tax_id_type, tax_id, check_digit, legal_name, email, created_at, updated_at`
+const taxpayerCols = `id, tenant_id, tax_id_type, tax_id, check_digit, legal_name, email, created_at, updated_at, address, location_code`
 
 func scanTaxpayer(row pgx.Row) (domain.Taxpayer, error) {
 	var t domain.Taxpayer
-	err := row.Scan(&t.ID, &t.TenantID, &t.TaxIDType, &t.TaxID, &t.CheckDigit, &t.LegalName, &t.Email, &t.CreatedAt, &t.UpdatedAt)
+	err := row.Scan(&t.ID, &t.TenantID, &t.TaxIDType, &t.TaxID, &t.CheckDigit, &t.LegalName, &t.Email, &t.CreatedAt, &t.UpdatedAt, &t.Address, &t.Location)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, domain.ErrNotFound
 	}
@@ -237,12 +237,14 @@ func (s *Store) UpsertTaxpayer(ctx context.Context, t domain.Taxpayer) (domain.T
 	err := s.inTenant(ctx, t.TenantID, func(tx pgx.Tx) error {
 		var err error
 		out, err = scanTaxpayer(tx.QueryRow(ctx, `
-			INSERT INTO taxpayers (id, tenant_id, tax_id_type, tax_id, check_digit, legal_name, email, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+			INSERT INTO taxpayers (id, tenant_id, tax_id_type, tax_id, check_digit, legal_name, email, created_at, updated_at,
+				address, location_code)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10)
 			ON CONFLICT (tenant_id, tax_id) DO UPDATE SET tax_id_type = EXCLUDED.tax_id_type, check_digit = EXCLUDED.check_digit,
-				legal_name = EXCLUDED.legal_name, email = EXCLUDED.email, updated_at = EXCLUDED.updated_at
+				legal_name = EXCLUDED.legal_name, email = EXCLUDED.email, updated_at = EXCLUDED.updated_at,
+				address = EXCLUDED.address, location_code = EXCLUDED.location_code
 			RETURNING `+taxpayerCols,
-			t.ID, t.TenantID, t.TaxIDType, t.TaxID, t.CheckDigit, t.LegalName, t.Email, t.UpdatedAt))
+			t.ID, t.TenantID, t.TaxIDType, t.TaxID, t.CheckDigit, t.LegalName, t.Email, t.UpdatedAt, t.Address, t.Location))
 		return err
 	})
 	return out, err

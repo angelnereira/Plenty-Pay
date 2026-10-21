@@ -75,8 +75,8 @@ func (s *Server) IssueInvoice(ctx context.Context, req *pb.IssueInvoiceRequest) 
 	}
 	var customer *domain.Taxpayer
 	if c := req.GetCustomer(); c != nil && c.GetTaxId() != "" {
-		customer = &domain.Taxpayer{TaxIDType: c.GetTaxIdType(), TaxID: c.GetTaxId(), CheckDigit: c.GetCheckDigit(),
-			LegalName: c.GetLegalName(), Email: c.GetEmail()}
+		t := taxpayerFromPB(c)
+		customer = &t
 	}
 	inv, err := s.svc.IssueInvoice(ctx, service.IssueInput{
 		IdempotencyKey: strings.TrimSpace(req.GetIdempotencyKey()), RequestHash: hash, Customer: customer,

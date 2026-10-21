@@ -24,33 +24,81 @@ func TestN_FMT_06_RUCFormat(t *testing.T) {
 	}
 }
 
-func TestProfile_Validate(t *testing.T) {
-	if err := demoProfile().Validate(); err != nil {
+// supportsDemo imita el registro de pac: simulador y HKA en DEMO; PROD solo si prodEnabled.
+func supports(prodEnabled bool) Supports {
+	return func(provider, env string) bool {
+		switch provider {
+		case ProviderSimulator:
+			return env == EnvDemo
+		case ProviderHKA:
+			return env == EnvDemo || (env == EnvProd && prodEnabled)
+		}
+		return false
+	}
+}
+
+func TestR10_ProfileValidate(t *testing.T) {
+	if err := demoProfile().Validate(supports(false)); err != nil {
 		t.Fatalf("perfil DEMO válido: %v", err)
 	}
 	p := demoProfile()
 	p.DV = "2"
-	if !errors.Is(p.Validate(), ErrInvalidRUC) {
+	if !errors.Is(p.Validate(supports(false)), ErrInvalidRUC) {
 		t.Fatal("DV de un dígito")
 	}
 	p = demoProfile()
 	p.CheckoutPreference = PrefAutoThreshold
-	if !errors.Is(p.Validate(), ErrInvalidRequest) {
+	if !errors.Is(p.Validate(supports(false)), ErrInvalidRequest) {
 		t.Fatal("AUTO_THRESHOLD exige umbral")
 	}
 	p = demoProfile()
-	p.PACProvider = "hka"
-	if !errors.Is(p.Validate(), ErrInvalidRequest) {
-		t.Fatal("DEMO solo usa el simulador")
+	p.PACProvider = ProviderHKA
+	if err := p.Validate(supports(false)); err != nil {
+		t.Fatalf("DEMO con HKA es válido: %v", err)
+	}
+	p.PACProvider = "otro-pac"
+	if !errors.Is(p.Validate(supports(false)), ErrInvalidRequest) {
+		t.Fatal("adaptador no registrado")
+	}
+	p = demoProfile()
+	p.PointOfSaleCode = "000"
+	if !errors.Is(p.Validate(supports(false)), ErrInvalidRequest) {
+		t.Fatal("la DGI no admite el punto 000")
 	}
 }
 
-// R9: producción exige un PAC real, que aún no existe (Q-11).
+// R9: producción exige un PAC real habilitado por el operador (FISCAL_PROD_ENABLED).
 func TestR9_ProdRequiresRealPAC(t *testing.T) {
 	p := demoProfile()
 	p.Environment = EnvProd
-	if !errors.Is(p.Validate(), ErrPacNotConfigured) {
-		t.Fatal("PROD sin PAC real")
+	if !errors.Is(p.Validate(supports(true)), ErrPacNotConfigured) {
+		t.Fatal("PROD con el simulador")
+	}
+	p.PACProvider = ProviderHKA
+	if !errors.Is(p.Validate(supports(false)), ErrPacNotConfigured) {
+		t.Fatal("PROD sin habilitar")
+	}
+	if err := p.Validate(supports(true)); err != nil {
+		t.Fatalf("PROD con HKA habilitado: %v", err)
+	}
+}
+
+// AGENTS.md §2.13: la clase de cada tasa sale de los parámetros vigentes en la fecha del documento.
+func TestRateClasses_FromLegalParamVersion(t *testing.T) {
+	v := "legal.pa.itbms.alcohol_bps=1000@2026-10-13T00:00:00Z;legal.pa.itbms.standard_bps=700@2026-10-13T00:00:00Z;" +
+		"legal.pa.itbms.tobacco_bps=1500@2026-10-13T00:00:00Z"
+	got := RateClasses(v)
+	want := map[int64]string{0: RateExempt, 700: RateStandard, 1000: RateAlcohol, 1500: RateTobacco}
+	if len(got) != len(want) {
+		t.Fatalf("%v", got)
+	}
+	for k, c := range want {
+		if got[k] != c {
+			t.Fatalf("%d → %q, se esperaba %q", k, got[k], c)
+		}
+	}
+	if g := RateClasses("basura;x=y"); len(g) != 1 || g[0] != RateExempt {
+		t.Fatalf("versión ilegible: %v", g)
 	}
 }
 
@@ -89,6 +137,8 @@ func TestN_FIS_07_TaxpayerValidation(t *testing.T) {
 		{TaxIDType: TaxIDRUCJuridico, TaxID: "2588017-1-831938", CheckDigit: "20", LegalName: "Distribuidora, S.A."},
 		{TaxIDType: TaxIDCedula, TaxID: "8-926-1601", LegalName: "Ana Pérez", Email: "ana@example.com"},
 		{TaxIDType: TaxIDPasaporte, TaxID: "X1234567", LegalName: "John Doe"},
+		{TaxIDType: TaxIDGobierno, TaxID: "1234567-1-123456", CheckDigit: "01", LegalName: "Ministerio", Address: "Calle 50, Ciudad de Panamá"},
+		{TaxIDType: TaxIDRUCNatural, TaxID: "8-926-1601", CheckDigit: "05", LegalName: "Ana", Address: "Vía España 12", Location: "8-8-7"},
 	}
 	for _, tp := range ok {
 		if err := tp.Normalize().Validate(); err != nil {
@@ -96,11 +146,14 @@ func TestN_FIS_07_TaxpayerValidation(t *testing.T) {
 		}
 	}
 	bad := map[Taxpayer]error{
-		{TaxIDType: TaxIDRUCJuridico, TaxID: "2588017-1-831938", LegalName: "Sin DV"}:          ErrInvalidRUC,
-		{TaxIDType: TaxIDCedula, TaxID: "99-1-1", LegalName: "Provincia inexistente"}:          ErrInvalidTaxpayer,
-		{TaxIDType: "NIT", TaxID: "123", LegalName: "Tipo desconocido"}:                        ErrInvalidTaxpayer,
-		{TaxIDType: TaxIDCedula, TaxID: "8-926-1601", LegalName: "Ana", Email: "no-es-correo"}: ErrInvalidTaxpayer,
-		{TaxIDType: TaxIDCedula, TaxID: "8-926-1601"}:                                          ErrInvalidTaxpayer,
+		{TaxIDType: TaxIDRUCJuridico, TaxID: "2588017-1-831938", LegalName: "Sin DV"}:                       ErrInvalidRUC,
+		{TaxIDType: TaxIDCedula, TaxID: "99-1-1", LegalName: "Provincia inexistente"}:                       ErrInvalidTaxpayer,
+		{TaxIDType: "NIT", TaxID: "123", LegalName: "Tipo desconocido"}:                                     ErrInvalidTaxpayer,
+		{TaxIDType: TaxIDCedula, TaxID: "8-926-1601", LegalName: "Ana", Email: "no-es-correo"}:              ErrInvalidTaxpayer,
+		{TaxIDType: TaxIDCedula, TaxID: "8-926-1601"}:                                                       ErrInvalidTaxpayer,
+		{TaxIDType: TaxIDGobierno, TaxID: "2588017-1-831938", CheckDigit: "20", LegalName: "Sin dirección"}: ErrInvalidTaxpayer,
+		{TaxIDType: TaxIDCedula, TaxID: "8-926-1601", LegalName: "Ana", Address: "Ca"}:                      ErrInvalidTaxpayer,
+		{TaxIDType: TaxIDCedula, TaxID: "8-926-1601", LegalName: "Ana", Location: "Panamá"}:                 ErrInvalidTaxpayer,
 	}
 	for tp, want := range bad {
 		if err := tp.Normalize().Validate(); !errors.Is(err, want) {

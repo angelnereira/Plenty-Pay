@@ -79,6 +79,7 @@ func profileToPB(p domain.Profile) *pb.FiscalProfile {
 		TenantId: p.TenantID, Environment: p.Environment, CredentialsSecretRef: p.PACCredentialsSecret,
 		CertificateSecretRef: p.CertificateSecretRef, CheckoutPreference: pb.CheckoutPreference(p.CheckoutPreference),
 		BranchCode: p.BranchCode, PointOfSaleCode: p.PointOfSaleCode, PacProvider: p.PACProvider,
+		CredentialsConfigured: p.PACCredentialsSecret != "",
 	}
 	if p.AutoThresholdMinor != nil {
 		out.AutoThresholdMinor = *p.AutoThresholdMinor
@@ -87,8 +88,32 @@ func profileToPB(p domain.Profile) *pb.FiscalProfile {
 }
 
 func taxpayerToPB(t domain.Taxpayer) *pb.Taxpayer {
-	return &pb.Taxpayer{TaxpayerId: t.ID, TaxId: t.TaxID, TaxIdType: t.TaxIDType, CheckDigit: t.CheckDigit,
-		LegalName: t.LegalName, Email: t.Email}
+	out := &pb.Taxpayer{TaxpayerId: t.ID, TaxId: t.TaxID, TaxIdType: t.TaxIDType, CheckDigit: t.CheckDigit,
+		LegalName: t.LegalName, Email: t.Email, LocationCode: t.Location}
+	if t.Address != "" {
+		out.Address = &pb.Address{Line1: t.Address, Country: "PA"}
+	}
+	return out
+}
+
+// taxpayerFromPB toma la dirección de address.line1 (ADR 0022).
+func taxpayerFromPB(t *pb.Taxpayer) domain.Taxpayer {
+	return domain.Taxpayer{TaxIDType: t.GetTaxIdType(), TaxID: t.GetTaxId(), CheckDigit: t.GetCheckDigit(),
+		LegalName: t.GetLegalName(), Email: t.GetEmail(), Address: t.GetAddress().GetLine1(), Location: t.GetLocationCode()}
+}
+
+// ListPacProviders describe los adaptadores de PAC elegibles (R10, ADR 0022).
+func (s *Server) ListPacProviders(ctx context.Context, _ *pb.ListPacProvidersRequest) (*pb.ListPacProvidersResponse, error) {
+	list, err := s.svc.ListPacProviders(ctx)
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	out := &pb.ListPacProvidersResponse{}
+	for _, p := range list {
+		out.Providers = append(out.Providers, &pb.PacProvider{Id: p.ID, DisplayName: p.DisplayName,
+			Environments: p.Environments, CredentialKeys: p.CredentialKeys})
+	}
+	return out, nil
 }
 
 // ConfigureFiscalProfile guarda el perfil (step-up `security.credentials.update`; credenciales a security).
@@ -129,7 +154,7 @@ func (s *Server) GetFolioStatus(ctx context.Context, _ *pb.GetFolioStatusRequest
 	if err != nil {
 		return nil, toStatus(err)
 	}
-	out := &pb.FolioStatus{Remaining: st.Remaining}
+	out := &pb.FolioStatus{Remaining: st.Remaining, PacRemaining: st.PacRemaining}
 	if st.Last != nil {
 		out.LowWatermark = max(*st.Last/10, 1) // SPEC §4: FolioLow si quedan < 10 %
 	}
@@ -152,8 +177,7 @@ func (s *Server) UpsertTaxpayer(ctx context.Context, req *pb.UpsertTaxpayerReque
 	if t == nil {
 		return nil, toStatus(domain.ErrInvalidRequest)
 	}
-	out, err := s.svc.UpsertTaxpayer(ctx, domain.Taxpayer{TaxIDType: t.GetTaxIdType(), TaxID: t.GetTaxId(),
-		CheckDigit: t.GetCheckDigit(), LegalName: t.GetLegalName(), Email: t.GetEmail()})
+	out, err := s.svc.UpsertTaxpayer(ctx, taxpayerFromPB(t))
 	if err != nil {
 		return nil, toStatus(err)
 	}

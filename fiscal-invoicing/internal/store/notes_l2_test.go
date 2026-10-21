@@ -7,6 +7,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc/metadata"
 
@@ -122,5 +123,49 @@ func TestL2_R7_ConcurrentNotesCannotExceed(t *testing.T) {
 	wg.Wait()
 	if ok != 1 || over != 1 {
 		t.Fatalf("una pasa y otra excede: ok=%d excede=%d", ok, over)
+	}
+}
+
+// ADR 0022: cada documento recuerda su adaptador y su sucursal, y la nota viaja al PAC con el CUFE y la
+// fecha de la factura que corrige (migración 0002).
+func TestL2_ADR0022_NoteCarriesRelatedCUFEAndProvider(t *testing.T) {
+	s := open(t)
+	svc, sim, _ := invoicing(t, s, rates{})
+	tenant := newTenant(t, s)
+	inv := acceptedInvoice(t, svc, tenant, "venta-adr22")
+	if inv.PacProvider != domain.ProviderSimulator || inv.BranchCode != "0000" {
+		t.Fatalf("factura: %+v", inv)
+	}
+	note, err := svc.IssueNote(accountant(tenant), domain.DocCreditNote, service.NoteInput{IdempotencyKey: "nota-adr22-0000001",
+		RequestHash: []byte{1}, RelatedInvoiceID: inv.ID, Reason: "devolución",
+		Lines: []domain.Line{{Description: "Café", QuantityMilli: 1000, UnitPriceMinor: 100, TaxRateBps: 700}}})
+	if err != nil || note.PacProvider != domain.ProviderSimulator {
+		t.Fatalf("nota: %v %+v", err, note)
+	}
+	if _, err := svc.ProcessDue(context.Background(), 10); err != nil {
+		t.Fatal(err)
+	}
+	sent := sim.Sent()
+	last := sent[len(sent)-1]
+	if last.DocType != domain.DocCreditNote || last.RelatedCUFE != inv.CUFE || !last.RelatedIssuedAt.Equal(inv.CreatedAt) ||
+		last.BranchCode != "0000" || last.RateClasses[700] != domain.RateStandard {
+		t.Fatalf("documento enviado: %+v", last)
+	}
+}
+
+// ADR 0022: el receptor guarda dirección y ubicación, y se admite una entidad del Estado.
+func TestL2_ADR0022_TaxpayerAddressAndGovernment(t *testing.T) {
+	s := open(t)
+	tenant := newTenant(t, s)
+	now := time.Now().UTC()
+	tp, err := s.UpsertTaxpayer(context.Background(), domain.Taxpayer{ID: uuid.NewString(), TenantID: tenant,
+		TaxIDType: domain.TaxIDGobierno, TaxID: "1234567-1-123456", CheckDigit: "01", LegalName: "Ministerio",
+		Address: "Avenida Perú, Calidonia", Location: "8-8-7", CreatedAt: now, UpdatedAt: now})
+	if err != nil || tp.Address != "Avenida Perú, Calidonia" || tp.Location != "8-8-7" || tp.TaxIDType != domain.TaxIDGobierno {
+		t.Fatalf("%v %+v", err, tp)
+	}
+	if _, err := s.UpsertTaxpayer(context.Background(), domain.Taxpayer{ID: uuid.NewString(), TenantID: tenant,
+		TaxIDType: domain.TaxIDCedula, TaxID: "8-1-1", LegalName: "Ana", Location: "Panamá", CreatedAt: now, UpdatedAt: now}); err == nil {
+		t.Fatal("la base rechaza un código de ubicación mal formado")
 	}
 }

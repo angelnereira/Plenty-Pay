@@ -2,6 +2,7 @@ package domain
 
 import (
 	"net/mail"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -13,7 +14,11 @@ const (
 	TaxIDCedula      = "CEDULA"
 	TaxIDPasaporte   = "PASAPORTE"
 	TaxIDExtranjero  = "EXTRANJERO"
+	TaxIDGobierno    = "GOBIERNO" // entidad del Estado: RUC + DV + dirección (ADR 0022)
 )
+
+// locationRe es el código provincia-distrito-corregimiento de la DGI (p. ej. "8-8-7").
+var locationRe = regexp.MustCompile(`^[0-9]{1,2}-[0-9]{1,2}-[0-9]{1,2}$`)
 
 // Taxpayer es un contribuyente frecuente del negocio (SPEC §3 taxpayers).
 type Taxpayer struct {
@@ -24,6 +29,8 @@ type Taxpayer struct {
 	CheckDigit string
 	LegalName  string
 	Email      string
+	Address    string // dirección (5–100 caracteres); el PAC la exige a contribuyentes y gobierno
+	Location   string // provincia-distrito-corregimiento de la DGI
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -35,6 +42,8 @@ func (t Taxpayer) Normalize() Taxpayer {
 	t.CheckDigit = strings.TrimSpace(t.CheckDigit)
 	t.LegalName = strings.TrimSpace(t.LegalName)
 	t.Email = strings.ToLower(strings.TrimSpace(t.Email))
+	t.Address = strings.Join(strings.Fields(t.Address), " ")
+	t.Location = strings.TrimSpace(t.Location)
 	return t
 }
 
@@ -45,6 +54,13 @@ func (t Taxpayer) Validate() error {
 	case TaxIDRUCJuridico, TaxIDRUCNatural:
 		if !ValidRUCFormat(t.TaxID, t.CheckDigit) {
 			return ErrInvalidRUC
+		}
+	case TaxIDGobierno:
+		if !ValidRUCFormat(t.TaxID, t.CheckDigit) {
+			return ErrInvalidRUC
+		}
+		if t.Address == "" {
+			return ErrInvalidTaxpayer
 		}
 	case TaxIDCedula:
 		if !ValidCedula(t.TaxID) {
@@ -58,6 +74,12 @@ func (t Taxpayer) Validate() error {
 		return ErrInvalidTaxpayer
 	}
 	if n := len([]rune(t.LegalName)); n == 0 || n > 200 {
+		return ErrInvalidTaxpayer
+	}
+	if n := len([]rune(t.Address)); n != 0 && (n < 5 || n > 100) {
+		return ErrInvalidTaxpayer
+	}
+	if t.Location != "" && !locationRe.MatchString(t.Location) {
 		return ErrInvalidTaxpayer
 	}
 	if t.Email != "" {

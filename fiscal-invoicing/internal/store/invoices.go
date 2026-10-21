@@ -33,6 +33,8 @@ type customerJSON struct {
 	CheckDigit string `json:"check_digit,omitempty"`
 	LegalName  string `json:"legal_name"`
 	Email      string `json:"email,omitempty"`
+	Address    string `json:"address,omitempty"`
+	Location   string `json:"location_code,omitempty"`
 }
 
 func linesToJSON(ls []domain.Line) ([]byte, error) {
@@ -60,7 +62,7 @@ const invoiceCols = `i.id, i.tenant_id, i.doc_type, i.status, i.environment, i.p
 	i.customer_snapshot, i.lines, i.subtotal_minor, i.tax_minor, i.total_minor, i.currency, i.payment_methods,
 	i.document_date, i.legal_param_version, coalesce(i.reason, ''), i.pac_attempts, i.next_attempt_at,
 	coalesce(i.last_error, ''), coalesce(i.rejection_reason, ''), i.idempotency_key, i.request_hash, i.issued_at,
-	i.created_at, i.updated_at`
+	i.created_at, i.updated_at, i.pac_provider, i.branch_code`
 
 func scanInvoice(row pgx.Row, extra ...any) (domain.Invoice, error) {
 	var (
@@ -71,7 +73,8 @@ func scanInvoice(row pgx.Row, extra ...any) (domain.Invoice, error) {
 		&inv.CUFE, &inv.QR, &inv.RelatedInvoiceID, &inv.SourceType, &inv.SourceID, &customer, &lines,
 		&inv.Totals.SubtotalMinor, &inv.Totals.TaxMinor, &inv.Totals.TotalMinor, &inv.Currency, &payments,
 		&inv.DocumentDate, &inv.LegalParamVersion, &inv.Reason, &inv.PacAttempts, &inv.NextAttemptAt, &inv.LastError,
-		&inv.RejectionReason, &inv.IdempotencyKey, &inv.RequestHash, &inv.IssuedAt, &inv.CreatedAt, &inv.UpdatedAt}
+		&inv.RejectionReason, &inv.IdempotencyKey, &inv.RequestHash, &inv.IssuedAt, &inv.CreatedAt, &inv.UpdatedAt,
+		&inv.PacProvider, &inv.BranchCode}
 	err := row.Scan(append(dest, extra...)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return inv, domain.ErrNotFound
@@ -90,7 +93,8 @@ func scanInvoice(row pgx.Row, extra ...any) (domain.Invoice, error) {
 		if err := json.Unmarshal(customer, &c); err != nil {
 			return inv, fmt.Errorf("decode customer: %w", err)
 		}
-		inv.Customer = &domain.Taxpayer{TaxIDType: c.TaxIDType, TaxID: c.TaxID, CheckDigit: c.CheckDigit, LegalName: c.LegalName, Email: c.Email}
+		inv.Customer = &domain.Taxpayer{TaxIDType: c.TaxIDType, TaxID: c.TaxID, CheckDigit: c.CheckDigit, LegalName: c.LegalName,
+			Email: c.Email, Address: c.Address, Location: c.Location}
 	}
 	return inv, nil
 }
@@ -147,7 +151,7 @@ func (s *Store) CreateInvoice(ctx context.Context, inv domain.Invoice) (domain.I
 		var customer any
 		if inv.Customer != nil {
 			c := inv.Customer
-			b, err := json.Marshal(customerJSON{c.TaxIDType, c.TaxID, c.CheckDigit, c.LegalName, c.Email})
+			b, err := json.Marshal(customerJSON{c.TaxIDType, c.TaxID, c.CheckDigit, c.LegalName, c.Email, c.Address, c.Location})
 			if err != nil {
 				return fmt.Errorf("encode customer: %w", err)
 			}
@@ -157,14 +161,14 @@ func (s *Store) CreateInvoice(ctx context.Context, inv domain.Invoice) (domain.I
 			INSERT INTO invoices AS i (id, tenant_id, doc_type, status, environment, point_of_sale_code, number,
 				related_invoice_id, source_type, source_id, customer_snapshot, lines, subtotal_minor, tax_minor, total_minor,
 				currency, payment_methods, document_date, legal_param_version, reason, next_attempt_at,
-				idempotency_key, request_hash, created_at, updated_at)
+				idempotency_key, request_hash, created_at, updated_at, pac_provider, branch_code)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, '')::uuid, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15, $16, $17::jsonb, $18,
-				$19, NULLIF($20, ''), $21, $22, $23, $21, $21)
+				$19, NULLIF($20, ''), $21, $22, $23, $21, $21, $24, $25)
 			RETURNING `+invoiceCols,
 			inv.ID, inv.TenantID, inv.DocType, domain.StatusQueued, inv.Environment, inv.PointOfSaleCode, inv.Number,
 			inv.RelatedInvoiceID, inv.SourceType, inv.SourceID, customer, string(lines), inv.Totals.SubtotalMinor, inv.Totals.TaxMinor,
 			inv.Totals.TotalMinor, inv.Currency, string(payments), inv.DocumentDate, inv.LegalParamVersion, inv.Reason,
-			inv.CreatedAt, inv.IdempotencyKey, inv.RequestHash))
+			inv.CreatedAt, inv.IdempotencyKey, inv.RequestHash, inv.PacProvider, inv.BranchCode))
 		created = err == nil
 		return err
 	})
@@ -265,8 +269,10 @@ func (s *Store) ListInvoices(ctx context.Context, tenantID string, f ListFilter)
 func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int, lease time.Duration) ([]domain.Invoice, error) {
 	var out []domain.Invoice
 	err := s.asSystem(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT `+invoiceCols+`, p.ruc, p.dv FROM invoices i
+		rows, err := tx.Query(ctx, `SELECT `+invoiceCols+`, p.ruc, p.dv, p.pac_credentials_secret,
+			coalesce(r.cufe, ''), coalesce(r.created_at, i.created_at) FROM invoices i
 			JOIN profiles p ON p.tenant_id = i.tenant_id
+			LEFT JOIN invoices r ON r.id = i.related_invoice_id
 			WHERE i.status IN ($1, $2) AND i.next_attempt_at <= $3
 			ORDER BY i.next_attempt_at, i.id LIMIT $4 FOR UPDATE OF i SKIP LOCKED`,
 			domain.StatusQueued, domain.StatusSent, now, limit)
@@ -274,13 +280,17 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int, lease ti
 			return fmt.Errorf("claim due invoices: %w", err)
 		}
 		for rows.Next() {
-			var ruc, dv string
-			inv, err := scanInvoice(rows, &ruc, &dv)
+			var (
+				ruc, dv, secret, relCUFE string
+				relCreated               time.Time
+			)
+			inv, err := scanInvoice(rows, &ruc, &dv, &secret, &relCUFE, &relCreated)
 			if err != nil {
 				rows.Close()
 				return err
 			}
-			inv.IssuerRUC, inv.IssuerDV = ruc, dv
+			inv.IssuerRUC, inv.IssuerDV, inv.CredentialsSecret = ruc, dv, secret
+			inv.RelatedCUFE, inv.RelatedCreatedAt = relCUFE, relCreated
 			out = append(out, inv)
 		}
 		rows.Close()

@@ -134,6 +134,18 @@ func (c *Security) PutSecret(ctx context.Context, requestID, name string, value 
 	return md.GetVersion(), nil
 }
 
+// GetSecret lee la versión vigente del secreto (solo si fiscal-invoicing está en allowed_readers).
+// El valor nunca se registra ni viaja en un error.
+func (c *Security) GetSecret(ctx context.Context, requestID, name string) ([]byte, error) {
+	ctx, cancel := outgoing(ctx, requestID, c.timeout)
+	defer cancel()
+	s, err := c.api.GetSecret(ctx, &pb.GetSecretRequest{Name: name})
+	if err != nil {
+		return nil, fmt.Errorf("%w: security GetSecret: %v", ErrUnavailable, status.Code(err))
+	}
+	return s.GetValue(), nil
+}
+
 // ── infra-management ─────────────────────────────────────────────────────────────────────
 
 // ITBMSKeys son los parámetros legales con las tasas válidas (regulatory-framework §13).

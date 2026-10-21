@@ -20,7 +20,6 @@ import (
 
 	"plentypay/fiscal-invoicing/internal/client"
 	"plentypay/fiscal-invoicing/internal/config"
-	"plentypay/fiscal-invoicing/internal/domain"
 	"plentypay/fiscal-invoicing/internal/events"
 	"plentypay/fiscal-invoicing/internal/migrate"
 	"plentypay/fiscal-invoicing/internal/observability"
@@ -108,8 +107,10 @@ func main() {
 	}()
 	newID := func() string { return uuid.Must(uuid.NewV7()).String() }
 	// R9/R10: DEMO usa el simulador; PROD no tiene adaptador hasta elegir PAC (Q-11).
-	pacs := map[string]pac.Client{domain.ProviderSimulator: pac.NewSimulator()}
-	svc := service.NewInvoicing(service.New(st, identity, secrets, now, newID), st, infra, pacs, metrics, reporter)
+	// Selector de PAC (R10, ADR 0022): el simulador y The Factory HKA.
+	pacs := pac.NewRegistry(pac.NewSimulator(), pac.NewHKA(pac.HKAConfig{DemoEndpoint: cfg.HKADemoEndpoint,
+		ProdEndpoint: cfg.HKAProdEndpoint, Timeout: cfg.PACTimeout, ProdEnabled: cfg.FiscalProdEnabled}))
+	svc := service.NewInvoicing(service.New(st, identity, secrets, pacs, now, newID), st, infra, metrics, reporter)
 
 	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
 	if err != nil {
