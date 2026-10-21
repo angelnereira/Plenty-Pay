@@ -67,7 +67,7 @@ CREATE INDEX holds_active_expiry ON ledger.holds (expires_at) WHERE status = 'AC
 | ReverseTransaction | payments-core, settlement, `platform:reconcile` vía gateway | sí (`rev:<id>`) | crea transacción espejo (lados invertidos), original → REVERSED | `ALREADY_REVERSED`, `NOT_FOUND`, `INSUFFICIENT_FUNDS` |
 | GetTransaction / ListTransactions | servicios + gateway (lectura) | — | por id / por cuenta, referencia o rango; keyset | `NOT_FOUND` |
 | GetBalance / ListBalances | servicios + gateway | — | saldo, retenido, disponible por cuenta | `NOT_FOUND` (cuenta inexistente → saldo 0, no error) |
-| GetStatement | gateway (wallet, comercio) | — | movimientos con saldo corrido, rango ≤ 366 días | `INVALID_RANGE` |
+| GetStatement | gateway (wallet, comercio), settlement | — | movimientos con saldo corrido y la referencia del asiento (`{payment|refund|…, id}`, la usa settlement para armar lotes), rango ≤ 366 días | `INVALID_RANGE` |
 | CreateHold | payments-core | sí | verifica disponible ≥ monto, solo sobre `WALLET`; verifica disponible ≥ monto, crea hold ACTIVE con TTL **obligatorio** entre 1 s y 7 días (`ttl_seconds` del contrato: ninguna retención es indefinida; payments-core usa 15 min) | `INSUFFICIENT_FUNDS`, `INVALID_HOLD_TTL`, `INVALID_ACCOUNT` |
 | CaptureHold | payments-core | sí | en una transacción: hold → CAPTURED + PostTransaction con D sobre la cuenta del hold por el monto del hold y `legs` de crédito; Σ legs = monto | `HOLD_NOT_ACTIVE`, `UNBALANCED_TRANSACTION` |
 | ReleaseHold | payments-core | sí por estado | ACTIVE → RELEASED; otros estados → devuelve el hold sin cambio | `NOT_FOUND` |

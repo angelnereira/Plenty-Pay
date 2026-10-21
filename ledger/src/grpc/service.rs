@@ -437,6 +437,10 @@ impl Ledger for LedgerService {
                     description: l.description.clone(),
                     running_balance_minor: l.running_balance_minor,
                     effective_at: Some(ts(l.effective_at)),
+                    reference: Some(pb::Reference {
+                        r#type: l.reference_type.clone(),
+                        id: l.reference_id.clone(),
+                    }),
                 })
                 .collect(),
             closing_balance_minor: closing,

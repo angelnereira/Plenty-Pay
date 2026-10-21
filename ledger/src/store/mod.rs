@@ -155,6 +155,8 @@ pub struct StatementLine {
     pub description: String,
     pub running_balance_minor: i64,
     pub effective_at: DateTime<Utc>,
+    pub reference_type: String,
+    pub reference_id: String,
 }
 
 /// Quién lee, para RLS (ADR 0014): el servicio, o una parte/negocio concretos desde el gateway.
@@ -635,7 +637,8 @@ impl PgLedger {
         }
         let opening = running;
         let rows = sqlx::query(
-            "SELECT e.id, e.side, e.amount_minor, t.id AS tid, t.transaction_type, t.description, t.effective_at
+            "SELECT e.id, e.side, e.amount_minor, t.id AS tid, t.transaction_type, t.description, t.effective_at,
+                    t.reference_type, t.reference_id
              FROM ledger.entries e JOIN ledger.transactions t ON t.id = e.transaction_id
              WHERE e.account_id = $1 AND t.status <> 'DRAFT' AND t.effective_at >= $2 AND t.effective_at < $3
              ORDER BY t.effective_at, e.id LIMIT $4",
@@ -666,6 +669,8 @@ impl PgLedger {
                 description: r.try_get("description")?,
                 running_balance_minor: running,
                 effective_at: r.try_get("effective_at")?,
+                reference_type: r.try_get("reference_type")?,
+                reference_id: r.try_get("reference_id")?,
             });
         }
         Ok((opening, lines))
