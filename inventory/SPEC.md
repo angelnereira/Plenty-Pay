@@ -44,9 +44,9 @@ CREATE TABLE inventory.sales_velocity (tenant_id uuid, variant_id uuid, warehous
 | TransferStock | `inventory:adjust` | TRANSFER_OUT + TRANSFER_IN en la misma transacción | `SAME_WAREHOUSE`, `VARIANT_NOT_FOUND`, `LOT_REQUIRED`, `OUT_OF_STOCK`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
 | ListMovements | `inventory:read` | keyset por fecha | — |
 | ReserveStock / CommitReservation / ReleaseReservation | orders (servicio) | reserva todo-o-nada por pedido; commit genera SALE; TTL | `VARIANT_NOT_FOUND`, `OUT_OF_STOCK`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
-| UpsertSupplier / ListSuppliers | `inventory:purchase:manage` | | `NOT_FOUND` |
-| CreatePurchaseOrder / UpdatePurchaseOrderStatus / ListPurchaseOrders | `inventory:purchase:manage` | §8.12 domain-model | `VARIANT_NOT_FOUND`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
-| ReceiveGoods | `inventory:receive` | recepción parcial/total por línea; crea lotes; RECEIPT con costo | `UNKNOWN_ORDER_LINE`, `RECEIPT_EXCEEDS_ORDERED`, `LOT_REQUIRED`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
+| UpsertSupplier / ListSuppliers | `inventory:purchase:manage` (listar también `inventory:read`) | RUC y DV juntos; correo y teléfono válidos; días de entrega 0–365 (por defecto 7) | `INVALID_SUPPLIER`, `NOT_FOUND` |
+| CreatePurchaseOrder / UpdatePurchaseOrderStatus / ListPurchaseOrders | `inventory:purchase:manage` (listar también `inventory:receive`) | §8.12 domain-model; nace en DRAFT; DRAFT→SENT, DRAFT/SENT→CANCELLED; total = Σ half_up(cantidad × costo / 1000) | `VARIANT_NOT_FOUND`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
+| ReceiveGoods | `inventory:receive` | recepción parcial/total por línea (SENT o PARTIALLY_RECEIVED); RECEIPT con costo en la misma transacción; factura del proveedor opcional (≤ 60). Lotes con F16.4 | `UNKNOWN_ORDER_LINE`, `RECEIPT_EXCEEDS_ORDERED`, `LOT_REQUIRED`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
 | GetReorderSuggestions | `inventory:read` | §5 R6 | — |
 
 ## 5. Reglas

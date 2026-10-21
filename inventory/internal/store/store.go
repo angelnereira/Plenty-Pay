@@ -202,6 +202,9 @@ type Batch struct {
 	// DefaultWarehouseID se usa cuando un movimiento llega sin bodega (la crea si falta).
 	NewWarehouseID string
 	Now            time.Time
+	// Hook corre en la misma transacción antes de los movimientos, solo la primera vez (no en un
+	// reintento con la misma clave): p. ej. la recepción actualiza la orden de compra.
+	Hook func(ctx context.Context, tx pgx.Tx) error
 }
 
 // Applied es el resultado: los movimientos guardados y las existencias que quedaron.
@@ -271,6 +274,11 @@ func (s *Store) Apply(ctx context.Context, b Batch, events EventsFor) (Applied, 
 		if prev != nil {
 			out = *prev
 			return nil
+		}
+		if b.Hook != nil {
+			if err := b.Hook(ctx, tx); err != nil {
+				return err
+			}
 		}
 		// Bodega por defecto para los movimientos que no la indican; las indicadas deben ser del
 		// tenant (RLS) y estar activas.

@@ -35,6 +35,16 @@ type Store interface {
 	Finish(ctx context.Context, tenantID, id string, to domain.ReservationStatus, actorService string,
 		now time.Time, newID func() string, events store.EventsFor) (domain.Reservation, error)
 	DueReservations(ctx context.Context, now time.Time, limit int) ([]domain.Reservation, error)
+	CreateSupplier(ctx context.Context, sup domain.Supplier, key string, now time.Time) (domain.Supplier, error)
+	UpdateSupplier(ctx context.Context, sup domain.Supplier, now time.Time) (domain.Supplier, error)
+	ListSuppliers(ctx context.Context, tenantID, after string, limit int) ([]domain.Supplier, string, error)
+	CreatePurchaseOrder(ctx context.Context, o domain.PurchaseOrder, key string, hash []byte, createdBy string,
+		now time.Time) (domain.PurchaseOrder, error)
+	GetPurchaseOrder(ctx context.Context, tenantID, id string) (domain.PurchaseOrder, error)
+	ListPurchaseOrders(ctx context.Context, tenantID string, status domain.POStatus, after string, limit int) ([]domain.PurchaseOrder, string, error)
+	UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id string, to domain.POStatus, now time.Time) (domain.PurchaseOrder, error)
+	PurchaseOrderWarehouse(ctx context.Context, tenantID, id string) (string, error)
+	ReorderData(ctx context.Context, tenantID, warehouseID string, now time.Time) ([]store.ReorderRow, error)
 }
 
 // Products valida productos contra catalog.

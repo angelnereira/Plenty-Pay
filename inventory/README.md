@@ -1,6 +1,6 @@
 # inventory
 
-Bodegas, existencias, movimientos inmutables y reservas con TTL; lotes, compras y reorden llegan con F16.4–F16.6. Especificación completa: [`SPEC.md`](SPEC.md).
+Bodegas, existencias, movimientos inmutables, reservas con TTL, proveedores, órdenes de compra con recepción y sugerencias de reorden (R6); los lotes FEFO llegan con F16.4. Especificación completa: [`SPEC.md`](SPEC.md).
 
 | | |
 |---|---|
@@ -20,11 +20,13 @@ Bodegas, existencias, movimientos inmutables y reservas con TTL; lotes, compras 
 | RLS y aislamiento entre comercios | ✅ L2 | `TestRLS_TenantsAreIsolated` |
 | `StockChanged` y `StockLow` en la misma transacción del movimiento | ✅ L2 · ⏳ en vivo | `TestOutbox_EveryMovementEmitsStockChanged`, `TestR2_*` |
 | Reservas con TTL (F16.3, R4): todo o nada, solo pos y orders, confirmación = venta, vencimiento cada 30 s | ✅ L2 | `TestSPEC11_100ConcurrentReservationsOver50Units`, `TestR4_ReservationIsAllOrNothing`, `TestR4_ExpiredReservationsReturnStockAndCannotBeCommitted`, `TestReservation_CommitIsASaleAndReleaseReturns`, `TestReservation_IdempotentAndServiceOnly`; `./inventory/test/test_l2.sh` 17/17 |
-| Lotes FEFO, proveedores, órdenes de compra, recepción y reorden | 📋 | responden `UNIMPLEMENTED` |
+| Proveedores, órdenes de compra y recepción (F16.5): RUC+DV, correo y teléfono validados; total = Σ half_up(cantidad × costo / 1000); recepción parcial/total por línea que nunca pasa lo pedido; cada recepción genera RECEIPT idempotente en la misma transacción | ✅ L2 | `TestL2_F16_5_PurchaseOrderLifecycle`; reasons `INVALID_SUPPLIER`, `RECEIPT_EXCEEDS_ORDERED`, `UNKNOWN_ORDER_LINE`, `INVALID_STATE_TRANSITION` (`TestReasons_PurchasingErrorsUseGlossaryNames`) |
+| R6 reorden (F16.6): velocidad EWMA α=0.3 sobre 28 días completos (America/Panama) en enteros, cobertura, cantidad sugerida, clase ABC, en tránsito y proveedor habitual | ✅ L1 · ✅ L2 | `internal/domain/reorder_test.go` (cálculo de referencia), `TestL2_R6_ReorderSuggestions` |
+| Lotes FEFO (R5) | 📋 | `ReceiveGoods` ignora `lot_code`/`expires_at` hasta F16.4 |
 | Observabilidad | ◐ | interceptor, métricas `pp_rpc_*` y `pp_outbox_*` |
 | Despliegue en producción | ⏳ | `~/plentypay-backups/commerce-reset.sh` |
 
-12 pruebas L2 en verde (`./inventory/test/test_l2.sh`, 2026-10-20).
+19 pruebas L2 en verde (`./inventory/test/test_l2.sh`, 2026-10-21). Desplegado en producción 2026-10-21 con la migración `0003_purchasing` (respaldo previo con `pg_dump`); humo de lectura de compras OK.
 
 ## Arranque
 ```bash

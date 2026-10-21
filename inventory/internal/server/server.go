@@ -55,6 +55,16 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.InvalidArgument, "INVALID_WAREHOUSE", "bodega inválida o inactiva")
 	case errors.Is(err, domain.ErrInvalidTransition):
 		return ErrorInfo(codes.FailedPrecondition, "INVALID_STATE_TRANSITION", "la reserva ya no está activa")
+	case errors.Is(err, domain.ErrInvalidSupplier):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_SUPPLIER", "revisa los datos del proveedor")
+	case errors.Is(err, domain.ErrInvalidOrder):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "revisa las líneas de la orden")
+	case errors.Is(err, domain.ErrPOTransition):
+		return ErrorInfo(codes.FailedPrecondition, "INVALID_STATE_TRANSITION", "la orden no admite ese cambio en su estado")
+	case errors.Is(err, domain.ErrOverReceipt):
+		return ErrorInfo(codes.FailedPrecondition, "RECEIPT_EXCEEDS_ORDERED", "recibes más de lo pedido")
+	case errors.Is(err, domain.ErrNotInOrder):
+		return ErrorInfo(codes.InvalidArgument, "UNKNOWN_ORDER_LINE", "ese producto no está en la orden")
 	case errors.Is(err, domain.ErrKeyReused):
 		return ErrorInfo(codes.AlreadyExists, "IDEMPOTENCY_KEY_REUSED", "la clave de idempotencia ya se usó con otra operación")
 	case errors.Is(err, client.ErrUnavailable):
