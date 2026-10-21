@@ -30,7 +30,7 @@ void main() {
     WidgetsFlutterBinding.ensureInitialized();
     // Falla al arrancar si el flavor exige https y la URL no lo es (flutter-standards.md §5.1).
     final config = AppConfig.fromEnvironment();
-    final session = SessionStore();
+    final session = SessionStore(null, logger);
     // La URL manual es solo para servidores de desarrollo; un túnel rápido viejo guardado ahí
     // dejaría la app sin servidor (ADR 0019 §6).
     final customUrl = await session.customBaseUrl();
@@ -51,13 +51,21 @@ void main() {
     }
 
     final hasManual = manualUrl != null && manualUrl.isNotEmpty;
-    final effectiveUrl = resolveBaseUrl(
-      manual: manualUrl,
-      discovered: hasManual ? null : await discover(),
-      lastDiscovered: await session.discoveredBaseUrl(),
-      built: config.apiBaseUrl,
-    );
-    final signedIn = await session.accessToken() != null;
+    // Nada antes de runApp puede dejar la app en la pantalla de inicio: si algo falla, se registra
+    // y la app arranca con la URL del build y sin sesión (la persona vuelve a entrar).
+    var effectiveUrl = config.apiBaseUrl;
+    var signedIn = false;
+    try {
+      effectiveUrl = resolveBaseUrl(
+        manual: manualUrl,
+        discovered: hasManual ? null : await discover(),
+        lastDiscovered: await session.discoveredBaseUrl(),
+        built: config.apiBaseUrl,
+      );
+      signedIn = await session.accessToken() != null;
+    } on Object catch (e, stack) {
+      logger.error('startup degraded', e, stack, attributes: {'error.type': e.runtimeType.toString()});
+    }
     logger.info('app started');
     runApp(PlentyPayApp(
       api: ApiClient(

@@ -109,7 +109,7 @@ Dominio `pay.plentypay.app` (configurable): `/t/<code>` (cobro), `/track/<token>
 5. Resultado del pago por WebSocket (`payment.status`); si llega `UNKNOWN` → pantalla "Estamos confirmando tu pago" (nunca "falló"), con sondeo y notificación final.
 
 ## 11. Seguridad en el cliente
-- Tokens en `flutter_secure_storage` (Keychain/Keystore; en desktop, libsecret/DPAPI). Nunca en `SharedPreferences`.
+- Tokens en `flutter_secure_storage` (Keychain/Keystore; en desktop, libsecret/DPAPI). Nunca en `SharedPreferences`. Android no respalda los datos de la app (`android:allowBackup="false"`): una copia restaurada trae los valores cifrados sin la llave del Keystore y no se pueden leer. Una lectura ilegible se registra, borra el almacenamiento y nunca detiene el arranque (pantalla negra de v0.3.0–v0.3.1).
 - Pinning en prod (`security-standards.md` §6). Android: `FLAG_SECURE` en pantallas de saldo/pago; iOS: ocultar contenido en el app switcher.
 - Bloqueo por inactividad (S-GEN-22, C-18): `session.idle_lock_minutes.mobile` (5), `.pos` y `.kiosk` de infra-management; se reabre con biometría o el bloqueo del sistema (`local_auth`), sin llamar al servidor.
 - **Confirmación fuerte** (S-GEN-21, ADR 0020): la app nunca decide; pide el reto a identity, muestra la operación y el monto que devuelve el reto, y envía la aserción de la passkey o el PIN a `/v1/step-up/verify`. El umbral nunca vive en una pantalla: la app reacciona a `STEP_UP_REQUIRED`.
