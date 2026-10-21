@@ -134,6 +134,30 @@ services:
       pgbouncer:
         condition: service_healthy
 
+  # F13: facturación electrónica DGI (fiscal-invoicing/SPEC.md). DEMO usa el PAC simulado (R9).
+  # Migra con `docker compose run --rm --no-deps fiscal-invoicing migrate`.
+  fiscal-invoicing:
+    <<: *hardening
+    build:
+      context: ./fiscal-invoicing
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      PORT: "50064"
+      PP_DB_DSN: "${FISCAL_DB_DSN:-postgres://fiscal_svc:fiscal_svc_dev_secret_32_chars!@pgbouncer:6432/plentypay?sslmode=disable}"
+      PP_MIGRATE_DSN: "${FISCAL_MIGRATE_DSN:-postgres://migrator_fiscal:fiscal_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_IDENTITY_ADDR: "identity:50060"
+      PP_SECURITY_ADDR: "security:50073"
+      PP_INFRA_ADDR: "infra-management:50074"
+      PP_NATS_URL: "${FISCAL_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${FISCAL_NATS_USER:-fiscal_svc}"
+      PP_NATS_PASS: "${FISCAL_NATS_PASS:-fiscal_nats_secret}"
+    networks: [services, data]
+    healthcheck: *healthcheck
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+
   pos:
     <<: *hardening
     build:

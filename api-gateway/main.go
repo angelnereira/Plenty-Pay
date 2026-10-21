@@ -186,6 +186,7 @@ func main() {
 		routes.BackendInventory: envOr("PP_INVENTORY_ADDR", "inventory:50066"),
 		routes.BackendPos:       envOr("PP_POS_ADDR", "pos:50067"),
 		routes.BackendOrders:    envOr("PP_ORDERS_ADDR", "orders:50075"),
+		routes.BackendFiscal:    envOr("PP_FISCAL_ADDR", "fiscal-invoicing:50064"),
 	} {
 		conn, err := client.NewServiceConn(target, reporter)
 		if err != nil {
