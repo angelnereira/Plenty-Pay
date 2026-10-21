@@ -34,6 +34,13 @@ Este repositorio **se gobierna por su documentación** (ADR 0010). Tu trabajo es
 17. **PlentyPay nunca ve datos de tarjeta.** Ni un campo, ni un log, ni una variable con número de tarjeta, código de seguridad o PIN. La captura es del proveedor de pagos, por redirección o componente nativo (N-STD-28, N-STD-29).
 18. **Una pantalla solo contiene lo que dice su ficha.** Un campo, botón o texto que no esté en `docs/ux/functional-spec/` no se agrega sin actualizar primero la ficha; cada formulario pide el mínimo de datos (N-DAT-12). **Ninguna fecha se muestra solo con números**: el mes va en texto (N-STD-10).
 19. **Regla de diseño estricta Flutter (`gravital-experience-ui`).** Toda interfaz Flutter previa y futura debe construirse y diseñarse cumpliendo estrictamente `docs/gravital-experience-ui.md` (sistema `gravital-experience-ui` basado en M3 Expressive: cero valores literales fuera de tokens/roles, un único botón `filled` por pantalla, jerarquía por tono `surfaceContainer*`, movimiento físico por resortes, diseño adaptativo por `WindowClass` borde a borde, accesibilidad WCAG 2.2 AA con texto al 200 % y el checklist obligatorio de `docs/gravital-experience-ui.md` §15.3).
+20. **Atribución obligatoria a Claude en GitHub.** Todo lo que se publica en GitHub con participación de Claude lo declara, sin excepción:
+   - cada **commit** termina con la línea `Co-Authored-By: Claude <modelo> <noreply@anthropic.com>` (p. ej. `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`), separada del cuerpo por una línea en blanco;
+   - cada **pull request** termina su descripción con `🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
+   - cada **release** lleva la misma línea al final de sus notas (`scripts/publish-release.sh` la agrega si falta);
+   - los comentarios, issues y revisiones que Claude escribe en GitHub terminan igual.
+
+   Un commit de Claude sin la línea `Co-Authored-By` se corrige antes del push (`git commit --amend` si aún no se publicó); nunca se reescribe historia ya publicada para agregarla.
 
 ## 3. Ciclo de trabajo por paso del roadmap
 1. Toma **un** paso (`F<nn>.<m>`) de `docs/roadmap/status.md` cuyo predecesor esté cerrado.
@@ -44,7 +51,7 @@ Este repositorio **se gobierna por su documentación** (ADR 0010). Tu trabajo es
 6. Ejecuta localmente el nivel de verificación que exige el paso (L0–L4, `testing-strategy.md` §1) y **pega la salida** en el PR.
 7. Actualiza en el mismo cambio: `SPEC.md` (si cambió algo), `README.md` del contenedor (estado, incluida la fila de observabilidad), `docs/roadmap/status.md` (paso → hecho, con nivel y evidencia), `ARCHITECTURE.md` §2 si cambió el estado del contenedor, y `docs/glossary.md` si creaste un nombre, un `reason` o un enum.
 8. Corre `./scripts/check-isolation.sh && ./scripts/check-docs.sh && ./scripts/sync-protos.sh --check`.
-9. Commit con Conventional Commits y el contenedor como scope: `feat(ledger): reject unbalanced entries (F10.3, R1)`.
+9. Commit con Conventional Commits y el contenedor como scope: `feat(ledger): reject unbalanced entries (F10.3, R1)`, con la atribución de la regla 20 de §2 si participó Claude.
 10. **Después de cada push a `main`**, publica la app: `./scripts/publish-release.sh <patch|minor|major> <notas.md>` (sube la versión, compila web/Linux/Android contra producción, verifica que los APK lleven la misma firma que la versión anterior, actualiza la web servida y GitHub Pages, y crea el release con instaladores y checksums).
 
 ### 3.1 Esta máquina es producción

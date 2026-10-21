@@ -55,7 +55,14 @@ else
   BUILD=$((BUILD + 1))
   sed -i -E "s/^version: .*/version: $VERSION+$BUILD/" "$APP/pubspec.yaml"
   git add "$APP/pubspec.yaml"
-  git commit -q -m "chore(release): bump version to $VERSION"
+  # AGENTS.md §2 regla 20: si corre desde Claude Code (CLAUDECODE=1), el commit lo declara.
+  MSG="chore(release): bump version to $VERSION"
+  if [ -n "${CLAUDECODE:-}" ]; then
+    MSG="$MSG
+
+Co-Authored-By: ${CLAUDE_CO_AUTHOR:-Claude <noreply@anthropic.com>}"
+  fi
+  git commit -q -m "$MSG"
   git push -q origin main
 fi
 echo "=== versión $VERSION+$BUILD ==="
@@ -83,6 +90,11 @@ printf '{"api_base_url": "%s"}' "$("$ROOT/scripts/current-tunnel-url.sh")" > "$P
 echo "  GitHub Pages actualizado"
 
 # 5. Release (un solo SHA256SUMS: GitHub no admite dos assets con el mismo nombre)
+# AGENTS.md §2 regla 20: las notas declaran la participación de Claude.
+ATTRIBUTION='🤖 Generated with [Claude Code](https://claude.com/claude-code)'
+cp "$NOTES" "$TMP/notes.md"
+grep -qF "$ATTRIBUTION" "$TMP/notes.md" || printf '\n%s\n' "$ATTRIBUTION" >> "$TMP/notes.md"
+NOTES="$TMP/notes.md"
 cat "$OUT"/android/SHA256SUMS "$OUT"/linux/SHA256SUMS "$OUT"/web/SHA256SUMS > "$TMP/SHA256SUMS"
 gh release create "v$VERSION" --target main --title "PlentyPay v$VERSION" --notes-file "$NOTES" \
   "$OUT"/android/*.apk "$OUT"/android/*.aab "$OUT"/linux/*.tar.gz "$OUT"/web/*.tar.gz "$TMP/SHA256SUMS"
