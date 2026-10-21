@@ -153,4 +153,3 @@ func TestR24_ValidateTokenCarriesScopeAndCapabilities(t *testing.T) {
 		t.Fatalf("un cliente: permisos base, sin alcance ni capacidades: %+v", v)
 	}
 }
-

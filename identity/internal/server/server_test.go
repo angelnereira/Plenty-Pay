@@ -198,4 +198,3 @@ func TestTokenIssuerRejectsSameSecrets(t *testing.T) {
 		t.Fatal("NewTokenIssuer aceptó secretos iguales para access y refresh")
 	}
 }
-

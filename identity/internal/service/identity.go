@@ -146,8 +146,8 @@ type IdentityService struct {
 func New(users store.UserStore, tokens *auth.TokenIssuer, reporter *observability.Reporter, metrics *observability.Metrics) *IdentityService {
 	return &IdentityService{
 		users: users, tokens: tokens, reporter: reporter, metrics: metrics,
-		revoked: newRevocationCache(15 * time.Second),
-		access:  newAccessCache(15 * time.Second),
+		revoked:   newRevocationCache(15 * time.Second),
+		access:    newAccessCache(15 * time.Second),
 		lockout:   domain.DefaultLockoutPolicy,
 		pinPolicy: domain.DefaultPinPolicy,
 		now:       time.Now,
