@@ -141,7 +141,7 @@ Todos · Pasos F08.8, F23.3, F28.2 · `/v1/me/passkeys`, `/v1/me/step-up-pin`, `
 | e4 | Lista | Dispositivos con sesión: {etiqueta} · {ciudad aproximada} · {última actividad} · {Contraseña / Llave de acceso} | El actual marcado "Este dispositivo". Cada otro tiene "Cerrar sesión" |
 | e5 | `PPButton.text` | Cerrar todas las demás sesiones | C-05. Acción de protección: sin 🔒 |
 
-Estados: sin `local_auth` ni passkeys en el equipo (Linux) e2 y e3 no se muestran y e6 queda como único método de confirmación. Tras registrar o eliminar una passkey llega un aviso de seguridad por correo y a la bandeja (R31).
+Estados: sin `local_auth` ni passkeys en el equipo (Linux) e2 y e3 no se muestran y e6 queda como único método de confirmación. Mientras identity no implemente ListSessions/RevokeSession, e4 y e5 no se muestran (no se ofrece una acción que no hace nada). Tras registrar o eliminar una passkey llega un aviso de seguridad por correo y a la bandeja (R31).
 
 ### S-GEN-11 · `/account/notifications` · Preferencias de avisos
 Todos · Paso F20.8 · `/v1/notification-preferences`
@@ -244,7 +244,7 @@ Hoja inferior modal, desplazable al 200 %. Se abre por C-06 o cuando el servidor
 | e3 | Botón biométrico | Usar huella o rostro | Solo si `available_methods` incluye `PASSKEY` y el equipo soporta passkeys. Primer método. Anuncia "Confirmar con huella o rostro". Envía la aserción con `method=PASSKEY` |
 | e4 | `PinPad` | PIN de 6 dígitos | Si `available_methods` incluye `PIN`. Anuncia los dígitos ingresados sin leerlos. Envía con `method=PIN`; nunca se compara en la app |
 | e6 | `PPTextField` contraseña | Contraseña | Solo en nivel 3 (`allowed_methods` = `PASSWORD`), en lugar de e3 y e4 |
-| e7 | `PPButton.text` | Crear PIN | Solo si la operación acepta `PIN`, la persona no tiene PIN ni passkey (`PIN_NOT_SET`). Abre S-GEN-10 e6 y, al volver, pide un reto nuevo sin perder la operación |
+| e7 | `PPButton.primary` | Crear PIN | Solo si la operación acepta `PIN` y la persona no tiene PIN ni passkey (`available_methods` vacío); es la única acción principal de la hoja en ese estado. Abre S-GEN-10 e6 y, al volver, pide un reto nuevo sin perder la operación |
 | e5 | `PPButton.text` | Cancelar | Cierra y cancela la operación |
 
 Errores bajo el método: `PIN_INVALID` "PIN incorrecto. Te quedan {n} intentos."; `PIN_LOCKED` "Demasiados intentos. Espera {minutos} minutos." (e4 se deshabilita; e3 sigue disponible); `PASSKEY_VERIFICATION_FAILED` "No pudimos verificar tu llave. Usa tu PIN."; `INVALID_CREDENTIALS` bajo e6. Si el reto vence (5 min), se pide otro sin perder la operación. El token resultante vale una sola vez, 5 minutos, y solo para esa operación y monto; la operación se reenvía con la misma `Idempotency-Key` (C-07).

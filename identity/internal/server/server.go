@@ -416,7 +416,19 @@ func (s *IdentityServer) ChangePassword(ctx context.Context, req *pb.ChangePassw
 		return nil, toStatus(err)
 	}
 	if !res.Success {
-		return &pb.SimpleResult{Success: false, ErrorMessage: res.ErrorMessage}, nil
+		// Rechazos de negocio con su reason (la app traduce el reason, no el mensaje). La contraseña
+		// actual equivocada no es 401: la app refrescaría la sesión en vez de mostrar el error.
+		switch res.Reason {
+		case "WEAK_PASSWORD":
+			return nil, ErrorInfo(codes.InvalidArgument, "WEAK_PASSWORD", res.ErrorMessage)
+		case "INVALID_CREDENTIALS":
+			return nil, ErrorInfo(codes.FailedPrecondition, "INVALID_CREDENTIALS", res.ErrorMessage)
+		case "SAME_PASSWORD":
+			return nil, ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", res.ErrorMessage)
+		case "NOT_FOUND":
+			return nil, toStatus(domain.ErrUnauthenticated)
+		}
+		return nil, status.Error(codes.Internal, "change password: "+res.ErrorMessage)
 	}
 	return &pb.SimpleResult{Success: true}, nil
 }

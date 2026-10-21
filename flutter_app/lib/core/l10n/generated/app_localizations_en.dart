@@ -3361,4 +3361,135 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepUpConfirm => 'Confirm';
+
+  @override
+  String get error_PIN_INVALID => 'Wrong PIN.';
+
+  @override
+  String get error_PIN_LOCKED => 'Too many attempts. Wait a few minutes.';
+
+  @override
+  String get error_PIN_NOT_SET => 'Create your confirmation PIN first.';
+
+  @override
+  String get error_PASSKEY_VERIFICATION_FAILED =>
+      'We couldn\'t verify your key. Use your PIN.';
+
+  @override
+  String get error_PASSKEYS_UNAVAILABLE => 'Passkeys aren\'t available yet.';
+
+  @override
+  String get error_STEP_UP_METHOD_NOT_ALLOWED =>
+      'That method doesn\'t work for this operation.';
+
+  @override
+  String get error_UNKNOWN_OPERATION =>
+      'We couldn\'t prepare the confirmation.';
+
+  @override
+  String get stepUpPinLabel => '6-digit PIN';
+
+  @override
+  String get stepUpPasswordLabel => 'Password';
+
+  @override
+  String stepUpPinAttempts(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attempts',
+      one: '1 attempt',
+    );
+    return 'Wrong PIN. $_temp0 left.';
+  }
+
+  @override
+  String stepUpPinLockedMinutes(num minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '1 minute',
+    );
+    return 'Too many attempts. Wait $_temp0.';
+  }
+
+  @override
+  String get stepUpCreatePin => 'Create PIN';
+
+  @override
+  String get stepUpExpired => 'The confirmation expired. Try again.';
+
+  @override
+  String get stepUpOpPayment => 'Payment';
+
+  @override
+  String get stepUpOpRefund => 'Refund';
+
+  @override
+  String get stepUpOpTransfer => 'Transfer';
+
+  @override
+  String get stepUpOpRole => 'Save a role';
+
+  @override
+  String get stepUpOpInvite => 'Invite a person';
+
+  @override
+  String get stepUpOpMembership => 'Change a person\'s access';
+
+  @override
+  String get stepUpOpCapabilities => 'Change business features';
+
+  @override
+  String get stepUpOpPasswordChange => 'Change your password';
+
+  @override
+  String get stepUpOpPinSet => 'Create or change your PIN';
+
+  @override
+  String get pinSetupTitle => 'Confirmation PIN';
+
+  @override
+  String get pinSetupHelper =>
+      '6 digits. We ask for it to confirm payments and important changes.';
+
+  @override
+  String get pinNew => 'New PIN';
+
+  @override
+  String get pinRepeat => 'Repeat the PIN';
+
+  @override
+  String get pinMismatch => 'The PINs don\'t match.';
+
+  @override
+  String get pinFormatHint => 'Enter 6 digits.';
+
+  @override
+  String get pinSaved => 'PIN saved.';
+
+  @override
+  String get actionSavePin => 'Save PIN';
+
+  @override
+  String get securityTitle => 'Security';
+
+  @override
+  String get securityPinRow => 'Confirmation PIN';
+
+  @override
+  String get securityPinSet => 'Set up';
+
+  @override
+  String get securityPinNotSet => 'Not set up';
+
+  @override
+  String get securityPinLocked => 'Locked after too many attempts';
+
+  @override
+  String get fieldRepeatNewPassword => 'Repeat the new password';
+
+  @override
+  String get passwordMismatch => 'The passwords don\'t match.';
 }

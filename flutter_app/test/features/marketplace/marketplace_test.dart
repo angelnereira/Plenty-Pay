@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plentypay/core/widgets/pin_pad.dart';
 import 'package:http/http.dart' as http;
 import 'package:plentypay/features/marketplace/cart_screen.dart';
 import 'package:plentypay/features/marketplace/checkout_screen.dart';
@@ -170,7 +171,15 @@ void main() {
             : json(orderBody('PENDING_PAYMENT', [
                 subOrder(subA, storeA, 'PENDING_PAYMENT'),
               ])),
-        'POST /v1/step-up/challenge': (_) => json({'challenge_id': 'ch-1'}),
+        'POST /v1/step-up/challenge': (_) => json({
+              'challenge_id': 'ch-1',
+              'operation': 'payments.intent.create',
+              'amount_minor': '4125',
+              'currency': 'USD',
+              'level': 2,
+              'allowed_methods': ['PASSKEY', 'PIN'],
+              'available_methods': ['PIN'],
+            }),
         'POST /v1/step-up/verify': (_) => json({'token': 'tok-1'}),
         'POST /v1/payments/intents/$intentId/confirm': (_) =>
             json({'payment_intent_id': intentId, 'status': 'PAYMENT_STATUS_CAPTURED'}),
@@ -189,7 +198,8 @@ void main() {
       await tester.tap(find.text(r'Pagar $41.25'));
       await settle(tester); // el botón gira mientras espera el diálogo
       expect(find.text('Confirma que eres tú'), findsOneWidget);
-      await tester.tap(find.text('Confirmar'));
+      // ADR 0020: el PIN lo verifica identity; al sexto dígito se envía.
+      await tester.enterText(find.byType(PinPad), '482915');
       await tester.pump(const Duration(milliseconds: 600));
       await settle(tester);
       final orders = calls.where((r) => r.method == 'POST' && r.url.path == '/v1/orders').toList();

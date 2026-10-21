@@ -50,11 +50,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } on ApiException catch (e) {
       if (e.reason != 'STEP_UP_REQUIRED' || !mounted) rethrow;
       final l10n = AppLocalizations.of(context);
-      final ok = await StepUpDialog.confirm(context,
-          title: l10n.mktCheckoutTitle, amountMinor: q.grandTotalMinor);
-      if (!ok) throw const _Abandoned();
-      final token = await widget.api.stepUp(stepUpPaymentCreate,
-          amountMinor: q.grandTotalMinor, currency: 'USD');
+      final token = await StepUpDialog.obtainToken(context,
+          api: widget.api,
+          operation: stepUpPaymentCreate,
+          amountMinor: q.grandTotalMinor,
+          currency: 'USD',
+          title: l10n.mktCheckoutTitle);
+      if (token == null) throw const _Abandoned();
       return widget.api
           .checkoutOrder(q.id, idempotencyKey: _key, stepUpToken: token);
     }

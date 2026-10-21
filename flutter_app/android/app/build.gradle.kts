@@ -30,6 +30,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Depurar en un teléfono con la app publicada instalada: id propio, sin reemplazarla
+            // ni borrar sus datos.
+            applicationIdSuffix = ".debug"
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.

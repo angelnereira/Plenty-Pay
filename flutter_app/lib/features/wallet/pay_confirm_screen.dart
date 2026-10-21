@@ -123,12 +123,13 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         created = await _create(q, null);
       } on ApiException catch (e) {
         if (e.reason != 'STEP_UP_REQUIRED' || !mounted) rethrow;
-        final ok = await StepUpDialog.confirm(context,
-            title: l10n.payStepUpTitle(data.link.merchantName),
-            amountMinor: q.totalMinor);
-        if (!ok) return;
-        final token = await widget.api.stepUp(stepUpPaymentCreate,
-            amountMinor: q.totalMinor, currency: 'USD');
+        final token = await StepUpDialog.obtainToken(context,
+            api: widget.api,
+            operation: stepUpPaymentCreate,
+            amountMinor: q.totalMinor,
+            currency: 'USD',
+            title: l10n.payStepUpTitle(data.link.merchantName));
+        if (token == null) return;
         created = await _create(q, token);
       }
       final intent = PayIntent.fromJson(created);

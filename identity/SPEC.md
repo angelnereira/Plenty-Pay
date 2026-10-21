@@ -155,7 +155,7 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 | RefreshToken | público | — | rota refresh; reuso ⇒ revoca familia y publica `SessionRevoked` | `TOKEN_INVALID`, `TOKEN_REUSED` |
 | Logout | self | sí | revoca la sesión actual (o todas con `all=true`) | — |
 | ListSessions / RevokeSession | self | — / sí | dispositivos con sesión; revocar una | `NOT_FOUND` |
-| ChangePassword | self + step-up | sí | verifica actual, aplica política, revoca otras sesiones | `INVALID_CREDENTIALS`, `WEAK_PASSWORD`, `STEP_UP_REQUIRED` |
+| ChangePassword | self + step-up `identity.password.change` (R26; usuario de `x-pp-user-id`) | sí | consume el token antes de comparar la contraseña actual; aplica política, revoca otras sesiones. Rechazos como error con reason (`INVALID_CREDENTIALS` viaja como `FAILED_PRECONDITION`, no 401) | `INVALID_CREDENTIALS`, `WEAK_PASSWORD`, `INVALID_REQUEST`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID` |
 | RequestPasswordReset | público | — | siempre `ok=true`; si existe, outbox → notifications envía enlace `/reset/<token>` | — |
 | ConfirmPasswordReset | público | sí | token válido 30 min, un uso; revoca todas las sesiones | `TOKEN_INVALID` |
 | CreateBusiness | usuario autenticado sin tenant | sí | crea tenant `PENDING_REVIEW`, membresía `BUSINESS_OWNER` alcance `TENANT`, sucursal matriz `0000` (nombre `branch_name`, «Casa Matriz» por defecto) y las capacidades del perfil (vertical vacía = `general_commercial`) en 1 transacción | `ALREADY_HAS_TENANT`, `RUC_TAKEN`, `INVALID_RUC`, `VERTICAL_NOT_FOUND`, `INVALID_REQUEST` |

@@ -6272,6 +6272,228 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Confirmar'**
   String get stepUpConfirm;
+
+  /// No description provided for @error_PIN_INVALID.
+  ///
+  /// In es, this message translates to:
+  /// **'PIN incorrecto.'**
+  String get error_PIN_INVALID;
+
+  /// No description provided for @error_PIN_LOCKED.
+  ///
+  /// In es, this message translates to:
+  /// **'Demasiados intentos. Espera unos minutos.'**
+  String get error_PIN_LOCKED;
+
+  /// No description provided for @error_PIN_NOT_SET.
+  ///
+  /// In es, this message translates to:
+  /// **'Primero crea tu PIN de confirmación.'**
+  String get error_PIN_NOT_SET;
+
+  /// No description provided for @error_PASSKEY_VERIFICATION_FAILED.
+  ///
+  /// In es, this message translates to:
+  /// **'No pudimos verificar tu llave. Usa tu PIN.'**
+  String get error_PASSKEY_VERIFICATION_FAILED;
+
+  /// No description provided for @error_PASSKEYS_UNAVAILABLE.
+  ///
+  /// In es, this message translates to:
+  /// **'Las llaves de acceso no están disponibles todavía.'**
+  String get error_PASSKEYS_UNAVAILABLE;
+
+  /// No description provided for @error_STEP_UP_METHOD_NOT_ALLOWED.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese método no sirve para esta operación.'**
+  String get error_STEP_UP_METHOD_NOT_ALLOWED;
+
+  /// No description provided for @error_UNKNOWN_OPERATION.
+  ///
+  /// In es, this message translates to:
+  /// **'No pudimos preparar la confirmación.'**
+  String get error_UNKNOWN_OPERATION;
+
+  /// No description provided for @stepUpPinLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'PIN de 6 dígitos'**
+  String get stepUpPinLabel;
+
+  /// No description provided for @stepUpPasswordLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Contraseña'**
+  String get stepUpPasswordLabel;
+
+  /// No description provided for @stepUpPinAttempts.
+  ///
+  /// In es, this message translates to:
+  /// **'PIN incorrecto. Te quedan {count, plural, =1{1 intento} other{{count} intentos}}.'**
+  String stepUpPinAttempts(num count);
+
+  /// No description provided for @stepUpPinLockedMinutes.
+  ///
+  /// In es, this message translates to:
+  /// **'Demasiados intentos. Espera {minutes, plural, =1{1 minuto} other{{minutes} minutos}}.'**
+  String stepUpPinLockedMinutes(num minutes);
+
+  /// No description provided for @stepUpCreatePin.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear PIN'**
+  String get stepUpCreatePin;
+
+  /// No description provided for @stepUpExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'La confirmación venció. Inténtalo de nuevo.'**
+  String get stepUpExpired;
+
+  /// No description provided for @stepUpOpPayment.
+  ///
+  /// In es, this message translates to:
+  /// **'Pago'**
+  String get stepUpOpPayment;
+
+  /// No description provided for @stepUpOpRefund.
+  ///
+  /// In es, this message translates to:
+  /// **'Reembolso'**
+  String get stepUpOpRefund;
+
+  /// No description provided for @stepUpOpTransfer.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferencia'**
+  String get stepUpOpTransfer;
+
+  /// No description provided for @stepUpOpRole.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar un rol'**
+  String get stepUpOpRole;
+
+  /// No description provided for @stepUpOpInvite.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitar a una persona'**
+  String get stepUpOpInvite;
+
+  /// No description provided for @stepUpOpMembership.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar el acceso de una persona'**
+  String get stepUpOpMembership;
+
+  /// No description provided for @stepUpOpCapabilities.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar las funciones del negocio'**
+  String get stepUpOpCapabilities;
+
+  /// No description provided for @stepUpOpPasswordChange.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar tu contraseña'**
+  String get stepUpOpPasswordChange;
+
+  /// No description provided for @stepUpOpPinSet.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear o cambiar tu PIN'**
+  String get stepUpOpPinSet;
+
+  /// No description provided for @pinSetupTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'PIN de confirmación'**
+  String get pinSetupTitle;
+
+  /// No description provided for @pinSetupHelper.
+  ///
+  /// In es, this message translates to:
+  /// **'6 dígitos. Lo pedimos para confirmar pagos y cambios importantes.'**
+  String get pinSetupHelper;
+
+  /// No description provided for @pinNew.
+  ///
+  /// In es, this message translates to:
+  /// **'PIN nuevo'**
+  String get pinNew;
+
+  /// No description provided for @pinRepeat.
+  ///
+  /// In es, this message translates to:
+  /// **'Repite el PIN'**
+  String get pinRepeat;
+
+  /// No description provided for @pinMismatch.
+  ///
+  /// In es, this message translates to:
+  /// **'Los PIN no coinciden.'**
+  String get pinMismatch;
+
+  /// No description provided for @pinFormatHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe 6 dígitos.'**
+  String get pinFormatHint;
+
+  /// No description provided for @pinSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'PIN guardado.'**
+  String get pinSaved;
+
+  /// No description provided for @actionSavePin.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar PIN'**
+  String get actionSavePin;
+
+  /// No description provided for @securityTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Seguridad'**
+  String get securityTitle;
+
+  /// No description provided for @securityPinRow.
+  ///
+  /// In es, this message translates to:
+  /// **'PIN de confirmación'**
+  String get securityPinRow;
+
+  /// No description provided for @securityPinSet.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurado'**
+  String get securityPinSet;
+
+  /// No description provided for @securityPinNotSet.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin configurar'**
+  String get securityPinNotSet;
+
+  /// No description provided for @securityPinLocked.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloqueado por intentos'**
+  String get securityPinLocked;
+
+  /// No description provided for @fieldRepeatNewPassword.
+  ///
+  /// In es, this message translates to:
+  /// **'Repite la contraseña nueva'**
+  String get fieldRepeatNewPassword;
+
+  /// No description provided for @passwordMismatch.
+  ///
+  /// In es, this message translates to:
+  /// **'Las contraseñas no coinciden.'**
+  String get passwordMismatch;
 }
 
 class _AppLocalizationsDelegate

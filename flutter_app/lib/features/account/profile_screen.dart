@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
+import '../business/access_labels.dart' show reasonMessage;
+import '../business/step_up_flow.dart';
 
 /// S-GEN-09 · `/account/profile` · Datos personales + cambio de contraseña.
 class ProfileScreen extends StatefulWidget {
@@ -27,13 +29,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _ok = null;
     });
     try {
-      await widget.api.changePassword(
-        currentPassword: _current.text,
-        newPassword: _next.text,
-      );
-      if (mounted) setState(() => _ok = l10n.msgPasswordChanged);
-    } on Exception catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      // 🔒 identity.password.change (ADR 0020): S-GEN-21 obtiene el token con el PIN.
+      final done = await runWithStepUp<bool>(context,
+          api: widget.api,
+          operation: 'identity.password.change',
+          title: l10n.actionChangePassword,
+          run: (token) async {
+            await widget.api.changePassword(
+                currentPassword: _current.text,
+                newPassword: _next.text,
+                stepUpToken: token);
+            return true;
+          });
+      if (done == true && mounted) setState(() => _ok = l10n.msgPasswordChanged);
+    } on Object catch (e) {
+      if (mounted) setState(() => _error = reasonMessage(l10n, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

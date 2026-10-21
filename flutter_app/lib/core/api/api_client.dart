@@ -23,6 +23,59 @@ class ApiException implements Exception {
   String toString() => 'ApiException($status, $reason, $requestId)';
 }
 
+/// Reto de confirmación fuerte (identity.PasskeyChallenge, S-GEN-21).
+class StepUpChallenge {
+  StepUpChallenge({
+    required this.id,
+    required this.operation,
+    required this.amountMinor,
+    required this.currency,
+    required this.level,
+    required this.allowedMethods,
+    required this.availableMethods,
+  });
+
+  factory StepUpChallenge.fromJson(Map<String, dynamic> j) {
+    List<String> methods(Object? v) =>
+        (v as List<dynamic>? ?? const []).map((e) => '$e').toList();
+    return StepUpChallenge(
+      id: j['challenge_id'] as String? ?? '',
+      operation: j['operation'] as String? ?? '',
+      amountMinor: int.tryParse('${j['amount_minor'] ?? 0}') ?? 0,
+      currency: j['currency'] as String? ?? '',
+      level: (j['level'] as num?)?.toInt() ?? 2,
+      allowedMethods: methods(j['allowed_methods']),
+      availableMethods: methods(j['available_methods']),
+    );
+  }
+
+  final String id;
+  final String operation;
+  final int amountMinor;
+  final String currency;
+  final int level;
+  final List<String> allowedMethods;
+  final List<String> availableMethods;
+}
+
+/// Estado del PIN de confirmación (identity.StepUpPinStatus).
+class StepUpPinStatus {
+  StepUpPinStatus({required this.isSet, required this.attemptsRemaining, this.lockedUntil});
+
+  factory StepUpPinStatus.fromJson(Map<String, dynamic> j) {
+    final locked = j['locked_until'] as String?;
+    return StepUpPinStatus(
+      isSet: j['is_set'] == true,
+      attemptsRemaining: (j['attempts_remaining'] as num?)?.toInt() ?? 0,
+      lockedUntil: locked == null || locked.isEmpty ? null : DateTime.tryParse(locked),
+    );
+  }
+
+  final bool isSet;
+  final int attemptsRemaining;
+  final DateTime? lockedUntil;
+}
+
 class Me {
   Me({required this.userId, required this.role, required this.tenantId});
   final String userId;
@@ -887,25 +940,49 @@ class ApiClient {
   // ── Modelo de acceso (ADR 0018, api-gateway/SPEC.md §4.1) ─────────────────
   // El negocio y el actor salen siempre del token (ADR 0011): ninguna llamada manda tenant_id.
 
-  /// Pide un token de confirmación fuerte para [operation] (security-standards.md §4). El reto
-  /// queda atado al usuario del token; la verificación con passkey llega en F28.
-  /// Pide y verifica un reto de confirmación fuerte. identity ata el token a la operación, al monto
-  /// y a la moneda exactos (`ConsumeStepUp` responde MISMATCH si cambian).
-  Future<String> stepUp(String operation,
-      {int amountMinor = 0, String currency = ''}) async {
-    final challenge = await _post('/v1/step-up/challenge',
-        data: {
-          'operation': operation,
-          if (amountMinor > 0) 'amount_minor': '$amountMinor',
-          if (currency.isNotEmpty) 'currency': currency,
-        },
-        skipIdempotency: true);
+  // ── Confirmación fuerte (ADR 0020, S-GEN-21) ─────────────────────────────
+  // La app nunca decide: identity verifica el PIN o la contraseña y emite el token de un uso,
+  // atado al usuario, la operación, el monto y la moneda (`ConsumeStepUp` responde MISMATCH si
+  // cambian). El PIN y la contraseña viajan solo en el cuerpo de `/v1/step-up/verify` y nunca se
+  // registran (observability-standards.md §16).
+
+  /// Pide el reto de [operation]: dice qué se confirma y con qué métodos (identity R27).
+  Future<StepUpChallenge> issueStepUpChallenge(String operation,
+          {int amountMinor = 0, String currency = ''}) async =>
+      StepUpChallenge.fromJson(await _post('/v1/step-up/challenge',
+          data: {
+            'operation': operation,
+            if (amountMinor > 0) 'amount_minor': '$amountMinor',
+            if (currency.isNotEmpty) 'currency': currency,
+          },
+          skipIdempotency: true));
+
+  /// Verifica el reto con [method] (`PIN` o `PASSWORD`) y devuelve el token.
+  Future<String> verifyStepUp(String challengeId,
+      {required String method, String? pin, String? password}) async {
     final verified = await _post('/v1/step-up/verify',
-        data: {'challenge_id': challenge['challenge_id']},
+        data: {
+          'challenge_id': challengeId,
+          'method': method,
+          if (pin != null) 'pin': pin,
+          if (password != null) 'password': password,
+        },
         skipIdempotency: true);
     final token = verified['token'] as String? ?? '';
     if (token.isEmpty) throw ApiException(403, 'STEP_UP_INVALID', '');
     return token;
+  }
+
+  /// Estado del PIN de confirmación (S-GEN-10 e6, S-GEN-21 e4).
+  Future<StepUpPinStatus> getStepUpPinStatus() async =>
+      StepUpPinStatus.fromJson(await _get('/v1/me/step-up-pin'));
+
+  /// Crea o cambia el PIN (🔒 `identity.pin.set`, nivel 3: el token sale de la contraseña).
+  Future<void> setStepUpPin(String pin, {String? stepUpToken}) async {
+    await _put('/v1/me/step-up-pin',
+        data: {'pin': pin},
+        headers: _stepUpHeaders(stepUpToken),
+        idempotencyKey: newRequestId());
   }
 
   Future<Map<String, dynamic>> getAccessCatalog() => _get('/v1/access/catalog');
@@ -1044,16 +1121,18 @@ class ApiClient {
     });
   }
 
+  /// 🔒 `identity.password.change` (identity R14, R26): sin token responde STEP_UP_REQUIRED.
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
     String? stepUpToken,
   }) async {
-    await _post('/v1/me/password', data: {
-      'current_password': currentPassword,
-      'new_password': newPassword,
-      if (stepUpToken != null) 'step_up_token': stepUpToken,
-    });
+    await _post('/v1/me/password',
+        data: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        },
+        headers: _stepUpHeaders(stepUpToken));
   }
 
   /// S-GEN-17: datos de la invitación para quien tiene el enlace (sin sesión).

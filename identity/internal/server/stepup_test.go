@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc/codes"
 
@@ -148,4 +149,46 @@ func TestR26_ChangePasswordUsesContextUserAndStepUp(t *testing.T) {
 	if code, reason := reasonOf(t, err); code != codes.PermissionDenied || reason != "STEP_UP_INVALID" {
 		t.Fatalf("token inventado (antes bastaba con no estar vacío, B12): %v %s", code, reason)
 	}
+}
+
+// ChangePassword: los rechazos de negocio viajan con su reason, no como success=false.
+func TestR16_ChangePasswordRejectionsCarryReason(t *testing.T) {
+	s := newTestServer(t)
+	s.WithPasswords(noopPasswordStore{})
+	ctx, _ := registerForStepUp(t, s, "rechazos-clave@example.com")
+	setPinViaPassword(t, s, ctx, "246813")
+	withToken := func() context.Context {
+		ch, err := s.IssueStepUpChallenge(ctx, &pb.StepUpRequest{Operation: domain.OpPasswordChange})
+		if err != nil {
+			t.Fatal(err)
+		}
+		tok, err := s.VerifyStepUp(ctx, &pb.VerifyStepUpRequest{ChallengeId: ch.ChallengeId, Method: pb.StepUpMethod_PIN, Pin: "246813"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tenancy.WithStepUpToken(ctx, tok.Token)
+	}
+	_, err := s.ChangePassword(withToken(), &pb.ChangePasswordRequest{CurrentPassword: "no-es-la-clave-123", NewPassword: "nueva-contraseña-muy-larga"})
+	if code, reason := reasonOf(t, err); code != codes.FailedPrecondition || reason != "INVALID_CREDENTIALS" {
+		t.Fatalf("contraseña actual equivocada: %v %s", code, reason)
+	}
+	_, err = s.ChangePassword(withToken(), &pb.ChangePasswordRequest{CurrentPassword: "contraseña-super-segura-123", NewPassword: "corta"})
+	if code, reason := reasonOf(t, err); code != codes.InvalidArgument || reason != "WEAK_PASSWORD" {
+		t.Fatalf("contraseña débil: %v %s", code, reason)
+	}
+	if _, err := s.ChangePassword(withToken(), &pb.ChangePasswordRequest{CurrentPassword: "contraseña-super-segura-123", NewPassword: "nueva-contraseña-muy-larga"}); err != nil {
+		t.Fatalf("cambio correcto: %v", err)
+	}
+}
+
+// noopPasswordStore acepta el cambio sin base de datos (la regla R16 tiene su prueba L2).
+type noopPasswordStore struct{}
+
+func (noopPasswordStore) CreatePasswordReset(context.Context, string) (string, time.Time, error) {
+	return "", time.Time{}, nil
+}
+func (noopPasswordStore) ConsumePasswordReset(context.Context, string) (string, error) { return "", nil }
+func (noopPasswordStore) ChangePassword(context.Context, string, string, string) error  { return nil }
+func (noopPasswordStore) PasswordChangedAt(context.Context, string) (*time.Time, error) {
+	return nil, nil
 }

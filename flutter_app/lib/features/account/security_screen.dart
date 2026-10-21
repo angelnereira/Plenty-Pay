@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/theme/tokens.dart';
 import '../../core/widgets/pp_button.dart';
 import '../../core/widgets/pp_text_field.dart';
 import '../../core/widgets/status_chip.dart';
+import '../business/access_labels.dart' show reasonMessage;
+import '../business/step_up_flow.dart';
+import 'pin_setup_sheet.dart';
 
-/// S-GEN-11 · `/account/security` · Seguridad.
+/// S-GEN-10 · `/account/security` · Seguridad (ADR 0020).
 ///
-/// Cambio de contraseña (R16), gestión de passkeys/WebAuthn y revocación global.
-/// Regla de diseño: un único botón filled ("Cambiar contraseña").
+/// e6 PIN de confirmación (estado real de identity) y e1 cambiar contraseña (🔒
+/// `identity.password.change`). Sin `local_auth` ni passkeys todavía (F23.3, F28.2) e2 y e3 no se
+/// muestran; la lista de sesiones (e4) y "Cerrar todas las demás" (e5) esperan a que identity
+/// implemente ListSessions/RevokeSession: no se muestra una acción que no hace nada.
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key, required this.api});
 
@@ -20,52 +27,149 @@ class SecurityScreen extends StatefulWidget {
 }
 
 class _SecurityScreenState extends State<SecurityScreen> {
-  final _currentPassword = TextEditingController();
-  final _newPassword = TextEditingController();
-  final _confirmPassword = TextEditingController();
+  late Future<StepUpPinStatus> _pin = widget.api.getStepUpPinStatus();
 
-  bool _loading = false;
-  String? _message;
+  Future<void> _setupPin() async {
+    if (await PinSetupSheet.show(context, api: widget.api) && mounted) _reloadPin();
+  }
+
+  // El callback de setState no puede devolver el Future: se asigna en un bloque.
+  void _reloadPin() => setState(() {
+        _pin = widget.api.getStepUpPinStatus();
+      });
+
+  Future<void> _changePassword() async {
+    final l10n = AppLocalizations.of(context);
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _ChangePasswordSheet(api: widget.api),
+    );
+    if (changed == true && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.msgPasswordChanged)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final margin = WindowClass.of(context).horizontalMargin;
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.securityTitle)),
+      body: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.symmetric(horizontal: margin, vertical: AppTokens.spacingMd),
+          children: [
+            FutureBuilder<StepUpPinStatus>(
+              future: _pin,
+              builder: (context, snap) {
+                final st = snap.data;
+                final Widget? status = switch (snap.connectionState) {
+                  ConnectionState.done when snap.hasError => null,
+                  ConnectionState.done when st != null => StatusChip(
+                      label: st.lockedUntil != null
+                          ? l10n.securityPinLocked
+                          : st.isSet
+                              ? l10n.securityPinSet
+                              : l10n.securityPinNotSet,
+                      tone: st.lockedUntil != null
+                          ? StatusTone.error
+                          : st.isSet
+                              ? StatusTone.success
+                              : StatusTone.neutral,
+                    ),
+                  _ => const LinearProgressIndicator(),
+                };
+                return ListTile(
+                  leading: const Icon(Icons.pin_outlined),
+                  title: Text(l10n.securityPinRow),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(snap.hasError
+                          ? reasonMessage(l10n, snap.error!)
+                          : l10n.pinSetupHelper),
+                      if (status != null) ...[
+                        const SizedBox(height: AppTokens.spacingXs),
+                        status,
+                      ],
+                    ],
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: snap.hasError ? _reloadPin : _setupPin,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.password_outlined),
+              title: Text(l10n.actionChangePassword),
+              subtitle: Text(l10n.passwordHelper),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _changePassword,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// S-GEN-10 e1: contraseña actual y nueva; al enviar, identity pide la confirmación fuerte.
+class _ChangePasswordSheet extends StatefulWidget {
+  const _ChangePasswordSheet({required this.api});
+  final ApiClient api;
+
+  @override
+  State<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
+}
+
+class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
+  final _current = TextEditingController();
+  final _next = TextEditingController();
+  final _repeat = TextEditingController();
+  bool _busy = false;
   String? _error;
 
   @override
   void dispose() {
-    _currentPassword.dispose();
-    _newPassword.dispose();
-    _confirmPassword.dispose();
+    _current.dispose();
+    _next.dispose();
+    _repeat.dispose();
     super.dispose();
   }
 
-  bool get _isValid =>
-      _currentPassword.text.isNotEmpty &&
-      _newPassword.text.length >= 12 &&
-      _newPassword.text == _confirmPassword.text;
+  bool get _valid =>
+      _current.text.isNotEmpty && _next.text.length >= 12 && _repeat.text.isNotEmpty;
 
-  Future<void> _changePassword() async {
-    if (!_isValid) return;
+  Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context);
+    if (_next.text != _repeat.text) {
+      setState(() => _error = l10n.passwordMismatch);
+      return;
+    }
     setState(() {
-      _loading = true;
-      _message = null;
+      _busy = true;
       _error = null;
     });
-
     try {
-      await widget.api.changePassword(
-        currentPassword: _currentPassword.text,
-        newPassword: _newPassword.text,
-      );
-      if (!mounted) return;
-      setState(() {
-        _message = 'Contraseña actualizada correctamente.';
-        _currentPassword.clear();
-        _newPassword.clear();
-        _confirmPassword.clear();
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = 'No se pudo cambiar la contraseña. Verifica tu clave actual.');
+      final done = await runWithStepUp<bool>(context,
+          api: widget.api,
+          operation: 'identity.password.change',
+          title: l10n.actionChangePassword,
+          run: (token) async {
+            await widget.api.changePassword(
+                currentPassword: _current.text,
+                newPassword: _next.text,
+                stepUpToken: token);
+            return true;
+          });
+      if (done == true && mounted) Navigator.of(context).pop(true);
+    } on Object catch (e) {
+      if (mounted) setState(() => _error = reasonMessage(l10n, e));
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -73,145 +177,50 @@ class _SecurityScreenState extends State<SecurityScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Seguridad')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+    final margin = WindowClass.of(context).horizontalMargin;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(margin, 0, margin,
+            AppTokens.spacingLg + MediaQuery.viewInsetsOf(context).bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Estado de protección
-            Card(
-              color: theme.colorScheme.surfaceContainerLow,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(Icons.shield_outlined, size: 36, color: theme.colorScheme.primary),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Nivel de protección: Alto', style: theme.textTheme.titleMedium),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Sesiones cifradas y autenticación reforzada activa.',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const StatusChip(label: 'Activo', tone: StatusTone.success),
-                  ],
-                ),
-              ),
+            Semantics(
+              header: true,
+              child: Text(l10n.actionChangePassword, style: theme.textTheme.titleLarge),
             ),
-            const SizedBox(height: 24),
-
-            Text('Cambio de contraseña', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              'La contraseña debe tener al menos 12 caracteres.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-
+            const SizedBox(height: AppTokens.spacingMd),
             PPTextField(
-              controller: _currentPassword,
+              controller: _current,
               labelText: l10n.fieldCurrentPassword,
               obscureText: true,
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppTokens.spacingSm),
             PPTextField(
-              controller: _newPassword,
+              controller: _next,
               labelText: l10n.fieldNewPassword,
               helperText: l10n.passwordHelper,
               obscureText: true,
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppTokens.spacingSm),
             PPTextField(
-              controller: _confirmPassword,
-              labelText: 'Confirmar nueva contraseña',
+              controller: _repeat,
+              labelText: l10n.fieldRepeatNewPassword,
               obscureText: true,
-              onChanged: (_) => setState(() {}),
+              error: _error,
+              onChanged: (_) => setState(() => _error = null),
             ),
-            const SizedBox(height: 16),
-
-            if (_message != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  _message!,
-                  style: TextStyle(color: theme.colorScheme.primary),
-                ),
-              ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
-              ),
-
+            const SizedBox(height: AppTokens.spacingLg),
             PPButton.primary(
-              label: l10n.actionChangePassword,
-              onPressed: _isValid && !_loading ? _changePassword : null,
-            ),
-
-            const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 16),
-
-            // Llaves de seguridad (Passkeys)
-            ListTile(
-              leading: const Icon(Icons.key_outlined),
-              title: const Text('Llaves de paso (Passkeys)'),
-              subtitle: const Text('Inicia sesión con tu huella o rostro.'),
-              trailing: const StatusChip(label: 'Configurar', tone: StatusTone.neutral),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Configuración de passkeys disponible próximamente.')),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Revocación global de sesiones
-            OutlinedButton.icon(
-              icon: const Icon(Icons.logout),
-              label: const Text('Cerrar todas las demás sesiones'),
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('¿Cerrar todas las demás sesiones?'),
-                    content: const Text('Se revocarán los accesos en todos tus otros dispositivos.'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Cerrar sesiones')),
-                    ],
-                  ),
-                );
-                if (confirm == true) {
-                  try {
-                    await widget.api.logoutAll();
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Otras sesiones revocadas correctamente.')),
-                    );
-                  } catch (_) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sesiones revocadas.')),
-                    );
-                  }
-                }
-              },
-            ),
+                label: l10n.actionChangePassword,
+                onPressed: _valid && !_busy ? _submit : null),
+            const SizedBox(height: AppTokens.spacingSm),
+            PPButton.text(
+                label: l10n.actionCancel,
+                onPressed: () => Navigator.of(context).pop(false)),
           ],
         ),
       ),

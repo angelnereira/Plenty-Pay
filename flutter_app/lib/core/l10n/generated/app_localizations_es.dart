@@ -3364,6 +3364,137 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stepUpConfirm => 'Confirmar';
+
+  @override
+  String get error_PIN_INVALID => 'PIN incorrecto.';
+
+  @override
+  String get error_PIN_LOCKED => 'Demasiados intentos. Espera unos minutos.';
+
+  @override
+  String get error_PIN_NOT_SET => 'Primero crea tu PIN de confirmación.';
+
+  @override
+  String get error_PASSKEY_VERIFICATION_FAILED =>
+      'No pudimos verificar tu llave. Usa tu PIN.';
+
+  @override
+  String get error_PASSKEYS_UNAVAILABLE =>
+      'Las llaves de acceso no están disponibles todavía.';
+
+  @override
+  String get error_STEP_UP_METHOD_NOT_ALLOWED =>
+      'Ese método no sirve para esta operación.';
+
+  @override
+  String get error_UNKNOWN_OPERATION => 'No pudimos preparar la confirmación.';
+
+  @override
+  String get stepUpPinLabel => 'PIN de 6 dígitos';
+
+  @override
+  String get stepUpPasswordLabel => 'Contraseña';
+
+  @override
+  String stepUpPinAttempts(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count intentos',
+      one: '1 intento',
+    );
+    return 'PIN incorrecto. Te quedan $_temp0.';
+  }
+
+  @override
+  String stepUpPinLockedMinutes(num minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutos',
+      one: '1 minuto',
+    );
+    return 'Demasiados intentos. Espera $_temp0.';
+  }
+
+  @override
+  String get stepUpCreatePin => 'Crear PIN';
+
+  @override
+  String get stepUpExpired => 'La confirmación venció. Inténtalo de nuevo.';
+
+  @override
+  String get stepUpOpPayment => 'Pago';
+
+  @override
+  String get stepUpOpRefund => 'Reembolso';
+
+  @override
+  String get stepUpOpTransfer => 'Transferencia';
+
+  @override
+  String get stepUpOpRole => 'Guardar un rol';
+
+  @override
+  String get stepUpOpInvite => 'Invitar a una persona';
+
+  @override
+  String get stepUpOpMembership => 'Cambiar el acceso de una persona';
+
+  @override
+  String get stepUpOpCapabilities => 'Cambiar las funciones del negocio';
+
+  @override
+  String get stepUpOpPasswordChange => 'Cambiar tu contraseña';
+
+  @override
+  String get stepUpOpPinSet => 'Crear o cambiar tu PIN';
+
+  @override
+  String get pinSetupTitle => 'PIN de confirmación';
+
+  @override
+  String get pinSetupHelper =>
+      '6 dígitos. Lo pedimos para confirmar pagos y cambios importantes.';
+
+  @override
+  String get pinNew => 'PIN nuevo';
+
+  @override
+  String get pinRepeat => 'Repite el PIN';
+
+  @override
+  String get pinMismatch => 'Los PIN no coinciden.';
+
+  @override
+  String get pinFormatHint => 'Escribe 6 dígitos.';
+
+  @override
+  String get pinSaved => 'PIN guardado.';
+
+  @override
+  String get actionSavePin => 'Guardar PIN';
+
+  @override
+  String get securityTitle => 'Seguridad';
+
+  @override
+  String get securityPinRow => 'PIN de confirmación';
+
+  @override
+  String get securityPinSet => 'Configurado';
+
+  @override
+  String get securityPinNotSet => 'Sin configurar';
+
+  @override
+  String get securityPinLocked => 'Bloqueado por intentos';
+
+  @override
+  String get fieldRepeatNewPassword => 'Repite la contraseña nueva';
+
+  @override
+  String get passwordMismatch => 'Las contraseñas no coinciden.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

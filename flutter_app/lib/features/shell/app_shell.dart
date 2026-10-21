@@ -62,7 +62,9 @@ class _AppShellState extends State<AppShell> {
                 Text(l10n.shellMenuLoadFailed),
                 const SizedBox(height: 12),
                 FilledButton(
-                  onPressed: () => setState(() => _perms = widget.api.permissions()),
+                  onPressed: () => setState(() {
+                    _perms = widget.api.permissions();
+                  }),
                   child: Text(l10n.actionRetry),
                 ),
                 TextButton(onPressed: _signOut, child: Text(l10n.actionSignOut)),
