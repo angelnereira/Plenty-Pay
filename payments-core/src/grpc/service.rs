@@ -138,6 +138,7 @@ fn payment_pb(p: &PaymentRow) -> pb::Payment {
             .collect(),
         created_at: Some(ts(p.created_at)),
         captured_at: p.captured_at.map(ts),
+        sandbox: p.sandbox,
     }
 }
 

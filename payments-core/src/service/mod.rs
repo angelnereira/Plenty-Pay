@@ -190,13 +190,19 @@ impl Actor {
         matches!(self.service.as_str(), "orders" | "pos" | "payroll")
     }
 
+    /// Servicios que solo leen cobros y reembolsos de cualquier negocio: settlement los necesita para
+    /// armar lotes (saber si un cobro fue sandbox). No cobran ni reembolsan.
+    fn is_internal_reader(&self) -> bool {
+        matches!(self.service.as_str(), "settlement")
+    }
+
     fn user(&self) -> Result<Uuid, Error> {
         self.user_id.ok_or(Error::PermissionDenied)
     }
 
     /// Alcance de lectura: el negocio con `payments:read`/`payments:charge`, y lo que pagó la persona.
     fn read_scope(&self) -> Scope {
-        if self.is_internal_charger() {
+        if self.is_internal_charger() || self.is_internal_reader() {
             return Scope::service();
         }
         Scope {
@@ -1158,7 +1164,7 @@ impl PaymentsCore {
     }
 
     pub async fn get_payment(&self, actor: &Actor, payment_id: Uuid) -> Result<PaymentRow, Error> {
-        if !actor.has("payments:read") && !actor.is_internal_charger() {
+        if !actor.has("payments:read") && !actor.is_internal_charger() && !actor.is_internal_reader() {
             return Err(Error::PermissionDenied);
         }
         match self.store.payment(&actor.read_scope(), payment_id).await {
@@ -1469,6 +1475,23 @@ impl PaymentsCore {
 mod tests {
     use super::*;
 
+    /// settlement SPEC §7: settlement lee cobros de cualquier negocio, pero no cobra.
+    #[test]
+    fn settlement_reads_any_tenant_but_never_charges() {
+        let a = Actor {
+            service: "settlement".into(),
+            ..Default::default()
+        };
+        assert!(a.is_internal_reader());
+        assert!(!a.is_internal_charger());
+        assert!(a.read_scope().service);
+        let other = Actor {
+            service: "analytics-bi".into(),
+            ..Default::default()
+        };
+        assert!(!other.is_internal_reader() && !other.read_scope().service);
+    }
+
     fn split(net: i64, pf: i64, tax: i64, total: i64) -> SplitFees {
         SplitFees {
             merchant_party_id: Uuid::nil(),
@@ -1753,7 +1776,7 @@ impl PaymentsCore {
 
     /// GetRefund: el comercio del split (`payments:read`) o un servicio interno.
     pub async fn get_refund(&self, actor: &Actor, id: Uuid) -> Result<RefundView, Error> {
-        let scope = if actor.is_internal_charger() {
+        let scope = if actor.is_internal_charger() || actor.is_internal_reader() {
             Scope::service()
         } else {
             if !actor.has("payments:read") && !actor.has("payments:refund") {
