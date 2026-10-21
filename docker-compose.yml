@@ -93,6 +93,30 @@ services:
       ledger:
         condition: service_healthy
 
+  # F12: liquidación a comercios (Rust). Pide al ledger los asientos T6/T6b; nunca escribe saldos.
+  settlement:
+    <<: *hardening
+    build:
+      context: ./settlement
+    environment:
+      DATABASE_URL: "${SETTLEMENT_DB_DSN:-postgres://settlement_svc:settlement_svc_dev_secret_32_chars!@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_MIGRATE_DSN: "${SETTLEMENT_MIGRATE_DSN:-postgres://migrator_settlement:settlement_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
+      PP_LEDGER_ADDR: "http://ledger:50061"
+      PP_PAYMENTS_ADDR: "http://payments-core:50062"
+      PP_IDENTITY_ADDR: "http://identity:50060"
+      PP_SECURITY_ADDR: "http://security:50073"
+      PP_NATS_URL: "${SETTLEMENT_NATS_URL:-nats://event-bus:4222}"
+      PP_NATS_USER: "${SETTLEMENT_NATS_USER:-settlement_svc}"
+      PP_NATS_PASS: "${SETTLEMENT_NATS_PASS:-settlement_nats_secret}"
+      RUST_LOG: "${SETTLEMENT_LOG:-info}"
+    networks: [services, data]
+    healthcheck: *healthcheck
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      ledger:
+        condition: service_healthy
+
   # F15–F17: comercio. catalog (productos), inventory (existencias) y pos (caja). Cada uno
   # migra con `docker compose run --rm <svc> migrate` (conexión directa) y sirve por PgBouncer.
   catalog:
