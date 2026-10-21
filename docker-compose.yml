@@ -191,8 +191,7 @@ services:
       WEB_SERVICE_URL: "http://web:8081"
       S3_ENDPOINT: "http://object-storage:3900"
       S3_REGION: "garage"
-      S3_KEY_ID: "${S3_KEY_ID:-GK4f0303fd680380764c48e740}"
-      S3_SECRET_KEY: "${S3_SECRET_KEY:-aa4703619b38ef84b72d3fc2b31fff24db6e5e70778a45b27e28830b91949da0}"
+      # S3_KEY_ID y S3_SECRET_KEY (llave catalog_svc, solo pp-catalog-media) vienen de api-gateway/.env.
       S3_MEDIA_BUCKET: "pp-catalog-media"
     ports:
       - "8080:8080"
@@ -379,16 +378,16 @@ services:
     <<: *hardening
     build:
       context: ./object-storage
-    environment:
-      # Solo desarrollo (SPEC §2). En producción los inyecta OpenBao (F28.4).
-      # El RPC secret debe ser exactamente 64 caracteres hexadecimales.
-      GARAGE_RPC_SECRET: "${GARAGE_RPC_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}"
-      GARAGE_ADMIN_TOKEN: "${GARAGE_ADMIN_TOKEN:-garage_dev_admin_token_0123456789abcdef}"
+    # GARAGE_RPC_SECRET (64 hex) y GARAGE_ADMIN_TOKEN salen de object-storage/.env, que no se
+    # versiona (AGENTS.md §2.10; object-storage/.env.example). En producción, OpenBao (F28.4).
+    env_file: ./object-storage/.env
     volumes:
       - garage-data:/var/lib/garage
+    # Solo desde esta máquina: la API S3 y la de administración no se publican en la red; las
+    # apps llegan a las fotos por el gateway (ADR 0021).
     ports:
-      - "3900:3900"
-      - "3903:3903"
+      - "127.0.0.1:3900:3900"
+      - "127.0.0.1:3903:3903"
     networks: [edge, services, data]
     # Salud del clúster vía CLI oficial (la API S3 responde 403 a anónimos: no sirve
     # como healthcheck). La prueba L2 verifica que la API S3 responda (criterio F07.8).

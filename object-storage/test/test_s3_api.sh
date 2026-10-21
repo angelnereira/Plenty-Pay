@@ -36,7 +36,11 @@ compose() { docker compose "$@"; }
 GARAGE=(/usr/local/bin/garage)
 # Red de datos de Compose para llegar a la API desde un cliente HTTP externo.
 NETWORK="plentypay_data"
-ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN:-garage_dev_admin_token_0123456789abcdef}"
+# El token sale de object-storage/.env (no versionado); nunca hay un valor por defecto.
+if [ -z "${GARAGE_ADMIN_TOKEN:-}" ] && [ -f "$(dirname "$0")/../.env" ]; then
+  GARAGE_ADMIN_TOKEN="$(sed -n 's/^GARAGE_ADMIN_TOKEN=//p' "$(dirname "$0")/../.env")"
+fi
+ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN:?define GARAGE_ADMIN_TOKEN o crea object-storage/.env}"
 
 echo "=== Pruebas de nodo Garage y layout (F07.8) ==="
 

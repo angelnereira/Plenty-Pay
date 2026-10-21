@@ -44,7 +44,7 @@ de 10 min): [`presigned-reference.md`](presigned-reference.md) (F07.10).
 
 ## Limitaciones conocidas
 - **Sin "escribir sin borrar"**: Garage v2.4 no permite distinguir borrado de objeto a nivel de llave (`DeleteObject` es escritura), así que la retención "sin borrado" de `pp-fiscal` (SPEC §3) no se puede expresar con permisos. Pendiente de resolver en F13 (política en el contenedor dueño o job de retención).
-- **Secretos de desarrollo**: `GARAGE_RPC_SECRET` y `GARAGE_ADMIN_TOKEN` se pasan por entorno con valores ficticios solo para Compose. En producción los inyecta OpenBao (F28.4). Los secretos de las llaves de servicio se consultan con `garage key info --show-secret <llave>` y en F28 se guardan cifrados en `security`.
+- **Secretos**: `GARAGE_RPC_SECRET` y `GARAGE_ADMIN_TOKEN` viven en `object-storage/.env` (no versionado; plantilla `.env.example`), y la llave S3 del gateway en `api-gateway/.env`. Rotados el 2026-10-21: los valores anteriores estaban como valores por defecto en `docker-compose.yml` de un repositorio público y los puertos 3900/3903 estaban publicados en todas las interfaces; desde entonces solo escuchan en `127.0.0.1`. En producción los inyectará OpenBao (F28.4).
 - Compose corre 1 nodo con RF=1 y 1 GB declarado; producción (F27) despliega 3 nodos, RF=3 y 3 zonas (SPEC §4 R3).
 - El binario corre sobre busybox (no distroless como la imagen original) porque el entrypoint y los scripts necesitan shell; el contenedor mantiene el resto del endurecimiento.
 - El acceso público de `pp-catalog-media` vía `web`/CDN y el rechazo por tipo/tamaño máximo llegan con F07.10 (URLs prefirmadas).
