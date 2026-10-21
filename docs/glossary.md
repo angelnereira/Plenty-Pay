@@ -133,9 +133,11 @@ Fuentes: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §1.3 
 | **Consentimiento (finalidad)** | Aceptación de una finalidad concreta, con la versión del texto que la persona vio. Valores: `AGE_CONFIRMATION` (mayoría de edad, N-DAT-14), `TERMS`, `PRIVACY_DATA_PROCESSING` y `MARKETING` (opcional). Nunca se agrupan ni se premarcan (N-DAT-02) | regulatory-framework N-DAT-02, S-GEN-03, `ConsentGrant` en identity.proto |
 | **Canal (de un consentimiento)** | Medio por el que se aceptó. Hoy solo `app` (cliente Flutter vía gateway); lo fija el gateway, nunca el cuerpo de la petición | identity.proto `RegisterRequest.channel`, api-gateway R2b |
 | **PAC** | Proveedor autorizado de certificación que transmite a la DGI | dominio §2 |
-| **Adaptador de PAC** (`pac_provider`) | Implementación de un PAC en fiscal-invoicing, elegible en el perfil fiscal. Valores: `hka` (The Factory HKA, por `hka-sdk`) y `simulator` (sin red, sin validez fiscal). Credenciales de `hka`: `token_empresa`, `token_password` | ADR 0022, fiscal SPEC R10 |
-| **Interruptor de producción fiscal** (`FISCAL_PROD_ENABLED`) | Variable del operador que habilita el entorno `PROD` del PAC tras la validación legal | ADR 0022 §3, F30.3 |
-| **Código de ubicación** (`location_code`) | Provincia-distrito-corregimiento de la DGI, p. ej. `8-8-7` | ADR 0022 §9 |
+| **Adaptador de PAC** (`pac_provider`) | Implementación de un PAC en fiscal-invoicing (`internal/pac/<id>`), elegible en el perfil fiscal; id opaco para el resto del sistema. Hoy: `hka` (The Factory HKA, por `hka-sdk`) y `simulator` (sin red, sin validez fiscal). Cada uno declara sus credenciales (`PacCredentialField`) | ADR 0022, fiscal SPEC R10 |
+| **Contenido DGI** (`pac/dgi`) | Factura electrónica de la DGI armada sin depender del PAC: catálogo, receptor, montos exactos, reglas del formato | ADR 0022 §1 |
+| `PP_PAC_PROVIDERS` | Adaptadores de PAC que se ofrecen, en orden (por defecto `simulator,hka`); la configuración de cada uno usa `PP_PAC_<ID>_` | ADR 0022 §3–§4 |
+| **Interruptor de producción fiscal** (`FISCAL_PROD_ENABLED`) | Variable del operador que habilita el entorno `PROD` del PAC tras la validación legal | ADR 0022 §5, F30.3 |
+| **Código de ubicación** (`location_code`) | Provincia-distrito-corregimiento de la DGI, p. ej. `8-8-7` | ADR 0022 §8 |
 | **Folio** | Numeración fiscal asignada al contribuyente | fiscal SPEC |
 | **ITBMS** | Impuesto de Panamá; tasas válidas 0/7/10/15 % (Q-11) | dominio §2 |
 | **Outbox** | Tabla donde se escribe el evento en la misma transacción que el cambio | eventos §4 |
@@ -176,8 +178,8 @@ Valores sin prefijo. Las transiciones legales están en [`domain/domain-model.md
 | `DocumentType` | fiscal_invoicing | FISCAL_INVOICE, CREDIT_NOTE, DEBIT_NOTE, INTERNAL_RECEIPT | — |
 | `CheckoutPreference` | fiscal_invoicing | ALWAYS_FISCAL, INTERNAL_ONLY, ASK_ALWAYS, AUTO_THRESHOLD | §8.8 |
 | `InvoiceStatus` | fiscal_invoicing | DRAFT, QUEUED, SENT, ACCEPTED, REJECTED, VOIDED | §8.8 |
-| `Taxpayer.tax_id_type` (texto) | fiscal_invoicing | RUC_JURIDICO, RUC_NATURAL, CEDULA, PASAPORTE, EXTRANJERO, GOBIERNO | ADR 0022 §6 |
-| Forma de pago (`payment_methods`, texto) | fiscal_invoicing | CASH, CARD, CREDIT_CARD, DEBIT_CARD, TRANSFER, WALLET, CHECK, CREDIT | ADR 0022 §6 |
+| `Taxpayer.tax_id_type` (texto) | fiscal_invoicing | RUC_JURIDICO, RUC_NATURAL, CEDULA, PASAPORTE, EXTRANJERO, GOBIERNO | ADR 0022 §8 |
+| Forma de pago (`payment_methods`, texto) | fiscal_invoicing | CASH, CARD, CREDIT_CARD, DEBIT_CARD, TRANSFER, WALLET, CHECK, CREDIT | ADR 0022 §8 |
 | `ProductStatus` | catalog | ACTIVE, ARCHIVED | — |
 | `MovementType` | inventory | RECEIPT, SALE, ADJUSTMENT, TRANSFER_OUT, TRANSFER_IN, RETURN, WRITE_OFF | — |
 | `ReservationStatus` | inventory | ACTIVE, COMMITTED, RELEASED, EXPIRED | §8.13 |

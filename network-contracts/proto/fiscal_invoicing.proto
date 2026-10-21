@@ -154,7 +154,13 @@ message PacProvider {
   string id = 1;                       // "hka", "simulator"
   string display_name = 2;
   repeated string environments = 3;    // "DEMO", "PROD" habilitados hoy
-  repeated string credential_keys = 4; // claves del JSON de credenciales, p. ej. "token_empresa", "token_password"
+  repeated string credential_keys = 4; // claves del JSON de credenciales (las mismas de credential_fields)
+  repeated PacCredentialField credential_fields = 5; // cómo pedir cada credencial: la app no conoce a ningún PAC
+}
+message PacCredentialField {
+  string key = 1;    // clave en el JSON de credenciales
+  string label = 2;  // etiqueta para la persona, con el término que usa el PAC
+  bool secret = 3;   // se escribe oculta
 }
 message ListPacProvidersResponse { repeated PacProvider providers = 1; }
 
