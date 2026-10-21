@@ -116,8 +116,11 @@ message CommitReservationRequest { string reservation_id = 1;
 message ReleaseReservationRequest { string reservation_id = 1; 
   string idempotency_key = 2;}
 
-message Supplier { string supplier_id = 1; string name = 2; string tax_id = 3; string email = 4; string phone = 5; bool active = 6; }
-message UpsertSupplierRequest { Supplier supplier = 1; }
+message Supplier { string supplier_id = 1; string name = 2; string tax_id = 3; string email = 4; string phone = 5; bool active = 6;
+  int32 lead_time_days = 7;   // días que tarda en entregar (R6); por defecto 7
+  string check_digit = 8;     // DV del RUC (N-FMT-06)
+}
+message UpsertSupplierRequest { Supplier supplier = 1; string idempotency_key = 2; } // la clave se exige al crear
 message ListSuppliersRequest { plentypay.common.v1.PageRequest page = 1; }
 message ListSuppliersResponse { repeated Supplier suppliers = 1; plentypay.common.v1.PageInfo page = 2; }
 
@@ -137,12 +140,18 @@ message PurchaseOrder {
   PurchaseOrderStatus status = 4;
   repeated PurchaseOrderLine lines = 5;
   google.protobuf.Timestamp expected_at = 6;
+  plentypay.common.v1.Money total = 7;            // Σ cantidad × costo unitario (calculado por el servidor)
+  google.protobuf.Timestamp created_at = 8;
+  string supplier_name = 9;                       // solo lectura
+  int32 version = 10;
 }
 message CreatePurchaseOrderRequest { PurchaseOrder order = 1; string idempotency_key = 2; }
 message UpdatePurchaseOrderStatusRequest { string purchase_order_id = 1; PurchaseOrderStatus status = 2; 
   string idempotency_key = 3;}
 message ReceivedLine { string product_id = 1; int64 received_milli = 2; string lot_code = 3; google.protobuf.Timestamp expires_at = 4; }
-message ReceiveGoodsRequest { string purchase_order_id = 1; string idempotency_key = 2; repeated ReceivedLine lines = 3; }
+message ReceiveGoodsRequest { string purchase_order_id = 1; string idempotency_key = 2; repeated ReceivedLine lines = 3;
+  string supplier_invoice = 4; // número de la factura del proveedor (S-INV-06 e4)
+}
 message ListPurchaseOrdersRequest { PurchaseOrderStatus status = 1; plentypay.common.v1.PageRequest page = 2; }
 message ListPurchaseOrdersResponse { repeated PurchaseOrder orders = 1; plentypay.common.v1.PageInfo page = 2; }
 
@@ -154,6 +163,11 @@ message ReorderSuggestion {
   int64 avg_daily_demand_milli = 5;
   int32 days_of_cover = 6;
   string abc_class = 7;
+  int64 available_milli = 8;
+  int64 in_transit_milli = 9;    // pedido en órdenes enviadas y aún no recibido
+  string supplier_id = 10;       // proveedor habitual: el de la última orden con este producto
+  string supplier_name = 11;
+  int32 lead_time_days = 12;
 }
 message GetReorderSuggestionsRequest { string warehouse_id = 1; }
 message GetReorderSuggestionsResponse { repeated ReorderSuggestion suggestions = 1; }
