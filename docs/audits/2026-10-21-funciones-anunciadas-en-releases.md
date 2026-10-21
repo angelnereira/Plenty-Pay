@@ -84,3 +84,16 @@ escáner de cámara, fotos de productos (desde la galería), cierre de caja y re
 La primera versión de esta auditoría decía que las fotos de productos ya no existían. Era falso: la
 búsqueda usó `\|` dentro de una expresión `grep -E` y no encontró nada. Se repitió con la expresión
 correcta; las demás filas se verificaron leyendo el código.
+
+## 5. Estado del roadmap corregido
+Al revisar por qué los módulos ocultos no tienen servicio, 33 pasos marcados ✅ el 2026-10-19 se
+compararon con el nivel de verificación que exige `05-HOJA-DE-RUTA-30-FASES.md`. 25 no lo alcanzaban:
+eran dominio con pruebas L1, sin servidor, sin `main` o sin despliegue (logistics, payroll, geolocation
+y analytics-bi no tienen `main`; ninguno de los servicios de los módulos ocultos está en
+`docker-compose.yml`). Se reabrieron como 📝 en `docs/roadmap/status.md`: F13.2, F13.4, F13.5, F13.6, F13.7, F13.8, F14.1, F14.2, F18.1, F18.2, F18.3, F18.4, F18.5, F18.6, F19.1, F19.2, F19.3, F19.4, F19.7, F20.2, F20.6, F21.9, F22.3, F23.4, F25.1.
+Se mantienen los que exigen L1 y lo cumplen (F13.1, F20.1, F21.5, F21.7, F22.2, F23.1, F23.7) y F12.1
+(migración aplicada y servicio compilando).
+
+Consecuencia para reconectar los módulos: logística, nómina, analítica, liquidación y facturación
+necesitan su servicio completo (servidor gRPC, almacenamiento, despliegue y rutas en el gateway), no
+solo cablear pantallas.
