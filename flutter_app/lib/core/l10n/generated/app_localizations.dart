@@ -7616,6 +7616,420 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Por liquidar {amount}'**
   String financePendingSettlement(String amount);
+
+  /// No description provided for @invPurchasingMenu.
+  ///
+  /// In es, this message translates to:
+  /// **'Compras'**
+  String get invPurchasingMenu;
+
+  /// No description provided for @invSuppliersTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Proveedores'**
+  String get invSuppliersTitle;
+
+  /// No description provided for @supplierAdd.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar proveedor'**
+  String get supplierAdd;
+
+  /// No description provided for @suppliersEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes proveedores. Agrega el primero para crear órdenes de compra.'**
+  String get suppliersEmpty;
+
+  /// No description provided for @supplierRucLine.
+  ///
+  /// In es, this message translates to:
+  /// **'RUC {taxId} DV {dv}'**
+  String supplierRucLine(String taxId, String dv);
+
+  /// No description provided for @supplierLeadLine.
+  ///
+  /// In es, this message translates to:
+  /// **'{days, plural, =1{Entrega en 1 día} other{Entrega en {days} días}}'**
+  String supplierLeadLine(int days);
+
+  /// No description provided for @supplierInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'Inactivo'**
+  String get supplierInactive;
+
+  /// No description provided for @supplierSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Proveedor guardado.'**
+  String get supplierSaved;
+
+  /// No description provided for @supplierName.
+  ///
+  /// In es, this message translates to:
+  /// **'Razón social'**
+  String get supplierName;
+
+  /// No description provided for @supplierPhone.
+  ///
+  /// In es, this message translates to:
+  /// **'Teléfono (opcional)'**
+  String get supplierPhone;
+
+  /// No description provided for @supplierLeadTime.
+  ///
+  /// In es, this message translates to:
+  /// **'Días de entrega'**
+  String get supplierLeadTime;
+
+  /// No description provided for @supplierActive.
+  ///
+  /// In es, this message translates to:
+  /// **'Activo'**
+  String get supplierActive;
+
+  /// No description provided for @poTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Órdenes de compra'**
+  String get poTitle;
+
+  /// No description provided for @poNew.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva orden'**
+  String get poNew;
+
+  /// No description provided for @poFilterAll.
+  ///
+  /// In es, this message translates to:
+  /// **'Todas'**
+  String get poFilterAll;
+
+  /// No description provided for @poEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay órdenes de compra.'**
+  String get poEmpty;
+
+  /// No description provided for @poNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'Orden {number} · {supplier}'**
+  String poNumber(String number, String supplier);
+
+  /// No description provided for @poCancelTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cancelar la orden?'**
+  String get poCancelTitle;
+
+  /// No description provided for @poCancelBody.
+  ///
+  /// In es, this message translates to:
+  /// **'La orden queda cancelada y no se puede recibir. Esta acción no se deshace.'**
+  String get poCancelBody;
+
+  /// No description provided for @poKeep.
+  ///
+  /// In es, this message translates to:
+  /// **'Mantener la orden'**
+  String get poKeep;
+
+  /// No description provided for @poCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelar orden'**
+  String get poCancel;
+
+  /// No description provided for @poCreatedOn.
+  ///
+  /// In es, this message translates to:
+  /// **'Creada el {date}'**
+  String poCreatedOn(String date);
+
+  /// No description provided for @poExpectedOn.
+  ///
+  /// In es, this message translates to:
+  /// **'Llega el {date}'**
+  String poExpectedOn(String date);
+
+  /// No description provided for @poLineSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedido {ordered} · Recibido {received} · Costo {cost}'**
+  String poLineSummary(String ordered, String received, String cost);
+
+  /// No description provided for @poTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Total'**
+  String get poTotal;
+
+  /// No description provided for @poMarkSent.
+  ///
+  /// In es, this message translates to:
+  /// **'Marcar como enviada'**
+  String get poMarkSent;
+
+  /// No description provided for @poReceive.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibir'**
+  String get poReceive;
+
+  /// No description provided for @poSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Borrador guardado.'**
+  String get poSaved;
+
+  /// No description provided for @poNeedsSupplier.
+  ///
+  /// In es, this message translates to:
+  /// **'Agrega un proveedor activo antes de crear una orden.'**
+  String get poNeedsSupplier;
+
+  /// No description provided for @poSupplier.
+  ///
+  /// In es, this message translates to:
+  /// **'Proveedor'**
+  String get poSupplier;
+
+  /// No description provided for @poWarehouse.
+  ///
+  /// In es, this message translates to:
+  /// **'Bodega de destino'**
+  String get poWarehouse;
+
+  /// No description provided for @poExpected.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha esperada'**
+  String get poExpected;
+
+  /// No description provided for @poExpectedNone.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin fecha'**
+  String get poExpectedNone;
+
+  /// No description provided for @poLines.
+  ///
+  /// In es, this message translates to:
+  /// **'Productos'**
+  String get poLines;
+
+  /// No description provided for @poAddLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar producto'**
+  String get poAddLine;
+
+  /// No description provided for @poSaveDraft.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar borrador'**
+  String get poSaveDraft;
+
+  /// No description provided for @poProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto'**
+  String get poProduct;
+
+  /// No description provided for @poDuplicateProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Este producto ya está en la orden.'**
+  String get poDuplicateProduct;
+
+  /// No description provided for @poQuantity.
+  ///
+  /// In es, this message translates to:
+  /// **'Cantidad'**
+  String get poQuantity;
+
+  /// No description provided for @poUnitCost.
+  ///
+  /// In es, this message translates to:
+  /// **'Costo unitario'**
+  String get poUnitCost;
+
+  /// No description provided for @poRemoveLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Quitar'**
+  String get poRemoveLine;
+
+  /// No description provided for @poStatusDraft.
+  ///
+  /// In es, this message translates to:
+  /// **'Borrador'**
+  String get poStatusDraft;
+
+  /// No description provided for @poStatusSent.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviada'**
+  String get poStatusSent;
+
+  /// No description provided for @poStatusPartial.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibida parcial'**
+  String get poStatusPartial;
+
+  /// No description provided for @poStatusReceived.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibida'**
+  String get poStatusReceived;
+
+  /// No description provided for @poStatusCancelled.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelada'**
+  String get poStatusCancelled;
+
+  /// No description provided for @poReceived.
+  ///
+  /// In es, this message translates to:
+  /// **'Recepción registrada.'**
+  String get poReceived;
+
+  /// No description provided for @poReceiveTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Recepción'**
+  String get poReceiveTitle;
+
+  /// No description provided for @poReceiveLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedido {ordered} · Recibido antes {before}'**
+  String poReceiveLine(String ordered, String before);
+
+  /// No description provided for @poReceiveNow.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibido ahora'**
+  String get poReceiveNow;
+
+  /// No description provided for @poSupplierInvoice.
+  ///
+  /// In es, this message translates to:
+  /// **'Factura del proveedor (opcional)'**
+  String get poSupplierInvoice;
+
+  /// No description provided for @poSupplierInvoiceTooLong.
+  ///
+  /// In es, this message translates to:
+  /// **'Máximo 60 caracteres.'**
+  String get poSupplierInvoiceTooLong;
+
+  /// No description provided for @poReceiveSubmit.
+  ///
+  /// In es, this message translates to:
+  /// **'Registrar recepción'**
+  String get poReceiveSubmit;
+
+  /// No description provided for @poInvalidQuantity.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe una cantidad válida.'**
+  String get poInvalidQuantity;
+
+  /// No description provided for @reorderTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Sugerencias de reorden'**
+  String get reorderTitle;
+
+  /// No description provided for @reorderEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay productos por reponer: tus existencias cubren la demanda.'**
+  String get reorderEmpty;
+
+  /// No description provided for @reorderHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Calculado con la venta de los últimos 28 días y los días de entrega del proveedor.'**
+  String get reorderHint;
+
+  /// No description provided for @reorderCreateOrder.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear orden de compra'**
+  String get reorderCreateOrder;
+
+  /// No description provided for @reorderCover.
+  ///
+  /// In es, this message translates to:
+  /// **'{days, plural, =0{Sin cobertura} =1{Cubre 1 día} other{Cubre {days} días}}'**
+  String reorderCover(int days);
+
+  /// No description provided for @reorderNoSales.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin ventas recientes'**
+  String get reorderNoSales;
+
+  /// No description provided for @reorderAbc.
+  ///
+  /// In es, this message translates to:
+  /// **'Clase {abc}'**
+  String reorderAbc(String abc);
+
+  /// No description provided for @reorderStockLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Disponible {available} · En camino {transit} · Venta diaria {daily}'**
+  String reorderStockLine(String available, String transit, String daily);
+
+  /// No description provided for @reorderNoSupplier.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin proveedor habitual'**
+  String get reorderNoSupplier;
+
+  /// No description provided for @reorderSupplier.
+  ///
+  /// In es, this message translates to:
+  /// **'Proveedor habitual: {name}'**
+  String reorderSupplier(String name);
+
+  /// No description provided for @reorderSuggested.
+  ///
+  /// In es, this message translates to:
+  /// **'Sugerido: {quantity}'**
+  String reorderSuggested(String quantity);
+
+  /// No description provided for @error_INVALID_SUPPLIER.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisa los datos del proveedor: RUC con DV, correo y teléfono válidos.'**
+  String get error_INVALID_SUPPLIER;
+
+  /// No description provided for @error_RECEIPT_EXCEEDS_ORDERED.
+  ///
+  /// In es, this message translates to:
+  /// **'Estás recibiendo más de lo pedido.'**
+  String get error_RECEIPT_EXCEEDS_ORDERED;
+
+  /// No description provided for @error_UNKNOWN_ORDER_LINE.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese producto no está en la orden.'**
+  String get error_UNKNOWN_ORDER_LINE;
+
+  /// No description provided for @error_PO_STATE.
+  ///
+  /// In es, this message translates to:
+  /// **'La orden ya cambió de estado. Actualiza e intenta de nuevo.'**
+  String get error_PO_STATE;
 }
 
 class _AppLocalizationsDelegate

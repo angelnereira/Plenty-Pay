@@ -16,7 +16,7 @@ DateTime? _date(Object? v) => DateTime.tryParse('${v ?? ''}')?.toLocal();
 
 /// Fecha con el mes en texto (N-STD-10): «23 de octubre de 2026».
 String settlementDate(DateTime t, String locale) =>
-    DateFormat('d MMMM y', locale).format(t);
+    DateFormat.yMMMMd(locale).format(t);
 
 /// Fecha y hora con el mes en texto: «23 de octubre de 2026 · 17:00».
 String settlementDateTime(DateTime t, String locale) =>

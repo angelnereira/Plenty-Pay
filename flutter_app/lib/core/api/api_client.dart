@@ -488,6 +488,45 @@ class ApiClient {
   /// Tasas de ITBMS vigentes (`legal.pa.itbms.*`): la app nunca las lleva en su código.
   Future<Map<String, dynamic>> getTaxRates() => _get('/v1/catalog/tax-rates');
 
+  // ── Compras de inventario (inventory F16.5–F16.6) ──────────────────────────
+
+  Future<Map<String, dynamic>> listSuppliers() =>
+      _get('/v1/inventory/suppliers', queryParameters: {'page_size': '200'});
+
+  /// Crear (sin `supplier_id`, con la clave de idempotencia) o actualizar.
+  Future<Map<String, dynamic>> upsertSupplier(Map<String, Object?> supplier,
+          {required String idempotencyKey}) =>
+      _put('/v1/inventory/suppliers',
+          data: {'supplier': supplier},
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> listPurchaseOrders({String status = ''}) =>
+      _get('/v1/inventory/purchase-orders', queryParameters: {
+        if (status.isNotEmpty) 'status': status,
+        'page_size': '100',
+      });
+
+  Future<Map<String, dynamic>> createPurchaseOrder(Map<String, Object?> order,
+          {required String idempotencyKey}) =>
+      _post('/v1/inventory/purchase-orders',
+          data: {'order': order}, idempotencyKey: idempotencyKey);
+
+  /// `status`: PURCHASE_ORDER_STATUS_SENT o PURCHASE_ORDER_STATUS_CANCELLED.
+  Future<Map<String, dynamic>> setPurchaseOrderStatus(String id, String status,
+          {required String idempotencyKey}) =>
+      _post('/v1/inventory/purchase-orders/${Uri.encodeComponent(id)}/status',
+          data: {'status': status}, idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> receivePurchaseOrder(
+          String id, List<Map<String, Object?>> lines,
+          {String supplierInvoice = '', required String idempotencyKey}) =>
+      _post('/v1/inventory/purchase-orders/${Uri.encodeComponent(id)}/receive',
+          data: {'lines': lines, 'supplier_invoice': supplierInvoice},
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> reorderSuggestions() =>
+      _get('/v1/inventory/reorder-suggestions');
+
   // ── Liquidación a comercios (settlement, api-gateway SPEC §4.3) ──────────────
   // El negocio sale del token; ninguna llamada manda tenant_id (ADR 0011).
 

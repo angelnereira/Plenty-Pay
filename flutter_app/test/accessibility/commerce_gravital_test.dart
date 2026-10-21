@@ -5,6 +5,11 @@ import 'package:plentypay/features/catalog/catalog_screen.dart';
 import 'package:plentypay/features/catalog/categories_screen.dart';
 import 'package:plentypay/features/catalog/product_screen.dart';
 import 'package:plentypay/features/inventory/inventory_screen.dart';
+import 'package:plentypay/features/inventory/purchase_orders_screen.dart';
+import 'package:plentypay/features/inventory/purchase_receive_screen.dart';
+import 'package:plentypay/features/inventory/purchasing_data.dart';
+import 'package:plentypay/features/inventory/reorder_suggestions_screen.dart';
+import 'package:plentypay/features/inventory/suppliers_screen.dart';
 import 'package:plentypay/features/inventory/stock_detail_screen.dart';
 import 'package:plentypay/features/inventory/stock_adjust_screen.dart';
 import 'package:plentypay/features/inventory/stock_transfer_screen.dart';
@@ -19,7 +24,21 @@ import '../support/commerce_fixtures.dart';
 import '../support/fake_gateway.dart';
 
 /// gravital-experience-ui §15.3: texto al 200 %, compact y expanded, oscuro y claro, sin desbordes,
-/// para catálogo (S-CAT-01/02/04), inventario (S-INV-01/03/04/09) y caja (S-POS-02/03/05/10).
+/// para catálogo (S-CAT-01/02/04), inventario (S-INV-01/03/04/05/06/07/08/09) y caja (S-POS-02/03/05/10).
+final purchaseOrder = <String, Object>{
+  'purchase_order_id': '01a15fc9-1083-745b-aed2-163be0ceeb01',
+  'supplier_id': 's-1',
+  'supplier_name': 'Distribuidora Mayorista del Istmo y Zona Libre',
+  'warehouse_id': 'w-1',
+  'status': 'PURCHASE_ORDER_STATUS_PARTIALLY_RECEIVED',
+  'lines': [
+    {'product_id': cafeId, 'ordered_milli': '1234000', 'received_milli': '1000', 'unit_cost': {'amount_minor': '123456789', 'currency': 'USD'}},
+  ],
+  'total': {'amount_minor': '123456789000', 'currency': 'USD'},
+  'created_at': '2026-09-21T15:00:00Z',
+  'expected_at': '2026-11-30T15:00:00Z',
+};
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -50,12 +69,28 @@ void main() {
           'page': {'next_page_token': ''},
         }),
     'GET /v1/inventory/movements': (_) => json({'movements': <Object>[]}),
+    'GET /v1/me/permissions': (_) => json({
+          'role': 'owner',
+          'permissions': ['inventory:read', 'inventory:adjust', 'inventory:receive', 'inventory:purchase:manage'],
+        }),
+    'GET /v1/inventory/suppliers': (_) => json({
+          'suppliers': [
+            {'supplier_id': 's-1', 'name': 'Distribuidora Mayorista del Istmo y Zona Libre', 'tax_id': '155700001-2-2026', 'check_digit': '45', 'lead_time_days': 12, 'active': false},
+          ]
+        }),
+    'GET /v1/inventory/purchase-orders': (_) => json({'orders': [purchaseOrder]}),
+    'GET /v1/inventory/reorder-suggestions': (_) => json({
+          'suggestions': [
+            {'product_id': cafeId, 'warehouse_id': 'w-1', 'suggested_quantity_milli': '1234000', 'available_milli': '-3000', 'in_transit_milli': '120000', 'avg_daily_demand_milli': '45500', 'days_of_cover': 0, 'abc_class': 'A', 'supplier_id': 's-1', 'supplier_name': 'Distribuidora Mayorista del Istmo y Zona Libre', 'lead_time_days': 12},
+          ]
+        }),
     'GET /v1/catalog/storefront': (_) => json({...storefrontBody(storeA, 'Panadería y Repostería Artesanal Sol'), 'published': false}),
     'GET /v1/pos/sessions/current': (_) => json(session()),
     'GET /v1/terminals': (_) => json(terminalsBody),
     'GET /v1/pos/sessions/$sessionId': (_) => json(session()),
   };
 
+  final po = PurchaseOrderItem.fromJson(purchaseOrder);
   final paid = SaleItem.fromJson(sale('PAID', receipt: '00000042', tenders: [
     {
       'rail': 'PAYMENT_RAIL_CASH',
@@ -75,6 +110,12 @@ void main() {
     'ajuste': () => StockAdjustScreen(api: fakeApi(routes)),
     'transferencia': () => StockTransferScreen(api: fakeApi(routes)),
     'bodegas': () => WarehousesScreen(api: fakeApi(routes)),
+    'proveedores': () => SuppliersScreen(api: fakeApi(routes)),
+    'órdenes de compra': () => PurchaseOrdersScreen(api: fakeApi(routes), canManage: true, canReceive: true),
+    'detalle de orden': () => PurchaseOrderDetailScreen(api: fakeApi(routes), order: po, canManage: true, canReceive: true),
+    'nueva orden': () => PurchaseOrderEditorScreen(api: fakeApi(routes), supplierId: 's-1', lines: const [PurchaseLineDraft(productId: cafeId, quantityMilli: 1234000)]),
+    'recepción': () => PurchaseReceiveScreen(api: fakeApi(routes), order: po, products: {cafeId: ProductItem.fromJson(product(cafeId, 'Café de altura de Boquete tostado medio 250 g', 1850))}),
+    'sugerencias de reorden': () => ReorderSuggestionsScreen(api: fakeApi(routes), canManage: true),
     'caja · venta': () => PosScreen(api: fakeApi(routes)),
     'caja · cobro': () => PosCheckoutScreen(api: fakeApi(routes), sale: SaleItem.fromJson(sale('OPEN')), terminalLabel: 'Caja principal'),
     'caja · recibo': () => PosReceiptScreen(api: fakeApi(routes), sale: paid, terminalLabel: 'Caja principal de la sucursal'),

@@ -80,7 +80,7 @@ Botón primario "Guardar". Acción secundaria "Archivar" (C-05; el producto deja
 | e2 | Selector | Bodega | "Todas" suma |
 | e3 | Buscador y escáner | — | — |
 | e4 | Tabla | Producto · Disponible · Reservado · En camino · Mínimo · Días de cobertura | Cantidades con su unidad SI. Negativo en `error` |
-| e5 | Menú | Ajustar · Transferir · Exportar | Según permiso |
+| e5 | Menú | Ajustar · Transferir · Órdenes de compra · Proveedores · Sugerencias de reorden · Exportar | Según permiso: `inventory:adjust`, `inventory:purchase:manage` o `inventory:receive` (órdenes), `inventory:purchase:manage` (proveedores), `inventory:read` (sugerencias). *Pendiente*: Exportar |
 
 ### S-INV-02 · `/inventory/:variant` · Detalle de existencias
 Interruptor "Mostrar en el marketplace" del producto (mismo comportamiento que S-CAT-02, con `catalog:listing:manage`). Existencias por bodega; lotes con fecha de vencimiento (vencidos en `error`, próximos en `warning`); movimientos con fecha, tipo (Recepción, Venta, Ajuste, Transferencia, Devolución, Baja), cantidad con signo, saldo, documento de origen enlazado y usuario; cobertura en días según velocidad de venta.
@@ -102,7 +102,7 @@ Un ajuste no se edita ni se borra: se corrige con otro ajuste.
 `inventory:adjust`. Origen, destino (distinto), líneas con cantidad ≤ disponible en origen, lote si aplica (se propone el de vencimiento más próximo). Estados: En tránsito → Recibida. La bodega destino confirma la recepción con cantidades; una diferencia genera un ajuste con motivo "Diferencia de transferencia".
 
 ### S-INV-05 · `/inventory/purchases` · Órdenes de compra
-`inventory:purchase:manage`. Lista con `StatusChip` (Borrador, Enviada, Recibida parcial, Recibida, Cancelada). Editor: proveedor, bodega de destino, fecha esperada, líneas (producto, cantidad, costo unitario, ITBMS), totales. Acciones: "Guardar borrador", "Enviar al proveedor" (correo con PDF), "Cancelar" (solo Borrador o Enviada).
+`inventory:purchase:manage` (listar también con `inventory:receive`). Lista con `StatusChip` (Borrador, Enviada, Recibida parcial, Recibida, Cancelada) y filtro por estado. Editor: proveedor, bodega de destino, fecha esperada, líneas (producto, cantidad, costo unitario), total calculado por el servidor. Acciones: "Guardar borrador", "Marcar como enviada", "Cancelar" (solo Borrador o Enviada, C-05), "Recibir" (Enviada o Recibida parcial → S-INV-06). *Pendiente*: ITBMS por línea y el envío al proveedor por correo con PDF (notifications, F20).
 
 ### S-INV-06 · `/inventory/receive/:po` · Recepción
 `inventory:receive`
@@ -110,16 +110,16 @@ Un ajuste no se edita ni se borra: se corrige con otro ajuste.
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
 | e1 | Cabecera | Orden {número} · {proveedor} | — |
-| e2 | Líneas | Producto · Pedido {n} · Recibido antes {m} · Recibido ahora | Escanear suma 1 a la línea. Exceso sobre lo pedido: aviso y confirmación |
-| e3 | Por línea | Lote · Vencimiento | Obligatorios si el producto controla lote. Vencimiento pasado: bloqueado |
-| e4 | Campo | Factura del proveedor (número) | Opcional |
+| e2 | Líneas | Producto · Pedido {n} · Recibido antes {m} · Recibido ahora | No se recibe más de lo pedido: `RECEIPT_EXCEEDS_ORDERED` "Estás recibiendo más de lo pedido." *Pendiente*: escáner |
+| e3 | Por línea | Lote · Vencimiento | *Pendiente* (lotes, F16.4): obligatorios si el producto controla lote; vencimiento pasado bloqueado |
+| e4 | Campo | Factura del proveedor (número) | Opcional, hasta 60 caracteres |
 | e5 | `PPButton.primary` | Registrar recepción | Genera los movimientos y actualiza el estado de la orden |
 
 ### S-INV-07 · `/inventory/suppliers` · Proveedores
-Lista y editor: razón social, RUC + DV (validados, N-FMT-06), contacto, teléfono (N-FMT-07), correo, condiciones de pago, productos que suministra.
+`inventory:purchase:manage`. Lista y editor: razón social, RUC + DV (validados, N-FMT-06), teléfono (N-FMT-07), correo, días de entrega (lo usa la sugerencia de reorden, por defecto 7) y activo. *Pendiente*: contacto, condiciones de pago y productos que suministra.
 
 ### S-INV-08 · `/inventory/suggestions` · Sugerencias de reorden
-Tabla: producto, disponible, venta diaria promedio, días de cobertura, cantidad sugerida, proveedor habitual. Casillas de selección y botón primario "Crear orden de compra" que agrupa por proveedor y abre S-INV-05 con las líneas.
+`inventory:read`. Tabla: producto, disponible, en camino, venta diaria promedio, días de cobertura, cantidad sugerida, clase ABC y proveedor habitual (el de la última orden con ese producto). Casillas de selección y botón primario "Crear orden de compra" (`inventory:purchase:manage`) que abre S-INV-05 con las líneas del primer proveedor elegido; las demás quedan seleccionadas para la siguiente.
 
 ### S-INV-09 · `/inventory/warehouses` · Bodegas
 Lista y editor: nombre, sucursal, dirección, tipo (Tienda, Bodega, Tránsito), activa. Una bodega con existencias no se desactiva.

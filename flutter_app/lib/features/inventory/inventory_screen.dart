@@ -8,9 +8,12 @@ import '../../core/widgets/async_view.dart';
 import '../catalog/catalog_data.dart';
 import '../catalog/catalog_errors.dart';
 import 'inventory_data.dart';
+import 'purchase_orders_screen.dart';
+import 'reorder_suggestions_screen.dart';
 import 'stock_adjust_screen.dart';
 import 'stock_detail_screen.dart';
 import 'stock_transfer_screen.dart';
+import 'suppliers_screen.dart';
 import 'warehouses_screen.dart';
 
 /// Lo que la pantalla de existencias necesita de una vez.
@@ -25,8 +28,9 @@ class InventoryView {
 /// S-INV-01 · `/inventory` · Existencias. `inventory:read` · `GET /v1/inventory/stock`.
 ///
 /// e1 tarjetas "por agotarse" y "agotados" (filtran), e2 bodega ("Todas" suma), e4 lista con
-/// disponible (negativo en `error`), reservado y mínimo, e5 Ajustar · Transferir. "En camino",
-/// días de cobertura y lotes por vencer llegan con las órdenes de compra y los lotes (F16.4–F16.6).
+/// disponible (negativo en `error`), reservado y mínimo, e5 Ajustar · Transferir y el menú de
+/// compras según permiso (órdenes, proveedores, sugerencias de reorden). Lotes por vencer llegan
+/// con F16.4.
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key, required this.api});
   final ApiClient api;
@@ -41,6 +45,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   String _warehouse = '';
   _Filter _filter = _Filter.all;
   late Future<InventoryView> _future = _load();
+  late final Future<Permissions> _perms = widget.api.permissions();
 
   Future<InventoryView> _load() async {
     final warehouses = await loadWarehouses(widget.api);
@@ -80,6 +85,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
             tooltip: l10n.invWarehouses,
             icon: const Icon(Icons.warehouse_outlined),
             onPressed: () => _go(WarehousesScreen(api: widget.api)),
+          ),
+          FutureBuilder<Permissions>(
+            future: _perms,
+            builder: (context, snap) {
+              final p = snap.data;
+              if (p == null) return const SizedBox.shrink();
+              final manage = p.can('inventory:purchase:manage');
+              final receive = p.can('inventory:receive');
+              final entries = <(String, Widget Function())>[
+                if (manage || receive)
+                  (
+                    l10n.poTitle,
+                    () => PurchaseOrdersScreen(
+                        api: widget.api, canManage: manage, canReceive: receive)
+                  ),
+                if (manage)
+                  (l10n.invSuppliersTitle, () => SuppliersScreen(api: widget.api)),
+                if (p.can('inventory:read'))
+                  (
+                    l10n.reorderTitle,
+                    () => ReorderSuggestionsScreen(api: widget.api, canManage: manage)
+                  ),
+              ];
+              if (entries.isEmpty) return const SizedBox.shrink();
+              return PopupMenuButton<int>(
+                tooltip: l10n.invPurchasingMenu,
+                icon: const Icon(Icons.local_shipping_outlined),
+                onSelected: (i) => _go(entries[i].$2()),
+                itemBuilder: (_) => [
+                  for (final (i, e) in entries.indexed)
+                    PopupMenuItem(value: i, child: Text(e.$1)),
+                ],
+              );
+            },
           ),
         ],
       ),

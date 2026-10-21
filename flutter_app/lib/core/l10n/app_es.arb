@@ -1842,5 +1842,179 @@
         "type": "String"
       }
     }
-  }
+  },
+  "invPurchasingMenu": "Compras",
+  "invSuppliersTitle": "Proveedores",
+  "supplierAdd": "Agregar proveedor",
+  "suppliersEmpty": "Aún no tienes proveedores. Agrega el primero para crear órdenes de compra.",
+  "supplierRucLine": "RUC {taxId} DV {dv}",
+  "@supplierRucLine": {
+    "placeholders": {
+      "taxId": {
+        "type": "String"
+      },
+      "dv": {
+        "type": "String"
+      }
+    }
+  },
+  "supplierLeadLine": "{days, plural, =1{Entrega en 1 día} other{Entrega en {days} días}}",
+  "@supplierLeadLine": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "supplierInactive": "Inactivo",
+  "supplierSaved": "Proveedor guardado.",
+  "supplierName": "Razón social",
+  "supplierPhone": "Teléfono (opcional)",
+  "supplierLeadTime": "Días de entrega",
+  "supplierActive": "Activo",
+  "poTitle": "Órdenes de compra",
+  "poNew": "Nueva orden",
+  "poFilterAll": "Todas",
+  "poEmpty": "No hay órdenes de compra.",
+  "poNumber": "Orden {number} · {supplier}",
+  "@poNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      },
+      "supplier": {
+        "type": "String"
+      }
+    }
+  },
+  "poCancelTitle": "¿Cancelar la orden?",
+  "poCancelBody": "La orden queda cancelada y no se puede recibir. Esta acción no se deshace.",
+  "poKeep": "Mantener la orden",
+  "poCancel": "Cancelar orden",
+  "poCreatedOn": "Creada el {date}",
+  "@poCreatedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "poExpectedOn": "Llega el {date}",
+  "@poExpectedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "poLineSummary": "Pedido {ordered} · Recibido {received} · Costo {cost}",
+  "@poLineSummary": {
+    "placeholders": {
+      "ordered": {
+        "type": "String"
+      },
+      "received": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "poTotal": "Total",
+  "poMarkSent": "Marcar como enviada",
+  "poReceive": "Recibir",
+  "poSaved": "Borrador guardado.",
+  "poNeedsSupplier": "Agrega un proveedor activo antes de crear una orden.",
+  "poSupplier": "Proveedor",
+  "poWarehouse": "Bodega de destino",
+  "poExpected": "Fecha esperada",
+  "poExpectedNone": "Sin fecha",
+  "poLines": "Productos",
+  "poAddLine": "Agregar producto",
+  "poSaveDraft": "Guardar borrador",
+  "poProduct": "Producto",
+  "poDuplicateProduct": "Este producto ya está en la orden.",
+  "poQuantity": "Cantidad",
+  "poUnitCost": "Costo unitario",
+  "poRemoveLine": "Quitar",
+  "poStatusDraft": "Borrador",
+  "poStatusSent": "Enviada",
+  "poStatusPartial": "Recibida parcial",
+  "poStatusReceived": "Recibida",
+  "poStatusCancelled": "Cancelada",
+  "poReceived": "Recepción registrada.",
+  "poReceiveTitle": "Recepción",
+  "poReceiveLine": "Pedido {ordered} · Recibido antes {before}",
+  "@poReceiveLine": {
+    "placeholders": {
+      "ordered": {
+        "type": "String"
+      },
+      "before": {
+        "type": "String"
+      }
+    }
+  },
+  "poReceiveNow": "Recibido ahora",
+  "poSupplierInvoice": "Factura del proveedor (opcional)",
+  "poSupplierInvoiceTooLong": "Máximo 60 caracteres.",
+  "poReceiveSubmit": "Registrar recepción",
+  "poInvalidQuantity": "Escribe una cantidad válida.",
+  "reorderTitle": "Sugerencias de reorden",
+  "reorderEmpty": "No hay productos por reponer: tus existencias cubren la demanda.",
+  "reorderHint": "Calculado con la venta de los últimos 28 días y los días de entrega del proveedor.",
+  "reorderCreateOrder": "Crear orden de compra",
+  "reorderCover": "{days, plural, =0{Sin cobertura} =1{Cubre 1 día} other{Cubre {days} días}}",
+  "@reorderCover": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "reorderNoSales": "Sin ventas recientes",
+  "reorderAbc": "Clase {abc}",
+  "@reorderAbc": {
+    "placeholders": {
+      "abc": {
+        "type": "String"
+      }
+    }
+  },
+  "reorderStockLine": "Disponible {available} · En camino {transit} · Venta diaria {daily}",
+  "@reorderStockLine": {
+    "placeholders": {
+      "available": {
+        "type": "String"
+      },
+      "transit": {
+        "type": "String"
+      },
+      "daily": {
+        "type": "String"
+      }
+    }
+  },
+  "reorderNoSupplier": "Sin proveedor habitual",
+  "reorderSupplier": "Proveedor habitual: {name}",
+  "@reorderSupplier": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reorderSuggested": "Sugerido: {quantity}",
+  "@reorderSuggested": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "error_INVALID_SUPPLIER": "Revisa los datos del proveedor: RUC con DV, correo y teléfono válidos.",
+  "error_RECEIPT_EXCEEDS_ORDERED": "Estás recibiendo más de lo pedido.",
+  "error_UNKNOWN_ORDER_LINE": "Ese producto no está en la orden.",
+  "error_PO_STATE": "La orden ya cambió de estado. Actualiza e intenta de nuevo."
 }

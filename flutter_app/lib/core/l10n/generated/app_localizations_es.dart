@@ -4154,6 +4154,258 @@ class AppLocalizationsEs extends AppLocalizations {
   String financePendingSettlement(String amount) {
     return 'Por liquidar $amount';
   }
+
+  @override
+  String get invPurchasingMenu => 'Compras';
+
+  @override
+  String get invSuppliersTitle => 'Proveedores';
+
+  @override
+  String get supplierAdd => 'Agregar proveedor';
+
+  @override
+  String get suppliersEmpty =>
+      'Aún no tienes proveedores. Agrega el primero para crear órdenes de compra.';
+
+  @override
+  String supplierRucLine(String taxId, String dv) {
+    return 'RUC $taxId DV $dv';
+  }
+
+  @override
+  String supplierLeadLine(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Entrega en $days días',
+      one: 'Entrega en 1 día',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get supplierInactive => 'Inactivo';
+
+  @override
+  String get supplierSaved => 'Proveedor guardado.';
+
+  @override
+  String get supplierName => 'Razón social';
+
+  @override
+  String get supplierPhone => 'Teléfono (opcional)';
+
+  @override
+  String get supplierLeadTime => 'Días de entrega';
+
+  @override
+  String get supplierActive => 'Activo';
+
+  @override
+  String get poTitle => 'Órdenes de compra';
+
+  @override
+  String get poNew => 'Nueva orden';
+
+  @override
+  String get poFilterAll => 'Todas';
+
+  @override
+  String get poEmpty => 'No hay órdenes de compra.';
+
+  @override
+  String poNumber(String number, String supplier) {
+    return 'Orden $number · $supplier';
+  }
+
+  @override
+  String get poCancelTitle => '¿Cancelar la orden?';
+
+  @override
+  String get poCancelBody =>
+      'La orden queda cancelada y no se puede recibir. Esta acción no se deshace.';
+
+  @override
+  String get poKeep => 'Mantener la orden';
+
+  @override
+  String get poCancel => 'Cancelar orden';
+
+  @override
+  String poCreatedOn(String date) {
+    return 'Creada el $date';
+  }
+
+  @override
+  String poExpectedOn(String date) {
+    return 'Llega el $date';
+  }
+
+  @override
+  String poLineSummary(String ordered, String received, String cost) {
+    return 'Pedido $ordered · Recibido $received · Costo $cost';
+  }
+
+  @override
+  String get poTotal => 'Total';
+
+  @override
+  String get poMarkSent => 'Marcar como enviada';
+
+  @override
+  String get poReceive => 'Recibir';
+
+  @override
+  String get poSaved => 'Borrador guardado.';
+
+  @override
+  String get poNeedsSupplier =>
+      'Agrega un proveedor activo antes de crear una orden.';
+
+  @override
+  String get poSupplier => 'Proveedor';
+
+  @override
+  String get poWarehouse => 'Bodega de destino';
+
+  @override
+  String get poExpected => 'Fecha esperada';
+
+  @override
+  String get poExpectedNone => 'Sin fecha';
+
+  @override
+  String get poLines => 'Productos';
+
+  @override
+  String get poAddLine => 'Agregar producto';
+
+  @override
+  String get poSaveDraft => 'Guardar borrador';
+
+  @override
+  String get poProduct => 'Producto';
+
+  @override
+  String get poDuplicateProduct => 'Este producto ya está en la orden.';
+
+  @override
+  String get poQuantity => 'Cantidad';
+
+  @override
+  String get poUnitCost => 'Costo unitario';
+
+  @override
+  String get poRemoveLine => 'Quitar';
+
+  @override
+  String get poStatusDraft => 'Borrador';
+
+  @override
+  String get poStatusSent => 'Enviada';
+
+  @override
+  String get poStatusPartial => 'Recibida parcial';
+
+  @override
+  String get poStatusReceived => 'Recibida';
+
+  @override
+  String get poStatusCancelled => 'Cancelada';
+
+  @override
+  String get poReceived => 'Recepción registrada.';
+
+  @override
+  String get poReceiveTitle => 'Recepción';
+
+  @override
+  String poReceiveLine(String ordered, String before) {
+    return 'Pedido $ordered · Recibido antes $before';
+  }
+
+  @override
+  String get poReceiveNow => 'Recibido ahora';
+
+  @override
+  String get poSupplierInvoice => 'Factura del proveedor (opcional)';
+
+  @override
+  String get poSupplierInvoiceTooLong => 'Máximo 60 caracteres.';
+
+  @override
+  String get poReceiveSubmit => 'Registrar recepción';
+
+  @override
+  String get poInvalidQuantity => 'Escribe una cantidad válida.';
+
+  @override
+  String get reorderTitle => 'Sugerencias de reorden';
+
+  @override
+  String get reorderEmpty =>
+      'No hay productos por reponer: tus existencias cubren la demanda.';
+
+  @override
+  String get reorderHint =>
+      'Calculado con la venta de los últimos 28 días y los días de entrega del proveedor.';
+
+  @override
+  String get reorderCreateOrder => 'Crear orden de compra';
+
+  @override
+  String reorderCover(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Cubre $days días',
+      one: 'Cubre 1 día',
+      zero: 'Sin cobertura',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reorderNoSales => 'Sin ventas recientes';
+
+  @override
+  String reorderAbc(String abc) {
+    return 'Clase $abc';
+  }
+
+  @override
+  String reorderStockLine(String available, String transit, String daily) {
+    return 'Disponible $available · En camino $transit · Venta diaria $daily';
+  }
+
+  @override
+  String get reorderNoSupplier => 'Sin proveedor habitual';
+
+  @override
+  String reorderSupplier(String name) {
+    return 'Proveedor habitual: $name';
+  }
+
+  @override
+  String reorderSuggested(String quantity) {
+    return 'Sugerido: $quantity';
+  }
+
+  @override
+  String get error_INVALID_SUPPLIER =>
+      'Revisa los datos del proveedor: RUC con DV, correo y teléfono válidos.';
+
+  @override
+  String get error_RECEIPT_EXCEEDS_ORDERED =>
+      'Estás recibiendo más de lo pedido.';
+
+  @override
+  String get error_UNKNOWN_ORDER_LINE => 'Ese producto no está en la orden.';
+
+  @override
+  String get error_PO_STATE =>
+      'La orden ya cambió de estado. Actualiza e intenta de nuevo.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).
