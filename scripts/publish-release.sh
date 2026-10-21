@@ -11,13 +11,15 @@
 # Se ejecuta en la máquina de producción porque la CI de GitHub no corre mientras la cuenta tenga
 # un bloqueo de facturación (2026-10-20). Las llaves de firma nunca van al repositorio.
 #
-# Uso: ./scripts/publish-release.sh <patch|minor|major> <notas.md>
+# Uso: ./scripts/publish-release.sh <patch|minor|major|none> <notas.md>
+#   none = publicar la versión actual sin subirla (p. ej. si un intento anterior ya la subió y
+#          falló después); se niega si la etiqueta ya existe.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/flutter_app"
 OUT="$ROOT/output"
-BUMP="${1:?indica patch, minor o major}"
+BUMP="${1:?indica patch, minor, major o none}"
 NOTES="${2:?indica el archivo de notas del release (markdown)}"
 [ -f "$NOTES" ] || { echo "no existe $NOTES"; exit 1; }
 APKSIGNER="${APKSIGNER:-$(ls -d "$HOME"/Android/Sdk/build-tools/*/apksigner 2>/dev/null | tail -1)}"
@@ -43,13 +45,19 @@ case "$BUMP" in
   major) MA=$((MA + 1)); MI=0; PA=0 ;;
   minor) MI=$((MI + 1)); PA=0 ;;
   patch) PA=$((PA + 1)) ;;
+  none) ;;
   *) echo "BUMP inválido: $BUMP"; exit 1 ;;
 esac
-VERSION="$MA.$MI.$PA"; BUILD=$((BUILD + 1))
-sed -i -E "s/^version: .*/version: $VERSION+$BUILD/" "$APP/pubspec.yaml"
-git add "$APP/pubspec.yaml"
-git commit -q -m "chore(release): bump version to $VERSION"
-git push -q origin main
+VERSION="$MA.$MI.$PA"
+if [ "$BUMP" = none ]; then
+  gh release view "v$VERSION" >/dev/null 2>&1 && { echo "v$VERSION ya está publicada: usa patch, minor o major"; exit 1; }
+else
+  BUILD=$((BUILD + 1))
+  sed -i -E "s/^version: .*/version: $VERSION+$BUILD/" "$APP/pubspec.yaml"
+  git add "$APP/pubspec.yaml"
+  git commit -q -m "chore(release): bump version to $VERSION"
+  git push -q origin main
+fi
 echo "=== versión $VERSION+$BUILD ==="
 
 # 2. Builds (web queda servida por `web` al terminar)
