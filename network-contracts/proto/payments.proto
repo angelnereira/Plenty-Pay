@@ -146,6 +146,7 @@ message Payment {
   repeated PaymentAttempt attempts = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp captured_at = 12;
+  bool sandbox = 13;                   // cobrado por un riel sin credenciales: no es dinero real (R13); settlement no lo paga a un banco
 }
 
 message ListPaymentsRequest {

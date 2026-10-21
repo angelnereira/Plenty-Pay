@@ -30,6 +30,7 @@ const (
 	Settlement_GetReconciliationReport_FullMethodName      = "/plentypay.settlement.v1.Settlement/GetReconciliationReport"
 	Settlement_ListReconciliationExceptions_FullMethodName = "/plentypay.settlement.v1.Settlement/ListReconciliationExceptions"
 	Settlement_ResolveException_FullMethodName             = "/plentypay.settlement.v1.Settlement/ResolveException"
+	Settlement_GetPayoutSummary_FullMethodName             = "/plentypay.settlement.v1.Settlement/GetPayoutSummary"
 )
 
 // SettlementClient is the client API for Settlement service.
@@ -50,6 +51,7 @@ type SettlementClient interface {
 	GetReconciliationReport(ctx context.Context, in *GetReconciliationReportRequest, opts ...grpc.CallOption) (*ReconciliationReport, error)
 	ListReconciliationExceptions(ctx context.Context, in *ListReconciliationExceptionsRequest, opts ...grpc.CallOption) (*ListReconciliationExceptionsResponse, error)
 	ResolveException(ctx context.Context, in *ResolveExceptionRequest, opts ...grpc.CallOption) (*ReconciliationItem, error)
+	GetPayoutSummary(ctx context.Context, in *GetPayoutSummaryRequest, opts ...grpc.CallOption) (*PayoutSummary, error)
 }
 
 type settlementClient struct {
@@ -170,6 +172,16 @@ func (c *settlementClient) ResolveException(ctx context.Context, in *ResolveExce
 	return out, nil
 }
 
+func (c *settlementClient) GetPayoutSummary(ctx context.Context, in *GetPayoutSummaryRequest, opts ...grpc.CallOption) (*PayoutSummary, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PayoutSummary)
+	err := c.cc.Invoke(ctx, Settlement_GetPayoutSummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SettlementServer is the server API for Settlement service.
 // All implementations must embed UnimplementedSettlementServer
 // for forward compatibility.
@@ -188,6 +200,7 @@ type SettlementServer interface {
 	GetReconciliationReport(context.Context, *GetReconciliationReportRequest) (*ReconciliationReport, error)
 	ListReconciliationExceptions(context.Context, *ListReconciliationExceptionsRequest) (*ListReconciliationExceptionsResponse, error)
 	ResolveException(context.Context, *ResolveExceptionRequest) (*ReconciliationItem, error)
+	GetPayoutSummary(context.Context, *GetPayoutSummaryRequest) (*PayoutSummary, error)
 	mustEmbedUnimplementedSettlementServer()
 }
 
@@ -230,6 +243,9 @@ func (UnimplementedSettlementServer) ListReconciliationExceptions(context.Contex
 }
 func (UnimplementedSettlementServer) ResolveException(context.Context, *ResolveExceptionRequest) (*ReconciliationItem, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ResolveException not implemented")
+}
+func (UnimplementedSettlementServer) GetPayoutSummary(context.Context, *GetPayoutSummaryRequest) (*PayoutSummary, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPayoutSummary not implemented")
 }
 func (UnimplementedSettlementServer) mustEmbedUnimplementedSettlementServer() {}
 func (UnimplementedSettlementServer) testEmbeddedByValue()                    {}
@@ -450,6 +466,24 @@ func _Settlement_ResolveException_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Settlement_GetPayoutSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPayoutSummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SettlementServer).GetPayoutSummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Settlement_GetPayoutSummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SettlementServer).GetPayoutSummary(ctx, req.(*GetPayoutSummaryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Settlement_ServiceDesc is the grpc.ServiceDesc for Settlement service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -500,6 +534,10 @@ var Settlement_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResolveException",
 			Handler:    _Settlement_ResolveException_Handler,
+		},
+		{
+			MethodName: "GetPayoutSummary",
+			Handler:    _Settlement_GetPayoutSummary_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

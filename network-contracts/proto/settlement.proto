@@ -22,6 +22,8 @@ service Settlement {
   rpc GetReconciliationReport(GetReconciliationReportRequest) returns (ReconciliationReport);
   rpc ListReconciliationExceptions(ListReconciliationExceptionsRequest) returns (ListReconciliationExceptionsResponse);
   rpc ResolveException(ResolveExceptionRequest) returns (ReconciliationItem);
+
+  rpc GetPayoutSummary(GetPayoutSummaryRequest) returns (PayoutSummary); // cabecera de S-FIN-05: por liquidar y próxima fecha
 }
 
 enum BatchStatus {
@@ -44,10 +46,28 @@ message PayoutSchedule {
   int64 minimum_payout_minor = 4;
   plentypay.common.v1.PaymentRail payout_rail = 5;
   string payout_destination_ref = 6;       // referencia cifrada en `security` (nunca el número en claro)
+  string destination_kind = 7;             // "BANK" | "WALLET" (billetera del negocio)
+  string destination_bank = 8;             // nombre del banco (BANK)
+  string destination_account_type = 9;     // "CHECKING" | "SAVINGS" (BANK)
+  string destination_last4 = 10;           // solo los últimos 4 dígitos: el número nunca se devuelve
+  string destination_holder = 11;          // titular declarado
+  google.protobuf.Timestamp payouts_blocked_until = 12; // R5: 48 h tras cambiar el destino
+  int32 hold_days = 13;                    // R4: retención de riesgo (T+N)
+  bool configured = 14;                    // falso = el negocio aún no configuró su calendario
+}
+// Destino nuevo: el número viaja una sola vez, se cifra en `security` y no se vuelve a mostrar.
+message PayoutDestinationInput {
+  string kind = 1;            // "BANK" | "WALLET"
+  string bank = 2;
+  string account_type = 3;    // "CHECKING" | "SAVINGS"
+  string account_number = 4;  // solo dígitos
+  string holder_name = 5;     // debe coincidir con el negocio (INVALID_DESTINATION)
 }
 message GetPayoutScheduleRequest { string tenant_id = 1; }
 message SetPayoutScheduleRequest { PayoutSchedule schedule = 1; string step_up_token = 2; 
-  string idempotency_key = 3;}
+  string idempotency_key = 3;
+  PayoutDestinationInput destination = 4; // vacío = el destino no cambia (sin step-up)
+}
 
 message SettlementBatch {
   string batch_id = 1;
@@ -62,6 +82,26 @@ message SettlementBatch {
   string ledger_transaction_id = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp paid_at = 12;
+  bool sandbox = 13;                       // incluye cobros de prueba: solo se paga a la billetera (R2)
+  string destination_kind = 14;            // "BANK" | "WALLET"
+  plentypay.common.v1.Money refunds = 15;  // reembolsos descontados en el periodo
+  string failure_reason = 16;
+  repeated SettlementItem items = 17;      // solo en GetBatch
+  int32 item_count = 18;
+  string destination_last4 = 19;
+}
+// Partida de un lote: un cobro acreditado al comercio o un reembolso descontado (asiento del ledger).
+message SettlementItem {
+  string kind = 1;                                 // "PAYMENT" | "REFUND"
+  plentypay.common.v1.Reference reference = 2;     // {payment|refund, id}
+  plentypay.common.v1.Money amount = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+}
+message GetPayoutSummaryRequest {}
+message PayoutSummary {
+  plentypay.common.v1.Money pending = 1;           // disponible en MERCHANT_PAYABLE menos lo que ya está en lotes sin pagar
+  plentypay.common.v1.Money in_processing = 2;     // lotes PROCESSING aún no asentados
+  google.protobuf.Timestamp next_payout_at = 3;    // vacío con frecuencia MANUAL o sin calendario
 }
 message CreateBatchRequest {
   string tenant_id = 1;
@@ -127,3 +167,5 @@ message ResolveExceptionRequest { string item_id = 1; string note = 2; string ad
 // ── Eventos. Subject: pp.settlement.<entidad>.<hecho>.v1 ──
 message BatchPaid { string batch_id = 1; string tenant_id = 2; plentypay.common.v1.Money net_payout = 3; }
 message ReconciliationExceptionRaised { string item_id = 1; plentypay.common.v1.PaymentRail rail = 2; ReconciliationState state = 3; }
+message PayoutDestinationChanged { string tenant_id = 1; string destination_kind = 2; string destination_last4 = 3; google.protobuf.Timestamp payouts_blocked_until = 4; } // R5: notifications avisa al dueño
+message BatchFailed { string batch_id = 1; string tenant_id = 2; string reason = 3; }

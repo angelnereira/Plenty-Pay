@@ -142,6 +142,7 @@ message LedgerStatementLine {
   string description = 4;
   int64 running_balance_minor = 5;
   google.protobuf.Timestamp effective_at = 6;
+  plentypay.common.v1.Reference reference = 7; // qué originó el asiento (p. ej. {payment, <id>}); lo usa settlement
 }
 message GetStatementRequest {
   AccountRef account = 1;
