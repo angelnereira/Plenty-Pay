@@ -29,8 +29,9 @@ Sin sesión · Paso F02.6 · `POST /v1/auth/login`
 | e4 | `PPButton.text` | ¿Olvidaste tu contraseña? | Navega a S-GEN-04 |
 | e5 | `PPButton.primary` | Entrar | Envía. Éxito: carga `/v1/me` y `/v1/me/permissions` y navega a S-GEN-05 |
 | e6 | `PPButton.text` | Crear cuenta | Navega a S-GEN-03 |
+| e7 | `PPButton.secondary` | Entrar con huella o rostro | Solo si el registro de capacidades marca `device.passkeys` como soportada. `POST /v1/auth/passkeys/login/begin` sin correo → el sistema muestra las passkeys del dominio → `/finish` → mismo destino que e5 (R30). Si `/begin` responde `PASSKEYS_UNAVAILABLE`, el botón se oculta en esa sesión de la app |
 
-Errores: `INVALID_CREDENTIALS` bajo e3 (mismo texto exista o no el correo). `ACCOUNT_LOCKED`: e5 se deshabilita y muestra cuenta regresiva. Si el dispositivo tiene sesión guardada y biometría, antes del formulario se ofrece "Entrar con huella o rostro".
+Errores: `INVALID_CREDENTIALS` bajo e3 (mismo texto exista o no el correo; también si la passkey es desconocida o fue revocada). `ACCOUNT_LOCKED`: e5 se deshabilita y muestra cuenta regresiva. Si la persona cancela el diálogo del sistema en e7, el formulario sigue igual, sin mensaje.
 
 ### S-GEN-03 · `/register` · Crear cuenta
 Sin sesión · Paso F02.6 · `POST /v1/auth/register` · Reglas: N-DAT-02, N-DAT-03, N-DAT-14
@@ -113,6 +114,7 @@ Todos · Paso F02.6 · `/v1/me`
 | e8 | Selector | Tema: Sistema / Claro / Oscuro | Inmediato |
 | e9 | Selector | Moneda mostrada: $ / B/. | Solo presentación (N-PAG-02) |
 | e10 | Fila | Ayuda y reclamos | → S-MKT-08 |
+| e13 | Fila | Permisos del dispositivo | → S-GEN-23 |
 | e11 | Fila | Términos · Privacidad · Versión {x.y.z} | Enlaces públicos; la versión no es interactiva |
 | e12 | `PPButton.secondary` | Cerrar sesión | Confirmación C-05 "Cerrar sesión" |
 
@@ -128,15 +130,18 @@ Todos · Paso F08.8 · Reglas: N-DAT-05, N-FMT-05, N-FMT-07
 | e5 | `PPButton.primary` | Guardar | — |
 
 ### S-GEN-10 · `/account/security` · Seguridad
-Todos · Pasos F08.8, F28.2
+Todos · Pasos F08.8, F23.3, F28.2 · `/v1/me/passkeys`, `/v1/me/step-up-pin`, `/v1/me/sessions` · Reglas: identity R25–R31, N-DAT-04 · Diseño: [`security/strong-authentication.md`](../../security/strong-authentication.md) §8.2 y §8.6
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
-| e1 | Fila | Cambiar contraseña | 🔒 Formulario: contraseña actual, nueva (reglas S-GEN-03 e4). Éxito: cierra las demás sesiones |
-| e2 | Interruptor | Entrar con huella o rostro | Requiere biometría configurada en el dispositivo |
-| e3 | Fila | Llaves de acceso (passkeys) | Lista, "Agregar llave", eliminar con C-05 |
-| e4 | Lista | Dispositivos con sesión: {etiqueta} · {ciudad aproximada} · {última actividad} | El actual marcado "Este dispositivo". Cada otro tiene "Cerrar sesión" |
-| e5 | `PPButton.text` | Cerrar todas las demás sesiones | C-05 |
+| e1 | Fila | Cambiar contraseña | 🔒 (`identity.password.change`) Formulario: contraseña actual, nueva (reglas S-GEN-03 e4). Éxito: cierra las demás sesiones |
+| e6 | Fila | PIN de confirmación · {Configurado / Sin configurar} | Abre una hoja con "PIN nuevo" y "Repite el PIN" (`PinPad`, 6 dígitos). Siempre 🔒 nivel 3 (`identity.pin.set`): S-GEN-21 pide la contraseña, nunca el PIN actual. Bloqueado: "PIN bloqueado hasta {hora}." |
+| e2 | Interruptor | Entrar con huella o rostro | Desbloqueo local de la app en este equipo (nivel 1) y passkey de este equipo. Sin biometría configurada: "Configura tu huella o tu rostro en los ajustes del equipo." con botón "Abrir ajustes". Al activarlo: hoja "Tu huella o tu rostro nunca salen de este dispositivo." → 🔒 `identity.passkey.register` (contraseña si es la primera passkey) → diálogo del sistema → `register/finish` con la etiqueta del equipo. Si las passkeys no están disponibles (`PASSKEYS_UNAVAILABLE`), activa solo el desbloqueo local. Al apagarlo: quita el desbloqueo local y ofrece "Eliminar también la llave de este equipo" (🔒 `identity.passkey.revoke`) |
+| e3 | Lista | Llaves de acceso: {etiqueta} · {creada} · {último uso} · {Sincronizada} | Cada una con "Eliminar" (C-05 y 🔒 `identity.passkey.revoke`). Vacía o sin passkeys disponibles: la sección no se muestra |
+| e4 | Lista | Dispositivos con sesión: {etiqueta} · {ciudad aproximada} · {última actividad} · {Contraseña / Llave de acceso} | El actual marcado "Este dispositivo". Cada otro tiene "Cerrar sesión" |
+| e5 | `PPButton.text` | Cerrar todas las demás sesiones | C-05. Acción de protección: sin 🔒 |
+
+Estados: sin `local_auth` ni passkeys en el equipo (Linux) e2 y e3 no se muestran y e6 queda como único método de confirmación. Tras registrar o eliminar una passkey llega un aviso de seguridad por correo y a la bandeja (R31).
 
 ### S-GEN-11 · `/account/notifications` · Preferencias de avisos
 Todos · Paso F20.8 · `/v1/notification-preferences`
@@ -228,19 +233,34 @@ Bloqueante, sin navegación. "Actualiza PlentyPay para continuar." Botón "Actua
 No bloquea lecturas. Franja C-11. Toda mutación responde con el mensaje de `MAINTENANCE_MODE`.
 
 ### S-GEN-21 · diálogo · Confirmación fuerte
-Todos · Pasos F05.6, F23.3 · `/v1/step-up/*` · Regla: N-PAG-05
+Todos · Pasos F05.6, F23.3, F28.2 · `/v1/step-up/challenge`, `/v1/step-up/verify` · Reglas: N-PAG-05, identity R25–R28 · ADR 0020
 
-Hoja inferior modal.
+Hoja inferior modal, desplazable al 200 %. Se abre por C-06 o cuando el servidor responde `STEP_UP_REQUIRED`; la app nunca decide el umbral.
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
 | e1 | Título | Confirma que eres tú | — |
-| e2 | Texto | {Operación}: {monto} a {destinatario} | Los datos vienen del servidor, no de la pantalla que llama |
-| e3 | Botón biométrico | Usar huella o rostro | Primer método si está disponible |
-| e4 | `PinPad` | PIN de 6 dígitos | Alternativa. 3 errores: "Demasiados intentos. Espera 5 minutos." |
+| e2 | Texto | {Operación}: {monto} | Operación y monto de la respuesta del reto, no de la pantalla que llama. Sin monto (p. ej. cambiar la contraseña) solo la operación |
+| e3 | Botón biométrico | Usar huella o rostro | Solo si `available_methods` incluye `PASSKEY` y el equipo soporta passkeys. Primer método. Anuncia "Confirmar con huella o rostro". Envía la aserción con `method=PASSKEY` |
+| e4 | `PinPad` | PIN de 6 dígitos | Si `available_methods` incluye `PIN`. Anuncia los dígitos ingresados sin leerlos. Envía con `method=PIN`; nunca se compara en la app |
+| e6 | `PPTextField` contraseña | Contraseña | Solo en nivel 3 (`allowed_methods` = `PASSWORD`), en lugar de e3 y e4 |
+| e7 | `PPButton.text` | Crear PIN | Solo si la operación acepta `PIN`, la persona no tiene PIN ni passkey (`PIN_NOT_SET`). Abre S-GEN-10 e6 y, al volver, pide un reto nuevo sin perder la operación |
 | e5 | `PPButton.text` | Cancelar | Cierra y cancela la operación |
 
-El token resultante vale una sola vez, 5 minutos, y solo para esa operación y monto.
+Errores bajo el método: `PIN_INVALID` "PIN incorrecto. Te quedan {n} intentos."; `PIN_LOCKED` "Demasiados intentos. Espera {minutos} minutos." (e4 se deshabilita; e3 sigue disponible); `PASSKEY_VERIFICATION_FAILED` "No pudimos verificar tu llave. Usa tu PIN."; `INVALID_CREDENTIALS` bajo e6. Si el reto vence (5 min), se pide otro sin perder la operación. El token resultante vale una sola vez, 5 minutos, y solo para esa operación y monto; la operación se reenvía con la misma `Idempotency-Key` (C-07).
 
 ### S-GEN-22 · pantalla de bloqueo
-Tras inactividad (C-18): logo, "Desbloquea para continuar", biometría o PIN, y "Cerrar sesión".
+Pasos F23.3 · Tras inactividad (C-18, `session.idle_lock_minutes.*`): logo, "Desbloquea para continuar", "Usar huella o rostro" (o el bloqueo del sistema) y "Cerrar sesión" siempre visible. No llama al servidor (nivel 1). En equipos sin biometría ni bloqueo del sistema solo ofrece "Entrar de nuevo", que cierra la sesión local y abre S-GEN-02. Si cambiaron las huellas o rostros del equipo, también lleva a S-GEN-02.
+
+### S-GEN-23 · `/account/permissions` · Permisos del dispositivo
+Todos · Paso F23.8 · Sin llamadas al servidor · Reglas: N-DAT-02, N-DAT-04 · Diseño: [`security/strong-authentication.md`](../../security/strong-authentication.md) §6
+
+Una fila por capacidad del registro (`device.*`) que la plataforma soporta; las no soportadas no se muestran.
+
+| Id | Componente | Texto visible | Comportamiento y validación |
+|---|---|---|---|
+| e1 | Texto | Revisa qué puede usar PlentyPay en este equipo. Solo lo pedimos cuando lo necesitas. | — |
+| e2 | Lista | {Capacidad} · {para qué} · {Permitido / No permitido / Sin pedir / No configurado} | Estado del registro de capacidades. Biometría y llaves de acceso → S-GEN-10 |
+| e3 | `PPButton.text` por fila | Abrir ajustes | Solo si el permiso fue denegado de forma permanente: abre los ajustes del sistema |
+
+Al volver de los ajustes del sistema el estado se refresca. Ningún dato de esta pantalla viaja al servidor.

@@ -12,6 +12,7 @@ Go · puerto 8081 (publicado) · admin 9100 · sin base de datos · Fase F22 (es
 - **R3** `/t/<code>` valida el regex del código antes de cualquier llamada.
 - **R4** Sin bundle presente (`static/app/` vacío) responde una página de mantenimiento clara, no 500.
 - **R5** Plantillas HTML con `html/template` (escape automático).
+- **R6** Passkeys (ADR 0020): `assetlinks.json` declara `delegate_permission/common.get_login_creds` además de `handle_all_urls`, y el AASA declara `webcredentials.apps`; ambos desde las variables de entorno, con 200, `application/json` y sin redirecciones. Sin dominio estable (Q-39) se sirven igual, pero identity mantiene las passkeys apagadas.
 
 ## 4. Configuración
 `WEB_HTTP_ADDR` (`:8081`), `GATEWAY_PUBLIC_URL`, `GATEWAY_INTERNAL_ADDR`, `ANDROID_APP_FINGERPRINTS`, `APPLE_TEAM_ID`, `MEDIA_BUCKET_URL`.

@@ -58,6 +58,7 @@ CREATE TABLE notifications.suppressions (address_hash bytea PRIMARY KEY, channel
 | `StockLow` | dueño, almacenista | in-app | `inventory.low` |
 | `PayrollRunPaid` | empleados | push, correo (comprobante) | `payroll.paid` |
 | `TenantStatusChanged` | dueño | correo, in-app | `business.status` |
+| `PasskeyRegistered` · `PasskeyRevoked` | la persona dueña de la passkey | in-app, correo (categoría Seguridad, no desactivable) | `security.passkey_registered` / `security.passkey_revoked` |
 | `SessionRevoked` (REFRESH_REUSE) | usuario | correo, push | `security.session_revoked` |
 | Solicitudes de identity (reset, invitación, bienvenida, bloqueo) | usuario | correo | `auth.*` |
 

@@ -1198,7 +1198,9 @@ func (x *VerifyAuditChainResponse) GetFirstBrokenEventId() string {
 	return ""
 }
 
-// kind: "LOGIN_FAILED", "TOKEN_REUSE", "VELOCITY_EXCEEDED", "WEBHOOK_BAD_SIGNATURE"
+// kind: "LOGIN_FAILED", "TOKEN_REUSE", "VELOCITY_EXCEEDED", "WEBHOOK_BAD_SIGNATURE",
+//
+//	"STEP_UP_FAILED", "PIN_LOCKED", "PASSKEY_COUNTER_REGRESSION" (identity, ADR 0020)
 type ReportSecurityEventRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

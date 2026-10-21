@@ -8,7 +8,7 @@ Precedencia si hay conflicto: ADR → `domain-model.md` → SPEC del contenedor 
 
 | Archivo | Módulos | Pantallas |
 |---|---|---|
-| [`00-transversal.md`](00-transversal.md) | Acceso, inicio, cuenta, privacidad, verificación de identidad, alta de negocio | S-GEN-01 a S-GEN-22 |
+| [`00-transversal.md`](00-transversal.md) | Acceso, inicio, cuenta, privacidad, verificación de identidad, alta de negocio | S-GEN-01 a S-GEN-23 |
 | [`01-wallet.md`](01-wallet.md) | Billetera y pago presencial | S-WAL-01 a S-WAL-09 |
 | [`02-marketplace-orders.md`](02-marketplace-orders.md) | Comprar y pedidos del comercio | S-MKT-01 a S-MKT-08, S-ORD-01 a S-ORD-02 |
 | [`03-pos.md`](03-pos.md) | Caja | S-POS-01 a S-POS-12 |
@@ -57,7 +57,7 @@ Estas reglas no se repiten en cada ficha.
 | **C-15** | Formularios largos guardan borrador local sin datos sensibles. Al salir con cambios: "¿Salir sin guardar?" con "Salir" y "Seguir editando" |
 | **C-16** | Todo formulario que recoge datos personales muestra bajo el botón primario: "Tratamos tus datos según nuestra Política de privacidad." con enlace a `/legal/privacy` (N-DAT-03) |
 | **C-17** | Accesibilidad: objetivo táctil ≥ 48 dp, etiqueta semántica en todo icono-acción, orden de foco igual al visual, texto escalable a 200 % sin cortes |
-| **C-18** | Sesión inactiva 5 min en móvil: pantalla de bloqueo con biometría. En POS y quiosco el tiempo es configurable |
+| **C-18** | Sesión inactiva `session.idle_lock_minutes.mobile` (5 min) en móvil: pantalla de bloqueo S-GEN-22 con biometría o el bloqueo del sistema, sin llamar al servidor. En POS y quiosco el tiempo es `session.idle_lock_minutes.pos` y `.kiosk` |
 | **C-19** | Pantallas con saldo o datos de pago no aparecen en capturas ni en el selector de apps |
 | **C-20** | Exportar siempre ofrece CSV y PDF, con el rango de fechas y el filtro aplicado en el encabezado del archivo |
 | **C-21** | Toda acción de arrastrar tiene una alternativa de un solo toque visible (N-STD-43) |
@@ -80,6 +80,11 @@ Estas reglas no se repiten en cada ficha.
 | `AMOUNT_BELOW_FEES` | El monto es menor que las comisiones. |
 | `STEP_UP_REQUIRED` | Confirma tu identidad para continuar. |
 | `STEP_UP_INVALID` | No pudimos confirmar tu identidad. |
+| `PIN_INVALID` | PIN incorrecto. |
+| `PIN_LOCKED` | Demasiados intentos. Espera {minutos} minutos. |
+| `PIN_NOT_SET` | Primero crea tu PIN de confirmación. |
+| `PASSKEY_VERIFICATION_FAILED` | No pudimos verificar tu llave. Usa tu PIN. |
+| `PASSKEYS_UNAVAILABLE` | Las llaves de acceso no están disponibles todavía. |
 | `TENANT_NOT_ACTIVE` | Este negocio aún no puede cobrar. |
 | `KYC_REQUIRED` | Verifica tu identidad para usar esta función. |
 | `ACCOUNT_UNDER_REVIEW` | Tu cuenta está en revisión. Te avisaremos cuando termine. |
@@ -176,6 +181,7 @@ Rutas y RPC que hoy no existen. Se agregan de forma aditiva en F03.2 (contratos)
 | Necesidad | Ruta propuesta | Dueño | Regla |
 |---|---|---|
 | Verificación de identidad del usuario | `POST /v1/me/kyc`, `GET /v1/me/kyc` | identity | N-AML-02, N-AML-03 |
+| Passkeys y PIN de confirmación (S-GEN-02, S-GEN-10, S-GEN-21) | `/v1/auth/passkeys/login/*`, `/v1/me/passkeys*`, `/v1/me/step-up-pin` (ya en `identity.proto` y en `api-gateway/SPEC.md`; falta implementarlas) | identity, api-gateway | identity R25–R31 |
 | Consentimientos | `GET/PUT /v1/me/consents` | identity | N-DAT-02 |
 | Solicitudes de derechos sobre datos | `GET/POST /v1/me/data-requests` | identity, security | N-DAT-05, N-DAT-07 |
 | Límites vigentes del usuario | `GET /v1/me/limits` | payments-core | N-AML-03 |

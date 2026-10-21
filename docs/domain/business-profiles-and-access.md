@@ -174,6 +174,10 @@ El sistema organiza las funciones en ~38 capacidades distribuidas entre 12 módu
     - `admin.integrations`: llaves de API y webhooks.
     - `admin.audit`: consulta inmutable de registros de auditoría.
 
+### 4.1 Capacidades que dependen del dispositivo
+
+Algunas capacidades del comercio necesitan hardware del equipo: `pos.weighed_items` (balanza), `payroll.kiosk` (cámara para el marcaje facial), `logistics.*` y `payroll.attendance` (ubicación), los cobros por NFC (F23.2) y la confirmación fuerte con passkey. La app las resuelve con el registro de capacidades del dispositivo (`device.*`, [`../security/strong-authentication.md`](../security/strong-authentication.md) §6). Si el equipo no las tiene o el permiso fue negado, la pantalla lo explica y ofrece la alternativa (otro equipo, digitar el código, PIN en lugar de passkey); nunca falla en silencio ni apaga la capacidad del comercio. Las capacidades del comercio dicen qué puede hacer el negocio; las del dispositivo, qué puede hacer este equipo.
+
 ---
 
 ## 5. Plantillas de roles universales y sectoriales

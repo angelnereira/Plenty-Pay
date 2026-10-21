@@ -64,6 +64,10 @@ const (
 	Identity_FinishPasskeyRegistration_FullMethodName = "/plentypay.identity.v1.Identity/FinishPasskeyRegistration"
 	Identity_BeginPasskeyLogin_FullMethodName         = "/plentypay.identity.v1.Identity/BeginPasskeyLogin"
 	Identity_FinishPasskeyLogin_FullMethodName        = "/plentypay.identity.v1.Identity/FinishPasskeyLogin"
+	Identity_ListPasskeys_FullMethodName              = "/plentypay.identity.v1.Identity/ListPasskeys"
+	Identity_RevokePasskey_FullMethodName             = "/plentypay.identity.v1.Identity/RevokePasskey"
+	Identity_SetStepUpPin_FullMethodName              = "/plentypay.identity.v1.Identity/SetStepUpPin"
+	Identity_GetStepUpPinStatus_FullMethodName        = "/plentypay.identity.v1.Identity/GetStepUpPinStatus"
 	Identity_IssueStepUpChallenge_FullMethodName      = "/plentypay.identity.v1.Identity/IssueStepUpChallenge"
 	Identity_VerifyStepUp_FullMethodName              = "/plentypay.identity.v1.Identity/VerifyStepUp"
 	Identity_ConsumeStepUp_FullMethodName             = "/plentypay.identity.v1.Identity/ConsumeStepUp"
@@ -130,6 +134,11 @@ type IdentityClient interface {
 	FinishPasskeyRegistration(ctx context.Context, in *FinishPasskeyRegistrationRequest, opts ...grpc.CallOption) (*SimpleResult, error)
 	BeginPasskeyLogin(ctx context.Context, in *BeginPasskeyLoginRequest, opts ...grpc.CallOption) (*PasskeyChallenge, error)
 	FinishPasskeyLogin(ctx context.Context, in *FinishPasskeyLoginRequest, opts ...grpc.CallOption) (*AuthResult, error)
+	ListPasskeys(ctx context.Context, in *ListPasskeysRequest, opts ...grpc.CallOption) (*ListPasskeysResult, error)
+	RevokePasskey(ctx context.Context, in *RevokePasskeyRequest, opts ...grpc.CallOption) (*SimpleResult, error)
+	// PIN de confirmación (ADR 0020, R28): lo guarda y verifica solo identity.
+	SetStepUpPin(ctx context.Context, in *SetStepUpPinRequest, opts ...grpc.CallOption) (*SimpleResult, error)
+	GetStepUpPinStatus(ctx context.Context, in *GetStepUpPinStatusRequest, opts ...grpc.CallOption) (*StepUpPinStatus, error)
 	// Confirmación fuerte para operaciones sensibles (pagos de monto alto): token de un solo uso,
 	// de vida corta, atado a (user, operation, amount). El servicio que ejecuta la operación lo CONSUME (ADR 0011).
 	IssueStepUpChallenge(ctx context.Context, in *StepUpRequest, opts ...grpc.CallOption) (*PasskeyChallenge, error)
@@ -595,6 +604,46 @@ func (c *identityClient) FinishPasskeyLogin(ctx context.Context, in *FinishPassk
 	return out, nil
 }
 
+func (c *identityClient) ListPasskeys(ctx context.Context, in *ListPasskeysRequest, opts ...grpc.CallOption) (*ListPasskeysResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListPasskeysResult)
+	err := c.cc.Invoke(ctx, Identity_ListPasskeys_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) RevokePasskey(ctx context.Context, in *RevokePasskeyRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SimpleResult)
+	err := c.cc.Invoke(ctx, Identity_RevokePasskey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) SetStepUpPin(ctx context.Context, in *SetStepUpPinRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SimpleResult)
+	err := c.cc.Invoke(ctx, Identity_SetStepUpPin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) GetStepUpPinStatus(ctx context.Context, in *GetStepUpPinStatusRequest, opts ...grpc.CallOption) (*StepUpPinStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StepUpPinStatus)
+	err := c.cc.Invoke(ctx, Identity_GetStepUpPinStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *identityClient) IssueStepUpChallenge(ctx context.Context, in *StepUpRequest, opts ...grpc.CallOption) (*PasskeyChallenge, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PasskeyChallenge)
@@ -686,6 +735,11 @@ type IdentityServer interface {
 	FinishPasskeyRegistration(context.Context, *FinishPasskeyRegistrationRequest) (*SimpleResult, error)
 	BeginPasskeyLogin(context.Context, *BeginPasskeyLoginRequest) (*PasskeyChallenge, error)
 	FinishPasskeyLogin(context.Context, *FinishPasskeyLoginRequest) (*AuthResult, error)
+	ListPasskeys(context.Context, *ListPasskeysRequest) (*ListPasskeysResult, error)
+	RevokePasskey(context.Context, *RevokePasskeyRequest) (*SimpleResult, error)
+	// PIN de confirmación (ADR 0020, R28): lo guarda y verifica solo identity.
+	SetStepUpPin(context.Context, *SetStepUpPinRequest) (*SimpleResult, error)
+	GetStepUpPinStatus(context.Context, *GetStepUpPinStatusRequest) (*StepUpPinStatus, error)
 	// Confirmación fuerte para operaciones sensibles (pagos de monto alto): token de un solo uso,
 	// de vida corta, atado a (user, operation, amount). El servicio que ejecuta la operación lo CONSUME (ADR 0011).
 	IssueStepUpChallenge(context.Context, *StepUpRequest) (*PasskeyChallenge, error)
@@ -835,6 +889,18 @@ func (UnimplementedIdentityServer) BeginPasskeyLogin(context.Context, *BeginPass
 }
 func (UnimplementedIdentityServer) FinishPasskeyLogin(context.Context, *FinishPasskeyLoginRequest) (*AuthResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FinishPasskeyLogin not implemented")
+}
+func (UnimplementedIdentityServer) ListPasskeys(context.Context, *ListPasskeysRequest) (*ListPasskeysResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPasskeys not implemented")
+}
+func (UnimplementedIdentityServer) RevokePasskey(context.Context, *RevokePasskeyRequest) (*SimpleResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokePasskey not implemented")
+}
+func (UnimplementedIdentityServer) SetStepUpPin(context.Context, *SetStepUpPinRequest) (*SimpleResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetStepUpPin not implemented")
+}
+func (UnimplementedIdentityServer) GetStepUpPinStatus(context.Context, *GetStepUpPinStatusRequest) (*StepUpPinStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStepUpPinStatus not implemented")
 }
 func (UnimplementedIdentityServer) IssueStepUpChallenge(context.Context, *StepUpRequest) (*PasskeyChallenge, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IssueStepUpChallenge not implemented")
@@ -1676,6 +1742,78 @@ func _Identity_FinishPasskeyLogin_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Identity_ListPasskeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListPasskeysRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).ListPasskeys(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_ListPasskeys_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).ListPasskeys(ctx, req.(*ListPasskeysRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_RevokePasskey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokePasskeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).RevokePasskey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_RevokePasskey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).RevokePasskey(ctx, req.(*RevokePasskeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_SetStepUpPin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetStepUpPinRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).SetStepUpPin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_SetStepUpPin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).SetStepUpPin(ctx, req.(*SetStepUpPinRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_GetStepUpPinStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStepUpPinStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).GetStepUpPinStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Identity_GetStepUpPinStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).GetStepUpPinStatus(ctx, req.(*GetStepUpPinStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Identity_IssueStepUpChallenge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StepUpRequest)
 	if err := dec(in); err != nil {
@@ -1916,6 +2054,22 @@ var Identity_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FinishPasskeyLogin",
 			Handler:    _Identity_FinishPasskeyLogin_Handler,
+		},
+		{
+			MethodName: "ListPasskeys",
+			Handler:    _Identity_ListPasskeys_Handler,
+		},
+		{
+			MethodName: "RevokePasskey",
+			Handler:    _Identity_RevokePasskey_Handler,
+		},
+		{
+			MethodName: "SetStepUpPin",
+			Handler:    _Identity_SetStepUpPin_Handler,
+		},
+		{
+			MethodName: "GetStepUpPinStatus",
+			Handler:    _Identity_GetStepUpPinStatus_Handler,
 		},
 		{
 			MethodName: "IssueStepUpChallenge",

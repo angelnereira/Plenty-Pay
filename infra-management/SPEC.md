@@ -24,7 +24,7 @@ Go · 50074 · `infra_management.proto` · esquema `infra` (fuente de verdad y a
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa el principio P1 (parámetros `legal.pa.*` con vigencia y doble aprobación) y N-AML-01. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
 - **R1** Cada servicio lee flags/config de NATS KV con caché local y **último valor conocido** si KV cae.
 - **R2** Flags iniciales obligatorios: `rail.<rail>.enabled`, `payments.enabled` (por tenant), `marketplace.enabled`, `pos.offline.enabled`, `analytics.ask.enabled`, `signup.business.enabled`.
-- **R3** Configs iniciales: `limits.payment.max_minor` (1 000 000), `limits.wallet.max_balance_minor` (500 000), `stepup.threshold_minor` (10 000), `holidays.pa` (lista de fechas), `ratelimits.*`.
+- **R3** Configs iniciales: `limits.payment.max_minor` (1 000 000), `limits.wallet.max_balance_minor` (500 000), `stepup.threshold_minor` (10 000), `stepup.pin.max_attempts` (3), `stepup.pin.lock_minutes` (5), `session.idle_lock_minutes.mobile` (5), `session.idle_lock_minutes.pos` y `session.idle_lock_minutes.kiosk` (ADR 0020), `holidays.pa` (lista de fechas), `ratelimits.*`.
 - **R4** Todo cambio queda en `infra.changes` + `AuditRecorded` con antes/después.
 - **R5** Evaluación por porcentaje determinista: `hash(salt + subject) mod 100`.
 - **R6** Pausa de cobros por tenant o riel aplicada en < 5 min (propagación KV < 5 s).

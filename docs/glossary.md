@@ -119,7 +119,11 @@ Fuentes: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §1.3 
 | **Listing** | Publicación de un producto en el marketplace. En `catalog.Product` y `ProductChanged` se lee como `listed_in_marketplace` (solo lectura, catalog R4); en la app, interruptor «Mostrar en el marketplace» | dominio §1 |
 | **Instantánea (snapshot)** | Copia inmutable de datos de otro contexto en un momento | dominio §2 |
 | **Carrier / Driver** | Transportista / repartidor. `courier` es solo el nombre del preset de rol | `logistics.proto` |
-| **Step-up** | Confirmación fuerte para una operación concreta | seguridad §4 |
+| **Step-up** | Confirmación fuerte para una operación concreta. Solo la decide identity, con una passkey o el PIN (nivel 2) o la contraseña (nivel 3); el nombre de la operación sale del catálogo de seguridad §4.1 | seguridad §4, ADR 0020 |
+| **Passkey** | Credencial WebAuthn (FIDO2) del dispositivo: la llave privada no sale del equipo y la libera la huella, el rostro o el bloqueo del sistema. identity guarda solo la llave pública | ADR 0020 |
+| **PIN de confirmación** | 6 dígitos guardados con hash y verificados solo por identity; alternativa a la passkey en el nivel 2. No es el `INVALID_PIN` de payroll (PIN del quiosco de asistencia) | identity R28 |
+| **Nivel de verificación** | 0 sesión · 1 presencia en el dispositivo (solo cliente) · 2 confirmación fuerte (`PASSKEY`, `PIN`) · 3 reautenticación (`PASSWORD`) | seguridad §4.1 |
+| **Capacidad del dispositivo** | Función del equipo que la app pide a través de un único registro: `device.biometrics`, `device.passkeys`, `device.secure_storage`, `device.camera`, `device.photos`, `device.nfc`, `device.location`, `device.notifications`. No confundir con las capacidades del comercio (`pos.*`, `finance.*`) | `security/strong-authentication.md` §6 |
 | **KYB** | Verificación del negocio para pasar a `ACTIVE` (Q-04) | dominio §3 |
 | **Nivel de verificación** | `KYC_0`, `KYC_1`, `KYC_2`: cuánto se ha verificado la identidad del usuario; decide sus límites | regulatory-framework N-AML-03 |
 | **Descuento legal** | Descuento obligatorio por ley a jubilados, tercera edad y personas con discapacidad; distinto del descuento comercial | regulatory-framework N-CON-04 |
@@ -152,6 +156,7 @@ Valores sin prefijo. Las transiciones legales están en [`domain/domain-model.md
 | `PaymentRail` | common | WALLET, YAPPY, TELERED_CLAVE, CARD, APPLE_PAY, GOOGLE_PAY, QR_INTEROP, CASH | — |
 | `UserRole` | identity | PLATFORM_ADMIN, BUSINESS_OWNER, BUSINESS_STAFF, CUSTOMER | — |
 | `TenantStatus` | identity | PENDING_REVIEW, ACTIVE, SUSPENDED, REJECTED | §8.15 |
+| `StepUpMethod` | identity | PASSKEY, PIN, PASSWORD | — |
 | `AccountType` | ledger | ver §5.2 | — |
 | `EntrySide` | ledger | DEBIT, CREDIT | — |
 | `TransactionStatus` | ledger | POSTED, REVERSED | §8.5 |
@@ -291,7 +296,7 @@ Transversales (cualquier servicio): `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE
 | Dueño | `reason` propios |
 |---|---|
 | api-gateway | `TOKEN_INVALID`, `IDENTITY_UNAVAILABLE`, `INVALID_JSON`, `BODY_TOO_LARGE`, `IDEMPOTENCY_KEY_REQUIRED`, `RATE_LIMITED`, `MAINTENANCE_MODE` |
-| identity | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ACCOUNT_SUSPENDED`, `EMAIL_TAKEN`, `INVALID_EMAIL`, `WEAK_PASSWORD`, `TOKEN_INVALID`, `TOKEN_REUSED`, `ALREADY_HAS_TENANT`, `INVALID_RUC`, `RUC_TAKEN`, `ROLE_NOT_FOUND`, `PRESET_READ_ONLY`, `UNKNOWN_PERMISSION`, `CANNOT_DEACTIVATE_OWNER`, `ALREADY_USED`, `PERMISSION_NOT_HELD`, `SELF_ASSIGNMENT_FORBIDDEN`, `ROLE_IN_USE`, `BRANCH_CODE_TAKEN`, `INVALID_BRANCH_CODE`, `VERTICAL_NOT_FOUND`, `PLAN_LIMIT_REACHED`, `CANNOT_DEACTIVATE_LAST_BRANCH`, `INVALID_REQUEST` |
+| identity | `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ACCOUNT_SUSPENDED`, `EMAIL_TAKEN`, `INVALID_EMAIL`, `WEAK_PASSWORD`, `TOKEN_INVALID`, `TOKEN_REUSED`, `ALREADY_HAS_TENANT`, `INVALID_RUC`, `RUC_TAKEN`, `ROLE_NOT_FOUND`, `PRESET_READ_ONLY`, `UNKNOWN_PERMISSION`, `CANNOT_DEACTIVATE_OWNER`, `ALREADY_USED`, `PERMISSION_NOT_HELD`, `SELF_ASSIGNMENT_FORBIDDEN`, `ROLE_IN_USE`, `BRANCH_CODE_TAKEN`, `INVALID_BRANCH_CODE`, `VERTICAL_NOT_FOUND`, `PLAN_LIMIT_REACHED`, `CANNOT_DEACTIVATE_LAST_BRANCH`, `INVALID_REQUEST`, `PASSKEYS_UNAVAILABLE` (sin `WEBAUTHN_RP_ID`, Q-39), `PASSKEY_VERIFICATION_FAILED`, `PIN_NOT_SET`, `PIN_INVALID`, `PIN_LOCKED`, `STEP_UP_METHOD_NOT_ALLOWED` (método fuera del catálogo para esa operación), `UNKNOWN_OPERATION` (operación fuera del catálogo de seguridad §4.1) |
 | ledger | `UNKNOWN_TEMPLATE`, `UNBALANCED_TRANSACTION`, `CURRENCY_MISMATCH`, `INVALID_AMOUNT`, `INSUFFICIENT_FUNDS`, `DUPLICATE_CAPTURE`, `ALREADY_REVERSED`, `HOLD_NOT_ACTIVE`, `INVALID_RANGE`, `INVALID_ACCOUNT` (tipo, lado o parte de la cuenta inválidos; cuenta de plataforma usada por otra parte), `INVALID_EFFECTIVE_AT` (R13: > 5 min en el futuro o > 35 días en el pasado), `INVALID_HOLD_TTL` (retención sin plazo o > 7 días) |
 | payments-core | `AMOUNT_OUT_OF_RANGE`, `AMOUNT_BELOW_FEES`, `SPLITS_MISMATCH`, `FEE_POLICY_MISSING`, `RAIL_DISABLED`, `RAIL_UNAVAILABLE`, `TERMINAL_INACTIVE`, `PAYMENT_NOT_CAPTURED`, `REFUND_EXCEEDS_CAPTURED`, `MERCHANT_BALANCE_INSUFFICIENT`, `REFUND_SPLIT_REQUIRED` (un cobro con varios comercios se reembolsa por split: hay que indicar `merchant_party_id`), `EVIDENCE_REQUIRED`, `SIGNATURE_INVALID`, `RAIL_PARTIAL_REFUND_UNSUPPORTED`, `DEPENDENCY_UNAVAILABLE` (ledger, identity o infra-management no respondieron o falta un parámetro: reintentable, nunca un cobro a medias), `INVALID_METADATA` (más de 20 claves o 500 caracteres, o una clave sensible como `card`/`cvv`/`pan`), `INVALID_REFERENCE` (tipo fuera de domain-model §9), `INVALID_EXPIRATION` (vigencia fuera de 1 s–24 h), `INVALID_FEE_POLICY`, `INVALID_LABEL` (nombre de terminal de 1 a 60 caracteres) |
 | settlement | `NOTHING_TO_SETTLE`, `BELOW_MINIMUM`, `INVALID_DESTINATION`, `ALREADY_IMPORTED`, `UNSUPPORTED_FORMAT`, `EVIDENCE_REQUIRED` |
@@ -306,7 +311,7 @@ Transversales (cualquier servicio): `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE
 | logistics | `DELIVERY_ALREADY_EXISTS`, `DRIVER_USER_INVALID`, `DRIVER_NOT_AVAILABLE`, `DRIVER_NOT_ASSIGNED`, `PROOF_REQUIRED`, `DELIVERY_CODE_MISMATCH`, `DELIVERY_CODE_BLOCKED`, `PACKAGE_CODE_INVALID`, `TRACKING_TOKEN_INVALID`, `OUT_OF_DELIVERY_ZONE` |
 | notifications | `TEMPLATE_NOT_FOUND`, `TEMPLATE_PARAM_MISMATCH`, `TEMPLATE_VERSION_EXISTS`, `RECIPIENT_UNREACHABLE`, `TRANSACTIONAL_IN_APP_REQUIRED`, `UNKNOWN_PROVIDER`, `WEBHOOK_SIGNATURE_INVALID` |
 | payroll | `INVALID_CLOCK_SEQUENCE`, `INVALID_PIN`, `OVERRIDE_REASON_REQUIRED`, `LOW_LIVENESS`, `BIOMETRIC_NOT_ENROLLED`, `KIOSK_SESSION_INVALID`, `CANNOT_APPROVE_OWN_RUN`, `PROFESSIONAL_RISK_RATE_MISSING`, `ATTENDANCE_NEEDS_REVIEW` |
-| security | `UNKNOWN_KEY_PURPOSE`, `AAD_MISMATCH`, `UNKNOWN_EVENT_KIND`, `BOOTSTRAP_TOKEN_INVALID`; valores de `IsBlockedResponse.reason`: `LOGIN_FAILED`, `TOKEN_REUSE`, `VELOCITY_EXCEEDED` |
+| security | `UNKNOWN_KEY_PURPOSE`, `AAD_MISMATCH`, `UNKNOWN_EVENT_KIND`, `BOOTSTRAP_TOKEN_INVALID`; valores de `IsBlockedResponse.reason`: `LOGIN_FAILED`, `TOKEN_REUSE`, `VELOCITY_EXCEEDED`; tipos de evento que reporta identity por la confirmación fuerte: `STEP_UP_FAILED`, `PIN_LOCKED`, `PASSKEY_COUNTER_REGRESSION` |
 | normativos (declarados en `compliance/regulatory-framework.md`; se agregan a la columna *Errores* del SPEC dueño al implementar) | `KYC_REQUIRED`, `ACCOUNT_UNDER_REVIEW`, `CONSENT_REQUIRED`, `AGE_REQUIREMENT`, `INVALID_TAX_RATE`, `FISCAL_RECEIVER_REQUIRED`, `LEGAL_DISCOUNT_ID_REQUIRED`, `BELOW_MINIMUM_WAGE`, `DRIVER_DOCS_EXPIRED` |
 
 Todos los contenedores con servicio declaran ya sus `reason` (paso F03.5 cerrado el 2026-10-12). Un `reason` nuevo se agrega a la fila de su dueño **y** a la columna *Errores* de su SPEC §4 en el mismo cambio (`scripts/check-docs.sh` falla si no).
@@ -323,6 +328,8 @@ Pares que se confunden:
 | `AMOUNT_BELOW_FEES` | el neto del comercio quedaría negativo | no existe `FEES_EXCEED_AMOUNT` |
 | `NEGATIVE_STOCK` | **alerta** de inventory, no un `reason` | `OUT_OF_STOCK` |
 | `LOGIN_FAILED` | tipo de evento de seguridad | `INVALID_CREDENTIALS`: el `reason` que ve el cliente |
+| `PIN_INVALID` | identity: PIN de confirmación incorrecto o con formato inválido | `INVALID_PIN`: payroll, PIN del quiosco de asistencia. `PIN_LOCKED` es a la vez `reason` de identity y tipo de evento de seguridad |
+| `STEP_UP_INVALID` | el servicio que consume el token lo rechaza (otra operación, vencido, ya usado) | `STEP_UP_METHOD_NOT_ALLOWED`: identity rechaza el método al verificar, antes de emitir el token |
 
 Fuentes: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §4 y la sección 4 de cada `SPEC.md`.
 
@@ -411,7 +418,9 @@ Valores por defecto. Los marcados *configurable* se cambian en `infra-management
 | `SUSPENSE` debe volver a 0 | ≤ 5 días | dominio §5.1 |
 | Precios de catálogo | incluyen ITBMS (`tax_included=true`) | dominio §10.4 |
 | Access token / refresh token | 15 min / 30 días | seguridad §2 |
-| Token de step-up | un uso, 5 min | seguridad §4 |
+| Token de step-up | un uso, 5 min; identity guarda solo su SHA-256 | seguridad §4 |
+| PIN de confirmación | 6 dígitos; 3 intentos (`stepup.pin.max_attempts`) y 5 min de bloqueo (`stepup.pin.lock_minutes`) *(configurable)* | seguridad §2.8 |
+| Bloqueo por inactividad de la app | 5 min en móvil (`session.idle_lock_minutes.mobile`); `.pos` y `.kiosk` *(configurable)* | flutter §11 |
 | Contraseña | 12 a 128 caracteres | seguridad §2 |
 | `idempotency_key` | 16–100 caracteres, única por (tenant, RPC); en `ledger` es global | gRPC §3 |
 | Retención de tablas estándar | `idempotency_keys` 72 h · `outbox` publicado 7 d · `processed_events` 14 d | datos §6 |

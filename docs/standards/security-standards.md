@@ -26,8 +26,9 @@ Aplica a todos los contenedores y a la app Flutter. Es la base mínima: un SPEC 
 3. Firma: HS256 con secretos separados para access y refresh (≥ 32 bytes, distintos) mientras exista un solo emisor; **objetivo Fase 28 (F28.1): EdDSA (Ed25519)** con `kid` y JWKS publicado por identity para que el gateway valide localmente. Validación siempre con lista explícita de algoritmos (nunca aceptar `none` ni algoritmo del header).
 4. **Bloqueo progresivo** por cuenta: 5 fallos → 1 min; 10 → 15 min; 20 → 24 h + notificación al usuario. El contador se reinicia tras login exitoso. El error es siempre el mismo (`INVALID_CREDENTIALS`) para no revelar si el correo existe.
 5. **Registro**: el endpoint público solo crea `CUSTOMER`. Los negocios nacen en `PENDING_REVIEW` (no pueden cobrar hasta aprobación, `domain-model.md` §3).
-6. **Passkeys/WebAuthn** (Fase 28) como factor primario opcional; biometría del dispositivo desbloquea credenciales locales, nunca se envía al servidor.
+6. **Passkeys/WebAuthn** (ADR 0020, F28.2) como inicio de sesión opcional sin contraseña y método preferido de confirmación fuerte: verificación de usuario obligatoria, llave residente, atestación `none`, verificación en identity con `go-webauthn/webauthn` (versión fija). La biometría del dispositivo solo libera la llave o desbloquea la app; nunca se envía al servidor ni es prueba. Sin `WEBAUTHN_RP_ID` (Q-39) las passkeys están apagadas (`PASSKEYS_UNAVAILABLE`). Diseño completo: [`docs/security/strong-authentication.md`](../security/strong-authentication.md).
 7. **Recuperación de contraseña**: token de un solo uso, 30 min, hash guardado (no el token), invalida todas las sesiones al completarse.
+8. **PIN de confirmación**: 6 dígitos, guardado con el esquema de la contraseña (§2.1) y verificado solo por identity; tras `stepup.pin.max_attempts` (3) fallos se bloquea `stepup.pin.lock_minutes` (5) y se reporta a security. Crearlo o cambiarlo exige la contraseña (nivel 3).
 
 ## 3. Autorización
 1. **Deny-by-default**: cada RPC declara en su SPEC el permiso exigido. Sin declaración = no se expone.
@@ -152,7 +153,30 @@ Operaciones que exigen `x-pp-step-up` válido (token de un solo uso, 5 min, liga
 - Cambiar contraseña, correo o teléfono.
 - Asignar roles con permisos de dinero (`payments:refund`, `payroll:run:pay`, `admin:roles:manage`).
 
-Flujo: `identity.IssueStepUpChallenge` → el cliente resuelve (biometría local + PIN/passkey) → `VerifyStepUp` devuelve token → el servicio llama `ConsumeStepUp` (atómico; un token se consume una sola vez).
+Flujo: `identity.IssueStepUpChallenge` (usuario del token; devuelve la operación, el monto y los métodos disponibles) → el cliente resuelve con una passkey (huella, rostro o bloqueo del sistema) o con el PIN → `VerifyStepUp` verifica la aserción o el PIN **en identity** y devuelve el token → el servicio llama `ConsumeStepUp` (atómico; un token se consume una sola vez). Ninguna comprobación en la app autoriza nada (ADR 0020).
+
+### 4.1 Catálogo de operaciones de confirmación fuerte (fuente de verdad)
+
+Niveles: **1** presencia en el dispositivo (solo cliente: biometría, bloqueo del sistema); **2** confirmación fuerte (`PASSKEY` o `PIN`); **3** reautenticación (`PASSWORD`). identity aplica esta tabla (R27): un método no listado responde `STEP_UP_METHOD_NOT_ALLOWED`. El nombre de la operación es el que el servicio consume en `ConsumeStepUp`.
+
+| Operación | Acción | Nivel | Métodos | Servicio que la consume |
+|---|---|---|---|---|
+| `payments.intent.create` | Pagar desde el umbral (`stepup.threshold_minor`) | 2 | `PASSKEY`, `PIN` | payments-core |
+| `payments.intent.confirm` | Confirmar un cobro creado por el comercio, desde el umbral | 2 | `PASSKEY`, `PIN` | payments-core |
+| `payments.refund` | Reembolsar (cualquier monto) | 2 | `PASSKEY`, `PIN` | payments-core |
+| `wallet.transfer` | Transferir entre personas desde el umbral (T4) | 2 | `PASSKEY`, `PIN` | payments-core (F11, P2P) |
+| `pos.sale.void` | Anular o devolver una venta de caja | 2 | `PASSKEY`, `PIN` | pos (F17.9) |
+| `payroll.run.approve` · `payroll.run.pay` | Aprobar o pagar nómina | 2 | `PASSKEY`, `PIN` | payroll (F19) |
+| `settlement.destination.update` | Cambiar la cuenta de liquidación (se avisa a todos los dueños) | 2 | `PASSKEY`, `PIN` (Q-43) | settlement (F12) |
+| `security.credentials.update` | Configurar credenciales fiscales o de rieles | 2 | `PASSKEY`, `PIN` | security |
+| `identity.role.upsert` · `identity.staff.invite` · `identity.membership.update` | Crear o asignar roles con permisos de dinero | 2 | `PASSKEY`, `PIN` | identity (R14) |
+| `identity.capabilities.set` | Apagar `finance.*` o `payroll.*` | 2 | `PASSKEY`, `PIN` | identity (R14) |
+| `identity.password.change` | Cambiar la contraseña | 2 | `PASSKEY`, `PIN` | identity (R14, R26) |
+| `identity.email.change` · `identity.phone.change` | Cambiar correo o teléfono | 2 | `PASSKEY`, `PIN` | identity |
+| `identity.data.export` | Exportar datos personales | 2 | `PASSKEY`, `PIN` | identity |
+| `identity.passkey.register` | Agregar una passkey | 3 si es la primera, 2 si ya tiene otra | `PASSWORD`; con otra passkey también `PASSKEY`, `PIN` | identity |
+| `identity.passkey.revoke` | Eliminar una passkey | 2 | `PASSKEY`, `PIN` | identity |
+| `identity.pin.set` | Crear, cambiar o restablecer el PIN | 3 | `PASSWORD` | identity |
 
 ## 5. Secretos
 1. Viven en **OpenBao** (contenedor `security`); los servicios reciben credenciales por variables de entorno inyectadas en el arranque (Compose: archivo `.env` local no versionado; K8s: External Secrets/CSI desde OpenBao).
@@ -186,7 +210,9 @@ Flujo: `identity.IssueStepUpChallenge` → el cliente resuelve (biometría local
 4. NFC de PlentyPay = intercambio NDEF de un enlace de pago firmado (`flutter-standards.md` §10), no emulación de tarjeta.
 
 ## 10. Biometría
-- La verificación biométrica ocurre **en el dispositivo** (`local_auth`). El servidor recibe solo el resultado firmado por la credencial local (passkey) o el token de step-up.
+- La verificación biométrica ocurre **en el dispositivo** (`local_auth`, o el sistema operativo al usar la passkey). El servidor recibe solo la aserción firmada por la passkey o el PIN, y lo verifica identity; ni la plantilla, ni la imagen, ni el resultado «sí/no» viajan (N-DAT-04). Con passkeys PlentyPay no trata datos biométricos (criterio legal pendiente, Q-40).
+- Las llaves ligadas a la biometría del sistema dejan de servir si cambian las huellas o rostros registrados: el desbloqueo local pide entonces la contraseña.
+- Siempre hay alternativa a la biometría (bloqueo del sistema, PIN o contraseña; WCAG 3.3.8, N-STD-41).
 - Marcaje de asistencia con rostro (payroll): el embedding se calcula en el dispositivo; el servidor guarda solo el embedding cifrado con consentimiento explícito, nunca la foto (salvo evidencia de disputa con retención de 30 días, `data-standards.md` §9).
 
 ## 11. Contenedores e imágenes

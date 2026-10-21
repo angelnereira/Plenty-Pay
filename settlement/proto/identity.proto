@@ -70,6 +70,12 @@ service Identity {
   rpc FinishPasskeyRegistration(FinishPasskeyRegistrationRequest) returns (SimpleResult);
   rpc BeginPasskeyLogin(BeginPasskeyLoginRequest) returns (PasskeyChallenge);
   rpc FinishPasskeyLogin(FinishPasskeyLoginRequest) returns (AuthResult);
+  rpc ListPasskeys(ListPasskeysRequest) returns (ListPasskeysResult);       // solo las propias (ADR 0020)
+  rpc RevokePasskey(RevokePasskeyRequest) returns (SimpleResult);          // step-up identity.passkey.revoke
+
+  // PIN de confirmación (ADR 0020, R28): lo guarda y verifica solo identity.
+  rpc SetStepUpPin(SetStepUpPinRequest) returns (SimpleResult);            // step-up identity.pin.set (nivel 3)
+  rpc GetStepUpPinStatus(GetStepUpPinStatusRequest) returns (StepUpPinStatus);
 
   // Confirmación fuerte para operaciones sensibles (pagos de monto alto): token de un solo uso,
   // de vida corta, atado a (user, operation, amount). El servicio que ejecuta la operación lo CONSUME (ADR 0011).
@@ -167,6 +173,7 @@ message Session {
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp last_seen_at = 5;
   bool current = 6;
+  string auth_method = 7; // "password" | "passkey" (R30)
 }
 message ListSessionsRequest { string user_id = 1; }
 message ListSessionsResult { repeated Session sessions = 1; }
@@ -179,7 +186,7 @@ message SimpleResult {
 }
 
 message ChangePasswordRequest {
-  string user_id = 1;
+  string user_id = 1 [deprecated = true]; // R26: el usuario sale de x-pp-user-id; este campo se ignora
   string current_password = 2;
   string new_password = 3;
   string idempotency_key = 4;
@@ -326,20 +333,75 @@ message ListRolesRequest { string tenant_id = 1; }
 message ListRolesResult { repeated Role roles = 1; }
 message AssignRoleRequest { string user_id = 1; string role_id = 2; string idempotency_key = 3; }
 
+// Métodos de confirmación fuerte (security-standards.md §4.1). La biometría no es un método: solo libera la passkey.
+enum StepUpMethod {
+  STEP_UP_METHOD_UNSPECIFIED = 0;
+  PASSKEY = 1;   // aserción WebAuthn con verificación de usuario (nivel 2)
+  PIN = 2;       // PIN de 6 dígitos verificado por identity (nivel 2)
+  PASSWORD = 3;  // contraseña de la cuenta (solo nivel 3)
+}
+
 message PasskeyChallenge {
   string challenge_id = 1;
-  bytes public_key_options_json = 2; // opciones WebAuthn serializadas
+  bytes public_key_options_json = 2; // opciones WebAuthn serializadas; vacío si la persona no tiene passkeys o están apagadas
+  // Solo en IssueStepUpChallenge: lo que la persona confirma sale de aquí, no de la pantalla que lo pide (S-GEN-21 e2).
+  string operation = 3;
+  int64 amount_minor = 4;
+  string currency = 5;
+  int32 level = 6;                                // 2 o 3
+  repeated StepUpMethod allowed_methods = 7;      // los del catálogo para la operación (R27)
+  repeated StepUpMethod available_methods = 8;    // los permitidos que esta persona puede usar ahora (tiene passkey, tiene PIN)
+  google.protobuf.Timestamp expires_at = 9;
 }
-message BeginPasskeyRegistrationRequest { string user_id = 1; string device_label = 2; }
-message FinishPasskeyRegistrationRequest { string challenge_id = 1; bytes credential_json = 2; }
-message BeginPasskeyLoginRequest { string email = 1; }
-message FinishPasskeyLoginRequest { string challenge_id = 1; bytes assertion_json = 2; }
+message BeginPasskeyRegistrationRequest {
+  string user_id = 1 [deprecated = true]; // R26: el usuario sale de x-pp-user-id
+  string device_label = 2;
+}
+message FinishPasskeyRegistrationRequest {
+  string challenge_id = 1;
+  bytes credential_json = 2;
+  string device_label = 3;    // 1–60 caracteres; lo elige la persona
+  string idempotency_key = 4;
+}
+message BeginPasskeyLoginRequest { string email = 1; } // vacío = llave residente (el sistema muestra las passkeys del dominio)
+message FinishPasskeyLoginRequest { string challenge_id = 1; bytes assertion_json = 2; string device_label = 3; }
 
-message StepUpRequest { string user_id = 1; string operation = 2; int64 amount_minor = 3; string currency = 4; }
-message VerifyStepUpRequest { string challenge_id = 1; bytes assertion_json = 2; }
+message Passkey {
+  string passkey_id = 1;
+  string device_label = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp last_used_at = 4;
+  bool synced = 5; // backup_state de WebAuthn: la llave se sincroniza entre equipos del mismo proveedor
+}
+message ListPasskeysRequest {}
+message ListPasskeysResult { repeated Passkey passkeys = 1; bool passkeys_available = 2; }
+message RevokePasskeyRequest { string passkey_id = 1; string idempotency_key = 2; }
+
+message SetStepUpPinRequest { string pin = 1; string idempotency_key = 2; }
+message GetStepUpPinStatusRequest {}
+message StepUpPinStatus {
+  bool is_set = 1;
+  int32 attempts_remaining = 2;
+  google.protobuf.Timestamp locked_until = 3; // vacío si no está bloqueado
+}
+
+message StepUpRequest {
+  string user_id = 1 [deprecated = true]; // R26: el usuario sale de x-pp-user-id; este campo se ignora
+  string operation = 2;
+  int64 amount_minor = 3;
+  string currency = 4;
+}
+message VerifyStepUpRequest {
+  string challenge_id = 1;
+  bytes assertion_json = 2;   // con method = PASSKEY
+  StepUpMethod method = 3;    // sin método y con aserción = PASSKEY (compatibilidad)
+  string pin = 4;             // con method = PIN; nunca se registra
+  string password = 5;        // con method = PASSWORD (solo nivel 3); nunca se registra
+}
 message StepUpToken {
   string token = 1;
   google.protobuf.Timestamp expires_at = 2;
+  StepUpMethod method = 3;
 }
 message ConsumeStepUpRequest { string token = 1; string user_id = 2; string operation = 3; int64 amount_minor = 4; string currency = 5; }
 message ConsumeStepUpResult { bool valid = 1; string reason = 2; } // reason: "EXPIRED" | "ALREADY_USED" | "MISMATCH" | "NOT_FOUND"
@@ -349,6 +411,10 @@ message TenantStatusChanged { string tenant_id = 1; TenantStatus status = 2; Ten
 // Revocación de sesiones (logout global, reuso de refresh detectado, cambio de contraseña, bloqueo de plataforma).
 // reason: "LOGOUT_ALL" | "REFRESH_REUSE" | "PASSWORD_CHANGED" | "ADMIN_ACTION" | "TENANT_SUSPENDED"
 message SessionRevoked { string user_id = 1; repeated string session_ids = 2; string reason = 3; }
+// Passkeys (R31): notifications avisa a la persona por correo y en la bandeja.
+message PasskeyRegistered { string user_id = 1; string passkey_id = 2; string device_label = 3; }
+// reason: "USER" | "ADMIN_ACTION" | "COUNTER_REGRESSION"
+message PasskeyRevoked { string user_id = 1; string passkey_id = 2; string device_label = 3; string reason = 4; }
 
 // ── Modelo de acceso (ADR 0018) ──
 message Vertical {

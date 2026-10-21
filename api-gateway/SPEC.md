@@ -40,12 +40,17 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | POST `/v1/auth/refresh` | identity.RefreshToken | público |
 | POST `/v1/auth/logout` | identity.Logout | autenticado |
 | POST `/v1/auth/password/forgot` · `/reset` | RequestPasswordReset · ConfirmPasswordReset | público |
-| POST `/v1/auth/passkeys/{begin,finish}` · `/v1/auth/passkeys/login/{begin,finish}` | passkeys | autenticado / público |
+| POST `/v1/auth/passkeys/login/begin` · `/finish` | BeginPasskeyLogin · FinishPasskeyLogin | público (límite de `/v1/auth/*`) |
+| GET `/v1/me/passkeys` | ListPasskeys | autenticado |
+| POST `/v1/me/passkeys/register/begin` · `/finish` | BeginPasskeyRegistration · FinishPasskeyRegistration | 🔒 `identity.passkey.register` |
+| DELETE `/v1/me/passkeys/{passkey_id}` | RevokePasskey | 🔒 `identity.passkey.revoke` |
+| GET `/v1/me/step-up-pin` | GetStepUpPinStatus | autenticado |
+| PUT `/v1/me/step-up-pin` | SetStepUpPin | 🔒 `identity.pin.set` (nivel 3: contraseña) |
 | GET `/v1/me` | identity.ValidateToken (+ perfil) | autenticado |
 | GET `/v1/me/permissions` | identity.GetUserPermissions | autenticado |
 | POST `/v1/me/password` 🔒 | ChangePassword | autenticado |
 | GET `/v1/me/sessions` · DELETE `/v1/me/sessions/{id}` | ListSessions · RevokeSession | autenticado |
-| POST `/v1/step-up/challenge` · `/v1/step-up/verify` | IssueStepUpChallenge · VerifyStepUp | autenticado |
+| POST `/v1/step-up/challenge` · `/v1/step-up/verify` | IssueStepUpChallenge · VerifyStepUp (el usuario sale del token; un `user_id` del cuerpo se descarta, identity R26) | autenticado |
 | POST `/v1/business` | CreateBusiness | autenticado sin tenant |
 | GET `/v1/business` | GetTenant | miembro |
 | POST `/v1/business/documents/upload-url` | catalog.CreateUploadUrl (propósito `kyb`) | `admin:business:manage` |

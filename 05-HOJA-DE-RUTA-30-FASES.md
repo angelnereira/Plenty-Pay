@@ -122,7 +122,7 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F05.3 | Encrypt/Decrypt por propósito con AAD | security | AAD distinto falla; rotación mantiene descifrado | L2 |
 | F05.4 | Auditoría encadenada + consumidor `pp.audit.>` + VerifyAuditChain | security | Alterar una fila rompe la cadena (prueba) | L2 |
 | F05.5 | ReportSecurityEvent / IsBlocked con reglas R5 | security | 20 fallos de login por IP → bloqueo | L2 |
-| F05.6 | PKI SPIFFE + mTLS en identity y gateway; step-up en identity (Issue/Verify/Consume) | security, identity, api-gateway | Llamada sin certificado → UNAUTHENTICATED; token step-up de un solo uso | L4 |
+| F05.6 | PKI SPIFFE + mTLS en identity y gateway; step-up en identity (Issue/Verify/Consume) | security, identity, api-gateway | Llamada sin certificado → UNAUTHENTICATED; token step-up de un solo uso, emitido solo tras verificar en el servidor una passkey o el PIN (identity R25–R28, R32; ADR 0020) | L4 |
 | F05.7 | infra-management: flags + NATS KV | infra-management | Cambio de flag visible en servicio en ≤ 5 s | L2 |
 | F05.8 | Config con JSON Schema + valores iniciales (límites, umbrales, feriados) | infra-management | Valor inválido rechazado | L2 |
 | F05.9 | GetClientConfig + modo mantenimiento + pantalla de consola de flags en Flutter (módulo platform) | infra-management, flutter_app | App fuerza actualización si versión < mínima | L4 |
@@ -450,6 +450,7 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F23.5 | Enlaces de pago `/t/<code>` en web | web | Abre app o tiendas | L4 |
 | F23.6 | Apple Pay / Google Pay vía PSP (si Q-03 resuelta; si no, oculto por flag) | flutter_app, payments-core | Sandbox del PSP | L4 |
 | F23.7 | Recibos compartibles PDF | flutter_app | Golden del recibo | L1 |
+| F23.8 | Registro de capacidades del dispositivo (`lib/core/device/`) y pantalla S-GEN-23 | flutter_app | Cada capacidad responde soportada / configurada / permiso / activada / motivo; ningún permiso se pide al abrir la app; un widget test por estado (ADR 0020) | L1 |
 
 ## F24 — Cliente: hardware de mostrador
 
@@ -525,7 +526,7 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | Paso | Qué | Dónde | Criterio de aceptación | Nivel |
 |---|---|---|---|---|
 | F28.1 | EdDSA + JWKS y validación local en gateway | identity, api-gateway | Gateway valida sin identity | L4 |
-| F28.2 | Passkeys | identity, flutter_app | Login sin contraseña | L4 |
+| F28.2 | Passkeys (sin depender de F28.1, ADR 0020) | identity, api-gateway, web, flutter_app | Login sin contraseña y confirmación fuerte con passkey; con `WEBAUTHN_RP_ID` vacío responde `PASSKEYS_UNAVAILABLE` (Q-39) | L4 |
 | F28.3 | Pinning en prod, detección root/jailbreak, FLAG_SECURE | flutter_app | Pruebas en dispositivos | L4 |
 | F28.4 | Unseal productivo de OpenBao, rotaciones automáticas | security | Runbook ejecutado | L4 |
 | F28.5 | Escaneos SAST/DAST (gosec, cargo-audit, ZAP) en CI y corrección | todos | Sin CRITICAL/HIGH abiertos | L5 |

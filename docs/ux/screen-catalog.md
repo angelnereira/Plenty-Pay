@@ -37,7 +37,8 @@ Fuera de los módulos (siempre disponibles con sesión): Inicio (`/`), Bandeja (
 | `/` | Inicio | todos | varias | tarjetas por módulo | F02.6 (vacío) → cada fase agrega su tarjeta |
 | `/inbox` | Bandeja | todos | `/v1/inbox`, WS `inbox` | marcar leído; deep link al recurso | F20.8 |
 | `/account` | Mi cuenta | todos | `/v1/me` | nombre, correo, idioma, tema, cerrar sesión | F02.6 |
-| `/account/security` | Seguridad | todos | sesiones, contraseña 🔒, passkeys | revocar dispositivos | F08.8, F28.2 |
+| `/account/security` | Seguridad | todos | sesiones, contraseña 🔒, PIN de confirmación, passkeys (`/v1/me/passkeys`, `/v1/me/step-up-pin`) | revocar dispositivos y passkeys | F08.8, F23.3, F28.2 |
+| `/account/permissions` | Permisos del dispositivo (S-GEN-23) | todos | registro de capacidades del dispositivo (sin servidor) | abrir ajustes del sistema | F23.8 |
 | `/account/notifications` | Preferencias de avisos | todos | `/v1/notification-preferences` | seguridad/pagos no desactivables | F20.8 |
 | `/business/new` | Registrar mi negocio | sin tenant | `POST /v1/business` + subida KYB | asistente de 4 pasos; estado "en revisión" | F08.8 |
 | `/invite/:token` | Aceptar invitación | sin sesión | `/v1/invitations/accept` | crea cuenta de staff | F08.8 |

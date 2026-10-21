@@ -25,8 +25,9 @@ Flutter estable fijado en `flutter_app/.fvmrc` (o `README`) — **3.47+**; Dart 
 | Modelos inmutables | `freezed` + `json_serializable` |
 | BD local / outbox offline | `drift` (SQLite; SQLCipher en móvil) |
 | Almacenamiento seguro | `flutter_secure_storage` |
-| Biometría | `local_auth` |
-| Passkeys | `passkeys` (o plugin equivalente OSS) — F28 |
+| Biometría (desbloqueo local, nivel 1) | `local_auth` (Android exige `FlutterFragmentActivity` y tema `Theme.AppCompat`) |
+| Passkeys (WebAuthn) | `passkeys` (Dart ≥ 3.9, Flutter ≥ 3.35; sin soporte en Linux) — ADR 0020 |
+| Permisos del sistema | `permission_handler`, siempre a través del registro de capacidades del dispositivo (§11) |
 | QR generar / leer | `qr_flutter` / `mobile_scanner` |
 | NFC | `nfc_manager` 4.x + `ndef_record` |
 | i18n | `flutter_localizations` + `intl` con ARB (`es_PA` por defecto, `en`) |
@@ -110,7 +111,9 @@ Dominio `pay.plentypay.app` (configurable): `/t/<code>` (cobro), `/track/<token>
 ## 11. Seguridad en el cliente
 - Tokens en `flutter_secure_storage` (Keychain/Keystore; en desktop, libsecret/DPAPI). Nunca en `SharedPreferences`.
 - Pinning en prod (`security-standards.md` §6). Android: `FLAG_SECURE` en pantallas de saldo/pago; iOS: ocultar contenido en el app switcher.
-- Bloqueo por inactividad: 5 min en móvil con biometría para reabrir; POS: configurable.
+- Bloqueo por inactividad (S-GEN-22, C-18): `session.idle_lock_minutes.mobile` (5), `.pos` y `.kiosk` de infra-management; se reabre con biometría o el bloqueo del sistema (`local_auth`), sin llamar al servidor.
+- **Confirmación fuerte** (S-GEN-21, ADR 0020): la app nunca decide; pide el reto a identity, muestra la operación y el monto que devuelve el reto, y envía la aserción de la passkey o el PIN a `/v1/step-up/verify`. El umbral nunca vive en una pantalla: la app reacciona a `STEP_UP_REQUIRED`.
+- **Registro de capacidades del dispositivo** (`lib/core/device/`, F23.8): única puerta a biometría, passkeys, almacenamiento seguro, cámara, fotos, NFC, ubicación y notificaciones. Responde soportada / configurada / permiso / activada / motivo; pide el permiso al usarlo, después de una hoja propia que explica para qué es; nunca al abrir la app; no envía nada de esto al servidor. Diseño: `docs/security/strong-authentication.md` §6.
 - Detección de root/jailbreak: advertencia y restricción de pagos (no bloqueo total) — F28.
 - Sin logs de datos sensibles; `debugPrint` deshabilitado en release.
 

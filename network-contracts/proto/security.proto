@@ -73,7 +73,8 @@ message QueryAuditEventsResponse { repeated AuditEvent events = 1; plentypay.com
 message VerifyAuditChainRequest { plentypay.common.v1.TimeRange range = 1; }
 message VerifyAuditChainResponse { bool intact = 1; string first_broken_event_id = 2; }
 
-// kind: "LOGIN_FAILED", "TOKEN_REUSE", "VELOCITY_EXCEEDED", "WEBHOOK_BAD_SIGNATURE"
+// kind: "LOGIN_FAILED", "TOKEN_REUSE", "VELOCITY_EXCEEDED", "WEBHOOK_BAD_SIGNATURE",
+//       "STEP_UP_FAILED", "PIN_LOCKED", "PASSKEY_COUNTER_REGRESSION" (identity, ADR 0020)
 message ReportSecurityEventRequest {
   string kind = 1;
   string subject = 2;

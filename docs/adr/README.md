@@ -23,3 +23,4 @@ Una decisión = un archivo `NNNN-titulo.md` (plantilla: `docs/templates/ADR-TEMP
 | [0017](0017-contenedor-orders.md) | Contenedor `orders` para el marketplace multi-comercio | Aceptada |
 | [0018](0018-perfil-negocio-capacidades-alcance-sucursal.md) | Perfil de negocio, capacidades y alcance por sucursal | Aceptada |
 | [0019](0019-descubrimiento-del-gateway.md) | Descubrimiento de la URL pública del gateway | Aceptada (enmienda ADR 0015) |
+| [0020](0020-webauthn-autenticacion-fuerte.md) | WebAuthn y PIN verificado en el servidor como únicas confirmaciones fuertes | Aceptada |

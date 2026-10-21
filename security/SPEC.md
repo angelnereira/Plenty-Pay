@@ -28,7 +28,7 @@ Unidad de despliegue con 2 procesos (ADR 0016): servicio Go (50073) + OpenBao (8
 - **R2** ACL por secreto: `fiscal/<tenant>/pac` → fiscal-invoicing; `rails/<rail>/*` → payments-core; `bank/*` → settlement; `jwt/*` → identity; `smtp|resend|push|jelou/*` → notifications.
 - **R3** Propósitos de cifrado: `national_id` (payroll, identity), `payout_destination` (settlement), `biometric_template` (payroll), `tax_id` (identity), `pac_credentials` (security interno).
 - **R4** Auditoría: `hash = sha256(prev_hash || canonical(event))`; un solo escritor serializado por partición lógica; `VerifyAuditChain` recalcula; corte → alerta crítica. Consume `pp.audit.*.recorded.v1` (idempotente por `event_id`).
-- **R5** Bloqueos: 20 `LOGIN_FAILED` por IP en 10 min → bloqueo IP 1 h; `TOKEN_REUSE` → alerta + bloqueo de la cuenta hasta reset; `WEBHOOK_BAD_SIGNATURE` > 10/min de un proveedor → alerta; velocidad de pagos anómala por pagador (configurable) → bloqueo de pagos 1 h y revisión.
+- **R5** Bloqueos: 20 `LOGIN_FAILED` por IP en 10 min → bloqueo IP 1 h; `TOKEN_REUSE` → alerta + bloqueo de la cuenta hasta reset; `WEBHOOK_BAD_SIGNATURE` > 10/min de un proveedor → alerta; `STEP_UP_FAILED`, `PIN_LOCKED` y `PASSKEY_COUNTER_REGRESSION` (identity, ADR 0020) → se registran y alertan; `PASSKEY_COUNTER_REGRESSION` es severidad alta (posible llave clonada); velocidad de pagos anómala por pagador (configurable) → bloqueo de pagos 1 h y revisión.
 - **R6** OpenBao: auto-unseal con KMS del proveedor o Shamir 3-de-5 en self-hosted (custodios documentados en runbook); auditoría de OpenBao a archivo enviado a Loki.
 - **R7** Rotación: llaves transit cada 90 días (versiones antiguas solo para descifrar); re-cifrado perezoso al escribir.
 

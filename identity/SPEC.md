@@ -126,12 +126,21 @@ CREATE TABLE identity.invitations (id uuid PRIMARY KEY, tenant_id uuid NOT NULL,
   token_hash bytea NOT NULL, expires_at timestamptz NOT NULL, accepted_at timestamptz, invited_by uuid NOT NULL);
 CREATE TABLE identity.password_resets (id uuid PRIMARY KEY, user_id uuid NOT NULL, token_hash bytea NOT NULL,
   expires_at timestamptz NOT NULL, used_at timestamptz);
-CREATE TABLE identity.passkeys (id uuid PRIMARY KEY, user_id uuid NOT NULL, credential_id bytea UNIQUE NOT NULL,
-  public_key bytea NOT NULL, sign_count bigint NOT NULL, device_label text, created_at timestamptz NOT NULL);
-CREATE TABLE identity.step_up_challenges (id uuid PRIMARY KEY, user_id uuid NOT NULL, operation text NOT NULL,
-  amount_minor bigint, currency text, challenge bytea NOT NULL, expires_at timestamptz NOT NULL, verified_at timestamptz);
+-- Confirmación fuerte y passkeys (ADR 0020, migración 0011_strong_auth; RLS por app.user_id)
+CREATE TABLE identity.passkeys (id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES identity.users(id),
+  credential_id bytea UNIQUE NOT NULL, public_key bytea NOT NULL, sign_count bigint NOT NULL, aaguid uuid,
+  transports text[] NOT NULL DEFAULT '{}', backup_eligible boolean NOT NULL, backup_state boolean NOT NULL,
+  device_label text NOT NULL, created_at timestamptz NOT NULL, last_used_at timestamptz, revoked_at timestamptz);
+CREATE TABLE identity.webauthn_challenges (id uuid PRIMARY KEY, user_id uuid,   -- NULL: inicio de sesión sin correo
+  purpose text NOT NULL,                                                          -- REGISTER | LOGIN | STEP_UP
+  challenge bytea NOT NULL, session_data jsonb NOT NULL, operation text, amount_minor bigint, currency char(3),
+  expires_at timestamptz NOT NULL, consumed_at timestamptz);
 CREATE TABLE identity.step_up_tokens (token_hash bytea PRIMARY KEY, user_id uuid NOT NULL, operation text NOT NULL,
-  amount_minor bigint, currency text, expires_at timestamptz NOT NULL, consumed_at timestamptz);
+  amount_minor bigint NOT NULL, currency text NOT NULL, method text NOT NULL,       -- PASSKEY | PIN | PASSWORD
+  expires_at timestamptz NOT NULL, consumed_at timestamptz);
+CREATE TABLE identity.step_up_pins (user_id uuid PRIMARY KEY REFERENCES identity.users(id), pin_hash text NOT NULL,
+  failed_attempts int NOT NULL DEFAULT 0, locked_until timestamptz, updated_at timestamptz NOT NULL);
+ALTER TABLE identity.sessions ADD COLUMN auth_method text NOT NULL DEFAULT 'password';   -- password | passkey
 -- + idempotency_keys, outbox (data-standards.md §6)
 ```
 RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma con rol `identity_platform` auditado.
@@ -172,8 +181,12 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 | GetUserContacts | servicio (notifications) | — | email/teléfono/locale/preferencias | `NOT_FOUND` |
 | UpsertRole / ListRoles / AssignRole | `admin:roles:manage` (ListRoles también con `admin:users:manage`; + step-up si el rol **suma** permisos de dinero) | sí | roles personalizados ⊆ permisos del catálogo; presets no editables ni reutilizables como nombre; valida A1 y A2 (nadie edita el rol que tiene asignado); cada edición sube `version` y publica `RoleChanged`; tenant del token | `UNKNOWN_PERMISSION`, `PRESET_READ_ONLY`, `PERMISSION_NOT_HELD`, `SELF_ASSIGNMENT_FORBIDDEN`, `ROLE_NOT_FOUND`, `ALREADY_EXISTS`, `INVALID_REQUEST`, `STEP_UP_REQUIRED` |
 | ArchiveRole | `admin:roles:manage` | sí | archiva rol; no permite si tiene miembros activos | `ROLE_IN_USE`, `NOT_FOUND` |
-| Begin/FinishPasskeyRegistration, Begin/FinishPasskeyLogin | self / público | — | WebAuthn (F28) | `TOKEN_INVALID` |
-| IssueStepUpChallenge / VerifyStepUp | self | — | desafío ligado a operación+monto; token 5 min | `TOKEN_INVALID` |
+| Begin/FinishPasskeyRegistration | self + step-up `identity.passkey.register` (R27) | sí (Finish) | WebAuthn con verificación de usuario y llave residente; atestación `none`; publica `PasskeyRegistered` (R31) | `PASSKEYS_UNAVAILABLE`, `PASSKEY_VERIFICATION_FAILED`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID` |
+| Begin/FinishPasskeyLogin | público (límite de `/v1/auth/*`) | — | correo vacío = llave residente; crea la sesión como `Login` con `auth_method=passkey` (R30) | `PASSKEYS_UNAVAILABLE`, `INVALID_CREDENTIALS` |
+| ListPasskeys / RevokePasskey | self (+ step-up `identity.passkey.revoke` al revocar) | sí (Revoke) | solo las propias; revocar publica `PasskeyRevoked` | `NOT_FOUND`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID` |
+| SetStepUpPin / GetStepUpPinStatus | self + step-up `identity.pin.set` (nivel 3: contraseña) | sí (Set) | 6 dígitos; hash con el esquema de la contraseña; reinicia intentos y bloqueo | `PIN_INVALID`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID` |
+| IssueStepUpChallenge | self (usuario del token, R26) | — | reto persistido ligado a operación + monto + moneda; devuelve la operación, el monto, los métodos permitidos (R27) y los disponibles para la persona, y las opciones WebAuthn con sus passkeys | `UNKNOWN_OPERATION`, `INVALID_REQUEST` |
+| VerifyStepUp | self, dueño del reto (R26) | — | verifica la aserción (R25, R29), el PIN (R28) o la contraseña (solo nivel 3); emite token de un uso, 5 min, guardando solo su hash | `TOKEN_INVALID`, `STEP_UP_METHOD_NOT_ALLOWED`, `PASSKEY_VERIFICATION_FAILED`, `PIN_NOT_SET`, `PIN_INVALID`, `PIN_LOCKED`, `INVALID_CREDENTIALS`, `PASSKEYS_UNAVAILABLE` |
 | ConsumeStepUp | servicio | — | atómico: `UPDATE ... SET consumed_at=now() WHERE consumed_at IS NULL AND expires_at>now()`; compara operación/monto/usuario | resultado `valid=false` + reason |
 
 **Idempotencia** (columna *Idemp.*, `grpc-conventions.md` §3): un interceptor gRPC la aplica a todo request con `idempotency_key` (16–100 caracteres) sobre la tabla estándar `idempotency_keys` (migración `0010`, RLS por tenant, purga horaria de > 72 h). Misma clave + mismo request canónico → la respuesta original sin ejecutar de nuevo; misma clave + otro contenido → `ALREADY_EXISTS` `IDEMPOTENCY_KEY_REUSED`; clave en curso → `ABORTED`; una ejecución que falla libera la clave. La reserva y el cierre van en transacciones propias porque una mutación de identity cruza varios stores: si el proceso cae entre la mutación y el cierre, la clave queda `IN_PROGRESS` y responde `ABORTED` hasta la purga (falla cerrado, nunca ejecuta dos veces). `CreateBusiness` y `AcceptInvitation` no guardan su respuesta (lleva tokens de sesión, que no se guardan en claro); ya son idempotentes por sí mismas (`ALREADY_HAS_TENANT`, `ALREADY_USED`).
@@ -209,7 +222,7 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 - **R11** Un tenant `PENDING_REVIEW` puede configurar todo excepto cobrar y publicar en marketplace (lo aplican payments-core y catalog al consumir `TenantStatusChanged` y consultando `GetTenant`).
 - **R12** Roles personalizados solo pueden contener permisos del catálogo y nunca `platform:*`.
 - **R13** El dueño no puede ser desactivado ni perder `admin:*` mientras sea el único dueño.
-- **R14** Step-up obligatorio para las operaciones de `security-standards.md` §4 que ejecuta identity (cambio de contraseña/correo, asignar roles con permisos de dinero). identity **consume** el token (`x-pp-step-up`, cabecera HTTP `X-Step-Up-Token`) con la operación exacta con que se pidió el reto: `identity.role.upsert`, `identity.staff.invite`, `identity.membership.update`, `identity.capabilities.set` (apagar `finance.*`/`payroll.*`). Sin token → `STEP_UP_REQUIRED`; token inválido, de otra operación o ya usado → `STEP_UP_INVALID`.
+- **R14** Step-up obligatorio para las operaciones de `security-standards.md` §4 que ejecuta identity (cambio de contraseña/correo, asignar roles con permisos de dinero). identity **consume** el token (`x-pp-step-up`, cabecera HTTP `X-Step-Up-Token`) con la operación exacta con que se pidió el reto: `identity.role.upsert`, `identity.staff.invite`, `identity.membership.update`, `identity.capabilities.set` (apagar `finance.*`/`payroll.*`), `identity.password.change`, `identity.passkey.register`, `identity.passkey.revoke` e `identity.pin.set` (catálogo completo: `security-standards.md` §4.1). Sin token → `STEP_UP_REQUIRED`; token inválido, de otra operación o ya usado → `STEP_UP_INVALID`.
 - **R15** Token de step-up: un solo uso, 5 min, ligado a usuario+operación+monto; consumir dos veces → `ALREADY_USED`.
 - **R16** Cambiar contraseña o reset revoca todas las demás sesiones.
 - **R17** RUC + DV válidos (formato DGI; algoritmo de DV en F08.6) y únicos.
@@ -223,6 +236,15 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
   - **A2**: Nadie puede modificar su propio rol asignado ni su propia membresía (`SELF_ASSIGNMENT_FORBIDDEN`).
   - **A3**: El alcance no puede crecer al delegar; quien posee alcance `BRANCHES` solo asigna subconjuntos de sus sucursales asignadas (`BRANCH_OUT_OF_SCOPE`).
 - **R24** Alcance por sucursal (`branch_scope`): toda membresía posee alcance `TENANT` (`*`) o `BRANCHES` (UUIDs de sus sucursales **activas**, ordenados y separados por coma). El gateway propaga el metadato `x-pp-branch-scope`; un alcance `BRANCHES` sin sucursales activas viaja vacío (no se envía) y un servicio lo lee como «ninguna sucursal», nunca como «todas». Acciones fuera del alcance asignado son denegadas con `PERMISSION_DENIED` y `reason: BRANCH_OUT_OF_SCOPE`; una sucursal de otro negocio responde igual, sin revelar que existe. Una persona sin negocio recibe solo la base, sea cual sea su rol base guardado.
+
+- **R25** Toda aserción WebAuthn se verifica en identity (firma contra la llave pública registrada, reto de un solo uso, origen en `WEBAUTHN_ORIGINS`, `rpId`, verificación de usuario). Una aserción alterada, de otro origen o de un reto ya usado → `PASSKEY_VERIFICATION_FAILED` y ningún token. Sin `WEBAUTHN_RP_ID` → `PASSKEYS_UNAVAILABLE` (ADR 0020).
+- **R26** El usuario del reto, de la verificación y de `ChangePassword` sale del metadato `x-pp-user-id`; el `user_id` del cuerpo se ignora. Verificar el reto de otra persona → `TOKEN_INVALID`. `ChangePassword` **consume** el token con la operación `identity.password.change`.
+- **R27** Cada operación acepta solo los métodos de `security-standards.md` §4.1; uno no listado → `STEP_UP_METHOD_NOT_ALLOWED`; una operación fuera del catálogo → `UNKNOWN_OPERATION`. La contraseña solo vale en nivel 3; el PIN nunca autoriza `identity.pin.set`.
+- **R28** PIN: 6 dígitos (`PIN_INVALID` al crearlo con otro formato); sin PIN → `PIN_NOT_SET`; fallo → `PIN_INVALID` y suma un intento; al llegar a `stepup.pin.max_attempts` (3) → `PIN_LOCKED` durante `stepup.pin.lock_minutes` (5) y evento `PIN_LOCKED` a security. Un acierto reinicia el contador. Nunca se verifica en la app.
+- **R29** Un contador de firmas que retrocede (cuando el guardado es > 0) se rechaza con `PASSKEY_VERIFICATION_FAILED` y evento `PASSKEY_COUNTER_REGRESSION`; contador 0 (passkeys sincronizadas) se acepta.
+- **R30** Entrar con passkey crea la sesión igual que `Login` (tokens, familia de refresh) con `auth_method = passkey`; credencial desconocida o revocada → el mismo `INVALID_CREDENTIALS` de R4.
+- **R31** Registrar o revocar una passkey publica `PasskeyRegistered` / `PasskeyRevoked` por el outbox en la misma transacción (notifications avisa a la persona).
+- **R32** Retos y tokens viven en PostgreSQL (`webauthn_challenges`, `step_up_tokens`), no en memoria: un reinicio o una réplica los conserva. Del token solo se guarda su SHA-256; `ConsumeStepUp` es un `UPDATE … WHERE consumed_at IS NULL AND expires_at > now()` atómico.
 
 ### Vectores de prueba normativos
 | Vector | Caso de prueba | Regla verificada | Prueba |
@@ -238,7 +260,7 @@ RLS: `users`, `roles`, `invitations` por `tenant_id`; consultas de plataforma co
 | **V9** | Auto-modificación de propio rol o membresía | R23 (A2) | `TestR23_NoSelfEscalation` |
 
 ## 6. Eventos
-Publica: `pp.identity.tenant.status_changed.v1` (`TenantStatusChanged`), `pp.identity.session.revoked.v1` (`SessionRevoked`), `pp.identity.role.changed.v1`, `pp.identity.membership.changed.v1`, `pp.identity.capabilities.changed.v1`, `pp.identity.branch.changed.v1`, `pp.audit.identity.recorded.v1`. Solicitudes de correo (reset, invitación, bienvenida, bloqueo) se publican como `pp.identity.notification.requested.v1` con `notifications.SendRequest` embebido *(mensaje a agregar en F20.2 — hasta entonces notifications consume los eventos anteriores)*.
+Publica: `pp.identity.tenant.status_changed.v1` (`TenantStatusChanged`), `pp.identity.session.revoked.v1` (`SessionRevoked`), `pp.identity.role.changed.v1`, `pp.identity.membership.changed.v1`, `pp.identity.capabilities.changed.v1`, `pp.identity.branch.changed.v1`, `pp.identity.passkey.registered.v1` (`PasskeyRegistered`), `pp.identity.passkey.revoked.v1` (`PasskeyRevoked`), `pp.audit.identity.recorded.v1`. A security (`ReportSecurityEvent`): `STEP_UP_FAILED`, `PIN_LOCKED`, `PASSKEY_COUNTER_REGRESSION`. Solicitudes de correo (reset, invitación, bienvenida, bloqueo) se publican como `pp.identity.notification.requested.v1` con `notifications.SendRequest` embebido *(mensaje a agregar en F20.2 — hasta entonces notifications consume los eventos anteriores)*.
 Consume: nada.
 
 ## 7. Dependencias
@@ -259,6 +281,10 @@ Es llamado por: api-gateway, payments-core, settlement, orders, logistics, payro
 | `DATABASE_URL` | sí (F08.2+) | — | rol `identity_svc` |
 | `NATS_URL` | sí (F08.5+) | — | event-bus |
 | `BCRYPT_COST` | no | 12 | ≥ 12 |
+| `WEBAUTHN_RP_ID` | no | vacío | dominio registrable de las passkeys (Q-39); vacío = passkeys apagadas (`PASSKEYS_UNAVAILABLE`) |
+| `WEBAUTHN_RP_NAME` | no | `PlentyPay` | nombre del sitio que muestra el sistema operativo |
+| `WEBAUTHN_ORIGINS` | si hay `WEBAUTHN_RP_ID` | — | orígenes permitidos separados por coma: `https://<dominio>` y `android:apk-key-hash:<hash>` por certificado de firma |
+| `STEPUP_PIN_MAX_ATTEMPTS` · `STEPUP_PIN_LOCK_MINUTES` | no | 3 · 5 | respaldo local de `stepup.pin.max_attempts` y `stepup.pin.lock_minutes` de infra-management |
 
 ## 9. Observabilidad
 De negocio: `pp_logins_total{result}`, `pp_lockouts_total`, `pp_refresh_reuse_detected_total`, `pp_step_up_total{operation,result}`. Alerta crítica si `pp_refresh_reuse_detected_total` crece.
