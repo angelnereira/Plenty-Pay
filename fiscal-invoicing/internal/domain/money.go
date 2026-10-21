@@ -1,19 +1,11 @@
 package domain
 
-// Money en centavos (ADR 0013). Nunca float.
-type Money struct {
-	AmountMinor int64
-	Currency    string
-}
-
-func (m Money) Add(o Money) (Money, error) {
-	if m.Currency != o.Currency {
-		return Money{}, ErrCurrencyMismatch
+// HalfUpDiv divide num/den redondeando la mitad hacia arriba (domain-model §4). Los montos fiscales
+// nunca son negativos (las devoluciones son notas de crédito): un valor negativo o un divisor no
+// positivo es una solicitud inválida.
+func HalfUpDiv(num, den int64) (int64, error) {
+	if num < 0 || den <= 0 {
+		return 0, ErrInvalidRequest
 	}
-	return Money{AmountMinor: m.AmountMinor + o.AmountMinor, Currency: m.Currency}, nil
-}
-
-func HalfUp(valueMinor int64, bps uint32) int64 {
-	// (v * bps + 5000) / 10000
-	return (valueMinor*int64(bps) + 5000) / 10000
+	return (num + den/2) / den, nil
 }

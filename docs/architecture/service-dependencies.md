@@ -68,7 +68,7 @@ Toda arista no listada está **prohibida** (NetworkPolicy + validación del SAN 
 | logistics | geolocation, identity | ubicaciones/ETA/geocercas; datos del repartidor |
 | payroll | payments-core, security, geolocation, identity | pago de nómina; cifrado de datos sensibles; validar marcaje en geocerca |
 | notifications | identity | contactos y preferencias del destinatario |
-| fiscal-invoicing | security | credenciales del PAC por tenant; firma |
+| fiscal-invoicing | security, identity, infra-management | credenciales del PAC por tenant; firma · razón social, RUC y DV del negocio (`GetTenant`) y consumo del step-up · tasas `legal.pa.itbms.*` vigentes |
 | catalog | inventory, identity, infra-management | disponibilidad para listados (`in_stock`) — lectura; estado del negocio para publicar (R4, respaldo de la proyección de `TenantStatusChanged`); tasas `legal.pa.itbms.*` |
 | inventory | catalog | validar SKU/variante — lectura |
 | analytics-bi | — (solo consume eventos y lee réplicas propias) | |

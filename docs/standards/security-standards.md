@@ -168,7 +168,7 @@ Niveles: **1** presencia en el dispositivo (solo cliente: biometría, bloqueo de
 | `pos.sale.void` | Anular o devolver una venta de caja | 2 | `PASSKEY`, `PIN` | pos (F17.9) |
 | `payroll.run.approve` · `payroll.run.pay` | Aprobar o pagar nómina | 2 | `PASSKEY`, `PIN` | payroll (F19) |
 | `settlement.destination.update` | Cambiar la cuenta de liquidación (se avisa a todos los dueños) | 2 | `PASSKEY`, `PIN` (Q-43) | settlement (F12) |
-| `security.credentials.update` | Configurar credenciales fiscales o de rieles | 2 | `PASSKEY`, `PIN` | security |
+| `security.credentials.update` | Configurar credenciales fiscales o de rieles | 2 | `PASSKEY`, `PIN` | security, fiscal-invoicing (ConfigureFiscalProfile) |
 | `identity.role.upsert` · `identity.staff.invite` · `identity.membership.update` | Crear o asignar roles con permisos de dinero | 2 | `PASSKEY`, `PIN` | identity (R14) |
 | `identity.capabilities.set` | Apagar `finance.*` o `payroll.*` | 2 | `PASSKEY`, `PIN` | identity (R14) |
 | `identity.password.change` | Cambiar la contraseña | 2 | `PASSKEY`, `PIN` | identity (R14, R26) |

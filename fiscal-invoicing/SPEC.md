@@ -1,6 +1,6 @@
 # SPEC — fiscal-invoicing
 
-**Estado**: 📝 F13.1/F13.2/F13.3 en curso — dominio (totales, impuestos, políticas) + migraciones + perfil fiscal con validación. Go tests OK. Marcado 📝 por AGENTS.md §2.11.
+**Estado**: 📝 en reconstrucción desde el 2026-10-21 (la versión anterior era un esbozo: el servidor devolvía impuesto 0 y no guardaba nada). Orden: base + perfil + folios + contribuyentes (bloque A) → emisión con PAC simulado (B) → XML/PDF (C) → notas (D) → despliegue y pantallas (E).
 
 ## 1. Responsabilidad
 **Hace**: facturación electrónica de Panamá (DGI, Sistema de Factura Electrónica — SFEP) a través de un **PAC** (proveedor autorizado de certificación): perfil fiscal del comercio, decisión de qué documento emitir (fiscal o recibo interno), emisión de facturas, notas de crédito y débito, folios, CUFE y QR, almacenamiento de XML/PDF por ≥ 5 años, contribuyentes frecuentes.
@@ -25,7 +25,7 @@ CREATE TABLE fiscal.profiles (
   pac_provider text NOT NULL,              -- adaptador (p. ej. 'hka', 'generic')
   pac_credentials_secret text NOT NULL,    -- NOMBRE del secreto en security, nunca el valor
   checkout_preference smallint NOT NULL, auto_threshold_minor bigint,
-  environment text NOT NULL CHECK (environment IN ('TEST','PRODUCTION')),
+  environment text NOT NULL CHECK (environment IN ('DEMO','PROD')),   -- nombres del contrato (FiscalProfile.environment)
   updated_at timestamptz NOT NULL, version int NOT NULL DEFAULT 1
 );
 CREATE TABLE fiscal.folio_ranges (tenant_id uuid, doc_type smallint, next_number bigint NOT NULL, last_number bigint NOT NULL,
@@ -56,13 +56,13 @@ CREATE TABLE fiscal.taxpayers (id uuid PRIMARY KEY, tenant_id uuid NOT NULL, kin
 | GetInvoice / ListInvoices | `fiscal:read` | — | | `NOT_FOUND` |
 | RefreshInvoiceStatus | worker / webhook PAC | — | consulta al PAC y actualiza | |
 | GetInvoiceDocument | `fiscal:read` o el cliente del recibo (enlace firmado) | — | URL prefirmada 10 min a PDF/XML | `NOT_READY` |
-| ConfigureFiscalProfile | `fiscal:profile:manage` + step-up | sí | guarda perfil; **credenciales del PAC van a `security.PutSecret`** (nombre `fiscal/<tenant>/pac`), aquí solo el nombre | `INVALID_RUC`, `PAC_AUTH_FAILED` (prueba de conexión) |
+| ConfigureFiscalProfile | `fiscal:profile:manage` + step-up `security.credentials.update` (security-standards §4.1) | sí | guarda perfil; **credenciales del PAC van a `security.PutSecret`** (nombre `fiscal/<tenant>/pac`), aquí solo el nombre; RUC y DV con el formato de N-FMT-06 (el cálculo del DV queda pendiente, igual que identity R17) | `INVALID_RUC`, `PAC_AUTH_FAILED`, `PAC_NOT_CONFIGURED`, `STEP_UP_REQUIRED`, `STEP_UP_INVALID` |
 | GetFiscalProfile / GetFolioStatus | `fiscal:read` | — | folios restantes; `FolioLow` si < 10 % | |
 | UpsertTaxpayer / SearchTaxpayers | `fiscal:issue` | sí / — | contribuyentes frecuentes del tenant | `INVALID_RUC` |
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-FIS-04 a N-FIS-11, N-FIS-14 y N-FIS-15. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
-- **R1** Totales: `Σ line.total = subtotal + tax` exacto; cada `tax_minor = half_up(base_línea, tax_rate_bps)`; tasas ITBMS permitidas 0, 700, 1000, 1500 bps (validar contra catálogo DGI vigente — Q-11).
+- **R1** Totales: `Σ line.total = subtotal + tax` exacto; base de línea = `half_up(qty_milli × unit_price / 1000) − discount`; `tax_minor = half_up(base × tax_rate_bps / 10000)`. La tasa de cada línea debe ser 0 (exento) o una de las tasas `legal.pa.itbms.*` vigentes **en la fecha del documento**, leídas de infra-management (AGENTS.md §2.13); nunca una lista fija en el código. Si infra-management no responde → `DEPENDENCY_UNAVAILABLE`, sin emitir.
 - **R2** Numeración consecutiva sin huecos por `(tenant, doc_type, punto de facturación)`; un número asignado nunca se reutiliza (un rechazo conserva su número y se reemite con nota según normativa — Q-11).
 - **R3** Envío al PAC fuera de la transacción de BD; reintentos con backoff hasta 24 h; pendiente > 1 h → alerta; el plazo legal de transmisión se respeta (Q-11).
 - **R4** ACCEPTED requiere CUFE + QR; el PDF incluye el QR de verificación de la DGI.
@@ -70,14 +70,14 @@ CREATE TABLE fiscal.taxpayers (id uuid PRIMARY KEY, tenant_id uuid NOT NULL, kin
 - **R6** Una venta/sub-pedido genera como máximo un documento por tipo (`UNIQUE source+doc_type`).
 - **R7** Nota de crédito: suma de notas ≤ total de la factura; por el total → factura VOIDED.
 - **R8** Consumidor final sin datos: permitido hasta el límite que fije la DGI (configurable); por encima exige identificación (Q-11).
-- **R9** Entorno TEST nunca transmite a producción; facturas de pagos `sandbox` solo en TEST.
+- **R9** Entorno `DEMO` usa solo el PAC simulado: el CUFE empieza por `DEMO-`, el documento dice «Documento de prueba sin validez fiscal» y la app lo marca como prueba (AGENTS.md §2.12). `PROD` exige un adaptador de PAC real (Q-11): mientras no exista, `ConfigureFiscalProfile` con `PROD` responde `PAC_NOT_CONFIGURED`.
 - **R10** Adaptador PAC por interfaz (`PacClient`: Send, Query, Cancel); implementaciones por proveedor; doble de pruebas que simula aceptación/rechazo/timeout.
 
 ## 6. Eventos
 Publica: `InvoiceAccepted`, `InvoiceRejected`, `FolioLow`, `AuditRecorded`. Consume: ninguno (pos/orders llaman por gRPC para tener el número en el recibo).
 
 ## 7. Dependencias
-security (GetSecret de credenciales PAC; Encrypt no requerido). PAC externo por HTTPS (fuera de la red interna, egress controlado).
+security (PutSecret/GetSecret de credenciales PAC; Encrypt no requerido), identity (`GetTenant`: razón social, RUC y DV del emisor salen del alta del negocio, no se piden otra vez; `ConsumeStepUp`), infra-management (`GetConfig` de `legal.pa.itbms.*`). PAC externo por HTTPS (fuera de la red interna, egress controlado).
 
 ## 8. Configuración
 `FISCAL_GRPC_ADDR`, `DATABASE_URL`, `NATS_URL`, `SECURITY_ADDR`, `OBJECT_STORAGE_*`, `PAC_TIMEOUT_MS` (10000), `PAC_DEFAULT_PROVIDER`.

@@ -265,7 +265,7 @@ Consume: nada.
 
 ## 7. Dependencias
 Llama a: nadie (hoja). `security.ReportSecurityEvent` en F05 (deadline 500 ms, fallo no bloquea el login; se registra en log).
-Es llamado por: api-gateway, payments-core, settlement, orders, logistics, payroll, notifications.
+Es llamado por: api-gateway, payments-core, settlement, orders, logistics, payroll, notifications, fiscal-invoicing (GetTenant, ConsumeStepUp).
 
 ## 8. Configuración
 | Variable | Oblig. | Default | Descripción |
