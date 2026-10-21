@@ -79,10 +79,17 @@ class StepUpPinStatus {
 }
 
 class Me {
-  Me({required this.userId, required this.role, required this.tenantId});
+  Me(
+      {required this.userId,
+      required this.role,
+      required this.tenantId,
+      this.fullName = ''});
   final String userId;
   final String role;
   final String tenantId;
+
+  /// Nombre de la persona (saludo de Inicio, S-GEN-05 e1).
+  final String fullName;
 }
 
 class Permissions {
@@ -857,11 +864,17 @@ class ApiClient {
       _get('/v1/pos/sales/${Uri.encodeComponent(saleId)}');
 
   Future<Map<String, dynamic>> listSales(
-          {String sessionId = '', DateTime? from, int pageSize = 100}) =>
+          {String sessionId = '',
+          String status = '',
+          DateTime? from,
+          int pageSize = 100,
+          String pageToken = ''}) =>
       _get('/v1/pos/sales', queryParameters: {
         if (sessionId.isNotEmpty) 'session_id': sessionId,
+        if (status.isNotEmpty) 'status': status,
         if (from != null) 'from': from.toUtc().toIso8601String(),
         'page_size': '$pageSize',
+        if (pageToken.isNotEmpty) 'page_token': pageToken,
       });
 
   Future<Me> me() async {
@@ -870,6 +883,7 @@ class ApiClient {
       userId: body['user_id'] as String? ?? '',
       role: body['role'] as String? ?? '',
       tenantId: body['tenant_id'] as String? ?? '',
+      fullName: body['full_name'] as String? ?? '',
     );
   }
 

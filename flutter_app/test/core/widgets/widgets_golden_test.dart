@@ -126,6 +126,7 @@ void main() {
           selectedIndex: 0,
           onDestinationSelected: (_) {},
           destinations: shellDestinations,
+          moreLabel: 'Más',
           body: const Center(child: Text('Contenido móvil')),
         ),
       );
@@ -145,6 +146,7 @@ void main() {
           selectedIndex: 1,
           onDestinationSelected: (_) {},
           destinations: shellDestinations,
+          moreLabel: 'Más',
           body: const Center(child: Text('Contenido tablet')),
         ),
       );
@@ -164,6 +166,7 @@ void main() {
           selectedIndex: 2,
           onDestinationSelected: (_) {},
           destinations: shellDestinations,
+          moreLabel: 'Más',
           body: const Center(child: Text('Contenido escritorio')),
         ),
       );

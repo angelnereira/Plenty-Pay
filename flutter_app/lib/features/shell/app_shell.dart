@@ -51,7 +51,8 @@ class _AppShellState extends State<AppShell> {
       future: _perms,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
         if (snap.hasError) {
           return Scaffold(
@@ -67,7 +68,8 @@ class _AppShellState extends State<AppShell> {
                   }),
                   child: Text(l10n.actionRetry),
                 ),
-                TextButton(onPressed: _signOut, child: Text(l10n.actionSignOut)),
+                TextButton(
+                    onPressed: _signOut, child: Text(l10n.actionSignOut)),
               ]),
             ),
           );
@@ -75,26 +77,17 @@ class _AppShellState extends State<AppShell> {
         final modules = visibleModules(snap.data!.modules);
         final destinations = <ShellDestination>[
           ShellDestination(label: l10n.navHome, icon: Icons.home_outlined),
-          for (final m in modules) ShellDestination(label: moduleLabel(l10n, m), icon: m.icon),
+          for (final m in modules)
+            ShellDestination(label: moduleLabel(l10n, m), icon: m.icon),
         ];
         if (_index >= destinations.length) _index = 0;
         final selectedModule = _index == 0 ? null : modules[_index - 1];
         void onSelectModule(ModuleDef m) {
           final idx = modules.indexOf(m);
           if (idx != -1) {
-            final destIndex = idx + 1;
-            final width = MediaQuery.sizeOf(context).width;
-            if (width >= 600 || destIndex < 5) {
-              setState(() => _index = destIndex);
-            } else {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => Scaffold(
-                    body: _ModuleBody(module: m, api: widget.api, onSignOut: _signOut),
-                  ),
-                ),
-              );
-            }
+            // Todo módulo es un destino del shell: en el teléfono, los que no caben en la barra
+            // quedan bajo «Más» (screen-catalog §1).
+            setState(() => _index = idx + 1);
           }
         }
 
@@ -105,13 +98,15 @@ class _AppShellState extends State<AppShell> {
                 onSelectModule: onSelectModule,
                 onSignOut: _signOut,
               )
-            : _ModuleBody(module: selectedModule!, api: widget.api, onSignOut: _signOut);
+            : _ModuleBody(
+                module: selectedModule!, api: widget.api, onSignOut: _signOut);
 
         return AppShellScaffold(
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
           destinations: destinations,
           body: body,
+          moreLabel: AppLocalizations.of(context).navMore,
         );
       },
     );
@@ -121,7 +116,8 @@ class _AppShellState extends State<AppShell> {
 /// Pantalla de cada módulo (docs/ux/screen-catalog.md §1). Un `switch` por id: growing
 /// la lista no exige contar paréntesis anidados.
 class _ModuleBody extends StatelessWidget {
-  const _ModuleBody({required this.module, required this.api, required this.onSignOut});
+  const _ModuleBody(
+      {required this.module, required this.api, required this.onSignOut});
 
   final ModuleDef module;
   final ApiClient api;
@@ -131,20 +127,20 @@ class _ModuleBody extends StatelessWidget {
   Widget build(BuildContext context) => !module.live
       ? _ModulePlaceholder(module: module)
       : switch (module.id) {
-        'wallet' => WalletScreen(api: api),
-        'marketplace' => MarketDiscoverScreen(api: api),
-        'pos' => PosScreen(api: api),
-        'catalog' => CatalogScreen(api: api),
-        'inventory' => InventoryScreen(api: api),
-        'orders' => OrdersManageScreen(api: api),
-        'logistics' => LogisticsScreen(api: api),
-        'finance' => FinanceScreen(api: api),
-        'payroll' => PayrollRunsScreen(api: api),
-        'analytics' => KpiHomeScreen(api: api, kpis: const []),
-        'admin' => BusinessDashboardScreen(api: api),
-        'platform' => BusinessReviewScreen(api: api),
-        _ => _ModulePlaceholder(module: module),
-      };
+          'wallet' => WalletScreen(api: api),
+          'marketplace' => MarketDiscoverScreen(api: api),
+          'pos' => PosScreen(api: api),
+          'catalog' => CatalogScreen(api: api),
+          'inventory' => InventoryScreen(api: api),
+          'orders' => OrdersManageScreen(api: api),
+          'logistics' => LogisticsScreen(api: api),
+          'finance' => FinanceScreen(api: api),
+          'payroll' => PayrollRunsScreen(api: api),
+          'analytics' => KpiHomeScreen(api: api, kpis: const []),
+          'admin' => BusinessDashboardScreen(api: api),
+          'platform' => BusinessReviewScreen(api: api),
+          _ => _ModulePlaceholder(module: module),
+        };
 }
 
 class _ModulePlaceholder extends StatelessWidget {
@@ -158,7 +154,8 @@ class _ModulePlaceholder extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(module.icon, size: 48),
         const SizedBox(height: 12),
-        Text(moduleLabel(l10n, module), style: Theme.of(context).textTheme.titleLarge),
+        Text(moduleLabel(l10n, module),
+            style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 4),
         Text(l10n.moduleComingSoon(module.phase)),
       ]),

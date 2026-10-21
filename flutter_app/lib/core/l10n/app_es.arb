@@ -1651,5 +1651,72 @@
   "fiscalAddressHelp": "La DGI la exige para facturar a un RUC.",
   "fiscalAddressInvalid": "Escribe entre 5 y 100 caracteres.",
   "fiscalLocation": "Provincia-distrito-corregimiento (opcional)",
-  "fiscalLocationInvalid": "Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7."
+  "fiscalLocationInvalid": "Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7.",
+  "navMore": "Más",
+  "homeGreetingName": "Hola, {name}",
+  "@homeGreetingName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homePendingReview": "Tu negocio está en revisión",
+  "homePendingReviewBody": "Te avisaremos cuando terminemos de revisar tus documentos. Mientras tanto no puedes cobrar.",
+  "homePendingRejected": "Tu negocio fue rechazado.",
+  "homePendingSuspended": "Tu negocio fue suspendido.",
+  "homePendingBusinessBody": "Revisa el motivo en Mi negocio.",
+  "homePendingFiscal": "Completa tu perfil fiscal",
+  "homePendingFiscalBody": "Lo necesitas para emitir facturas electrónicas.",
+  "homeSalesToday": "Ventas de hoy",
+  "homeSalesCount": "{count, plural, =0{Sin ventas todavía} =1{1 venta} other{{count} ventas}}",
+  "@homeSalesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeOrdersPending": "Pedidos por aceptar",
+  "homeOrdersCount": "{count, plural, =1{1 pedido} other{{count} pedidos}}",
+  "@homeOrdersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeOrdersDeadline": "vence en {time}",
+  "@homeOrdersDeadline": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "homeOrdersExpired": "plazo vencido",
+  "homeAlerts": "{count, plural, =1{1 alerta} other{{count} alertas}}",
+  "@homeAlerts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeAlertLowStock": "{count, plural, =1{1 producto con existencias bajas} other{{count} productos con existencias bajas}}",
+  "@homeAlertLowStock": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeAlertFolios": "Quedan pocos folios: {count}",
+  "@homeAlertFolios": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

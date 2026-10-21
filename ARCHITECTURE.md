@@ -37,9 +37,9 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [payments-core](payments-core/SPEC.md) | Rust | 50062 | 📝 | F11 |
 | [settlement](settlement/SPEC.md) | Rust | 50063 | 📋 | F12 |
 | [fiscal-invoicing](fiscal-invoicing/SPEC.md) | Go | 50064 | 📝 desplegado 2026-10-21: perfil, folios sin huecos, contribuyentes, emisión con worker al PAC, notas; PAC seleccionable y desacoplado (ADR 0022: simulador y The Factory HKA); L2 17/17 y L4 de humo por el gateway. Pendiente: PDF/XML (bloque C), reporte de ITBMS y envío real a HKA | F13 |
-| [catalog](catalog/SPEC.md) | Go | 50065 | 📝 productos, categorías, tasas legales, vitrina, publicación y búsqueda del marketplace (L2); despliegue pendiente | F15 |
-| [inventory](inventory/SPEC.md) | Go | 50066 | 📝 bodegas, existencias, ajustes, transferencias y reservas con TTL (L2); despliegue pendiente | F16 |
-| [pos](pos/SPEC.md) | Go | 50067 | 📝 sesiones, ventas, efectivo y billetera, descuento de stock (L2); despliegue pendiente | F17 |
+| [catalog](catalog/SPEC.md) | Go | 50065 | 📝 productos, categorías, tasas legales, vitrina, publicación y búsqueda del marketplace (L2); **desplegado 2026-10-21** con L4 de humo por el gateway (producto creado y vendido en caja) | F15 |
+| [inventory](inventory/SPEC.md) | Go | 50066 | 📝 bodegas, existencias, ajustes, transferencias y reservas con TTL (L2); **desplegado 2026-10-21**: entrada de 10 unidades y descuento automático a 8 tras vender 2 (L4 de humo) | F16 |
+| [pos](pos/SPEC.md) | Go | 50067 | 📝 sesiones, ventas, efectivo y billetera, descuento de stock (L2); **desplegado 2026-10-21**: caja abierta, venta en efectivo con vuelto y recibo (L4 de humo) | F17 |
 | [logistics](logistics/SPEC.md) | Go | 50068 | 📋 | F18 |
 | [geolocation](geolocation/SPEC.md) | Go | 50069 | 📋 | F14 |
 | [payroll](payroll/SPEC.md) | Go | 50070 | 📋 | F19 |
@@ -47,7 +47,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [analytics-bi](analytics-bi/SPEC.md) | Go | 50072 | 📋 | F21 |
 | [security](security/SPEC.md) | Go + OpenBao | 50073 | ✅ secretos con ACL, transit, auditoría encadenada, bloqueos y OpenBao 2.2.0 operando en Docker Compose | F05 |
 | [infra-management](infra-management/SPEC.md) | Go | 50074 | ✅ feature flags, configuración dinámica con JSON Schema, modo mantenimiento y cliente config | F05 |
-| [orders](orders/SPEC.md) | Go | 50075 | 📝 carrito, cotización, checkout saga con un cobro por splits, aceptación con plazo, rechazos con reembolso y devolución de existencias, código de retiro (L2); sin entrega a domicilio ni factura (F18, F13); despliegue pendiente | F15 |
+| [orders](orders/SPEC.md) | Go | 50075 | 📝 carrito, cotización, checkout saga con un cobro por splits, aceptación con plazo, rechazos con reembolso y devolución de existencias, código de retiro (L2); sin entrega a domicilio ni factura (F18, F13); **desplegado 2026-10-21** (migración aplicada, servicio sano); L4 del checkout pendiente | F15 |
 | [observability](observability/SPEC.md) | OSS | 4317/9090/3000 | ✅ pila completa operando en Docker (OTel, Prometheus, Loki, Tempo, Alloy, Alertmanager, Grafana con 7 dashboards) | F04 |
 | [postgres-db](postgres-db/SPEC.md) | PostgreSQL 16 + PostGIS | 5432/6432 | ✅ PostgreSQL 16 + PostGIS con 16 esquemas/roles aislados, PgBouncer en transacción, exporter/alertas, respaldos base y PITR demostrado (RPO ≤ 5 min) | F06 |
 | [nosql-db](nosql-db/SPEC.md) | ScyllaDB 6.2 | 9042/9180 | ✅ ScyllaDB 6.2 con keyspaces y roles aislados, TTLs, Prometheus scraping :9180, alertas y backup por snapshots | F07 |

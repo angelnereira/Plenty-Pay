@@ -83,6 +83,8 @@ Todos · Paso F02.6; cada fase agrega su tarjeta
 
 Vacío (usuario nuevo sin billetera verificada ni negocio): e3 más dos accesos: "Explorar tiendas" (S-MKT-01) y "Registrar mi negocio" (S-GEN-15).
 
+Estado (2026-10-21): e1 con el nombre de `/v1/me` (`full_name`), e3 (negocio en revisión, rechazado o suspendido → S-ADM-01; perfil fiscal sin completar → S-FIN-09), e4, e5 (ventas pagadas desde la medianoche de Panamá, `pos:sell`), e6 (`orders:read`, con cuenta regresiva del plazo más cercano) y e8 (existencias bajas con `inventory:read`; folios bajo el mínimo con `fiscal:read`). Cada tarjeta carga por separado: si su servicio falla, se registra y no se muestra. *Pendiente*: e3 «Verifica tu identidad» (sin servicio de verificación), e7 (logistics, F18), «Explorar tiendas» del estado vacío y el contador de e2 (bandeja, F20).
+
 ### S-GEN-06 · `/inbox` · Bandeja
 Todos · Paso F20.8 · `/v1/inbox`, WebSocket `inbox`
 

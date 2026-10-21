@@ -3838,4 +3838,99 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get fiscalLocationInvalid =>
       'Use the province-district-township format, for example 8-8-7.';
+
+  @override
+  String get navMore => 'More';
+
+  @override
+  String homeGreetingName(String name) {
+    return 'Hello, $name';
+  }
+
+  @override
+  String get homePendingReview => 'Your business is under review';
+
+  @override
+  String get homePendingReviewBody =>
+      'We\'ll let you know when we finish reviewing your documents. You can\'t collect payments until then.';
+
+  @override
+  String get homePendingRejected => 'Your business was rejected.';
+
+  @override
+  String get homePendingSuspended => 'Your business was suspended.';
+
+  @override
+  String get homePendingBusinessBody => 'See the reason in My business.';
+
+  @override
+  String get homePendingFiscal => 'Complete your tax profile';
+
+  @override
+  String get homePendingFiscalBody =>
+      'You need it to issue electronic invoices.';
+
+  @override
+  String get homeSalesToday => 'Today\'s sales';
+
+  @override
+  String homeSalesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sales',
+      one: '1 sale',
+      zero: 'No sales yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get homeOrdersPending => 'Orders to accept';
+
+  @override
+  String homeOrdersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count orders',
+      one: '1 order',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeOrdersDeadline(String time) {
+    return 'due in $time';
+  }
+
+  @override
+  String get homeOrdersExpired => 'deadline passed';
+
+  @override
+  String homeAlerts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count alerts',
+      one: '1 alert',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeAlertLowStock(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count products with low stock',
+      one: '1 product with low stock',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeAlertFolios(int count) {
+    return 'Few folios left: $count';
+  }
 }

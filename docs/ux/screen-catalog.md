@@ -25,7 +25,7 @@ Orden de navegación (= orden de `identity` R10 y de `ModuleRegistry`):
 
 Fuera de los módulos (siempre disponibles con sesión): Inicio (`/`), Bandeja (`/inbox`), Cuenta (`/account`). Inicio muestra tarjetas según módulos visibles (saldo, ventas de hoy, pedidos por aceptar, entregas activas, alertas).
 
-**Navegación**: < 600 dp barra inferior con Inicio + hasta 3 módulos más usados + "Más"; 600–1024 `NavigationRail`; > 1024 rail extendido. Un módulo en una fase aún no construida se muestra con la pantalla "Disponible próximamente" (`ModuleDef.phase`).
+**Navegación**: < 600 dp barra inferior con Inicio + hasta 3 módulos + "Más" (hoja con el resto de los módulos; con 5 destinos o menos no hay "Más"); 600–1024 `NavigationRail`; > 1024 rail extendido; el riel se desplaza si no cabe en la altura (teléfono en horizontal). Un módulo en una fase aún no construida se muestra con la pantalla "Disponible próximamente" (`ModuleDef.phase`).
 
 ## 2. Transversales (F02, F08)
 | Ruta | Pantalla | Quién | Datos (gateway) | Notas | Paso |

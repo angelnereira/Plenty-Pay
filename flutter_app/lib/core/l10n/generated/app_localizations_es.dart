@@ -3843,6 +3843,101 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get fiscalLocationInvalid =>
       'Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7.';
+
+  @override
+  String get navMore => 'Más';
+
+  @override
+  String homeGreetingName(String name) {
+    return 'Hola, $name';
+  }
+
+  @override
+  String get homePendingReview => 'Tu negocio está en revisión';
+
+  @override
+  String get homePendingReviewBody =>
+      'Te avisaremos cuando terminemos de revisar tus documentos. Mientras tanto no puedes cobrar.';
+
+  @override
+  String get homePendingRejected => 'Tu negocio fue rechazado.';
+
+  @override
+  String get homePendingSuspended => 'Tu negocio fue suspendido.';
+
+  @override
+  String get homePendingBusinessBody => 'Revisa el motivo en Mi negocio.';
+
+  @override
+  String get homePendingFiscal => 'Completa tu perfil fiscal';
+
+  @override
+  String get homePendingFiscalBody =>
+      'Lo necesitas para emitir facturas electrónicas.';
+
+  @override
+  String get homeSalesToday => 'Ventas de hoy';
+
+  @override
+  String homeSalesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ventas',
+      one: '1 venta',
+      zero: 'Sin ventas todavía',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get homeOrdersPending => 'Pedidos por aceptar';
+
+  @override
+  String homeOrdersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pedidos',
+      one: '1 pedido',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeOrdersDeadline(String time) {
+    return 'vence en $time';
+  }
+
+  @override
+  String get homeOrdersExpired => 'plazo vencido';
+
+  @override
+  String homeAlerts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count alertas',
+      one: '1 alerta',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeAlertLowStock(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count productos con existencias bajas',
+      one: '1 producto con existencias bajas',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeAlertFolios(int count) {
+    return 'Quedan pocos folios: $count';
+  }
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

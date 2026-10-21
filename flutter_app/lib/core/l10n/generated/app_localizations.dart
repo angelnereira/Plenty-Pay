@@ -7142,6 +7142,114 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Usa el formato provincia-distrito-corregimiento, por ejemplo 8-8-7.'**
   String get fiscalLocationInvalid;
+
+  /// No description provided for @navMore.
+  ///
+  /// In es, this message translates to:
+  /// **'Más'**
+  String get navMore;
+
+  /// No description provided for @homeGreetingName.
+  ///
+  /// In es, this message translates to:
+  /// **'Hola, {name}'**
+  String homeGreetingName(String name);
+
+  /// No description provided for @homePendingReview.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu negocio está en revisión'**
+  String get homePendingReview;
+
+  /// No description provided for @homePendingReviewBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Te avisaremos cuando terminemos de revisar tus documentos. Mientras tanto no puedes cobrar.'**
+  String get homePendingReviewBody;
+
+  /// No description provided for @homePendingRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu negocio fue rechazado.'**
+  String get homePendingRejected;
+
+  /// No description provided for @homePendingSuspended.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu negocio fue suspendido.'**
+  String get homePendingSuspended;
+
+  /// No description provided for @homePendingBusinessBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisa el motivo en Mi negocio.'**
+  String get homePendingBusinessBody;
+
+  /// No description provided for @homePendingFiscal.
+  ///
+  /// In es, this message translates to:
+  /// **'Completa tu perfil fiscal'**
+  String get homePendingFiscal;
+
+  /// No description provided for @homePendingFiscalBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Lo necesitas para emitir facturas electrónicas.'**
+  String get homePendingFiscalBody;
+
+  /// No description provided for @homeSalesToday.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas de hoy'**
+  String get homeSalesToday;
+
+  /// No description provided for @homeSalesCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =0{Sin ventas todavía} =1{1 venta} other{{count} ventas}}'**
+  String homeSalesCount(int count);
+
+  /// No description provided for @homeOrdersPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedidos por aceptar'**
+  String get homeOrdersPending;
+
+  /// No description provided for @homeOrdersCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 pedido} other{{count} pedidos}}'**
+  String homeOrdersCount(int count);
+
+  /// No description provided for @homeOrdersDeadline.
+  ///
+  /// In es, this message translates to:
+  /// **'vence en {time}'**
+  String homeOrdersDeadline(String time);
+
+  /// No description provided for @homeOrdersExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'plazo vencido'**
+  String get homeOrdersExpired;
+
+  /// No description provided for @homeAlerts.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 alerta} other{{count} alertas}}'**
+  String homeAlerts(int count);
+
+  /// No description provided for @homeAlertLowStock.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 producto con existencias bajas} other{{count} productos con existencias bajas}}'**
+  String homeAlertLowStock(int count);
+
+  /// No description provided for @homeAlertFolios.
+  ///
+  /// In es, this message translates to:
+  /// **'Quedan pocos folios: {count}'**
+  String homeAlertFolios(int count);
 }
 
 class _AppLocalizationsDelegate
