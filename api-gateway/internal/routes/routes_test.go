@@ -359,3 +359,13 @@ func TestPathValues(t *testing.T) {
 	}
 	var _ proto.Message = &pb.LoginRequest{}
 }
+
+// Una ruta con "a|b" acepta cualquiera de los dos permisos y ninguno más.
+func TestHasPermissionAlternatives(t *testing.T) {
+	if !routes.HasPermission([]string{"inventory:receive"}, "inventory:purchase:manage|inventory:receive") ||
+		!routes.HasPermission([]string{"x"}, "x") ||
+		routes.HasPermission([]string{"inventory:read"}, "inventory:purchase:manage|inventory:receive") ||
+		routes.HasPermission(nil, "x") {
+		t.Fatal("HasPermission")
+	}
+}

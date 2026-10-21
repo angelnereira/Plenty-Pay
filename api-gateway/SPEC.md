@@ -33,7 +33,7 @@
 Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutaciones de dinero/estado exigen `Idempotency-Key` (16–100 chars) que se copia al campo `idempotency_key` del request. 🔒 = requiere step-up según `security-standards.md` §4.
 
 ### 4.1 Autenticación y cuenta (F09, F08)
-| Método y ruta | RPC | Permiso |
+| Método y ruta | RPC | Permiso (`a\|b` = cualquiera de los dos) |
 |---|---|---|
 | POST `/v1/auth/register` | identity.Register (rol forzado CUSTOMER; consents del cuerpo) | público |
 | POST `/v1/auth/login` | identity.Login | público |
@@ -139,6 +139,10 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | GET `/v1/inventory/stock` · `/v1/inventory/stock/{variant_id}` | ListStock · GetStock | `inventory:read` |
 | POST `/v1/inventory/adjustments` · `/v1/inventory/transfers` | AdjustStock · TransferStock | `inventory:adjust` |
 | GET `/v1/inventory/movements` | ListMovements | `inventory:read` |
+| GET/PUT `/v1/inventory/suppliers` | ListSuppliers · UpsertSupplier | `inventory:purchase:manage` o `inventory:read` / `inventory:purchase:manage` |
+| GET/POST `/v1/inventory/purchase-orders?status=` | ListPurchaseOrders · CreatePurchaseOrder | `inventory:purchase:manage` o `inventory:receive` / `inventory:purchase:manage` |
+| POST `/v1/inventory/purchase-orders/{id}/status` · `/receive` | UpdatePurchaseOrderStatus · ReceiveGoods | `inventory:purchase:manage` · `inventory:receive` |
+| GET `/v1/inventory/reorder-suggestions?warehouse_id=` | GetReorderSuggestions (R6) | `inventory:read` |
 | GET/PUT `/v1/inventory/suppliers` | List/UpsertSupplier | `inventory:purchase:manage` |
 | GET/POST `/v1/inventory/purchase-orders` · POST `/{id}/status` · `/{id}/receive` | List/Create/UpdateStatus · ReceiveGoods | `inventory:purchase:manage` / `inventory:receive` |
 | GET `/v1/inventory/reorder-suggestions` | GetReorderSuggestions | `inventory:read` |

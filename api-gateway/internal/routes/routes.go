@@ -37,7 +37,8 @@ type Route struct {
 	Path   string
 	// RPC es el método gRPC completo, p. ej. "/identity.Identity/GetTenant".
 	RPC string
-	// Permission exigida (vacía = ruta pública o solo autenticada).
+	// Permission exigida (vacía = ruta pública o solo autenticada). "a|b" acepta cualquiera de las
+	// dos, cuando el servicio admite más de un permiso para la misma lectura.
 	Permission string
 	// RequireAuth indica si la ruta necesita token.
 	RequireAuth bool
@@ -208,12 +209,22 @@ func (r Route) newResponse() proto.Message {
 	return &pb.SimpleResult{}
 }
 
+// HasPermission dice si la sesión tiene el permiso de la ruta (o alguno de "a|b").
+func HasPermission(have []string, want string) bool {
+	for _, p := range strings.Split(want, "|") {
+		if slices.Contains(have, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // Handler construye el http.Handler genérico de una ruta.
 func Handler(conn *grpc.ClientConn, r Route) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		// Primera barrera (SPEC §3.8): permiso de la ruta contra el permiso efectivo de la sesión.
 		// El servicio vuelve a verificar (security-standards.md §3, defensa en profundidad).
-		if r.Permission != "" && !slices.Contains(metadata.FromContext(req.Context()).Permissions, r.Permission) {
+		if r.Permission != "" && !HasPermission(metadata.FromContext(req.Context()).Permissions, r.Permission) {
 			writeError(w, http.StatusForbidden, "PERMISSION_DENIED", "no tienes permiso para esta operación")
 			return
 		}

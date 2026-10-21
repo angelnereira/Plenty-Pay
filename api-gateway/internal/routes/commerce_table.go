@@ -162,6 +162,55 @@ var commerceRoutes = []Route{
 		NewRequest:  func() proto.Message { return &pb.TransferStockRequest{} },
 		NewResponse: func() proto.Message { return &pb.TransferStockResponse{} },
 	},
+	// F16.5: proveedores, órdenes de compra y recepción. Las listas aceptan más de un permiso.
+	{
+		Method: "GET", Path: "/v1/inventory/suppliers", RPC: "/plentypay.inventory.v1.Inventory/ListSuppliers",
+		Backend: BackendInventory, RequireAuth: true, Permission: "inventory:purchase:manage|inventory:read",
+		QueryParams: map[string]string{"page_size": "page.page_size", "page_token": "page.page_token"},
+		NewRequest:  func() proto.Message { return &pb.ListSuppliersRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListSuppliersResponse{} },
+	},
+	{
+		Method: "PUT", Path: "/v1/inventory/suppliers", RPC: "/plentypay.inventory.v1.Inventory/UpsertSupplier",
+		Backend: BackendInventory, RequireAuth: true, Idempotency: true, Permission: "inventory:purchase:manage",
+		NewRequest:  func() proto.Message { return &pb.UpsertSupplierRequest{} },
+		NewResponse: func() proto.Message { return &pb.Supplier{} },
+	},
+	{
+		Method: "GET", Path: "/v1/inventory/purchase-orders", RPC: "/plentypay.inventory.v1.Inventory/ListPurchaseOrders",
+		Backend: BackendInventory, RequireAuth: true, Permission: "inventory:purchase:manage|inventory:receive",
+		QueryParams: map[string]string{"status": "status", "page_size": "page.page_size", "page_token": "page.page_token"},
+		NewRequest:  func() proto.Message { return &pb.ListPurchaseOrdersRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListPurchaseOrdersResponse{} },
+	},
+	{
+		Method: "POST", Path: "/v1/inventory/purchase-orders", RPC: "/plentypay.inventory.v1.Inventory/CreatePurchaseOrder",
+		Backend: BackendInventory, RequireAuth: true, Idempotency: true, Permission: "inventory:purchase:manage",
+		NewRequest:  func() proto.Message { return &pb.CreatePurchaseOrderRequest{} },
+		NewResponse: func() proto.Message { return &pb.PurchaseOrder{} },
+	},
+	{
+		Method: "POST", Path: "/v1/inventory/purchase-orders/{purchase_order_id}/status", RPC: "/plentypay.inventory.v1.Inventory/UpdatePurchaseOrderStatus",
+		Backend: BackendInventory, RequireAuth: true, Idempotency: true, Permission: "inventory:purchase:manage",
+		PathParams:  map[string]string{"purchase_order_id": "purchase_order_id"},
+		NewRequest:  func() proto.Message { return &pb.UpdatePurchaseOrderStatusRequest{} },
+		NewResponse: func() proto.Message { return &pb.PurchaseOrder{} },
+	},
+	{
+		Method: "POST", Path: "/v1/inventory/purchase-orders/{purchase_order_id}/receive", RPC: "/plentypay.inventory.v1.Inventory/ReceiveGoods",
+		Backend: BackendInventory, RequireAuth: true, Idempotency: true, Permission: "inventory:receive",
+		PathParams:  map[string]string{"purchase_order_id": "purchase_order_id"},
+		NewRequest:  func() proto.Message { return &pb.ReceiveGoodsRequest{} },
+		NewResponse: func() proto.Message { return &pb.PurchaseOrder{} },
+	},
+	{
+		// F16.6: sugerencias de reorden (R6).
+		Method: "GET", Path: "/v1/inventory/reorder-suggestions", RPC: "/plentypay.inventory.v1.Inventory/GetReorderSuggestions",
+		Backend: BackendInventory, RequireAuth: true, Permission: "inventory:read",
+		QueryParams: map[string]string{"warehouse_id": "warehouse_id"},
+		NewRequest:  func() proto.Message { return &pb.GetReorderSuggestionsRequest{} },
+		NewResponse: func() proto.Message { return &pb.GetReorderSuggestionsResponse{} },
+	},
 	{
 		Method: "GET", Path: "/v1/inventory/movements", RPC: "/plentypay.inventory.v1.Inventory/ListMovements",
 		Backend: BackendInventory, RequireAuth: true, Permission: "inventory:read",
