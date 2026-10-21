@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"plentypay/security/internal/domain"
@@ -211,6 +212,23 @@ func (s *SecurityService) ReportSecurityEvent(ctx context.Context, kind, subject
 				Until:   now.Add(1 * time.Hour),
 			})
 			blocked = true
+		}
+
+	case domain.EventKindPinLocked, domain.EventKindPasskeyCounterRegression:
+		// Confirmación fuerte (ADR 0020): el evento queda registrado y genera una alerta auditada.
+		// No bloquea la cuenta: identity ya bloqueó el PIN o rechazó la passkey.
+		action := "security.alert.pin_locked"
+		if kind == domain.EventKindPasskeyCounterRegression {
+			action = "security.alert.passkey_counter_regression" // posible llave clonada: severidad alta
+		}
+		if _, err := s.auditStore.Append(ctx, &domain.AuditEvent{
+			Action:     action,
+			TargetKind: "user",
+			TargetID:   subject,
+			Outcome:    "ALERT",
+			OccurredAt: now,
+		}, ""); err != nil {
+			return false, fmt.Errorf("append %s alert: %w", kind, err)
 		}
 
 	case domain.EventKindWebhookBadSignature:

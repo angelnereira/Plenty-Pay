@@ -77,3 +77,19 @@ func (r *SecurityReporter) ReportTokenReuse(ctx context.Context, userID, ip stri
 	}
 	return nil
 }
+
+// ReportSecurityEvent reporta un evento de la confirmación fuerte (STEP_UP_FAILED, PIN_LOCKED,
+// PASSKEY_COUNTER_REGRESSION; ADR 0020). Implementa service.SecurityEventReporter.
+func (r *SecurityReporter) ReportSecurityEvent(ctx context.Context, kind, userID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, err := r.client.ReportSecurityEvent(ctx, &pb.ReportSecurityEventRequest{
+		Kind:           kind,
+		Subject:        userID,
+		IdempotencyKey: fmt.Sprintf("%s:%s:%d", kind, userID, time.Now().UnixNano()),
+	})
+	if err != nil {
+		return fmt.Errorf("report %s: %w", kind, err)
+	}
+	return nil
+}

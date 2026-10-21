@@ -27,7 +27,6 @@ type IdentityServer struct {
 	users    store.UserStore
 	tokens   *auth.TokenIssuer
 	svc      *service.IdentityService
-	stepUp   *auth.StepUpManager
 	reporter *observability.Reporter
 	metrics  *observability.Metrics
 	// now es el reloj del servidor; se inyecta para que las pruebas sean deterministas.
@@ -37,13 +36,13 @@ type IdentityServer struct {
 // NewIdentityServer cablea el servicio de identity sobre el store recibido.
 func NewIdentityServer(users store.UserStore, tokens *auth.TokenIssuer, reporter *observability.Reporter, metrics *observability.Metrics) *IdentityServer {
 	svc := service.New(users, tokens, reporter, metrics)
-	stepUp := auth.NewStepUpManager()
-	svc.WithStepUp(stepUp)
+	// Sin base de datos (pruebas y E2E sin BD) la confirmación fuerte vive en memoria; main la
+	// reemplaza por PostgreSQL con PP_DB_DSN (R32).
+	svc.WithStrongAuth(store.NewInMemoryStrongAuthStore(), domain.DefaultPinPolicy)
 	return &IdentityServer{
 		users:    users,
 		tokens:   tokens,
 		svc:      svc,
-		stepUp:   stepUp,
 		reporter: reporter,
 		metrics:  metrics,
 		now:      time.Now,
@@ -192,45 +191,6 @@ func (s *IdentityServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenR
 		return nil, status.Error(codes.Internal, observability.Wrap(err, "Refresh").Error())
 	}
 	return toPB(res), nil
-}
-
-// IssueStepUpChallenge emite un reto de confirmación fuerte (Passkey/WebAuthn) atado a la operación.
-// El reto se ata al usuario del token (x-pp-user-id, ADR 0011); el user_id del cuerpo solo se usa
-// en llamadas de servicio sin usuario en el contexto.
-func (s *IdentityServer) IssueStepUpChallenge(ctx context.Context, req *pb.StepUpRequest) (*pb.PasskeyChallenge, error) {
-	userID := tenancy.UserIDFromContext(ctx)
-	if userID == "" {
-		userID = req.UserId
-	}
-	if userID == "" || req.Operation == "" {
-		return nil, ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "el reto necesita usuario y operación")
-	}
-	chID, optionsJSON := s.stepUp.IssueChallenge(userID, req.Operation, req.AmountMinor, req.Currency)
-	return &pb.PasskeyChallenge{
-		ChallengeId:          chID,
-		PublicKeyOptionsJson: optionsJSON,
-	}, nil
-}
-
-// VerifyStepUp valida el reto y emite un token de confirmación de un solo uso (TTL 5 min).
-func (s *IdentityServer) VerifyStepUp(_ context.Context, req *pb.VerifyStepUpRequest) (*pb.StepUpToken, error) {
-	token, expiresAt, err := s.stepUp.VerifyChallenge(req.ChallengeId, req.AssertionJson)
-	if err != nil {
-		return &pb.StepUpToken{}, nil
-	}
-	return &pb.StepUpToken{
-		Token:     token,
-		ExpiresAt: timestamppb.New(expiresAt),
-	}, nil
-}
-
-// ConsumeStepUp valida y consume el token atado a la operación exacta. Single-use.
-func (s *IdentityServer) ConsumeStepUp(_ context.Context, req *pb.ConsumeStepUpRequest) (*pb.ConsumeStepUpResult, error) {
-	valid, reason := s.stepUp.ConsumeToken(req.Token, req.UserId, req.Operation, req.AmountMinor, req.Currency)
-	return &pb.ConsumeStepUpResult{
-		Valid:  valid,
-		Reason: reason,
-	}, nil
 }
 
 // ── Negocios (tenants) ────────────────────────────────────────────────────────
@@ -436,20 +396,24 @@ func toPBRole(r *service.RoleResult) *pb.Role {
 
 // ── Contrasena (F08.7) ────────────────────────────────────────────────────────
 
-// ChangePassword cambia la contrasena (R14 exige step-up; R16 revoca las demas
-// sesiones).
+// ChangePassword cambia la contrasena (R14, R26: consume el token de identity.password.change y el
+// usuario sale de x-pp-user-id; el user_id del cuerpo se ignora; R16 revoca las demas sesiones).
 func (s *IdentityServer) ChangePassword(ctx context.Context, req *pb.ChangePasswordRequest) (*pb.SimpleResult, error) {
-	if req.StepUpToken == "" {
-		return &pb.SimpleResult{Success: false, ErrorMessage: "STEP_UP_REQUIRED"}, nil
+	userID := tenancy.UserIDFromContext(ctx)
+	if userID == "" {
+		return nil, toStatus(domain.ErrUnauthenticated)
+	}
+	if tenancy.StepUpTokenFromContext(ctx) == "" && req.GetStepUpToken() != "" {
+		ctx = tenancy.WithStepUpToken(ctx, req.GetStepUpToken())
 	}
 	keep := ""
 	if req.CurrentPassword != "" {
 		// El cambio conserva la sesion desde la que se hace; el reset no.
 		keep = sessionOf(ctx)
 	}
-	res, err := s.svc.ChangePassword(ctx, req.UserId, req.CurrentPassword, req.NewPassword, keep)
+	res, err := s.svc.ChangePassword(ctx, userID, req.CurrentPassword, req.NewPassword, keep)
 	if err != nil {
-		return &pb.SimpleResult{Success: false, ErrorMessage: "error interno"}, nil
+		return nil, toStatus(err)
 	}
 	if !res.Success {
 		return &pb.SimpleResult{Success: false, ErrorMessage: res.ErrorMessage}, nil

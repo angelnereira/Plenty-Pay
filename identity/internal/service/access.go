@@ -15,25 +15,14 @@ import (
 	"plentypay/identity/internal/tenancy"
 )
 
-// Operaciones de step-up que consume identity (security-standards.md §4, R14). El cliente pide el
+// Operaciones de step-up que consume identity (security-standards.md §4.1, R14). El cliente pide el
 // reto con la misma operación (IssueStepUpChallenge.operation) y manda el token en X-Step-Up-Token.
 const (
-	OpRoleUpsert       = "identity.role.upsert"
-	OpStaffInvite      = "identity.staff.invite"
-	OpMembershipUpdate = "identity.membership.update"
-	OpCapabilitiesSet  = "identity.capabilities.set"
+	OpRoleUpsert       = domain.OpRoleUpsert
+	OpStaffInvite      = domain.OpStaffInvite
+	OpMembershipUpdate = domain.OpMembershipUpdate
+	OpCapabilitiesSet  = domain.OpCapabilitiesSet
 )
-
-// StepUpConsumer consume un token de confirmación fuerte ligado a usuario + operación + monto (R15).
-type StepUpConsumer interface {
-	ConsumeToken(token, userID, operation string, amountMinor int64, currency string) (bool, string)
-}
-
-// WithStepUp activa el consumo de step-up en las operaciones de acceso con permisos de dinero.
-func (s *IdentityService) WithStepUp(c StepUpConsumer) *IdentityService {
-	s.stepUp = c
-	return s
-}
 
 // actor es quien hace la petición, resuelto desde el contexto (tenant y usuario de los metadatos
 // validados, ADR 0011) y con su permiso efectivo calculado por identity, nunca leído del cuerpo.
@@ -114,17 +103,7 @@ func (s *IdentityService) requireMember(ctx context.Context) (*actor, error) {
 
 // requireStepUp consume el token de confirmación fuerte del contexto (x-pp-step-up) para la operación.
 func (s *IdentityService) requireStepUp(ctx context.Context, a *actor, operation string) error {
-	token := tenancy.StepUpTokenFromContext(ctx)
-	if token == "" {
-		return domain.ErrStepUpRequired
-	}
-	if s.stepUp == nil {
-		return domain.ErrStepUpInvalid
-	}
-	if ok, _ := s.stepUp.ConsumeToken(token, a.User.ID, operation, 0, ""); !ok {
-		return domain.ErrStepUpInvalid
-	}
-	return nil
+	return s.requireContextStepUp(ctx, a.User.ID, operation)
 }
 
 // accessFor calcula el permiso efectivo de un usuario (R10, R21, R22, R24).

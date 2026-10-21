@@ -42,6 +42,10 @@ const (
 	EventKindTokenReuse          = "TOKEN_REUSE"
 	EventKindVelocityExceeded    = "VELOCITY_EXCEEDED"
 	EventKindWebhookBadSignature = "WEBHOOK_BAD_SIGNATURE"
+	// Confirmación fuerte (identity, ADR 0020).
+	EventKindStepUpFailed             = "STEP_UP_FAILED"
+	EventKindPinLocked                = "PIN_LOCKED"
+	EventKindPasskeyCounterRegression = "PASSKEY_COUNTER_REGRESSION"
 )
 
 // AllowedEventKinds lista los tipos válidos de SecurityEvent.
@@ -50,6 +54,9 @@ var AllowedEventKinds = map[string]bool{
 	EventKindTokenReuse:          true,
 	EventKindVelocityExceeded:    true,
 	EventKindWebhookBadSignature: true,
+	EventKindStepUpFailed:             true,
+	EventKindPinLocked:                true,
+	EventKindPasskeyCounterRegression: true,
 }
 
 // Secret representa un secreto almacenado en OpenBao / vault.

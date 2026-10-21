@@ -90,7 +90,7 @@ docker build -q -t "$L2_IMAGE" identity >/dev/null
 MIG_OUT=$(docker run --rm --network "$NETWORK" $EPHEMERAL_SECRETS -e PP_MIGRATE_DSN="$MIG_DSN" "$L2_IMAGE" migrate 2>&1 || true)
 MIG_VERSION=$(echo "$MIG_OUT" | grep -oE '"version":[0-9]+' | head -1 | cut -d: -f2 || true)
 [ -n "$MIG_VERSION" ] || echo "$MIG_OUT" | tail -3
-assert_eq "La ultima migracion aplicada es la 0010 (claves de idempotencia)" "10" "$MIG_VERSION"
+assert_eq "La ultima migracion aplicada es la 0011 (confirmación fuerte, ADR 0020)" "11" "$MIG_VERSION"
 
 # 4. Idempotencia: la segunda ejecucion no aplica nada
 MIG_OUT2=$(docker run --rm --network "$NETWORK" $EPHEMERAL_SECRETS -e PP_MIGRATE_DSN="$MIG_DSN" "$L2_IMAGE" migrate 2>&1 || true)
@@ -99,13 +99,13 @@ assert_eq "La segunda ejecucion de migrate no reaplica (idempotente)" "false" "$
 
 # 5. Las tablas y las politicas RLS existen (RLS ACTIVO, ADR 0014)
 TABLES=$(psql_su -d "$L2_DB" -c \
-  "SELECT count(*) FROM pg_tables WHERE schemaname='identity' AND tablename IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches','idempotency_keys')" 2>/dev/null | tr -d '[:space:]')
-assert_eq "Las tablas del esquema identity existen (19)" "19" "$TABLES"
+  "SELECT count(*) FROM pg_tables WHERE schemaname='identity' AND tablename IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches','idempotency_keys','passkeys','webauthn_challenges','step_up_tokens','step_up_pins')" 2>/dev/null | tr -d '[:space:]')
+assert_eq "Las tablas del esquema identity existen (23)" "23" "$TABLES"
 
 RLS_ON=$(psql_su -d "$L2_DB" -c \
   "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-   WHERE n.nspname='identity' AND c.relname IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches','idempotency_keys') AND c.relrowsecurity" 2>/dev/null | tr -d '[:space:]')
-assert_eq "RLS esta activo en las 19 tablas (ADR 0014)" "19" "$RLS_ON"
+   WHERE n.nspname='identity' AND c.relname IN ('users','consents','sessions','refresh_tokens','outbox','login_attempts','tenants','tenant_kyb_documents','roles','role_permissions','user_roles','invitations','password_resets','verticals','tenant_capabilities','branches','memberships','membership_branches','idempotency_keys','passkeys','webauthn_challenges','step_up_tokens','step_up_pins') AND c.relrowsecurity" 2>/dev/null | tr -d '[:space:]')
+assert_eq "RLS esta activo en las 23 tablas (ADR 0014)" "23" "$RLS_ON"
 
 # 6. Compilar las pruebas L2 y ejecutarlas dentro de la red de datos
 echo "  [*] Compilando y ejecutando las pruebas Go L2 del store..."

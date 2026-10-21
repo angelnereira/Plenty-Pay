@@ -21,6 +21,7 @@ import (
 	"plentypay/identity/internal/auth"
 	"plentypay/identity/internal/client"
 	"plentypay/identity/internal/config"
+	"plentypay/identity/internal/domain"
 	"plentypay/identity/internal/events"
 	"plentypay/identity/internal/migrate"
 	"plentypay/identity/internal/observability"
@@ -119,6 +120,7 @@ func main() {
 		roles     store.RoleStore
 		passwords store.PasswordStore
 		idem      store.IdempotencyStore
+		strong    store.StrongAuthStore
 	)
 	if dsn := cfg.DBDSN; dsn != "" {
 		pgStore, err := store.NewPostgresUserStore(ctx, dsn)
@@ -133,6 +135,7 @@ func main() {
 		roles = store.NewPostgresRoleStore(pgStore.Pool())
 		passwords = store.NewPostgresPasswordStore(pgStore.Pool())
 		idem = store.NewPostgresIdempotencyStore(pgStore.Pool())
+		strong = store.NewPostgresStrongAuthStore(pgStore.Pool())
 		logger.Info("using postgres user store with sessions and lockout", "dsn_host", dsnHost(dsn))
 	} else {
 		users = store.NewInMemoryUserStore()
@@ -192,6 +195,13 @@ func main() {
 		identitySrv = identitySrv.WithPasswords(passwords)
 		logger.Info("password recovery enabled (F08.7)")
 	}
+	pinPolicy := domain.PinPolicy{MaxAttempts: cfg.PinMaxAttempts, LockFor: time.Duration(cfg.PinLockMinutes) * time.Minute}
+	if strong != nil {
+		// R32: retos, tokens y PIN en PostgreSQL; sin BD quedan en memoria (pruebas y E2E).
+		identitySrv = identitySrv.WithStrongAuth(strong, pinPolicy)
+		logger.Info("strong authentication persisted (R32)", "pin_max_attempts", pinPolicy.MaxAttempts, "pin_lock_minutes", cfg.PinLockMinutes)
+	}
+	go purgeStepUp(purgeCtx, identitySrv, reporter)
 	// Relay del outbox (ADR 0012): publica TenantStatusChanged en JetStream.
 	var relay *events.Relay
 	if tenants != nil && cfg.NATSUrl != "" {
@@ -256,6 +266,22 @@ func main() {
 		fatal("grpc server failed", err)
 	}
 	<-done
+}
+
+// purgeStepUp borra cada hora los retos y tokens de confirmación fuerte vencidos.
+func purgeStepUp(ctx context.Context, srv *server.IdentityServer, reporter *observability.Reporter) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if _, err := srv.PurgeStepUp(ctx); err != nil {
+				reporter.Dependency(ctx, "step-up purge failed", "postgres-db", observability.Wrap(err, "purge step-up"))
+			}
+		}
+	}
 }
 
 // purgeIdempotencyKeys borra cada hora las claves de idempotencia vencidas. Un fallo se registra

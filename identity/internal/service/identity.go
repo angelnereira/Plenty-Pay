@@ -133,7 +133,9 @@ type IdentityService struct {
 	reporter  *observability.Reporter
 	metrics   *observability.Metrics
 	security  SecurityReporter
-	stepUp    StepUpConsumer // nil = las operaciones con dinero responden STEP_UP_INVALID
+	strong    store.StrongAuthStore // nil = las operaciones con confirmación fuerte responden STEP_UP_INVALID
+	pinPolicy domain.PinPolicy
+	passkeys  PasskeyAuthenticator // nil = passkeys apagadas (Q-39)
 	revoked   *revocationCache
 	access    *accessCache // permiso efectivo de la ruta de lectura (TTL 15 s)
 	// now es el reloj inyectado (go-standards.md 3.3): time.Now solo en main.
@@ -146,8 +148,9 @@ func New(users store.UserStore, tokens *auth.TokenIssuer, reporter *observabilit
 		users: users, tokens: tokens, reporter: reporter, metrics: metrics,
 		revoked: newRevocationCache(15 * time.Second),
 		access:  newAccessCache(15 * time.Second),
-		lockout: domain.DefaultLockoutPolicy,
-		now:     time.Now,
+		lockout:   domain.DefaultLockoutPolicy,
+		pinPolicy: domain.DefaultPinPolicy,
+		now:       time.Now,
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 )
 
 // Config es la configuracion ya validada de identity.
@@ -27,6 +28,9 @@ type Config struct {
 	NATSUser         string
 	NATSPass         string
 	MTLSEnforced     bool
+	// Respaldo local de stepup.pin.max_attempts y stepup.pin.lock_minutes (identity/SPEC.md §8).
+	PinMaxAttempts int
+	PinLockMinutes int
 }
 
 // Load lee el entorno y falla con error descriptivo si algo falta o es invalido.
@@ -47,6 +51,13 @@ func Load() (Config, error) {
 		NATSPass:         os.Getenv("PP_NATS_PASS"),
 		MTLSEnforced:     os.Getenv("MTLS_ENFORCED") == "true",
 	}
+	var err error
+	if cfg.PinMaxAttempts, err = positiveInt("STEPUP_PIN_MAX_ATTEMPTS", 3); err != nil {
+		return cfg, err
+	}
+	if cfg.PinLockMinutes, err = positiveInt("STEPUP_PIN_LOCK_MINUTES", 5); err != nil {
+		return cfg, err
+	}
 
 	if len(cfg.AccessSecret) < 32 {
 		return cfg, errors.New("ACCESS_TOKEN_SECRET obligatorio y de al menos 32 caracteres (ver .env.example); nunca hay un secreto por defecto")
@@ -66,6 +77,19 @@ func Load() (Config, error) {
 		}
 	}
 	return cfg, nil
+}
+
+// positiveInt lee un entero > 0 o usa el valor por defecto si la variable no existe.
+func positiveInt(key string, def int) (int, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return def, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return 0, fmt.Errorf("%s debe ser un entero mayor que 0", key)
+	}
+	return n, nil
 }
 
 func getOr(key, def string) string {

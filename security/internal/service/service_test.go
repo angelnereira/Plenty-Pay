@@ -265,3 +265,29 @@ func TestR5_SecurityEvent_TokenReuseBlocksAccount(t *testing.T) {
 		t.Fatalf("motivo esperado TOKEN_REUSE, obtuve %s", reason)
 	}
 }
+
+// ADR 0020 / R5: identity reporta la confirmación fuerte; PIN_LOCKED y PASSKEY_COUNTER_REGRESSION
+// dejan una alerta auditada y STEP_UP_FAILED solo se registra. Ninguno bloquea la cuenta.
+func TestR5_SecurityEvent_StrongAuthKinds(t *testing.T) {
+	svc, _ := newTestService()
+	ctx := context.Background()
+	for _, kind := range []string{domain.EventKindStepUpFailed, domain.EventKindPinLocked, domain.EventKindPasskeyCounterRegression} {
+		blocked, err := svc.ReportSecurityEvent(ctx, kind, "user-confirma", "", 2, nil, "")
+		if err != nil || blocked {
+			t.Fatalf("%s: se acepta sin bloquear: blocked=%v err=%v", kind, blocked, err)
+		}
+	}
+	for action, want := range map[string]int{
+		"security.alert.pin_locked":                 1,
+		"security.alert.passkey_counter_regression": 1,
+		"security.alert.step_up":                    0,
+	} {
+		events, _, err := svc.QueryAuditEvents(ctx, store.AuditFilter{ActionPrefix: action, Limit: 10})
+		if err != nil || len(events) != want {
+			t.Fatalf("%s: se esperaban %d alertas, hay %d (%v)", action, want, len(events), err)
+		}
+	}
+	if blocked, _, _, _ := svc.IsBlocked(ctx, "user-confirma", ""); blocked {
+		t.Fatal("la confirmación fuerte no bloquea la cuenta en security")
+	}
+}

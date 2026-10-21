@@ -9,6 +9,7 @@ import (
 	"plentypay/identity/internal/domain"
 	"plentypay/identity/internal/service"
 	"plentypay/identity/internal/store"
+	"plentypay/identity/internal/tenancy"
 )
 
 // fakePasswordStore implementa store.PasswordStore en memoria.
@@ -90,7 +91,7 @@ func TestR16_ChangePasswordKeepsCurrentSession(t *testing.T) {
 	email := "cambio@example.com"
 	userID := register(t, svc, email).UserID
 
-	res, err := svc.ChangePassword(context.Background(), userID, "una-clave-muy-larga", "otra-clave-muy-larga-2", "sesion-actual")
+	res, err := svc.ChangePassword(passwordStepUp(svc, userID), userID, "una-clave-muy-larga", "otra-clave-muy-larga-2", "sesion-actual")
 	if err != nil || !res.Success {
 		t.Fatalf("ChangePassword: %v %+v", err, res)
 	}
@@ -119,7 +120,7 @@ func TestR16_ChangePassword_WrongCurrent(t *testing.T) {
 	email := "clave-mala@example.com"
 	userID := register(t, svc, email).UserID
 
-	res, err := svc.ChangePassword(context.Background(), userID, "no-es-la-clave", "otra-clave-muy-larga-2", "")
+	res, err := svc.ChangePassword(passwordStepUp(svc, userID), userID, "no-es-la-clave", "otra-clave-muy-larga-2", "")
 	if err != nil {
 		t.Fatalf("ChangePassword: %v", err)
 	}
@@ -237,4 +238,43 @@ func passwordServiceWithSessions(t *testing.T) (*service.IdentityService, *fakeP
 	ps := newFakePasswordStore()
 	svc.WithPasswords(ps)
 	return svc, ps, ss
+}
+
+// passwordStepUp activa la confirmación fuerte en el servicio y devuelve un contexto con el token
+// de identity.password.change obtenido con el PIN (R14, R26).
+func passwordStepUp(svc *service.IdentityService, userID string) context.Context {
+	strong := store.NewInMemoryStrongAuthStore()
+	svc.WithStrongAuth(strong, domain.DefaultPinPolicy)
+	token := pinStepUpToken(svc, strong, userID, domain.OpPasswordChange, 0, "")
+	return tenancy.WithStepUpToken(tenancy.WithUser(context.Background(), userID), token)
+}
+
+// R26 y R14: cambiar la contraseña consume un token de identity.password.change; sin él, o con
+// uno de otra operación, no cambia nada.
+func TestR26_ChangePasswordConsumesStepUp(t *testing.T) {
+	svc, _, _ := passwordServiceWithSessions(t)
+	ps := newFakePasswordStore()
+	svc.WithPasswords(ps)
+	userID := register(t, svc, "cambio-confirmado@example.com").UserID
+	strong := store.NewInMemoryStrongAuthStore()
+	svc.WithStrongAuth(strong, domain.DefaultPinPolicy)
+	ctx := tenancy.WithUser(context.Background(), userID)
+
+	if _, err := svc.ChangePassword(ctx, userID, "una-clave-muy-larga", "otra-clave-muy-larga-2", ""); !errors.Is(err, domain.ErrStepUpRequired) {
+		t.Fatalf("sin token: %v", err)
+	}
+	wrongOp := tenancy.WithStepUpToken(ctx, pinStepUpToken(svc, strong, userID, domain.OpPaymentsRefund, 0, ""))
+	if _, err := svc.ChangePassword(wrongOp, userID, "una-clave-muy-larga", "otra-clave-muy-larga-2", ""); !errors.Is(err, domain.ErrStepUpInvalid) {
+		t.Fatalf("token de otra operación: %v", err)
+	}
+	if ps.changed[userID] != "" {
+		t.Fatal("sin confirmación válida no cambia la contraseña")
+	}
+	ok := tenancy.WithStepUpToken(ctx, pinStepUpToken(svc, strong, userID, domain.OpPasswordChange, 0, ""))
+	if res, err := svc.ChangePassword(ok, userID, "una-clave-muy-larga", "otra-clave-muy-larga-2", ""); err != nil || !res.Success {
+		t.Fatalf("con el token correcto: %v %+v", err, res)
+	}
+	if _, err := svc.ChangePassword(ok, userID, "otra-clave-muy-larga-2", "tercera-clave-muy-larga", ""); !errors.Is(err, domain.ErrStepUpInvalid) {
+		t.Fatalf("el token es de un solo uso: %v", err)
+	}
 }

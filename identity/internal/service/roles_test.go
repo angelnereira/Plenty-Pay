@@ -276,7 +276,7 @@ type accessFixture struct {
 	roles    *fakeRoleStore
 	tenants  *fakeTenantStore
 	sessions *fakeSessionStore
-	stepUp   *auth.StepUpManager
+	strong   *store.InMemoryStrongAuthStore
 }
 
 // newAccessFixture arma un negocio A (retail) con dueño, sucursales Casa Matriz y Colón, y un
@@ -288,9 +288,9 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	rs.users = fs
 	ts := newFakeTenantStore()
 	ss := newFakeSessionStore()
-	stepUp := auth.NewStepUpManager()
+	strong := store.NewInMemoryStrongAuthStore()
 	svc, _ := newService(fs)
-	svc.WithSessions(ss).WithRoles(rs).WithTenants(ts).WithStepUp(stepUp)
+	svc.WithSessions(ss).WithRoles(rs).WithTenants(ts).WithStrongAuth(strong, domain.DefaultPinPolicy)
 
 	caps := []domain.CapabilityState{}
 	for c, src := range auth.DeriveCapabilities("retail", nil, nil) {
@@ -303,7 +303,7 @@ func newAccessFixture(t *testing.T) *accessFixture {
 			{ID: branchCo, TenantID: tenantA, Code: "0001", Name: "Colón", Active: true}},
 		tenantB: {{ID: branchXX, TenantID: tenantB, Code: "0000", Name: "Otra", Active: true}},
 	}
-	f := &accessFixture{svc: svc, users: fs, roles: rs, tenants: ts, sessions: ss, stepUp: stepUp}
+	f := &accessFixture{svc: svc, users: fs, roles: rs, tenants: ts, sessions: ss, strong: strong}
 	f.addMember(t, "owner-a", "BUSINESS_OWNER", tenantA, "", domain.ScopeTenant, nil)
 	return f
 }
@@ -329,14 +329,10 @@ func as(userID, tenantID string) context.Context {
 	return tenancy.WithTenant(tenancy.WithUser(context.Background(), userID), tenantID)
 }
 
-// withStepUp agrega un token de confirmación fuerte válido para la operación.
+// withStepUp agrega un token de confirmación fuerte válido para la operación, obtenido con el PIN
+// verificado por identity (ADR 0020), igual que la app.
 func (f *accessFixture) withStepUp(ctx context.Context, userID, operation string) context.Context {
-	id, _ := f.stepUp.IssueChallenge(userID, operation, 0, "")
-	token, _, err := f.stepUp.VerifyChallenge(id, nil)
-	if err != nil {
-		panic(err)
-	}
-	return tenancy.WithStepUpToken(ctx, token)
+	return tenancy.WithStepUpToken(ctx, pinStepUpToken(f.svc, f.strong, userID, operation, 0, ""))
 }
 
 // ── R12: roles del negocio ────────────────────────────────────────────────────

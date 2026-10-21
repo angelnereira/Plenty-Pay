@@ -19,11 +19,16 @@ type PasswordResult struct {
 // ChangePassword cambia la contrasena del usuario (R14 exige step-up; R16 revoca
 // las demas sesiones). keepSessionID vacio revoca todas.
 func (s *IdentityService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword, keepSessionID string) (*PasswordResult, error) {
-	if s.passwords == nil {
-		return &PasswordResult{ErrorMessage: "error interno"}, nil
-	}
 	if err := domain.ValidatePassword(newPassword); err != nil {
 		return &PasswordResult{Reason: "WEAK_PASSWORD", ErrorMessage: "la contrasena debe tener entre 12 y 128 caracteres"}, nil
+	}
+	// R14/R26: el token se consume antes de comparar la contraseña actual, para que esta ruta no
+	// sirva para adivinarla sin confirmación fuerte.
+	if err := s.requireContextStepUp(ctx, userID, domain.OpPasswordChange); err != nil {
+		return nil, err
+	}
+	if s.passwords == nil {
+		return &PasswordResult{ErrorMessage: "error interno"}, nil
 	}
 	user, err := s.users.FindByID(ctx, userID)
 	if err != nil {
