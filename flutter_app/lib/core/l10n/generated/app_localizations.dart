@@ -6518,6 +6518,558 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'La foto debe ser JPEG, PNG o WebP.'**
   String get error_UNSUPPORTED_FILE_TYPE;
+
+  /// No description provided for @error_PROFILE_MISSING.
+  ///
+  /// In es, this message translates to:
+  /// **'Completa tu perfil fiscal para facturar.'**
+  String get error_PROFILE_MISSING;
+
+  /// No description provided for @error_INVALID_RUC.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisa el RUC y el DV: el DV son 2 dígitos.'**
+  String get error_INVALID_RUC;
+
+  /// No description provided for @error_INVALID_TAXPAYER.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisa los datos del cliente fiscal.'**
+  String get error_INVALID_TAXPAYER;
+
+  /// No description provided for @error_TOTALS_MISMATCH.
+  ///
+  /// In es, this message translates to:
+  /// **'Los montos no cuadran. Revisa las líneas.'**
+  String get error_TOTALS_MISMATCH;
+
+  /// No description provided for @error_PAC_NOT_CONFIGURED.
+  ///
+  /// In es, this message translates to:
+  /// **'Producción estará disponible cuando se contrate el proveedor de facturación.'**
+  String get error_PAC_NOT_CONFIGURED;
+
+  /// No description provided for @error_RELATED_NOT_ACCEPTED.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo se emiten notas sobre facturas autorizadas.'**
+  String get error_RELATED_NOT_ACCEPTED;
+
+  /// No description provided for @error_EXCEEDS_ORIGINAL.
+  ///
+  /// In es, this message translates to:
+  /// **'Las notas de crédito superan el total de la factura.'**
+  String get error_EXCEEDS_ORIGINAL;
+
+  /// No description provided for @fiscalInvoicesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Documentos fiscales'**
+  String get fiscalInvoicesTitle;
+
+  /// No description provided for @fiscalTaxpayersTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Clientes fiscales'**
+  String get fiscalTaxpayersTitle;
+
+  /// No description provided for @fiscalDemoBanner.
+  ///
+  /// In es, this message translates to:
+  /// **'Modo de prueba: los documentos no tienen validez fiscal.'**
+  String get fiscalDemoBanner;
+
+  /// No description provided for @fiscalDocInvoice.
+  ///
+  /// In es, this message translates to:
+  /// **'Factura'**
+  String get fiscalDocInvoice;
+
+  /// No description provided for @fiscalDocCredit.
+  ///
+  /// In es, this message translates to:
+  /// **'Nota de crédito'**
+  String get fiscalDocCredit;
+
+  /// No description provided for @fiscalDocDebit.
+  ///
+  /// In es, this message translates to:
+  /// **'Nota de débito'**
+  String get fiscalDocDebit;
+
+  /// No description provided for @fiscalStatusDraft.
+  ///
+  /// In es, this message translates to:
+  /// **'Borrador'**
+  String get fiscalStatusDraft;
+
+  /// No description provided for @fiscalStatusQueued.
+  ///
+  /// In es, this message translates to:
+  /// **'En cola'**
+  String get fiscalStatusQueued;
+
+  /// No description provided for @fiscalStatusSent.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviada'**
+  String get fiscalStatusSent;
+
+  /// No description provided for @fiscalStatusAccepted.
+  ///
+  /// In es, this message translates to:
+  /// **'Autorizada'**
+  String get fiscalStatusAccepted;
+
+  /// No description provided for @fiscalStatusRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazada'**
+  String get fiscalStatusRejected;
+
+  /// No description provided for @fiscalStatusVoided.
+  ///
+  /// In es, this message translates to:
+  /// **'Anulada'**
+  String get fiscalStatusVoided;
+
+  /// No description provided for @fiscalFilterAllTypes.
+  ///
+  /// In es, this message translates to:
+  /// **'Todos los tipos'**
+  String get fiscalFilterAllTypes;
+
+  /// No description provided for @fiscalFilterAllStatuses.
+  ///
+  /// In es, this message translates to:
+  /// **'Todos los estados'**
+  String get fiscalFilterAllStatuses;
+
+  /// No description provided for @fiscalInvoicesEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no hay documentos fiscales.'**
+  String get fiscalInvoicesEmpty;
+
+  /// No description provided for @fiscalNewInvoice.
+  ///
+  /// In es, this message translates to:
+  /// **'Nueva factura'**
+  String get fiscalNewInvoice;
+
+  /// No description provided for @fiscalFinalConsumer.
+  ///
+  /// In es, this message translates to:
+  /// **'Consumidor final'**
+  String get fiscalFinalConsumer;
+
+  /// No description provided for @fiscalCustomer.
+  ///
+  /// In es, this message translates to:
+  /// **'Cliente'**
+  String get fiscalCustomer;
+
+  /// No description provided for @fiscalChooseCustomer.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegir cliente frecuente'**
+  String get fiscalChooseCustomer;
+
+  /// No description provided for @fiscalLines.
+  ///
+  /// In es, this message translates to:
+  /// **'Líneas'**
+  String get fiscalLines;
+
+  /// No description provided for @fiscalAddLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar línea'**
+  String get fiscalAddLine;
+
+  /// No description provided for @fiscalRemoveLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Quitar línea'**
+  String get fiscalRemoveLine;
+
+  /// No description provided for @fiscalLineDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Concepto'**
+  String get fiscalLineDescription;
+
+  /// No description provided for @fiscalLineQty.
+  ///
+  /// In es, this message translates to:
+  /// **'Cantidad'**
+  String get fiscalLineQty;
+
+  /// No description provided for @fiscalLinePrice.
+  ///
+  /// In es, this message translates to:
+  /// **'Precio'**
+  String get fiscalLinePrice;
+
+  /// No description provided for @fiscalLineRate.
+  ///
+  /// In es, this message translates to:
+  /// **'ITBMS'**
+  String get fiscalLineRate;
+
+  /// No description provided for @fiscalExempt.
+  ///
+  /// In es, this message translates to:
+  /// **'Exento'**
+  String get fiscalExempt;
+
+  /// No description provided for @fiscalRatePercent.
+  ///
+  /// In es, this message translates to:
+  /// **'{percent} %'**
+  String fiscalRatePercent(Object percent);
+
+  /// No description provided for @fiscalPaymentMethod.
+  ///
+  /// In es, this message translates to:
+  /// **'Medio de pago'**
+  String get fiscalPaymentMethod;
+
+  /// No description provided for @fiscalPayCash.
+  ///
+  /// In es, this message translates to:
+  /// **'Efectivo'**
+  String get fiscalPayCash;
+
+  /// No description provided for @fiscalPayCard.
+  ///
+  /// In es, this message translates to:
+  /// **'Tarjeta'**
+  String get fiscalPayCard;
+
+  /// No description provided for @fiscalPayTransfer.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferencia'**
+  String get fiscalPayTransfer;
+
+  /// No description provided for @fiscalPayWallet.
+  ///
+  /// In es, this message translates to:
+  /// **'Billetera'**
+  String get fiscalPayWallet;
+
+  /// No description provided for @fiscalSubtotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Subtotal'**
+  String get fiscalSubtotal;
+
+  /// No description provided for @fiscalTax.
+  ///
+  /// In es, this message translates to:
+  /// **'ITBMS'**
+  String get fiscalTax;
+
+  /// No description provided for @fiscalTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Total'**
+  String get fiscalTotal;
+
+  /// No description provided for @fiscalIssue.
+  ///
+  /// In es, this message translates to:
+  /// **'Emitir factura'**
+  String get fiscalIssue;
+
+  /// No description provided for @fiscalIssued.
+  ///
+  /// In es, this message translates to:
+  /// **'Factura en cola para autorización.'**
+  String get fiscalIssued;
+
+  /// No description provided for @fiscalCopyCufe.
+  ///
+  /// In es, this message translates to:
+  /// **'Copiar CUFE'**
+  String get fiscalCopyCufe;
+
+  /// No description provided for @fiscalCopied.
+  ///
+  /// In es, this message translates to:
+  /// **'Copiado.'**
+  String get fiscalCopied;
+
+  /// No description provided for @fiscalPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Comprobante en proceso de autorización.'**
+  String get fiscalPending;
+
+  /// No description provided for @fiscalRejectionReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo del PAC: {reason}'**
+  String fiscalRejectionReason(Object reason);
+
+  /// No description provided for @fiscalIssueCreditNote.
+  ///
+  /// In es, this message translates to:
+  /// **'Emitir nota de crédito'**
+  String get fiscalIssueCreditNote;
+
+  /// No description provided for @fiscalIssueDebitNote.
+  ///
+  /// In es, this message translates to:
+  /// **'Emitir nota de débito'**
+  String get fiscalIssueDebitNote;
+
+  /// No description provided for @fiscalNoteReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo'**
+  String get fiscalNoteReason;
+
+  /// No description provided for @fiscalNoteIssued.
+  ///
+  /// In es, this message translates to:
+  /// **'Nota en cola para autorización.'**
+  String get fiscalNoteIssued;
+
+  /// No description provided for @fiscalNoteRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe el motivo de la nota.'**
+  String get fiscalNoteRequired;
+
+  /// No description provided for @fiscalIssuer.
+  ///
+  /// In es, this message translates to:
+  /// **'Emisor'**
+  String get fiscalIssuer;
+
+  /// No description provided for @fiscalReceiver.
+  ///
+  /// In es, this message translates to:
+  /// **'Receptor'**
+  String get fiscalReceiver;
+
+  /// No description provided for @fiscalNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'N.º {number}'**
+  String fiscalNumber(Object number);
+
+  /// No description provided for @fiscalTaxpayersEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes clientes fiscales.'**
+  String get fiscalTaxpayersEmpty;
+
+  /// No description provided for @fiscalAddTaxpayer.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar cliente'**
+  String get fiscalAddTaxpayer;
+
+  /// No description provided for @fiscalSearch.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar por nombre o identificación'**
+  String get fiscalSearch;
+
+  /// No description provided for @fiscalIdType.
+  ///
+  /// In es, this message translates to:
+  /// **'Tipo de identificación'**
+  String get fiscalIdType;
+
+  /// No description provided for @fiscalIdRucJuridico.
+  ///
+  /// In es, this message translates to:
+  /// **'RUC persona jurídica'**
+  String get fiscalIdRucJuridico;
+
+  /// No description provided for @fiscalIdRucNatural.
+  ///
+  /// In es, this message translates to:
+  /// **'RUC persona natural'**
+  String get fiscalIdRucNatural;
+
+  /// No description provided for @fiscalIdCedula.
+  ///
+  /// In es, this message translates to:
+  /// **'Cédula'**
+  String get fiscalIdCedula;
+
+  /// No description provided for @fiscalIdPasaporte.
+  ///
+  /// In es, this message translates to:
+  /// **'Pasaporte'**
+  String get fiscalIdPasaporte;
+
+  /// No description provided for @fiscalIdExtranjero.
+  ///
+  /// In es, this message translates to:
+  /// **'Identificación extranjera'**
+  String get fiscalIdExtranjero;
+
+  /// No description provided for @fiscalTaxId.
+  ///
+  /// In es, this message translates to:
+  /// **'RUC o identificación'**
+  String get fiscalTaxId;
+
+  /// No description provided for @fiscalDv.
+  ///
+  /// In es, this message translates to:
+  /// **'DV'**
+  String get fiscalDv;
+
+  /// No description provided for @fiscalLegalName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre o razón social'**
+  String get fiscalLegalName;
+
+  /// No description provided for @fiscalEmail.
+  ///
+  /// In es, this message translates to:
+  /// **'Correo (opcional)'**
+  String get fiscalEmail;
+
+  /// No description provided for @fiscalTaxpayerSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Cliente guardado.'**
+  String get fiscalTaxpayerSaved;
+
+  /// No description provided for @fiscalFieldRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Este campo es obligatorio.'**
+  String get fiscalFieldRequired;
+
+  /// RUC y DV del emisor (N-FMT-06)
+  ///
+  /// In es, this message translates to:
+  /// **'RUC {ruc} · DV {dv}'**
+  String fiscalIssuerData(String ruc, String dv);
+
+  /// No description provided for @fiscalBranch.
+  ///
+  /// In es, this message translates to:
+  /// **'Sucursal'**
+  String get fiscalBranch;
+
+  /// No description provided for @fiscalPos.
+  ///
+  /// In es, this message translates to:
+  /// **'Punto de facturación'**
+  String get fiscalPos;
+
+  /// No description provided for @fiscalPac.
+  ///
+  /// In es, this message translates to:
+  /// **'Proveedor de facturación (PAC)'**
+  String get fiscalPac;
+
+  /// No description provided for @fiscalPacSimulator.
+  ///
+  /// In es, this message translates to:
+  /// **'Simulador (pruebas)'**
+  String get fiscalPacSimulator;
+
+  /// No description provided for @fiscalEnvironment.
+  ///
+  /// In es, this message translates to:
+  /// **'Ambiente'**
+  String get fiscalEnvironment;
+
+  /// No description provided for @fiscalEnvTest.
+  ///
+  /// In es, this message translates to:
+  /// **'Pruebas'**
+  String get fiscalEnvTest;
+
+  /// No description provided for @fiscalEnvProd.
+  ///
+  /// In es, this message translates to:
+  /// **'Producción'**
+  String get fiscalEnvProd;
+
+  /// No description provided for @fiscalProdUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Disponible cuando se contrate el PAC.'**
+  String get fiscalProdUnavailable;
+
+  /// No description provided for @fiscalPreference.
+  ///
+  /// In es, this message translates to:
+  /// **'Qué documento emitir'**
+  String get fiscalPreference;
+
+  /// No description provided for @fiscalPrefAlways.
+  ///
+  /// In es, this message translates to:
+  /// **'Siempre factura'**
+  String get fiscalPrefAlways;
+
+  /// No description provided for @fiscalPrefInternal.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo recibo interno'**
+  String get fiscalPrefInternal;
+
+  /// No description provided for @fiscalPrefAsk.
+  ///
+  /// In es, this message translates to:
+  /// **'Preguntar'**
+  String get fiscalPrefAsk;
+
+  /// No description provided for @fiscalPrefAuto.
+  ///
+  /// In es, this message translates to:
+  /// **'Automático desde un monto'**
+  String get fiscalPrefAuto;
+
+  /// No description provided for @fiscalThreshold.
+  ///
+  /// In es, this message translates to:
+  /// **'Facturar desde'**
+  String get fiscalThreshold;
+
+  /// No description provided for @fiscalFolios.
+  ///
+  /// In es, this message translates to:
+  /// **'Folios disponibles: {count}'**
+  String fiscalFolios(Object count);
+
+  /// No description provided for @fiscalFoliosUnlimited.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin límite de folios'**
+  String get fiscalFoliosUnlimited;
+
+  /// No description provided for @fiscalProfileSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Perfil fiscal guardado.'**
+  String get fiscalProfileSaved;
+
+  /// No description provided for @fiscalNoProfileYet.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes perfil fiscal. Complétalo para facturar.'**
+  String get fiscalNoProfileYet;
+
+  /// No description provided for @stepUpOpCredentials.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar la facturación electrónica'**
+  String get stepUpOpCredentials;
 }
 
 class _AppLocalizationsDelegate

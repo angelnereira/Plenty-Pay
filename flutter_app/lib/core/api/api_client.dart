@@ -479,6 +479,59 @@ class ApiClient {
   /// Tasas de ITBMS vigentes (`legal.pa.itbms.*`): la app nunca las lleva en su código.
   Future<Map<String, dynamic>> getTaxRates() => _get('/v1/catalog/tax-rates');
 
+  // ── Facturación electrónica (fiscal-invoicing, api-gateway SPEC §4.3) ──────
+  // El negocio sale del token; ninguna llamada manda tenant_id (ADR 0011).
+
+  Future<Map<String, dynamic>> getFiscalProfile() => _get('/v1/fiscal/profile');
+
+  /// 🔒 `security.credentials.update`: sin token responde STEP_UP_REQUIRED.
+  Future<Map<String, dynamic>> configureFiscalProfile(Map<String, Object?> profile,
+          {required String idempotencyKey, String? stepUpToken}) =>
+      _put('/v1/fiscal/profile',
+          data: {'profile': profile},
+          headers: _stepUpHeaders(stepUpToken),
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> getFolioStatus() => _get('/v1/fiscal/folios');
+
+  Future<Map<String, dynamic>> listInvoices(
+          {String status = '', String documentType = '', String pageToken = ''}) =>
+      _get('/v1/fiscal/invoices', queryParameters: {
+        if (status.isNotEmpty) 'status': status,
+        if (documentType.isNotEmpty) 'document_type': documentType,
+        if (pageToken.isNotEmpty) 'page_token': pageToken,
+        'page_size': '50',
+      });
+
+  Future<Map<String, dynamic>> getInvoice(String invoiceId) =>
+      _get('/v1/fiscal/invoices/${Uri.encodeComponent(invoiceId)}');
+
+  Future<Map<String, dynamic>> issueInvoice(Map<String, Object?> body,
+          {required String idempotencyKey}) =>
+      _post('/v1/fiscal/invoices', data: body, idempotencyKey: idempotencyKey);
+
+  /// Nota de crédito (credit=true) o de débito sobre una factura autorizada.
+  Future<Map<String, dynamic>> issueNote(String invoiceId,
+          {required bool credit,
+          required Map<String, Object?> body,
+          required String idempotencyKey}) =>
+      _post(
+          '/v1/fiscal/invoices/${Uri.encodeComponent(invoiceId)}/${credit ? 'credit' : 'debit'}-notes',
+          data: body,
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> searchTaxpayers(String query, {String pageToken = ''}) =>
+      _get('/v1/fiscal/taxpayers', queryParameters: {
+        'q': query,
+        if (pageToken.isNotEmpty) 'page_token': pageToken,
+        'page_size': '50',
+      });
+
+  Future<Map<String, dynamic>> upsertTaxpayer(Map<String, Object?> taxpayer,
+          {required String idempotencyKey}) =>
+      _put('/v1/fiscal/taxpayers',
+          data: {'taxpayer': taxpayer}, idempotencyKey: idempotencyKey);
+
   Future<Map<String, dynamic>> upsertCategory(
           {String id = '', required String name, String parentId = ''}) =>
       _post('/v1/catalog/categories',

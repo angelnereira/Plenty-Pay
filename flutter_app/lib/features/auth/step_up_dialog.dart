@@ -76,6 +76,7 @@ String stepUpOperationLabel(AppLocalizations l10n, String operation, {String? fa
       'identity.capabilities.set' => l10n.stepUpOpCapabilities,
       'identity.password.change' => l10n.stepUpOpPasswordChange,
       'identity.pin.set' => l10n.stepUpOpPinSet,
+      'security.credentials.update' => l10n.stepUpOpCredentials,
       _ => fallback ?? l10n.stepUpTitle,
     };
 

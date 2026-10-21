@@ -3506,4 +3506,295 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get error_UNSUPPORTED_FILE_TYPE =>
       'The photo must be JPEG, PNG or WebP.';
+
+  @override
+  String get error_PROFILE_MISSING =>
+      'Complete your tax profile to issue invoices.';
+
+  @override
+  String get error_INVALID_RUC => 'Check the RUC and DV: the DV has 2 digits.';
+
+  @override
+  String get error_INVALID_TAXPAYER => 'Check the tax customer details.';
+
+  @override
+  String get error_TOTALS_MISMATCH =>
+      'The amounts don\'t add up. Check the lines.';
+
+  @override
+  String get error_PAC_NOT_CONFIGURED =>
+      'Production will be available once the invoicing provider is contracted.';
+
+  @override
+  String get error_RELATED_NOT_ACCEPTED =>
+      'Notes can only be issued for authorized invoices.';
+
+  @override
+  String get error_EXCEEDS_ORIGINAL => 'Credit notes exceed the invoice total.';
+
+  @override
+  String get fiscalInvoicesTitle => 'Tax documents';
+
+  @override
+  String get fiscalTaxpayersTitle => 'Tax customers';
+
+  @override
+  String get fiscalDemoBanner => 'Test mode: documents have no tax validity.';
+
+  @override
+  String get fiscalDocInvoice => 'Invoice';
+
+  @override
+  String get fiscalDocCredit => 'Credit note';
+
+  @override
+  String get fiscalDocDebit => 'Debit note';
+
+  @override
+  String get fiscalStatusDraft => 'Draft';
+
+  @override
+  String get fiscalStatusQueued => 'Queued';
+
+  @override
+  String get fiscalStatusSent => 'Sent';
+
+  @override
+  String get fiscalStatusAccepted => 'Authorized';
+
+  @override
+  String get fiscalStatusRejected => 'Rejected';
+
+  @override
+  String get fiscalStatusVoided => 'Voided';
+
+  @override
+  String get fiscalFilterAllTypes => 'All types';
+
+  @override
+  String get fiscalFilterAllStatuses => 'All statuses';
+
+  @override
+  String get fiscalInvoicesEmpty => 'There are no tax documents yet.';
+
+  @override
+  String get fiscalNewInvoice => 'New invoice';
+
+  @override
+  String get fiscalFinalConsumer => 'Final consumer';
+
+  @override
+  String get fiscalCustomer => 'Customer';
+
+  @override
+  String get fiscalChooseCustomer => 'Choose a frequent customer';
+
+  @override
+  String get fiscalLines => 'Lines';
+
+  @override
+  String get fiscalAddLine => 'Add line';
+
+  @override
+  String get fiscalRemoveLine => 'Remove line';
+
+  @override
+  String get fiscalLineDescription => 'Description';
+
+  @override
+  String get fiscalLineQty => 'Quantity';
+
+  @override
+  String get fiscalLinePrice => 'Price';
+
+  @override
+  String get fiscalLineRate => 'ITBMS';
+
+  @override
+  String get fiscalExempt => 'Exempt';
+
+  @override
+  String fiscalRatePercent(Object percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get fiscalPaymentMethod => 'Payment method';
+
+  @override
+  String get fiscalPayCash => 'Cash';
+
+  @override
+  String get fiscalPayCard => 'Card';
+
+  @override
+  String get fiscalPayTransfer => 'Transfer';
+
+  @override
+  String get fiscalPayWallet => 'Wallet';
+
+  @override
+  String get fiscalSubtotal => 'Subtotal';
+
+  @override
+  String get fiscalTax => 'ITBMS';
+
+  @override
+  String get fiscalTotal => 'Total';
+
+  @override
+  String get fiscalIssue => 'Issue invoice';
+
+  @override
+  String get fiscalIssued => 'Invoice queued for authorization.';
+
+  @override
+  String get fiscalCopyCufe => 'Copy CUFE';
+
+  @override
+  String get fiscalCopied => 'Copied.';
+
+  @override
+  String get fiscalPending => 'Receipt pending authorization.';
+
+  @override
+  String fiscalRejectionReason(Object reason) {
+    return 'Provider\'s reason: $reason';
+  }
+
+  @override
+  String get fiscalIssueCreditNote => 'Issue credit note';
+
+  @override
+  String get fiscalIssueDebitNote => 'Issue debit note';
+
+  @override
+  String get fiscalNoteReason => 'Reason';
+
+  @override
+  String get fiscalNoteIssued => 'Note queued for authorization.';
+
+  @override
+  String get fiscalNoteRequired => 'Enter the reason for the note.';
+
+  @override
+  String get fiscalIssuer => 'Issuer';
+
+  @override
+  String get fiscalReceiver => 'Receiver';
+
+  @override
+  String fiscalNumber(Object number) {
+    return 'No. $number';
+  }
+
+  @override
+  String get fiscalTaxpayersEmpty => 'You don\'t have tax customers yet.';
+
+  @override
+  String get fiscalAddTaxpayer => 'Add customer';
+
+  @override
+  String get fiscalSearch => 'Search by name or ID';
+
+  @override
+  String get fiscalIdType => 'ID type';
+
+  @override
+  String get fiscalIdRucJuridico => 'Company RUC';
+
+  @override
+  String get fiscalIdRucNatural => 'Individual RUC';
+
+  @override
+  String get fiscalIdCedula => 'Cédula';
+
+  @override
+  String get fiscalIdPasaporte => 'Passport';
+
+  @override
+  String get fiscalIdExtranjero => 'Foreign ID';
+
+  @override
+  String get fiscalTaxId => 'RUC or ID';
+
+  @override
+  String get fiscalDv => 'DV';
+
+  @override
+  String get fiscalLegalName => 'Name or company name';
+
+  @override
+  String get fiscalEmail => 'Email (optional)';
+
+  @override
+  String get fiscalTaxpayerSaved => 'Customer saved.';
+
+  @override
+  String get fiscalFieldRequired => 'This field is required.';
+
+  @override
+  String fiscalIssuerData(String ruc, String dv) {
+    return 'RUC $ruc · DV $dv';
+  }
+
+  @override
+  String get fiscalBranch => 'Branch';
+
+  @override
+  String get fiscalPos => 'Point of sale';
+
+  @override
+  String get fiscalPac => 'Invoicing provider (PAC)';
+
+  @override
+  String get fiscalPacSimulator => 'Simulator (test)';
+
+  @override
+  String get fiscalEnvironment => 'Environment';
+
+  @override
+  String get fiscalEnvTest => 'Test';
+
+  @override
+  String get fiscalEnvProd => 'Production';
+
+  @override
+  String get fiscalProdUnavailable => 'Available once the PAC is contracted.';
+
+  @override
+  String get fiscalPreference => 'Which document to issue';
+
+  @override
+  String get fiscalPrefAlways => 'Always an invoice';
+
+  @override
+  String get fiscalPrefInternal => 'Internal receipt only';
+
+  @override
+  String get fiscalPrefAsk => 'Ask';
+
+  @override
+  String get fiscalPrefAuto => 'Automatic above an amount';
+
+  @override
+  String get fiscalThreshold => 'Invoice from';
+
+  @override
+  String fiscalFolios(Object count) {
+    return 'Available folios: $count';
+  }
+
+  @override
+  String get fiscalFoliosUnlimited => 'No folio limit';
+
+  @override
+  String get fiscalProfileSaved => 'Tax profile saved.';
+
+  @override
+  String get fiscalNoProfileYet =>
+      'You don\'t have a tax profile yet. Complete it to issue invoices.';
+
+  @override
+  String get stepUpOpCredentials => 'Set up electronic invoicing';
 }

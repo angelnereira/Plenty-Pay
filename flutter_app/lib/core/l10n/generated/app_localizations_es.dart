@@ -3509,6 +3509,299 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get error_UNSUPPORTED_FILE_TYPE =>
       'La foto debe ser JPEG, PNG o WebP.';
+
+  @override
+  String get error_PROFILE_MISSING =>
+      'Completa tu perfil fiscal para facturar.';
+
+  @override
+  String get error_INVALID_RUC => 'Revisa el RUC y el DV: el DV son 2 dígitos.';
+
+  @override
+  String get error_INVALID_TAXPAYER => 'Revisa los datos del cliente fiscal.';
+
+  @override
+  String get error_TOTALS_MISMATCH =>
+      'Los montos no cuadran. Revisa las líneas.';
+
+  @override
+  String get error_PAC_NOT_CONFIGURED =>
+      'Producción estará disponible cuando se contrate el proveedor de facturación.';
+
+  @override
+  String get error_RELATED_NOT_ACCEPTED =>
+      'Solo se emiten notas sobre facturas autorizadas.';
+
+  @override
+  String get error_EXCEEDS_ORIGINAL =>
+      'Las notas de crédito superan el total de la factura.';
+
+  @override
+  String get fiscalInvoicesTitle => 'Documentos fiscales';
+
+  @override
+  String get fiscalTaxpayersTitle => 'Clientes fiscales';
+
+  @override
+  String get fiscalDemoBanner =>
+      'Modo de prueba: los documentos no tienen validez fiscal.';
+
+  @override
+  String get fiscalDocInvoice => 'Factura';
+
+  @override
+  String get fiscalDocCredit => 'Nota de crédito';
+
+  @override
+  String get fiscalDocDebit => 'Nota de débito';
+
+  @override
+  String get fiscalStatusDraft => 'Borrador';
+
+  @override
+  String get fiscalStatusQueued => 'En cola';
+
+  @override
+  String get fiscalStatusSent => 'Enviada';
+
+  @override
+  String get fiscalStatusAccepted => 'Autorizada';
+
+  @override
+  String get fiscalStatusRejected => 'Rechazada';
+
+  @override
+  String get fiscalStatusVoided => 'Anulada';
+
+  @override
+  String get fiscalFilterAllTypes => 'Todos los tipos';
+
+  @override
+  String get fiscalFilterAllStatuses => 'Todos los estados';
+
+  @override
+  String get fiscalInvoicesEmpty => 'Aún no hay documentos fiscales.';
+
+  @override
+  String get fiscalNewInvoice => 'Nueva factura';
+
+  @override
+  String get fiscalFinalConsumer => 'Consumidor final';
+
+  @override
+  String get fiscalCustomer => 'Cliente';
+
+  @override
+  String get fiscalChooseCustomer => 'Elegir cliente frecuente';
+
+  @override
+  String get fiscalLines => 'Líneas';
+
+  @override
+  String get fiscalAddLine => 'Agregar línea';
+
+  @override
+  String get fiscalRemoveLine => 'Quitar línea';
+
+  @override
+  String get fiscalLineDescription => 'Concepto';
+
+  @override
+  String get fiscalLineQty => 'Cantidad';
+
+  @override
+  String get fiscalLinePrice => 'Precio';
+
+  @override
+  String get fiscalLineRate => 'ITBMS';
+
+  @override
+  String get fiscalExempt => 'Exento';
+
+  @override
+  String fiscalRatePercent(Object percent) {
+    return '$percent %';
+  }
+
+  @override
+  String get fiscalPaymentMethod => 'Medio de pago';
+
+  @override
+  String get fiscalPayCash => 'Efectivo';
+
+  @override
+  String get fiscalPayCard => 'Tarjeta';
+
+  @override
+  String get fiscalPayTransfer => 'Transferencia';
+
+  @override
+  String get fiscalPayWallet => 'Billetera';
+
+  @override
+  String get fiscalSubtotal => 'Subtotal';
+
+  @override
+  String get fiscalTax => 'ITBMS';
+
+  @override
+  String get fiscalTotal => 'Total';
+
+  @override
+  String get fiscalIssue => 'Emitir factura';
+
+  @override
+  String get fiscalIssued => 'Factura en cola para autorización.';
+
+  @override
+  String get fiscalCopyCufe => 'Copiar CUFE';
+
+  @override
+  String get fiscalCopied => 'Copiado.';
+
+  @override
+  String get fiscalPending => 'Comprobante en proceso de autorización.';
+
+  @override
+  String fiscalRejectionReason(Object reason) {
+    return 'Motivo del PAC: $reason';
+  }
+
+  @override
+  String get fiscalIssueCreditNote => 'Emitir nota de crédito';
+
+  @override
+  String get fiscalIssueDebitNote => 'Emitir nota de débito';
+
+  @override
+  String get fiscalNoteReason => 'Motivo';
+
+  @override
+  String get fiscalNoteIssued => 'Nota en cola para autorización.';
+
+  @override
+  String get fiscalNoteRequired => 'Escribe el motivo de la nota.';
+
+  @override
+  String get fiscalIssuer => 'Emisor';
+
+  @override
+  String get fiscalReceiver => 'Receptor';
+
+  @override
+  String fiscalNumber(Object number) {
+    return 'N.º $number';
+  }
+
+  @override
+  String get fiscalTaxpayersEmpty => 'Aún no tienes clientes fiscales.';
+
+  @override
+  String get fiscalAddTaxpayer => 'Agregar cliente';
+
+  @override
+  String get fiscalSearch => 'Buscar por nombre o identificación';
+
+  @override
+  String get fiscalIdType => 'Tipo de identificación';
+
+  @override
+  String get fiscalIdRucJuridico => 'RUC persona jurídica';
+
+  @override
+  String get fiscalIdRucNatural => 'RUC persona natural';
+
+  @override
+  String get fiscalIdCedula => 'Cédula';
+
+  @override
+  String get fiscalIdPasaporte => 'Pasaporte';
+
+  @override
+  String get fiscalIdExtranjero => 'Identificación extranjera';
+
+  @override
+  String get fiscalTaxId => 'RUC o identificación';
+
+  @override
+  String get fiscalDv => 'DV';
+
+  @override
+  String get fiscalLegalName => 'Nombre o razón social';
+
+  @override
+  String get fiscalEmail => 'Correo (opcional)';
+
+  @override
+  String get fiscalTaxpayerSaved => 'Cliente guardado.';
+
+  @override
+  String get fiscalFieldRequired => 'Este campo es obligatorio.';
+
+  @override
+  String fiscalIssuerData(String ruc, String dv) {
+    return 'RUC $ruc · DV $dv';
+  }
+
+  @override
+  String get fiscalBranch => 'Sucursal';
+
+  @override
+  String get fiscalPos => 'Punto de facturación';
+
+  @override
+  String get fiscalPac => 'Proveedor de facturación (PAC)';
+
+  @override
+  String get fiscalPacSimulator => 'Simulador (pruebas)';
+
+  @override
+  String get fiscalEnvironment => 'Ambiente';
+
+  @override
+  String get fiscalEnvTest => 'Pruebas';
+
+  @override
+  String get fiscalEnvProd => 'Producción';
+
+  @override
+  String get fiscalProdUnavailable => 'Disponible cuando se contrate el PAC.';
+
+  @override
+  String get fiscalPreference => 'Qué documento emitir';
+
+  @override
+  String get fiscalPrefAlways => 'Siempre factura';
+
+  @override
+  String get fiscalPrefInternal => 'Solo recibo interno';
+
+  @override
+  String get fiscalPrefAsk => 'Preguntar';
+
+  @override
+  String get fiscalPrefAuto => 'Automático desde un monto';
+
+  @override
+  String get fiscalThreshold => 'Facturar desde';
+
+  @override
+  String fiscalFolios(Object count) {
+    return 'Folios disponibles: $count';
+  }
+
+  @override
+  String get fiscalFoliosUnlimited => 'Sin límite de folios';
+
+  @override
+  String get fiscalProfileSaved => 'Perfil fiscal guardado.';
+
+  @override
+  String get fiscalNoProfileYet =>
+      'Aún no tienes perfil fiscal. Complétalo para facturar.';
+
+  @override
+  String get stepUpOpCredentials => 'Configurar la facturación electrónica';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

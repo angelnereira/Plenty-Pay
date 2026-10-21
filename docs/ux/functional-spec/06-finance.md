@@ -10,10 +10,11 @@ Módulo `finance`. Pasos F11.9 (cobros), F12.8 (liquidación), F13.9 (fiscal). C
 | e1 | Selector | Hoy · 7 días · Mes · Rango | — |
 | e2 | Tarjetas | Cobrado {x} · Comisiones {y} · Reembolsos {z} · Neto {w} | Cada una → S-FIN-02 filtrada |
 | e3 | Tarjeta | Por liquidar {monto} · Próxima liquidación: {fecha} | → S-FIN-05 |
-| e4 | Tarjeta | Facturas del mes: {n} autorizadas · {m} pendientes · {k} rechazadas | Rechazadas en `error` → S-FIN-07 |
-| e5 | Tarjeta | Folios disponibles: {n} | En `warning` bajo el mínimo → S-FIN-09 |
+| e4 | Tarjeta | Facturas del mes: {n} autorizadas · {m} pendientes · {k} rechazadas | Rechazadas en `error` → S-FIN-07. *Pendiente*: `ListInvoices` aún no filtra por fecha; no se muestra |
+| e5 | Tarjeta | Folios disponibles: {n} | En `warning` bajo el mínimo → S-FIN-09. Solo con `fiscal:read` y perfil fiscal; sin tope: "Sin límite de folios" |
 | e6 | Tarjeta | ITBMS del mes: {monto} · Declaración antes del 15 de {mes} | → S-FIN-10 |
 | e7 | Gráfico | Cobros por medio de pago | Barras; lista equivalente accesible |
+| e8 | Lista | Cobros · Puntos de cobro · Documentos fiscales · Clientes fiscales · Perfil fiscal | Accesos a S-FIN-02, S-FIN-04, S-FIN-07, S-FIN-08 y S-FIN-09; cada uno solo con su permiso (C-12): `payments:read`, `finance.terminals`, `fiscal:read`, `fiscal:issue`, `fiscal:profile:manage` |
 
 ### S-FIN-02 · `/finance/payments` · Cobros
 `payments:read` · `/v1/payments`. Filtros: rango, estado (Completado, Confirmando, Rechazado, Reembolsado parcial, Reembolsado), medio, origen (Caja, Tienda en línea, Terminal), monto. Lista: fecha, referencia, origen, medio, bruto, neto, `StatusChip`. Exportar (C-20).
@@ -55,7 +56,7 @@ Errores: `REFUND_EXCEEDS_CAPTURED` "El reembolso supera lo cobrado." `MERCHANT_B
 ### S-FIN-07 · `/finance/invoices` · Documentos fiscales
 `fiscal:read` · `/v1/fiscal/invoices` · Reglas: N-FIS-05, N-FIS-08, N-FIS-09
 
-Filtros: rango, tipo (Factura, Nota de crédito, Nota de débito, Recibo interno), estado (Borrador, En cola, Enviada, Autorizada, Rechazada, Anulada), cliente. Lista: número, fecha, cliente, total, `StatusChip`. Botón primario "Nueva factura" (`fiscal:issue`): cliente (S-FIN-08), líneas (producto o concepto libre, cantidad, precio, tasa), medio de pago, vista previa de totales por tasa.
+Filtros: tipo (Factura, Nota de crédito, Nota de débito) y estado (En cola, Enviada, Autorizada, Rechazada, Anulada). *Pendiente*: rango de fechas y cliente (`ListInvoices` aún no filtra por ellos); el recibo interno no es un documento de fiscal-invoicing. Lista: número, fecha, cliente, total, `StatusChip`. Con perfil en ambiente de pruebas, franja C-11 «Modo de prueba: los documentos no tienen validez fiscal.» (R9). Botón primario "Nueva factura" (`fiscal:issue`): cliente frecuente opcional (S-FIN-08; sin cliente = consumidor final), líneas de concepto libre (descripción, cantidad, precio, tasa de ITBMS entre las vigentes; *pendiente*: elegir un producto del catálogo), medio de pago (Efectivo, Tarjeta, Transferencia, Billetera), vista previa de totales. Sin perfil fiscal: `PROFILE_MISSING` con enlace a S-FIN-09.
 
 Detalle (`/finance/invoices/:id`):
 
@@ -65,8 +66,8 @@ Detalle (`/finance/invoices/:id`):
 | e2 | CUFE y QR | CUFE {código} · QR de verificación | Solo si está autorizada. CUFE copiable |
 | e3 | Emisor y receptor | Razón social, RUC, DV, dirección | — |
 | e4 | Líneas y totales | Por tasa de ITBMS | — |
-| e5 | Rechazo | Motivo del PAC: {texto} | Solo en Rechazada, con botón "Corregir y reenviar" |
-| e6 | Acciones | Descargar PDF · Descargar XML · Enviar por correo | — |
+| e5 | Rechazo | Motivo del PAC: {texto} | Solo en Rechazada. *Pendiente*: "Corregir y reenviar" (no existe aún en el contrato) |
+| e6 | Acciones | Descargar PDF · Descargar XML · Enviar por correo | *Pendiente* (fiscal-invoicing bloque C): no se muestra hasta que existan los documentos |
 | e7 | `PPButton.secondary` | Emitir nota de crédito / Emitir nota de débito | `fiscal:note:issue`. Formulario: líneas afectadas, monto, motivo. La suma de créditos no supera el total (`EXCEEDS_ORIGINAL`). Requiere que la factura esté autorizada (`RELATED_NOT_ACCEPTED`) |
 
 No existe "Editar" ni "Eliminar" en un documento autorizado.
@@ -78,13 +79,14 @@ Lista y editor.
 
 | Campo | Validación |
 |---|---|
-| Tipo de receptor | Contribuyente · Consumidor final · Gobierno · Extranjero |
-| RUC | Obligatorio para Contribuyente y Gobierno. Formato según persona natural o jurídica |
+| Tipo de identificación | RUC persona jurídica · RUC persona natural · Cédula · Pasaporte · Identificación extranjera (los del contrato, `Taxpayer.tax_id_type`). El consumidor final no se guarda: es la factura sin cliente |
+| RUC o identificación | RUC con el formato de N-FMT-06; cédula con N-FMT-05; pasaporte o extranjera hasta 30 caracteres |
 | DV | 2 dígitos; obligatorio con RUC. `INVALID_RUC` |
-| Identificación y país | Obligatorios para Extranjero |
-| Nombre o razón social | Obligatorio salvo Consumidor final |
+| Nombre o razón social | Obligatorio |
 | Correo | Opcional; recibe el documento |
-| Dirección | Provincia, distrito, corregimiento y dirección; obligatoria para Contribuyente y Gobierno |
+| Dirección | *Pendiente*: el contrato `Taxpayer` aún no la tiene (se agrega antes de producción, N-FIS-07) |
+
+Lista con buscador (nombre o identificación) y "Agregar cliente" como botón primario.
 
 ### S-FIN-09 · `/finance/fiscal-profile` · Perfil fiscal
 `fiscal:profile:manage` · 🔒 · Reglas: N-FIS-04, N-FIS-10
@@ -92,12 +94,12 @@ Lista y editor.
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
 | e1 | Datos del emisor | RUC · DV · Razón social · Sucursal (código) · Punto de facturación (código) | RUC y razón social vienen del negocio; solo lectura |
-| e2 | Selector | Proveedor de facturación (PAC) | Lista de adaptadores disponibles |
-| e3 | Credenciales | Usuario o token del PAC · Certificado | Se guardan cifradas; después solo se ve "Configurado el {fecha}". Botón "Probar conexión" |
-| e4 | Selector | Ambiente: Pruebas / Producción | Pasar a Producción: C-05 "Tus facturas tendrán validez fiscal." |
+| e2 | Selector | Proveedor de facturación (PAC) | Lista de adaptadores disponibles. Hoy solo "Simulador (pruebas)" (Q-11) |
+| e3 | Credenciales | Usuario o token del PAC · Certificado | Se guardan cifradas en security; después solo se ve "Configurado". No se muestra con el simulador, que no las usa. *Pendiente*: "Probar conexión" (con un PAC real) |
+| e4 | Selector | Ambiente: Pruebas / Producción | Producción deshabilitada con la nota "Disponible cuando se contrate el PAC." (`PAC_NOT_CONFIGURED`, Q-11). Pasar a Producción: C-05 "Tus facturas tendrán validez fiscal." |
 | e5 | Selector | Qué documento emitir: Siempre factura / Solo recibo interno / Preguntar / Automático desde {monto} | — |
-| e6 | Folios | Disponibles {n} · Aviso al quedar {mínimo} | Enlace "Comprar folios" al PAC |
-| e7 | Texto | El facturador gratuito de la DGI solo aplica hasta B/. 36,000 al año y 100 documentos al mes. PlentyPay factura a través de tu PAC. | — |
+| e6 | Folios | Disponibles {n} · Aviso al quedar {mínimo} | Sin tope contratado: "Sin límite de folios". *Pendiente*: "Comprar folios" (con un PAC real) |
+| e7 | Texto | El facturador gratuito de la DGI solo aplica hasta {tope anual} al año y {tope mensual} documentos al mes. PlentyPay factura a través de tu PAC. | *Pendiente*: los topes son valores legales (N-FIS-10) y deben leerse de `legal.pa.*` (AGENTS.md §2.13); no se muestra hasta que existan esos parámetros |
 | e8 | `PPButton.primary` | Guardar | S-GEN-21 |
 
 Sin perfil completo, toda emisión responde `PROFILE_MISSING` "Completa tu perfil fiscal para facturar." con enlace aquí.

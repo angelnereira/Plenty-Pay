@@ -8,14 +8,19 @@ import '../../core/widgets/async_view.dart';
 import '../../core/widgets/money_text.dart';
 import '../wallet/wallet_data.dart' show walletErrorMessage;
 import 'finance_data.dart';
+import '../fiscal/fiscal_data.dart';
+import '../fiscal/fiscal_profile_screen.dart';
+import '../fiscal/invoices_screen.dart';
 import 'payments_list_screen.dart';
+import 'taxpayers_screen.dart';
 import 'terminals_screen.dart';
 
 /// S-FIN-01 · `/finance` · Resumen. Permiso `payments:read`.
 ///
 /// e1 periodo (Hoy · 7 días · Mes) y e2 totales de los cobros reales de payments-core. Las
 /// tarjetas de liquidación (e3), facturas y folios (e4–e5), ITBMS (e6) y el gráfico (e7) llegan con
-/// settlement (F12) y fiscal-invoicing (F13): no se muestran mientras esos servicios no existan.
+/// settlement (F12) y el resumen de facturas (e4, `ListInvoices` aún no filtra por fecha): no se
+/// muestran mientras no existan. e5 folios y e8 accesos a S-FIN-07/08/09 según permiso (C-12).
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key, required this.api});
   final ApiClient api;
@@ -28,6 +33,17 @@ enum _Period { today, week, month }
 
 class _FinanceScreenState extends State<FinanceScreen> {
   late Future<List<PaymentItem>> _future = loadPayments(widget.api);
+  late final Future<Permissions> _perms = widget.api.permissions();
+  Future<int?>? _foliosFuture; // se pide una vez y solo con `fiscal:read`
+
+  /// e5: folios del perfil fiscal; null si no hay perfil o no se pueden leer.
+  Future<int?> _folios() async {
+    final profile = await loadFiscalProfile(widget.api);
+    if (profile == null) return null;
+    final status = await widget.api.getFolioStatus();
+    return int.tryParse('${status['remaining'] ?? -1}') ?? -1;
+  }
+
   _Period _period = _Period.today;
 
   DateTime _since() {
@@ -139,6 +155,71 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   onTap: () => _open(TerminalsScreen(api: widget.api)),
                 ),
               ]),
+            ),
+            FutureBuilder<Permissions>(
+              future: _perms,
+              builder: (context, perms) {
+                final p = perms.data;
+                if (p == null) return const SizedBox.shrink();
+                final tiles = [
+                  if (p.can('fiscal:read'))
+                    ListTile(
+                      leading: const Icon(Icons.description_outlined),
+                      title: Text(l10n.fiscalInvoicesTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _open(InvoicesScreen(
+                          api: widget.api,
+                          canIssue: p.can('fiscal:issue'),
+                          canNote: p.can('fiscal:note:issue'))),
+                    ),
+                  if (p.can('fiscal:issue'))
+                    ListTile(
+                      leading: const Icon(Icons.badge_outlined),
+                      title: Text(l10n.fiscalTaxpayersTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _open(TaxpayersScreen(api: widget.api)),
+                    ),
+                  if (p.can('fiscal:profile:manage'))
+                    ListTile(
+                      leading: const Icon(Icons.settings_outlined),
+                      title: Text(l10n.fiscalProfileTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _open(FiscalProfileScreen(api: widget.api)),
+                    ),
+                ];
+                if (tiles.isEmpty) return const SizedBox.shrink();
+                return Column(children: [
+                  if (p.can('fiscal:read'))
+                    FutureBuilder<int?>(
+                      future: _foliosFuture ??= _folios(),
+                      builder: (context, f) => f.data == null
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              padding: const EdgeInsets.only(
+                                  top: AppTokens.spacingMd),
+                              child: Card(
+                                margin: EdgeInsets.zero,
+                                elevation: 0,
+                                color: theme.colorScheme.surfaceContainerLow,
+                                child: ListTile(
+                                  leading: const Icon(
+                                      Icons.confirmation_number_outlined),
+                                  title: Text(f.data! < 0
+                                      ? l10n.fiscalFoliosUnlimited
+                                      : l10n.fiscalFolios(f.data!)),
+                                ),
+                              ),
+                            ),
+                    ),
+                  const SizedBox(height: AppTokens.spacingMd),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    elevation: 0,
+                    color: theme.colorScheme.surfaceContainerLow,
+                    child: Column(children: tiles),
+                  ),
+                ]);
+              },
             ),
           ],
         ),

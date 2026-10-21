@@ -1,221 +1,279 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/layout/window_class.dart';
+import '../../core/observability/app_logger.dart' show newRequestId;
 import '../../core/theme/tokens.dart';
+import '../../core/widgets/async_view.dart';
 import '../../core/widgets/pp_button.dart';
+import '../../core/widgets/pp_text_field.dart';
+import '../fiscal/fiscal_data.dart';
 
-/// S-FIN-09 · `/finance/taxpayers` · Directorio de contribuyentes y receptores electrónicos frecuentes DGI.
+/// S-FIN-08 · `/finance/taxpayers` · Clientes fiscales. `fiscal:issue` · N-FIS-07, N-FMT-06.
 ///
-/// Permiso: `fiscal:issue`.
-/// Gestión de clientes con RUC y DV guardados para emisión ágil de factura electrónica.
+/// Lista con buscador y "Agregar cliente". Con [pick] la pantalla sirve para elegir el cliente de una
+/// factura y devuelve el elegido. La dirección queda pendiente: el contrato aún no la tiene.
 class TaxpayersScreen extends StatefulWidget {
-  const TaxpayersScreen({super.key, required this.api});
-
+  const TaxpayersScreen({super.key, required this.api, this.pick = false});
   final ApiClient api;
+  final bool pick;
 
   @override
   State<TaxpayersScreen> createState() => _TaxpayersScreenState();
 }
 
 class _TaxpayersScreenState extends State<TaxpayersScreen> {
-  final List<Map<String, dynamic>> _taxpayers = [
-    {
-      'ruc': '155689123-2-2022',
-      'dv': '42',
-      'name': 'CONSTRUCTORA DEL ISTMO S.A.',
-      'email': 'contabilidad@constructoraistmo.pa',
-      'phone': '+507 269-8000',
-      'invoices_count': 14,
-    },
-    {
-      'ruc': '8-745-1289',
-      'dv': '18',
-      'name': 'CARLOS ALBERTO GONZÁLEZ MENDOZA',
-      'email': 'carlos.gonzalez@gmail.com',
-      'phone': '+507 6612-4589',
-      'invoices_count': 6,
-    },
-    {
-      'ruc': '2456789-1-812345',
-      'dv': '90',
-      'name': 'SERVICIOS LOGÍSTICOS DE PANAMÁ CORP.',
-      'email': 'facturacion@slp.com.pa',
-      'phone': '+507 300-4500',
-      'invoices_count': 28,
-    },
-  ];
+  final _search = TextEditingController();
+  Timer? _debounce;
+  late Future<List<TaxpayerItem>> _future = _load();
 
-  void _showAddTaxpayerDialog() {
-    final rucCtrl = TextEditingController();
-    final dvCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
+  Future<List<TaxpayerItem>> _load() async {
+    final body = await widget.api.searchTaxpayers(_search.text.trim());
+    return [
+      for (final t in (body['taxpayers'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>())
+        TaxpayerItem.fromJson(t),
+    ];
+  }
 
-    showModalBottomSheet(
+  void _reload() => setState(() {
+        _future = _load();
+      });
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _edit([TaxpayerItem? current]) async {
+    final saved = await showModalBottomSheet<TaxpayerItem>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      showDragHandle: true,
+      builder: (_) => _TaxpayerSheet(api: widget.api, current: current),
+    );
+    if (saved == null || !mounted) return;
+    if (widget.pick) {
+      Navigator.of(context).pop(saved);
+      return;
+    }
+    _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final margin = WindowClass.of(context).horizontalMargin;
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(widget.pick
+              ? l10n.fiscalChooseCustomer
+              : l10n.fiscalTaxpayersTitle)),
+      body: FutureBuilder<List<TaxpayerItem>>(
+        future: _future,
+        builder: (context, snap) => ListView(
+          padding: EdgeInsets.fromLTRB(
+              margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
           children: [
-            Text('Nuevo receptor fiscal DGI', style: Theme.of(ctx).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: rucCtrl,
-                    decoration: const InputDecoration(labelText: 'RUC / Cédula'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: TextField(
-                    controller: dvCtrl,
-                    decoration: const InputDecoration(labelText: 'DV'),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Razón Social o Nombre legal'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailCtrl,
-              decoration: const InputDecoration(labelText: 'Correo electrónico para facturas'),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              decoration: const InputDecoration(labelText: 'Teléfono de contacto'),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 20),
-            PPButton.primary(
-              label: 'Guardar receptor',
-              onPressed: () {
-                if (rucCtrl.text.trim().isNotEmpty && nameCtrl.text.trim().isNotEmpty) {
-                  setState(() {
-                    _taxpayers.add({
-                      'ruc': rucCtrl.text.trim(),
-                      'dv': dvCtrl.text.trim().isEmpty ? '00' : dvCtrl.text.trim(),
-                      'name': nameCtrl.text.trim().toUpperCase(),
-                      'email': emailCtrl.text.trim(),
-                      'phone': phoneCtrl.text.trim(),
-                      'invoices_count': 0,
-                    });
-                  });
-                  Navigator.pop(ctx);
-                }
+            PPTextField(
+              controller: _search,
+              labelText: l10n.fiscalSearch,
+              prefixIcon: const Icon(Icons.search),
+              onChanged: (_) {
+                _debounce?.cancel();
+                _debounce = Timer(const Duration(milliseconds: 350), _reload);
               },
             ),
+            const SizedBox(height: AppTokens.spacingMd),
+            AsyncView<List<TaxpayerItem>>(
+              snapshot: snap,
+              errorMessage: snap.hasError
+                  ? fiscalErrorMessage(l10n, snap.error!)
+                  : l10n.errorNoConnection,
+              retryLabel: l10n.actionRetry,
+              onRetry: _reload,
+              isEmpty: (list) => list.isEmpty,
+              emptyView: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: AppTokens.spacingLg),
+                child: Text(l10n.fiscalTaxpayersEmpty,
+                    textAlign: TextAlign.center),
+              ),
+              builder: (context, items) => Card(
+                margin: EdgeInsets.zero,
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainerLow,
+                child: Column(children: [
+                  for (final t in items)
+                    ListTile(
+                      leading: const Icon(Icons.badge_outlined),
+                      title: Text(t.legalName),
+                      subtitle: Text(
+                          '${taxIdTypeLabel(l10n, t.taxIdType)} · ${t.taxId}${t.isRuc ? ' DV ${t.checkDigit}' : ''}'),
+                      trailing: Icon(widget.pick
+                          ? Icons.check_circle_outline
+                          : Icons.chevron_right),
+                      onTap: () =>
+                          widget.pick ? Navigator.of(context).pop(t) : _edit(t),
+                    ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spacingLg),
+            PPButton.primary(
+                label: l10n.fiscalAddTaxpayer, onPressed: () => _edit()),
           ],
         ),
       ),
     );
   }
+}
+
+/// Editor de un cliente fiscal (N-FIS-07). Valida el formato en la app; el servidor vuelve a validar.
+class _TaxpayerSheet extends StatefulWidget {
+  const _TaxpayerSheet({required this.api, this.current});
+  final ApiClient api;
+  final TaxpayerItem? current;
+
+  @override
+  State<_TaxpayerSheet> createState() => _TaxpayerSheetState();
+}
+
+class _TaxpayerSheetState extends State<_TaxpayerSheet> {
+  late String _type = widget.current?.taxIdType ?? 'RUC_JURIDICO';
+  late final _taxId = TextEditingController(text: widget.current?.taxId ?? '');
+  late final _dv =
+      TextEditingController(text: widget.current?.checkDigit ?? '');
+  late final _name =
+      TextEditingController(text: widget.current?.legalName ?? '');
+  late final _email = TextEditingController(text: widget.current?.email ?? '');
+  final String _key = newRequestId();
+  bool _saving = false;
+  String? _error;
+  String? _dvError;
+  String? _required;
+
+  bool get _isRuc => _type == 'RUC_JURIDICO' || _type == 'RUC_NATURAL';
+
+  @override
+  void dispose() {
+    _taxId.dispose();
+    _dv.dispose();
+    _name.dispose();
+    _email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final l10n = AppLocalizations.of(context);
+    setState(() {
+      _required = _taxId.text.trim().isEmpty || _name.text.trim().isEmpty
+          ? l10n.fiscalFieldRequired
+          : null;
+      _dvError = _isRuc && !RegExp(r'^\d{2}$').hasMatch(_dv.text.trim())
+          ? l10n.error_INVALID_RUC
+          : null;
+    });
+    if (_required != null || _dvError != null) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final item = TaxpayerItem(
+          id: '',
+          taxId: _taxId.text.trim(),
+          taxIdType: _type,
+          checkDigit: _isRuc ? _dv.text.trim() : '',
+          legalName: _name.text.trim(),
+          email: _email.text.trim());
+      final saved = TaxpayerItem.fromJson(
+          await widget.api.upsertTaxpayer(item.toJson(), idempotencyKey: _key));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.fiscalTaxpayerSaved)));
+      Navigator.of(context).pop(saved);
+    } on Object catch (e) {
+      if (mounted) setState(() => _error = fiscalErrorMessage(l10n, e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Receptores electrónicos DGI'),
-      ),
-      body: SafeArea(
-        child: ListView.separated(
-          padding: const EdgeInsets.all(AppTokens.spacingMd),
-          itemCount: _taxpayers.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final t = _taxpayers[index];
-            return Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                side: BorderSide(color: theme.colorScheme.outlineVariant),
+    final margin = WindowClass.of(context).horizontalMargin;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(margin, 0, margin,
+            AppTokens.spacingLg + MediaQuery.viewInsetsOf(context).bottom),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                    widget.current == null
+                        ? l10n.fiscalAddTaxpayer
+                        : widget.current!.legalName,
+                    style: theme.textTheme.titleLarge),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            t['name'] as String,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'RUC: ${t['ruc']} DV ${t['dv']}',
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              color: theme.colorScheme.onSecondaryContainer,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Correo: ${t['email']}', style: theme.textTheme.bodyMedium),
-                    Text('Teléfono: ${t['phone']}', style: theme.textTheme.bodySmall),
-                    const Divider(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${t['invoices_count']} facturas emitidas', style: theme.textTheme.labelSmall),
-                        TextButton(
-                          child: const Text('Editar datos'),
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              const SizedBox(height: AppTokens.spacingMd),
+              DropdownButtonFormField<String>(
+                initialValue: _type,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: l10n.fiscalIdType),
+                items: [
+                  for (final t in taxIdTypes)
+                    DropdownMenuItem(
+                        value: t, child: Text(taxIdTypeLabel(l10n, t))),
+                ],
+                onChanged: (v) => setState(() => _type = v ?? _type),
               ),
-            );
-          },
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: PPButton.primary(
-            label: 'Agregar nuevo receptor',
-            onPressed: _showAddTaxpayerDialog,
-          ),
-        ),
+              const SizedBox(height: AppTokens.spacingSm),
+              PPTextField(
+                  controller: _taxId,
+                  labelText: l10n.fiscalTaxId,
+                  error: _taxId.text.trim().isEmpty ? _required : null),
+              if (_isRuc) ...[
+                const SizedBox(height: AppTokens.spacingSm),
+                PPTextField(
+                    controller: _dv,
+                    labelText: l10n.fiscalDv,
+                    keyboardType: TextInputType.number,
+                    error: _dvError),
+              ],
+              const SizedBox(height: AppTokens.spacingSm),
+              PPTextField(
+                  controller: _name,
+                  labelText: l10n.fiscalLegalName,
+                  error: _name.text.trim().isEmpty ? _required : null),
+              const SizedBox(height: AppTokens.spacingSm),
+              PPTextField(
+                  controller: _email,
+                  labelText: l10n.fiscalEmail,
+                  keyboardType: TextInputType.emailAddress),
+              if (_error != null) ...[
+                const SizedBox(height: AppTokens.spacingSm),
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+              ],
+              const SizedBox(height: AppTokens.spacingLg),
+              PPButton.primary(
+                  label: l10n.actionSave, onPressed: _saving ? null : _save),
+              const SizedBox(height: AppTokens.spacingSm),
+              PPButton.text(
+                  label: l10n.actionCancel,
+                  onPressed: () => Navigator.of(context).pop()),
+            ]),
       ),
     );
   }

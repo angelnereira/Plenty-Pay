@@ -10,7 +10,9 @@ class FiscalScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Fiscal')),
-      body: Center(child: Text('Fiscal', style: Theme.of(context).textTheme.headlineSmall)),
+      body: Center(
+          child:
+              Text('Fiscal', style: Theme.of(context).textTheme.headlineSmall)),
     );
   }
 }
