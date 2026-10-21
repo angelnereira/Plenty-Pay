@@ -25,6 +25,13 @@ Integrado en `docker-compose.yml`:
 docker compose up -d postgres-db pgbouncer postgres-exporter
 ```
 
+## Permisos de esquema en la base de producción
+La base de producción se creó antes de que `init/00-roles-and-schemas.sql` diera `USAGE, CREATE` sobre cada
+esquema a `<esquema>_svc` y `migrator_<esquema>`; además varios esquemas tenían tablas de esbozo creadas a
+mano por `postgres`. Antes de la primera migración de un servicio: `./scripts/db-grant-schema.sh <esquema>`
+(idempotente; sin esto la migración falla con «failed to open database: no schema»). Aplicado a `fiscal`
+el 2026-10-21.
+
 ## Pruebas de verificación
 ```bash
 ./postgres-db/test/test_isolation.sh
