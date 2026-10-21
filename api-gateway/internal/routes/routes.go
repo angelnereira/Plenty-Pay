@@ -66,14 +66,15 @@ type Route struct {
 
 // Contenedores destino de la tabla (service-dependencies.md §3).
 const (
-	BackendIdentity  = ""
-	BackendPayments  = "payments-core"
-	BackendLedger    = "ledger"
-	BackendCatalog   = "catalog"
-	BackendInventory = "inventory"
-	BackendPos       = "pos"
-	BackendOrders    = "orders"
-	BackendFiscal    = "fiscal-invoicing"
+	BackendIdentity   = ""
+	BackendPayments   = "payments-core"
+	BackendLedger     = "ledger"
+	BackendCatalog    = "catalog"
+	BackendInventory  = "inventory"
+	BackendPos        = "pos"
+	BackendOrders     = "orders"
+	BackendFiscal     = "fiscal-invoicing"
+	BackendSettlement = "settlement"
 )
 
 // FullMethod devuelve el método gRPC normalizado (con barra inicial).

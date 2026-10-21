@@ -182,11 +182,12 @@ func main() {
 		routes.BackendPayments: envOr("PP_PAYMENTS_ADDR", "payments-core:50062"),
 		routes.BackendLedger:   envOr("PP_LEDGER_ADDR", "ledger:50061"),
 		// F15–F17: comercio (catálogo, inventario y caja).
-		routes.BackendCatalog:   envOr("PP_CATALOG_ADDR", "catalog:50065"),
-		routes.BackendInventory: envOr("PP_INVENTORY_ADDR", "inventory:50066"),
-		routes.BackendPos:       envOr("PP_POS_ADDR", "pos:50067"),
-		routes.BackendOrders:    envOr("PP_ORDERS_ADDR", "orders:50075"),
-		routes.BackendFiscal:    envOr("PP_FISCAL_ADDR", "fiscal-invoicing:50064"),
+		routes.BackendCatalog:    envOr("PP_CATALOG_ADDR", "catalog:50065"),
+		routes.BackendInventory:  envOr("PP_INVENTORY_ADDR", "inventory:50066"),
+		routes.BackendPos:        envOr("PP_POS_ADDR", "pos:50067"),
+		routes.BackendOrders:     envOr("PP_ORDERS_ADDR", "orders:50075"),
+		routes.BackendFiscal:     envOr("PP_FISCAL_ADDR", "fiscal-invoicing:50064"),
+		routes.BackendSettlement: envOr("PP_SETTLEMENT_ADDR", "settlement:50063"),
 	} {
 		conn, err := client.NewServiceConn(target, reporter)
 		if err != nil {

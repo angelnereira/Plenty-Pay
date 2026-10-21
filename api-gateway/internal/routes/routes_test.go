@@ -80,14 +80,15 @@ func TestTableRoutesWellFormed(t *testing.T) {
 		}
 		// El RPC pertenece al servicio del contenedor destino de la ruta.
 		prefix := map[string]string{
-			routes.BackendIdentity:  "/plentypay.identity.v1.Identity/",
-			routes.BackendPayments:  "/plentypay.payments.v1.Payments/",
-			routes.BackendLedger:    "/plentypay.ledger.v1.Ledger/",
-			routes.BackendCatalog:   "/plentypay.catalog.v1.Catalog/",
-			routes.BackendInventory: "/plentypay.inventory.v1.Inventory/",
-			routes.BackendPos:       "/plentypay.pos.v1.Pos/",
-			routes.BackendOrders:    "/plentypay.orders.v1.Orders/",
-			routes.BackendFiscal:    "/plentypay.fiscal.v1.FiscalInvoicing/",
+			routes.BackendIdentity:   "/plentypay.identity.v1.Identity/",
+			routes.BackendPayments:   "/plentypay.payments.v1.Payments/",
+			routes.BackendLedger:     "/plentypay.ledger.v1.Ledger/",
+			routes.BackendCatalog:    "/plentypay.catalog.v1.Catalog/",
+			routes.BackendInventory:  "/plentypay.inventory.v1.Inventory/",
+			routes.BackendPos:        "/plentypay.pos.v1.Pos/",
+			routes.BackendOrders:     "/plentypay.orders.v1.Orders/",
+			routes.BackendFiscal:     "/plentypay.fiscal.v1.FiscalInvoicing/",
+			routes.BackendSettlement: "/plentypay.settlement.v1.Settlement/",
 		}[r.Backend]
 		if r.RPC == "" || prefix == "" || !strings.HasPrefix(r.RPC, prefix) {
 			t.Errorf("ruta %s %s: RPC %q inválido para el destino %q", r.Method, r.Path, r.RPC, r.Backend)

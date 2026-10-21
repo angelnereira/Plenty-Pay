@@ -99,9 +99,11 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 ### 4.3 Finanzas del comercio: liquidación y fiscal (F12, F13)
 | Método y ruta | RPC | Permiso |
 |---|---|---|
-| GET `/v1/settlement/balance` | ledger.GetBalance (MERCHANT_PAYABLE) | `settlement:read` |
+| GET `/v1/settlement/summary` | GetPayoutSummary (por liquidar, en proceso y próxima fecha) | `settlement:read` |
 | GET/PUT `/v1/settlement/schedule` 🔒(cambio de destino) | Get/SetPayoutSchedule | `settlement:read` / `settlement:schedule:manage` |
-| GET `/v1/settlement/batches` · `/{id}` | ListBatches · GetBatch | `settlement:read` |
+| GET `/v1/settlement/batches?status=` · `/{id}` | ListBatches · GetBatch | `settlement:read` |
+| POST `/v1/settlement/batches` | CreateBatch («Liquidar ahora») | `settlement:schedule:manage` |
+| GET `/v1/platform/settlement/batches?status=` · POST `/{id}/confirm` · `/{id}/fail` | ListBatches (todos los negocios) · ConfirmPayout · FailPayout | `platform:reconcile` |
 | GET `/v1/platform/reconciliation/exceptions` · POST `/{id}/resolve` | List/ResolveException | `platform:reconcile` |
 | POST `/v1/platform/reconciliation/statements` | ImportRailStatement | `platform:reconcile` |
 | GET/PUT `/v1/fiscal/profile` 🔒 | Get/ConfigureFiscalProfile | `fiscal:read` / `fiscal:profile:manage` |
