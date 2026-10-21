@@ -24,13 +24,16 @@ func TestN_FMT_06_RUCFormat(t *testing.T) {
 	}
 }
 
-// supportsDemo imita el registro de pac: simulador y HKA en DEMO; PROD solo si prodEnabled.
+// providerReal es un PAC cualquiera: el dominio no conoce proveedores.
+const providerReal = "pac-real"
+
+// supports imita el registro de pac: simulador y HKA en DEMO; PROD solo si prodEnabled.
 func supports(prodEnabled bool) Supports {
 	return func(provider, env string) bool {
 		switch provider {
 		case ProviderSimulator:
 			return env == EnvDemo
-		case ProviderHKA:
+		case providerReal:
 			return env == EnvDemo || (env == EnvProd && prodEnabled)
 		}
 		return false
@@ -52,7 +55,7 @@ func TestR10_ProfileValidate(t *testing.T) {
 		t.Fatal("AUTO_THRESHOLD exige umbral")
 	}
 	p = demoProfile()
-	p.PACProvider = ProviderHKA
+	p.PACProvider = providerReal
 	if err := p.Validate(supports(false)); err != nil {
 		t.Fatalf("DEMO con HKA es válido: %v", err)
 	}
@@ -74,7 +77,7 @@ func TestR9_ProdRequiresRealPAC(t *testing.T) {
 	if !errors.Is(p.Validate(supports(true)), ErrPacNotConfigured) {
 		t.Fatal("PROD con el simulador")
 	}
-	p.PACProvider = ProviderHKA
+	p.PACProvider = providerReal
 	if !errors.Is(p.Validate(supports(false)), ErrPacNotConfigured) {
 		t.Fatal("PROD sin habilitar")
 	}

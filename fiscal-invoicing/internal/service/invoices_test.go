@@ -79,7 +79,7 @@ type fakePAC struct {
 }
 
 func (p *fakePAC) Info() pac.Info {
-	return pac.Info{ID: "fake", DisplayName: "Fake", Environments: []string{domain.EnvDemo}, CredentialKeys: []string{"token"}}
+	return pac.Info{ID: "fake", DisplayName: "Fake", Environments: []string{domain.EnvDemo}, Credentials: []pac.CredentialField{{Key: "token"}}}
 }
 func (p *fakePAC) Check(d pac.Document) error {
 	if p.checkFn != nil {
@@ -123,7 +123,7 @@ func queued(id, secret string) domain.Invoice {
 		PacProvider: "fake", CredentialsSecret: secret, PointOfSaleCode: "001", Number: 1, Currency: "USD"}
 }
 
-// R3 + ADR 0022 §4: el worker lee las credenciales de security y las entrega solo al adaptador.
+// R3 + ADR 0022 §6: el worker lee las credenciales de security y las entrega solo al adaptador.
 func TestR3_SendUsesCredentialsFromSecurity(t *testing.T) {
 	f := newSendFixture(queued("inv-1", "fiscal/t/pac"))
 	f.secrets.puts["fiscal/t/pac"] = []byte(`{"token":"tok-secreto"}`)

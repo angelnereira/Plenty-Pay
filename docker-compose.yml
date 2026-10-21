@@ -154,6 +154,8 @@ services:
       PP_NATS_PASS: "${FISCAL_NATS_PASS:-fiscal_nats_secret}"
       # ADR 0022: PROD del PAC solo tras la validación legal (F30.3).
       FISCAL_PROD_ENABLED: "${FISCAL_PROD_ENABLED:-false}"
+      # Adaptadores de PAC ofrecidos, en orden (ADR 0022); cada uno se configura con PP_PAC_<ID>_*.
+      PP_PAC_PROVIDERS: "${FISCAL_PAC_PROVIDERS:-simulator,hka}"
     # pac-egress: única salida a internet de un servicio interno, para llegar al PAC por HTTPS.
     networks: [services, data, pac-egress]
     healthcheck: *healthcheck

@@ -200,7 +200,7 @@ func (s *Invoicing) ProcessDue(ctx context.Context, limit int) (int, error) {
 
 // credentials lee de security las credenciales del negocio para el adaptador (nunca se registran).
 func (s *Invoicing) credentials(ctx context.Context, cl pac.Client, inv domain.Invoice) (pac.Credentials, error) {
-	if len(cl.Info().CredentialKeys) == 0 {
+	if len(cl.Info().CredentialKeys()) == 0 {
 		return nil, nil
 	}
 	if inv.CredentialsSecret == "" {

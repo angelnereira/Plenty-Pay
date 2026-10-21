@@ -110,8 +110,12 @@ func (s *Server) ListPacProviders(ctx context.Context, _ *pb.ListPacProvidersReq
 	}
 	out := &pb.ListPacProvidersResponse{}
 	for _, p := range list {
-		out.Providers = append(out.Providers, &pb.PacProvider{Id: p.ID, DisplayName: p.DisplayName,
-			Environments: p.Environments, CredentialKeys: p.CredentialKeys})
+		pp := &pb.PacProvider{Id: p.ID, DisplayName: p.DisplayName, Environments: p.Environments,
+			CredentialKeys: p.CredentialKeys()}
+		for _, c := range p.Credentials {
+			pp.CredentialFields = append(pp.CredentialFields, &pb.PacCredentialField{Key: c.Key, Label: c.Label, Secret: c.Secret})
+		}
+		out.Providers = append(out.Providers, pp)
 	}
 	return out, nil
 }

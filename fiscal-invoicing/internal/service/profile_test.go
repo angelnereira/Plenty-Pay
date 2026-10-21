@@ -14,6 +14,7 @@ import (
 	"plentypay/fiscal-invoicing/internal/client"
 	"plentypay/fiscal-invoicing/internal/domain"
 	"plentypay/fiscal-invoicing/internal/pac"
+	"plentypay/fiscal-invoicing/internal/pac/simulator"
 	"plentypay/fiscal-invoicing/internal/store"
 )
 
@@ -119,7 +120,7 @@ func (f *fakeSecrets) GetSecret(_ context.Context, _, name string) ([]byte, erro
 type fixture struct {
 	svc      *Service
 	pacs     *pac.Registry
-	sim      *pac.Simulator
+	sim      *simulator.Simulator
 	store    *fakeStore
 	identity *fakeIdentity
 	secrets  *fakeSecrets
@@ -129,8 +130,8 @@ func newFixture() *fixture {
 	f := &fixture{store: newFakeStore(), secrets: &fakeSecrets{puts: map[string][]byte{}},
 		identity: &fakeIdentity{legal: client.TenantLegal{LegalName: "Café La Esquina, S.A.", TaxID: "2588017-1-831938", DV: "20"}}}
 	n := 0
-	f.sim = pac.NewSimulator()
-	f.pacs = pac.NewRegistry(f.sim, pac.NewHKA(pac.HKAConfig{DemoEndpoint: "http://127.0.0.1:1"}))
+	f.sim = simulator.New()
+	f.pacs = pac.NewRegistry(f.sim, realPAC{})
 	f.svc = New(f.store, f.identity, f.secrets, f.pacs, func() time.Time { return time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC) },
 		func() string { n++; return "01900000-0000-7000-8000-0000000000" + string(rune('c'+n%20)) + "0" })
 	return f
@@ -148,7 +149,19 @@ func demoInput() ConfigureInput {
 	return ConfigureInput{Environment: domain.EnvDemo, CheckoutPreference: domain.PrefAlwaysFiscal, IdempotencyKey: keyA}
 }
 
-const hkaCreds = `{"token_empresa":"emp-secreto","token_password":"pass-secreto"}`
+const realCreds = `{"user":"u-secreto","password":"p-secreto"}`
+
+// realPAC es un PAC cualquiera que pide credenciales: el servicio no conoce proveedores (ADR 0022).
+type realPAC struct{}
+
+func (realPAC) Info() pac.Info {
+	return pac.Info{ID: "pac-real", DisplayName: "PAC real", Environments: []string{domain.EnvDemo},
+		Credentials: []pac.CredentialField{{Key: "user", Label: "Usuario"}, {Key: "password", Label: "Contraseña", Secret: true}}}
+}
+func (realPAC) Check(pac.Document) error { return nil }
+func (realPAC) Send(context.Context, pac.Credentials, pac.Document) (pac.Result, error) {
+	return pac.Result{}, nil
+}
 
 // R9 y SPEC §4: el perfil DEMO usa el simulador; RUC, DV y razón social salen de identity; el step-up
 // se consume con la operación del catálogo. El simulador no usa credenciales: no se guardan.
@@ -172,18 +185,18 @@ func TestR9_ConfigureDemoProfile(t *testing.T) {
 	}
 }
 
-// R10 + ADR 0022: con HKA, las credenciales van a security y el perfil guarda solo su nombre.
-func TestR10_ConfigureHKAStoresCredentialsInSecurity(t *testing.T) {
+// R10 + ADR 0022: con un PAC que las pide, las credenciales van a security y el perfil guarda solo su nombre.
+func TestR10_ConfigureRealPACStoresCredentialsInSecurity(t *testing.T) {
 	f := newFixture()
 	in := demoInput()
-	in.PACProvider = domain.ProviderHKA
-	in.PACCredentials = []byte(hkaCreds)
+	in.PACProvider = "pac-real"
+	in.PACCredentials = []byte(realCreds)
 	p, err := f.svc.ConfigureProfile(as(PermProfileManage, "tok-1"), in)
 	if err != nil {
 		t.Fatal(err)
 	}
 	name := "fiscal/" + tenantA + "/pac"
-	if string(f.secrets.puts[name]) != hkaCreds || p.PACCredentialsSecret != name || p.PACProvider != domain.ProviderHKA {
+	if string(f.secrets.puts[name]) != realCreds || p.PACCredentialsSecret != name || p.PACProvider != "pac-real" {
 		t.Fatalf("credenciales a security, solo el nombre en el perfil: %v %+v", f.secrets.puts, p)
 	}
 	if strings.Contains(p.PACCredentialsSecret, "secreto") {
@@ -198,11 +211,11 @@ func TestR10_ConfigureHKAStoresCredentialsInSecurity(t *testing.T) {
 }
 
 // R10: el PAC que pide credenciales no se configura sin ellas, y el error no gasta el step-up.
-func TestR10_HKARequiresCredentialsBeforeStepUp(t *testing.T) {
+func TestR10_RealPACRequiresCredentialsBeforeStepUp(t *testing.T) {
 	f := newFixture()
-	for _, creds := range []string{"", `{"token_empresa":"x"}`, `no-es-json`, `{"token_empresa":"x","token_password":"y","otra":"z"}`} {
+	for _, creds := range []string{"", `{"user":"x"}`, `no-es-json`, `{"user":"x","password":"y","otra":"z"}`} {
 		in := demoInput()
-		in.PACProvider = domain.ProviderHKA
+		in.PACProvider = "pac-real"
 		in.PACCredentials = []byte(creds)
 		if _, err := f.svc.ConfigureProfile(as(PermProfileManage, "tok-1"), in); !errors.Is(err, domain.ErrInvalidRequest) {
 			t.Fatalf("credenciales %q: %v", creds, err)
@@ -216,8 +229,8 @@ func TestR10_HKARequiresCredentialsBeforeStepUp(t *testing.T) {
 func TestR10_ListPacProviders(t *testing.T) {
 	f := newFixture()
 	list, err := f.svc.ListPacProviders(as(PermProfileManage, ""))
-	if err != nil || len(list) != 2 || list[0].ID != domain.ProviderSimulator || list[1].ID != domain.ProviderHKA ||
-		len(list[1].CredentialKeys) != 2 || len(list[1].Environments) != 1 {
+	if err != nil || len(list) != 2 || list[0].ID != domain.ProviderSimulator || list[1].ID != "pac-real" ||
+		len(list[1].Credentials) != 2 || len(list[1].Environments) != 1 {
 		t.Fatalf("%v %+v", err, list)
 	}
 	if _, err := f.svc.ListPacProviders(as(PermIssue, "")); !errors.Is(err, domain.ErrPermissionDenied) {
@@ -266,9 +279,9 @@ func TestADR0020_ConfigureRequiresValidStepUp(t *testing.T) {
 // R9: producción exige un PAC real habilitado con FISCAL_PROD_ENABLED (aquí apagado).
 func TestR9_ProdIsNotAvailableYet(t *testing.T) {
 	f := newFixture()
-	for _, provider := range []string{"", domain.ProviderSimulator, domain.ProviderHKA} {
+	for _, provider := range []string{"", domain.ProviderSimulator, "pac-real"} {
 		in := demoInput()
-		in.Environment, in.PACProvider, in.PACCredentials = domain.EnvProd, provider, []byte(hkaCreds)
+		in.Environment, in.PACProvider, in.PACCredentials = domain.EnvProd, provider, []byte(realCreds)
 		if _, err := f.svc.ConfigureProfile(as(PermProfileManage, "tok-1"), in); !errors.Is(err, domain.ErrPacNotConfigured) {
 			t.Fatalf("PROD con %q: %v", provider, err)
 		}

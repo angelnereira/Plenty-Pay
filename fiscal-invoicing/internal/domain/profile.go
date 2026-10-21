@@ -12,11 +12,9 @@ const (
 	EnvProd = "PROD"
 )
 
-// Adaptadores de PAC (SPEC R10, ADR 0022).
-const (
-	ProviderSimulator = "simulator"
-	ProviderHKA       = "hka"
-)
+// ProviderSimulator es el PAC simulado de PlentyPay (R9). El dominio no conoce a ningún PAC real: los
+// adaptadores se registran en pac.Registry (R10, ADR 0022).
+const ProviderSimulator = "simulator"
 
 // Supports dice si un adaptador de PAC registrado atiende un entorno (lo arma el registro de pac).
 type Supports func(provider, environment string) bool

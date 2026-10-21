@@ -17,6 +17,7 @@ import (
 	"plentypay/fiscal-invoicing/internal/client"
 	"plentypay/fiscal-invoicing/internal/domain"
 	"plentypay/fiscal-invoicing/internal/pac"
+	"plentypay/fiscal-invoicing/internal/pac/simulator"
 	"plentypay/fiscal-invoicing/internal/service"
 	"plentypay/fiscal-invoicing/internal/store"
 )
@@ -56,9 +57,9 @@ type clock struct {
 func (c *clock) now() time.Time      { c.mu.Lock(); defer c.mu.Unlock(); return c.t }
 func (c *clock) add(d time.Duration) { c.mu.Lock(); defer c.mu.Unlock(); c.t = c.t.Add(d) }
 
-func invoicing(t *testing.T, s *store.Store, r rates) (*service.Invoicing, *pac.Simulator, *clock) {
+func invoicing(t *testing.T, s *store.Store, r rates) (*service.Invoicing, *simulator.Simulator, *clock) {
 	t.Helper()
-	sim := pac.NewSimulator()
+	sim := simulator.New()
 	c := &clock{t: time.Now().UTC().Truncate(time.Microsecond)}
 	base := service.New(s, noIdentity{}, noSecrets{}, pac.NewRegistry(sim), c.now, func() string { return uuid.Must(uuid.NewV7()).String() })
 	return service.NewInvoicing(base, s, r, nil, nil), sim, c
@@ -130,8 +131,8 @@ func TestL2_Acceptance1_ThreeLinesAcceptedWithCUFE(t *testing.T) {
 		t.Fatalf("envío: %d %v", n, err)
 	}
 	got, err := svc.GetInvoice(cashier(tenant), inv.ID)
-	if err != nil || got.Status != domain.StatusAccepted || !strings.HasPrefix(got.CUFE, pac.SimulatorPrefix) ||
-		!strings.HasPrefix(got.QR, pac.DemoQRNotice) || got.IssuedAt == nil {
+	if err != nil || got.Status != domain.StatusAccepted || !strings.HasPrefix(got.CUFE, simulator.Prefix) ||
+		!strings.HasPrefix(got.QR, simulator.QRNotice) || got.IssuedAt == nil {
 		t.Fatalf("aceptada: %v %+v", err, got)
 	}
 	if subs := outboxSubjects(t, s, inv.ID); len(subs) != 1 || subs[0] != "pp.fiscal.invoice.accepted.v1" {

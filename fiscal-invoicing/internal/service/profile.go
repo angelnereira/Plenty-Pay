@@ -142,7 +142,7 @@ func (s *Service) ConfigureProfile(ctx context.Context, in ConfigureInput) (doma
 		return domain.Profile{}, err
 	}
 	// R10: el adaptador elegido dice qué credenciales pide. Se revisan antes de gastar el step-up.
-	keys := s.pacs.Get(provider).Info().CredentialKeys
+	keys := s.pacs.Get(provider).Info().CredentialKeys()
 	if len(keys) == 0 {
 		in.PACCredentials = nil // el simulador no usa credenciales: no se guardan
 	} else if len(in.PACCredentials) > 0 {

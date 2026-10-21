@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -22,10 +23,11 @@ type Config struct {
 	InfraAddr    string
 	CallTimeout  time.Duration
 
-	// PAC (ADR 0022). FiscalProdEnabled es el interruptor operativo de producción (F30.3).
+	// PAC (ADR 0022). PACProviders son los adaptadores que se ofrecen, en orden; FiscalProdEnabled es
+	// el interruptor operativo de producción (F30.3). Cada adaptador lee su propia configuración con
+	// el prefijo PP_PAC_<ID>_ (p. ej. PP_PAC_HKA_DEMO_ENDPOINT).
+	PACProviders      []string
 	FiscalProdEnabled bool
-	HKADemoEndpoint   string
-	HKAProdEndpoint   string
 	PACTimeout        time.Duration
 }
 
@@ -67,8 +69,14 @@ func Load() (Config, error) {
 	default:
 		return c, fmt.Errorf("FISCAL_PROD_ENABLED debe ser true o false")
 	}
-	c.HKADemoEndpoint = os.Getenv("PP_HKA_DEMO_ENDPOINT") // vacío = el publicado por HKA
-	c.HKAProdEndpoint = os.Getenv("PP_HKA_PROD_ENDPOINT")
+	for _, p := range strings.Split(env("PP_PAC_PROVIDERS", "simulator,hka"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			c.PACProviders = append(c.PACProviders, p)
+		}
+	}
+	if len(c.PACProviders) == 0 {
+		return c, fmt.Errorf("PP_PAC_PROVIDERS no lista ningún adaptador")
+	}
 	return c, nil
 }
 

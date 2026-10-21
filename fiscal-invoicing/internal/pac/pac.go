@@ -1,15 +1,13 @@
-// Package pac tiene los adaptadores a los proveedores autorizados de certificación (SPEC R10,
-// ADR 0022): una interfaz por proveedor y un registro que el perfil fiscal usa como selector.
-// Adaptadores: HKA (The Factory HKA, hka.go) y el simulador sin red.
+// Package pac es el puerto hacia los proveedores autorizados de certificación (SPEC R10, ADR 0022).
+// Es neutral: no conoce a ningún proveedor. Cada PAC vive en su subpaquete (pac/hka, pac/simulator…)
+// e implementa Client; el mapeo al catálogo de la DGI, común a todos, está en pac/dgi. El resto del
+// servicio solo ve esta interfaz y el registro, así que cambiar o sumar un PAC no toca el dominio, la
+// base, el servidor ni la app.
 package pac
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
-	"fmt"
-	"sync"
 	"time"
 
 	"plentypay/fiscal-invoicing/internal/domain"
@@ -75,12 +73,30 @@ func (e *RetryError) Error() string {
 // Unwrap expone la causa y ErrTransient (errors.Is(err, ErrTransient) es true).
 func (e *RetryError) Unwrap() []error { return []error{ErrTransient, e.Err} }
 
-// Info describe un adaptador para el selector de la app (ListPacProviders).
+// CredentialField describe una credencial que pide el PAC: la app arma el formulario con esto y no
+// conoce a ningún proveedor.
+type CredentialField struct {
+	Key    string
+	Label  string
+	Secret bool
+}
+
+// Info describe un adaptador para el selector (ListPacProviders).
 type Info struct {
-	ID             string
-	DisplayName    string
-	Environments   []string // entornos habilitados hoy
-	CredentialKeys []string // claves del JSON de credenciales que pide
+	ID           string
+	DisplayName  string
+	Environments []string // entornos habilitados hoy
+	Credentials  []CredentialField
+	Simulated    bool // sin validez fiscal: nunca atiende PROD
+}
+
+// CredentialKeys son las claves del JSON de credenciales.
+func (i Info) CredentialKeys() []string {
+	out := make([]string, len(i.Credentials))
+	for n, c := range i.Credentials {
+		out[n] = c.Key
+	}
+	return out
 }
 
 // Client es la interfaz de cada proveedor (R10).
@@ -133,84 +149,21 @@ func (r *Registry) List() []Info {
 	return out
 }
 
-// Supports dice si el adaptador atiende el entorno (domain.Supports).
+// Supports dice si el adaptador atiende el entorno (domain.Supports). Un adaptador simulado nunca
+// atiende producción, aunque lo declare (R9).
 func (r *Registry) Supports(provider, environment string) bool {
 	c := r.Get(provider)
 	if c == nil {
 		return false
 	}
-	for _, e := range c.Info().Environments {
+	info := c.Info()
+	if info.Simulated && environment == domain.EnvProd {
+		return false
+	}
+	for _, e := range info.Environments {
 		if e == environment {
 			return true
 		}
 	}
 	return false
-}
-
-// SimulatorPrefix marca todo CUFE del simulador: nunca puede confundirse con uno de la DGI (R9).
-const SimulatorPrefix = "DEMO-"
-
-// DemoQRNotice va en el QR del simulador: el documento no tiene validez fiscal (AGENTS.md §2.12).
-const DemoQRNotice = "PLENTYPAY DOCUMENTO DE PRUEBA SIN VALIDEZ FISCAL "
-
-// Simulator acepta todo documento con un CUFE determinista con prefijo DEMO- (R9). Para las pruebas
-// puede fallar de forma transitoria las primeras veces o rechazar.
-type Simulator struct {
-	mu           sync.Mutex
-	failuresLeft int
-	rejectReason string
-	sent         []Document
-}
-
-// NewSimulator crea el simulador del entorno DEMO.
-func NewSimulator() *Simulator { return &Simulator{} }
-
-// FailNext hace que las próximas n llamadas fallen de forma transitoria (prueba de aceptación 2).
-func (s *Simulator) FailNext(n int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.failuresLeft = n
-}
-
-// RejectWith hace que el simulador rechace con ese motivo.
-func (s *Simulator) RejectWith(reason string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.rejectReason = reason
-}
-
-// Sent devuelve los documentos recibidos (pruebas).
-func (s *Simulator) Sent() []Document {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return append([]Document(nil), s.sent...)
-}
-
-// Info describe el simulador: solo DEMO y sin credenciales.
-func (s *Simulator) Info() Info {
-	return Info{ID: domain.ProviderSimulator, DisplayName: "Simulador de PlentyPay (sin validez fiscal)",
-		Environments: []string{domain.EnvDemo}}
-}
-
-// Check no tiene reglas propias: el dominio ya validó el documento.
-func (s *Simulator) Check(Document) error { return nil }
-
-// Send simula la transmisión.
-func (s *Simulator) Send(ctx context.Context, _ Credentials, d Document) (Result, error) {
-	if err := ctx.Err(); err != nil {
-		return Result{}, &RetryError{Message: "el PAC no respondió", Err: err}
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.sent = append(s.sent, d)
-	if s.failuresLeft > 0 {
-		s.failuresLeft--
-		return Result{}, &RetryError{Message: "el PAC no respondió", Err: errors.New("simulated timeout")}
-	}
-	if s.rejectReason != "" {
-		return Result{Accepted: false, RejectionReason: s.rejectReason}, nil
-	}
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d|%s|%d", d.TenantID, d.IssuerRUC, d.DocType, d.PointOfSaleCode, d.Number)))
-	cufe := SimulatorPrefix + hex.EncodeToString(sum[:])[:40]
-	return Result{Accepted: true, CUFE: cufe, QR: DemoQRNotice + cufe}, nil
 }

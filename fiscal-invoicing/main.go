@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -20,10 +21,13 @@ import (
 
 	"plentypay/fiscal-invoicing/internal/client"
 	"plentypay/fiscal-invoicing/internal/config"
+	"plentypay/fiscal-invoicing/internal/domain"
 	"plentypay/fiscal-invoicing/internal/events"
 	"plentypay/fiscal-invoicing/internal/migrate"
 	"plentypay/fiscal-invoicing/internal/observability"
 	"plentypay/fiscal-invoicing/internal/pac"
+	"plentypay/fiscal-invoicing/internal/pac/hka"
+	"plentypay/fiscal-invoicing/internal/pac/simulator"
 	"plentypay/fiscal-invoicing/internal/pb"
 	"plentypay/fiscal-invoicing/internal/server"
 	"plentypay/fiscal-invoicing/internal/service"
@@ -106,10 +110,11 @@ func main() {
 		}
 	}()
 	newID := func() string { return uuid.Must(uuid.NewV7()).String() }
-	// R9/R10: DEMO usa el simulador; PROD no tiene adaptador hasta elegir PAC (Q-11).
-	// Selector de PAC (R10, ADR 0022): el simulador y The Factory HKA.
-	pacs := pac.NewRegistry(pac.NewSimulator(), pac.NewHKA(pac.HKAConfig{DemoEndpoint: cfg.HKADemoEndpoint,
-		ProdEndpoint: cfg.HKAProdEndpoint, Timeout: cfg.PACTimeout, ProdEnabled: cfg.FiscalProdEnabled}))
+	// R9/R10: selector de PAC con los adaptadores de PP_PAC_PROVIDERS (ADR 0022).
+	pacs, err := pacRegistry(cfg)
+	if err != nil {
+		fatal("pac providers invalid", err)
+	}
 	svc := service.NewInvoicing(service.New(st, identity, secrets, pacs, now, newID), st, infra, metrics, reporter)
 
 	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
@@ -227,4 +232,26 @@ func backlogGauge(ctx context.Context, st *store.Store, metrics *observability.M
 			metrics.Set("pp_outbox_pending", float64(n))
 		}
 	}
+}
+
+// pacAdapters es el único lugar que conoce los PAC disponibles (R10, ADR 0022). Sumar un PAC = un
+// subpaquete en internal/pac/<id> y una línea aquí; PP_PAC_PROVIDERS decide cuáles se ofrecen.
+var pacAdapters = map[string]func(config.Config) pac.Client{
+	domain.ProviderSimulator: func(config.Config) pac.Client { return simulator.New() },
+	hka.ID: func(c config.Config) pac.Client {
+		return hka.New(hka.Config{DemoEndpoint: os.Getenv("PP_PAC_HKA_DEMO_ENDPOINT"),
+			ProdEndpoint: os.Getenv("PP_PAC_HKA_PROD_ENDPOINT"), Timeout: c.PACTimeout, ProdEnabled: c.FiscalProdEnabled})
+	},
+}
+
+func pacRegistry(cfg config.Config) (*pac.Registry, error) {
+	clients := make([]pac.Client, 0, len(cfg.PACProviders))
+	for _, id := range cfg.PACProviders {
+		mk, ok := pacAdapters[id]
+		if !ok {
+			return nil, fmt.Errorf("PP_PAC_PROVIDERS: adaptador %q desconocido", id)
+		}
+		clients = append(clients, mk(cfg))
+	}
+	return pac.NewRegistry(clients...), nil
 }

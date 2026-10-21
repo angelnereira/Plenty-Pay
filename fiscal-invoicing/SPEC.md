@@ -57,7 +57,7 @@ CREATE TABLE fiscal.taxpayers (id uuid PRIMARY KEY, tenant_id uuid NOT NULL,
 | RPC | Permiso | Idemp. | Comportamiento | Errores |
 |---|---|---|---|---|
 | EvaluateDocumentPolicy | `fiscal:issue` / servicios pos, orders | — | aplica `CheckoutPreference` (domain-model §8.8) y devuelve FISCAL_INVOICE o INTERNAL_RECEIPT (o "preguntar") | `PROFILE_MISSING` |
-| IssueInvoice | `fiscal:issue` / pos, orders | sí | valida líneas y totales, **revisa el formato del PAC elegido sin red antes de numerar** (un folio no se gasta en un documento que el PAC rechazaría), asigna número, `DRAFT→QUEUED`, encola envío al PAC (worker) | `TOTALS_MISMATCH`, `PROFILE_MISSING`, `INVALID_TAXPAYER`, `INVALID_REQUEST` (p. ej. HKA: moneda distinta de USD, más de una forma de pago), `PAC_NOT_CONFIGURED` |
+| IssueInvoice | `fiscal:issue` / pos, orders | sí | valida líneas y totales, **revisa el formato del PAC elegido sin red antes de numerar** (un folio no se gasta en un documento que el PAC rechazaría), asigna número, `DRAFT→QUEUED`, encola envío al PAC (worker) | `TOTALS_MISMATCH`, `PROFILE_MISSING`, `INVALID_TAXPAYER`, `INVALID_REQUEST` (p. ej. moneda distinta de USD o más de una forma de pago, reglas DGI de `pac/dgi`), `PAC_NOT_CONFIGURED` |
 | IssueCreditNote / IssueDebitNote | `fiscal:note:issue` | sí | referencia a factura ACCEPTED; nota de crédito por el total → original VOIDED | `RELATED_NOT_ACCEPTED`, `EXCEEDS_ORIGINAL` |
 | GetInvoice / ListInvoices | `fiscal:read` | — | | `NOT_FOUND` |
 | RefreshInvoiceStatus | worker / webhook PAC | — | consulta al PAC y actualiza | |
@@ -78,7 +78,7 @@ CREATE TABLE fiscal.taxpayers (id uuid PRIMARY KEY, tenant_id uuid NOT NULL,
 - **R7** Nota de crédito: suma de notas ≤ total de la factura; por el total → factura VOIDED.
 - **R8** Consumidor final sin datos: permitido hasta el límite que fije la DGI (configurable); por encima exige identificación (Q-11).
 - **R9** Entorno `DEMO`: el simulador (CUFE con prefijo `DEMO-`) o la integración de HKA (ADR 0022); en ambos casos el documento no tiene validez fiscal y la app lo marca como prueba (AGENTS.md §2.12). `PROD` usa el endpoint de producción del PAC elegido y solo se habilita con `FISCAL_PROD_ENABLED=true` tras la validación legal (F30.3); si no, `PAC_NOT_CONFIGURED`.
-- **R10** Adaptador PAC por interfaz (`pac.Client`); el perfil elige el adaptador (`pac_provider`) de los que lista `ListPacProviders` (id, nombre, ambientes, credenciales que pide). Adaptadores: `hka` (The Factory HKA por `github.com/angelnereira/hka-sdk`, ADR 0022) y `simulator`. Mapeo a HKA y manejo de sus códigos de respuesta: ADR 0022 §5–§8.
+- **R10** PAC desacoplado (ADR 0022): puerto neutral `internal/pac` (interfaz `Client`, `Registry`), contenido DGI común en `internal/pac/dgi` y un subpaquete por proveedor (`internal/pac/hka`, `internal/pac/simulator`), el único que conoce al proveedor o su SDK (`TestR10_VendorNeutralPackages`). El perfil elige el adaptador (`pac_provider`, id opaco) de los que lista `ListPacProviders` (id, nombre, ambientes y las credenciales que pide con su etiqueta). `PP_PAC_PROVIDERS` decide cuáles se ofrecen. Sumar un PAC = un subpaquete y una línea en `main.go`; sin cambios de dominio, base, contrato ni app.
 
 ## 6. Eventos
 Publica: `InvoiceAccepted`, `InvoiceRejected`, `FolioLow`, `AuditRecorded`. Consume: ninguno (pos/orders llaman por gRPC para tener el número en el recibo).
@@ -87,7 +87,7 @@ Publica: `InvoiceAccepted`, `InvoiceRejected`, `FolioLow`, `AuditRecorded`. Cons
 security (PutSecret/GetSecret de credenciales PAC; Encrypt no requerido), identity (`GetTenant`: razón social, RUC y DV del emisor salen del alta del negocio, no se piden otra vez; `ConsumeStepUp`), infra-management (`GetConfig` de `legal.pa.itbms.*`). PAC externo por HTTPS: The Factory HKA (SOAP, `demoemision` / `emision.thefactoryhka.com.pa`, ADR 0022). fiscal-invoicing es el único servicio interno con salida a internet, por la red `pac-egress` de compose; limitar esa salida a los dominios del PAC con un proxy queda pendiente.
 
 ## 8. Configuración
-`PORT` (50064), `PP_DB_DSN`, `PP_MIGRATE_DSN`, `PP_NATS_*`, `PP_IDENTITY_ADDR`, `PP_SECURITY_ADDR`, `PP_INFRA_ADDR`, `PP_CALL_TIMEOUT` (3s), `PP_PAC_TIMEOUT` (30s), `FISCAL_PROD_ENABLED` (`false`; interruptor operativo de `PROD`, ADR 0022 §3), `PP_HKA_DEMO_ENDPOINT` / `PP_HKA_PROD_ENDPOINT` (vacíos = los publicados por HKA), `OBJECT_STORAGE_*` (bloque C).
+`PORT` (50064), `PP_DB_DSN`, `PP_MIGRATE_DSN`, `PP_NATS_*`, `PP_IDENTITY_ADDR`, `PP_SECURITY_ADDR`, `PP_INFRA_ADDR`, `PP_CALL_TIMEOUT` (3s), `PP_PAC_TIMEOUT` (30s), `FISCAL_PROD_ENABLED` (`false`; interruptor operativo de `PROD`, ADR 0022 §5), `PP_PAC_PROVIDERS` (`simulator,hka`: adaptadores ofrecidos, en orden), `PP_PAC_<ID>_*` (configuración propia de cada adaptador; HKA: `PP_PAC_HKA_DEMO_ENDPOINT` / `PP_PAC_HKA_PROD_ENDPOINT`, vacíos = los publicados por HKA), `OBJECT_STORAGE_*` (bloque C).
 
 ## 9. Observabilidad
 `pp_invoices_total{doc_type,status}`, `pp_pac_latency_seconds{provider}`, `pp_invoices_pending_age_seconds_max`, `pp_folios_remaining{doc_type}` (sin tenant como etiqueta; detalle en logs).
@@ -101,7 +101,7 @@ Credenciales del PAC solo en security; datos del cliente (RUC/cédula) visibles 
 2. PAC devuelve timeout 3 veces y luego acepta → una sola factura, número sin huecos.
 3. Nota de crédito por el total → factura VOIDED.
 4. Preferencia AUTO_THRESHOLD 50.00: venta de 30.00 → recibo interno; de 80.00 → fiscal.
-5. Perfil DEMO con HKA y los tokens de integración del negocio → factura ACCEPTED con el CUFE de 66 caracteres y el QR de la DGI devueltos por el ambiente `demoemision` de HKA (ADR 0022). Pendiente: requiere los tokens de integración.
+5. Perfil DEMO con un PAC real (hoy HKA) y los tokens de integración del negocio → factura ACCEPTED con el CUFE de 66 caracteres y el QR de la DGI devueltos por el ambiente de integración del PAC (ADR 0022). Pendiente: requiere los tokens de integración.
 
 ## 12. Plan
 F13.1 dominio (totales, políticas) → F13.2 migraciones + folios → F13.3 perfil + credenciales en security → F13.4 PacClient + simulador → F13.5 IssueInvoice + worker → F13.6 PDF/XML + object-storage → F13.7 notas → F13.8 facturación de comisiones de PlentyPay a comercios (tenant = PLATFORM) → F13.9 pantallas Flutter (perfil fiscal, facturas, notas, contribuyentes).
