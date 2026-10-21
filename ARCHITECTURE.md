@@ -36,7 +36,7 @@ Matriz exacta de llamadas, puertos, capas de arranque y degradación: [`docs/arc
 | [ledger](ledger/SPEC.md) | Rust | 50061 | 📝 código completo y L2 25/25 (2026-10-20); en `docker-compose.yml`, sin desplegar hasta reiniciar el esquema de producción | F10 |
 | [payments-core](payments-core/SPEC.md) | Rust | 50062 | 📝 | F11 |
 | [settlement](settlement/SPEC.md) | Rust | 50063 | 📋 | F12 |
-| [fiscal-invoicing](fiscal-invoicing/SPEC.md) | Go | 50064 | 📋 | F13 |
+| [fiscal-invoicing](fiscal-invoicing/SPEC.md) | Go | 50064 | 📝 desplegado 2026-10-21: perfil, folios sin huecos, contribuyentes, emisión con worker al PAC, notas; PAC seleccionable y desacoplado (ADR 0022: simulador y The Factory HKA); L2 17/17 y L4 de humo por el gateway. Pendiente: PDF/XML (bloque C), reporte de ITBMS y envío real a HKA | F13 |
 | [catalog](catalog/SPEC.md) | Go | 50065 | 📝 productos, categorías, tasas legales, vitrina, publicación y búsqueda del marketplace (L2); despliegue pendiente | F15 |
 | [inventory](inventory/SPEC.md) | Go | 50066 | 📝 bodegas, existencias, ajustes, transferencias y reservas con TTL (L2); despliegue pendiente | F16 |
 | [pos](pos/SPEC.md) | Go | 50067 | 📝 sesiones, ventas, efectivo y billetera, descuento de stock (L2); despliegue pendiente | F17 |
