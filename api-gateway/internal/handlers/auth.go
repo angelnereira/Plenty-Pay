@@ -144,7 +144,8 @@ func (h *AuthHandlers) Me(w http.ResponseWriter, r *http.Request) {
 		middleware.WriteError(w, http.StatusUnauthorized, "UNAUTHENTICATED", "sin sesión")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"user_id": session.UserID, "tenant_id": session.TenantID, "role": session.Role})
+	writeJSON(w, http.StatusOK, map[string]string{"user_id": session.UserID, "tenant_id": session.TenantID, "role": session.Role,
+		"full_name": session.FullName})
 }
 
 // Permissions: lo que flutter_app usa para armar su menú dinámico (ADR 0009). Es UX, no control de acceso.

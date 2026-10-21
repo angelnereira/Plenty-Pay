@@ -84,6 +84,7 @@ type ValidatedSession struct {
 	Permissions  []string
 	BranchScope  string // "*" (TENANT), ids separados por coma, o "" (sin sucursales / sin negocio)
 	Capabilities []string
+	FullName     string // para el saludo de Inicio (S-GEN-05 e1); nunca viaja en metadatos ni logs
 }
 
 type AuthResult struct {
@@ -126,7 +127,8 @@ func (c *IdentityClient) ValidateToken(ctx context.Context, accessToken string) 
 	}
 	return &ValidatedSession{Valid: res.Valid, UserID: res.UserId, TenantID: res.TenantId,
 		Role: res.Role.String(), SessionID: res.SessionId,
-		Permissions: res.Permissions, BranchScope: res.BranchScope, Capabilities: res.Capabilities}, nil
+		Permissions: res.Permissions, BranchScope: res.BranchScope, Capabilities: res.Capabilities,
+		FullName: res.FullName}, nil
 }
 
 func toAuthResult(res *pb.AuthResult) *AuthResult {

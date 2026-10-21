@@ -52,6 +52,9 @@ func TestRegisterLoginValidateFlow(t *testing.T) {
 	if err != nil || !valid.Valid || valid.UserId != login.UserId || valid.Role != pb.UserRole_BUSINESS_OWNER {
 		t.Fatalf("ValidateToken inconsistente: err=%v res=%+v", err, valid)
 	}
+	if valid.FullName != "Dueña de Prueba" {
+		t.Fatalf("S-GEN-05 e1: /v1/me lleva el nombre para el saludo, llegó %q", valid.FullName)
+	}
 	perms, _ := s.GetUserPermissions(ctx, &pb.GetUserPermissionsRequest{UserId: login.UserId})
 	if len(perms.EnabledModules) == 0 {
 		t.Fatal("BUSINESS_OWNER no obtuvo ningún módulo habilitado")

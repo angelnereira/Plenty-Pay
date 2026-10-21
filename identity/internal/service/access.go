@@ -244,7 +244,7 @@ func (s *IdentityService) PermissionsForUser(ctx context.Context, userID string)
 	}
 	out := &Permissions{
 		Role: user.Role, EnabledModules: access.Modules, Permissions: access.Permissions,
-		BranchScope: access.BranchScope, Capabilities: access.Capabilities,
+		BranchScope: access.BranchScope, Capabilities: access.Capabilities, FullName: user.FullName,
 	}
 	s.access.put(userID, out)
 	return out, nil

@@ -223,3 +223,23 @@ func TestInvalidTokenIs401AndIdentityDownIs503(t *testing.T) {
 		t.Fatalf("identity caído debe ser 503, obtuve %d", down.Code)
 	}
 }
+
+type sessionValidator struct{ s *client.ValidatedSession }
+
+func (v sessionValidator) ValidateToken(context.Context, string) (*client.ValidatedSession, error) {
+	return v.s, nil
+}
+
+// S-GEN-05 e1: /v1/me devuelve el nombre para el saludo de Inicio.
+func TestMe_IncludesFullName(t *testing.T) {
+	h := NewAuthHandlers(&fakeIdentity{})
+	auth := middleware.RequireAuth(sessionValidator{&client.ValidatedSession{Valid: true, UserID: "u1", TenantID: "t1",
+		Role: "BUSINESS_OWNER", FullName: "Bárbara Dueña"}})
+	req := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+	req.Header.Set("Authorization", "Bearer x")
+	rec := httptest.NewRecorder()
+	auth(http.HandlerFunc(h.Me)).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"full_name":"Bárbara Dueña"`) {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+}

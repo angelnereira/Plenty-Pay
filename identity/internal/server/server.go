@@ -163,6 +163,7 @@ func (s *IdentityServer) ValidateToken(ctx context.Context, req *pb.ValidateToke
 		Permissions:  perms.Permissions,
 		BranchScope:  perms.BranchScope,
 		Capabilities: perms.Capabilities,
+		FullName:     perms.FullName,
 	}, nil
 }
 

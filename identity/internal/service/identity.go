@@ -58,6 +58,7 @@ type Permissions struct {
 	Permissions    []string
 	BranchScope    string   // "*", ids separados por coma o "" (R24)
 	Capabilities   []string // capacidades encendidas del negocio (R21)
+	FullName       string   // nombre de la persona (saludo de Inicio, S-GEN-05)
 }
 
 // SecurityReporter reporta eventos de abuso a `security`: TOKEN_REUSE (R8) y

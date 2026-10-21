@@ -143,6 +143,7 @@ message ValidateTokenResult {
   string session_id = 6;
   string branch_scope = 7;            // "*" (alcance TENANT) o UUIDs de sucursales separados por coma (R24)
   repeated string capabilities = 8;   // capacidades activas del negocio (R21)
+  string full_name = 9;               // nombre de la persona, para el saludo de Inicio (S-GEN-05 e1)
 }
 
 message GetUserPermissionsRequest {
