@@ -30,6 +30,7 @@ const (
 	FiscalInvoicing_ConfigureFiscalProfile_FullMethodName = "/plentypay.fiscal.v1.FiscalInvoicing/ConfigureFiscalProfile"
 	FiscalInvoicing_GetFiscalProfile_FullMethodName       = "/plentypay.fiscal.v1.FiscalInvoicing/GetFiscalProfile"
 	FiscalInvoicing_GetFolioStatus_FullMethodName         = "/plentypay.fiscal.v1.FiscalInvoicing/GetFolioStatus"
+	FiscalInvoicing_ListPacProviders_FullMethodName       = "/plentypay.fiscal.v1.FiscalInvoicing/ListPacProviders"
 	FiscalInvoicing_UpsertTaxpayer_FullMethodName         = "/plentypay.fiscal.v1.FiscalInvoicing/UpsertTaxpayer"
 	FiscalInvoicing_SearchTaxpayers_FullMethodName        = "/plentypay.fiscal.v1.FiscalInvoicing/SearchTaxpayers"
 )
@@ -52,6 +53,7 @@ type FiscalInvoicingClient interface {
 	ConfigureFiscalProfile(ctx context.Context, in *ConfigureFiscalProfileRequest, opts ...grpc.CallOption) (*FiscalProfile, error)
 	GetFiscalProfile(ctx context.Context, in *GetFiscalProfileRequest, opts ...grpc.CallOption) (*FiscalProfile, error)
 	GetFolioStatus(ctx context.Context, in *GetFolioStatusRequest, opts ...grpc.CallOption) (*FolioStatus, error)
+	ListPacProviders(ctx context.Context, in *ListPacProvidersRequest, opts ...grpc.CallOption) (*ListPacProvidersResponse, error)
 	UpsertTaxpayer(ctx context.Context, in *UpsertTaxpayerRequest, opts ...grpc.CallOption) (*Taxpayer, error)
 	SearchTaxpayers(ctx context.Context, in *SearchTaxpayersRequest, opts ...grpc.CallOption) (*SearchTaxpayersResponse, error)
 }
@@ -174,6 +176,16 @@ func (c *fiscalInvoicingClient) GetFolioStatus(ctx context.Context, in *GetFolio
 	return out, nil
 }
 
+func (c *fiscalInvoicingClient) ListPacProviders(ctx context.Context, in *ListPacProvidersRequest, opts ...grpc.CallOption) (*ListPacProvidersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListPacProvidersResponse)
+	err := c.cc.Invoke(ctx, FiscalInvoicing_ListPacProviders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fiscalInvoicingClient) UpsertTaxpayer(ctx context.Context, in *UpsertTaxpayerRequest, opts ...grpc.CallOption) (*Taxpayer, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Taxpayer)
@@ -212,6 +224,7 @@ type FiscalInvoicingServer interface {
 	ConfigureFiscalProfile(context.Context, *ConfigureFiscalProfileRequest) (*FiscalProfile, error)
 	GetFiscalProfile(context.Context, *GetFiscalProfileRequest) (*FiscalProfile, error)
 	GetFolioStatus(context.Context, *GetFolioStatusRequest) (*FolioStatus, error)
+	ListPacProviders(context.Context, *ListPacProvidersRequest) (*ListPacProvidersResponse, error)
 	UpsertTaxpayer(context.Context, *UpsertTaxpayerRequest) (*Taxpayer, error)
 	SearchTaxpayers(context.Context, *SearchTaxpayersRequest) (*SearchTaxpayersResponse, error)
 	mustEmbedUnimplementedFiscalInvoicingServer()
@@ -256,6 +269,9 @@ func (UnimplementedFiscalInvoicingServer) GetFiscalProfile(context.Context, *Get
 }
 func (UnimplementedFiscalInvoicingServer) GetFolioStatus(context.Context, *GetFolioStatusRequest) (*FolioStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFolioStatus not implemented")
+}
+func (UnimplementedFiscalInvoicingServer) ListPacProviders(context.Context, *ListPacProvidersRequest) (*ListPacProvidersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPacProviders not implemented")
 }
 func (UnimplementedFiscalInvoicingServer) UpsertTaxpayer(context.Context, *UpsertTaxpayerRequest) (*Taxpayer, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpsertTaxpayer not implemented")
@@ -482,6 +498,24 @@ func _FiscalInvoicing_GetFolioStatus_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FiscalInvoicing_ListPacProviders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListPacProvidersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FiscalInvoicingServer).ListPacProviders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FiscalInvoicing_ListPacProviders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FiscalInvoicingServer).ListPacProviders(ctx, req.(*ListPacProvidersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FiscalInvoicing_UpsertTaxpayer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpsertTaxpayerRequest)
 	if err := dec(in); err != nil {
@@ -568,6 +602,10 @@ var FiscalInvoicing_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFolioStatus",
 			Handler:    _FiscalInvoicing_GetFolioStatus_Handler,
+		},
+		{
+			MethodName: "ListPacProviders",
+			Handler:    _FiscalInvoicing_ListPacProviders_Handler,
 		},
 		{
 			MethodName: "UpsertTaxpayer",

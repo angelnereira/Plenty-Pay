@@ -21,6 +21,7 @@ service FiscalInvoicing {
   rpc ConfigureFiscalProfile(ConfigureFiscalProfileRequest) returns (FiscalProfile);
   rpc GetFiscalProfile(GetFiscalProfileRequest) returns (FiscalProfile);
   rpc GetFolioStatus(GetFolioStatusRequest) returns (FolioStatus);
+  rpc ListPacProviders(ListPacProvidersRequest) returns (ListPacProvidersResponse); // adaptadores de PAC elegibles (R10, ADR 0022)
 
   rpc UpsertTaxpayer(UpsertTaxpayerRequest) returns (Taxpayer);
   rpc SearchTaxpayers(SearchTaxpayersRequest) returns (SearchTaxpayersResponse);
@@ -64,11 +65,12 @@ message DocumentPolicyDecision {
 message Taxpayer {
   string taxpayer_id = 1;
   string tax_id = 2;          // RUC o cédula
-  string tax_id_type = 3;     // "RUC_JURIDICO", "RUC_NATURAL", "CEDULA", "PASAPORTE", "EXTRANJERO"
+  string tax_id_type = 3;     // "RUC_JURIDICO", "RUC_NATURAL", "CEDULA", "PASAPORTE", "EXTRANJERO", "GOBIERNO"
   string check_digit = 4;     // DV
   string legal_name = 5;
   string email = 6;
-  plentypay.common.v1.Address address = 7;
+  plentypay.common.v1.Address address = 7; // line1 = dirección (5–100 caracteres); el PAC la exige a contribuyentes y gobierno (ADR 0022)
+  string location_code = 8;  // provincia-distrito-corregimiento de la DGI, p. ej. "8-8-7" (ADR 0022)
 }
 message UpsertTaxpayerRequest { Taxpayer taxpayer = 1; 
   string idempotency_key = 2;}
@@ -138,12 +140,23 @@ message FiscalProfile {
   string branch_code = 7;
   string point_of_sale_code = 8;
   string pac_provider = 9; // adaptador PAC elegido (R10: un trait por proveedor)
+  bool credentials_configured = 10; // hay credenciales del PAC guardadas en security (nunca se devuelven)
 }
 message ConfigureFiscalProfileRequest { FiscalProfile profile = 1; bytes pac_credentials = 2; bytes certificate_p12 = 3; string certificate_password = 4; string step_up_token = 5; 
   string idempotency_key = 6;} // los secretos se reenvían a `security` y no se persisten aquí
 message GetFiscalProfileRequest {}
 message GetFolioStatusRequest {}
-message FolioStatus { int64 remaining = 1; int64 low_watermark = 2; string current_range = 3; }
+message FolioStatus { int64 remaining = 1; int64 low_watermark = 2; string current_range = 3; 
+  int64 pac_remaining = 4; // folios que el PAC reporta disponibles en su cuenta; -1 = el PAC no lo informa
+}
+message ListPacProvidersRequest {}
+message PacProvider {
+  string id = 1;                       // "hka", "simulator"
+  string display_name = 2;
+  repeated string environments = 3;    // "DEMO", "PROD" habilitados hoy
+  repeated string credential_keys = 4; // claves del JSON de credenciales, p. ej. "token_empresa", "token_password"
+}
+message ListPacProvidersResponse { repeated PacProvider providers = 1; }
 
 // ── Eventos. Subject: pp.fiscal.<entidad>.<hecho>.v1 ──
 message InvoiceAccepted { string invoice_id = 1; string tenant_id = 2; string cufe = 3; plentypay.common.v1.Reference source = 4; }

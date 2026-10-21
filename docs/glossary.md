@@ -133,12 +133,16 @@ Fuentes: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §1.3 
 | **Consentimiento (finalidad)** | Aceptación de una finalidad concreta, con la versión del texto que la persona vio. Valores: `AGE_CONFIRMATION` (mayoría de edad, N-DAT-14), `TERMS`, `PRIVACY_DATA_PROCESSING` y `MARKETING` (opcional). Nunca se agrupan ni se premarcan (N-DAT-02) | regulatory-framework N-DAT-02, S-GEN-03, `ConsentGrant` en identity.proto |
 | **Canal (de un consentimiento)** | Medio por el que se aceptó. Hoy solo `app` (cliente Flutter vía gateway); lo fija el gateway, nunca el cuerpo de la petición | identity.proto `RegisterRequest.channel`, api-gateway R2b |
 | **PAC** | Proveedor autorizado de certificación que transmite a la DGI | dominio §2 |
+| **Adaptador de PAC** (`pac_provider`) | Implementación de un PAC en fiscal-invoicing, elegible en el perfil fiscal. Valores: `hka` (The Factory HKA, por `hka-sdk`) y `simulator` (sin red, sin validez fiscal). Credenciales de `hka`: `token_empresa`, `token_password` | ADR 0022, fiscal SPEC R10 |
+| **Interruptor de producción fiscal** (`FISCAL_PROD_ENABLED`) | Variable del operador que habilita el entorno `PROD` del PAC tras la validación legal | ADR 0022 §3, F30.3 |
+| **Código de ubicación** (`location_code`) | Provincia-distrito-corregimiento de la DGI, p. ej. `8-8-7` | ADR 0022 §9 |
 | **Folio** | Numeración fiscal asignada al contribuyente | fiscal SPEC |
 | **ITBMS** | Impuesto de Panamá; tasas válidas 0/7/10/15 % (Q-11) | dominio §2 |
 | **Outbox** | Tabla donde se escribe el evento en la misma transacción que el cambio | eventos §4 |
 | **Módulo** | Sección de la app visible según permisos | §6.3 |
 | **Clase de error** | De dominio (esperable), de dependencia (reintentable) o defecto (bug): decide nivel de log, estado del span y qué ve el cliente | observability-standards §10 |
 | **Huella de error** | `pp.error.fingerprint`: agrupa ocurrencias del mismo defecto | observability-standards §10.7 |
+| **Atributos fiscales de telemetría** | `pp.invoice_id` (documento fiscal) y `pp.pac_provider` (adaptador de PAC); `peer.service` del PAC = `pac-<adaptador>` | fiscal SPEC §9 |
 | **Código de soporte** | El `request_id` que el usuario ve y copia ante un error inesperado | observability-standards §13.4 |
 | **MCC** | Código de categoría del comercio, 4 dígitos (ISO 18245) | international-standards N-STD-35 |
 | **Código interno** | Código de barras con prefijo `02` o `20`–`29`: válido solo dentro del negocio | international-standards N-STD-24 |
@@ -172,6 +176,8 @@ Valores sin prefijo. Las transiciones legales están en [`domain/domain-model.md
 | `DocumentType` | fiscal_invoicing | FISCAL_INVOICE, CREDIT_NOTE, DEBIT_NOTE, INTERNAL_RECEIPT | — |
 | `CheckoutPreference` | fiscal_invoicing | ALWAYS_FISCAL, INTERNAL_ONLY, ASK_ALWAYS, AUTO_THRESHOLD | §8.8 |
 | `InvoiceStatus` | fiscal_invoicing | DRAFT, QUEUED, SENT, ACCEPTED, REJECTED, VOIDED | §8.8 |
+| `Taxpayer.tax_id_type` (texto) | fiscal_invoicing | RUC_JURIDICO, RUC_NATURAL, CEDULA, PASAPORTE, EXTRANJERO, GOBIERNO | ADR 0022 §6 |
+| Forma de pago (`payment_methods`, texto) | fiscal_invoicing | CASH, CARD, CREDIT_CARD, DEBIT_CARD, TRANSFER, WALLET, CHECK, CREDIT | ADR 0022 §6 |
 | `ProductStatus` | catalog | ACTIVE, ARCHIVED | — |
 | `MovementType` | inventory | RECEIPT, SALE, ADJUSTMENT, TRANSFER_OUT, TRANSFER_IN, RETURN, WRITE_OFF | — |
 | `ReservationStatus` | inventory | ACTIVE, COMMITTED, RELEASED, EXPIRED | §8.13 |
@@ -300,7 +306,7 @@ Transversales (cualquier servicio): `IDEMPOTENCY_KEY_REUSED`, `TENANT_NOT_ACTIVE
 | ledger | `UNKNOWN_TEMPLATE`, `UNBALANCED_TRANSACTION`, `CURRENCY_MISMATCH`, `INVALID_AMOUNT`, `INSUFFICIENT_FUNDS`, `DUPLICATE_CAPTURE`, `ALREADY_REVERSED`, `HOLD_NOT_ACTIVE`, `INVALID_RANGE`, `INVALID_ACCOUNT` (tipo, lado o parte de la cuenta inválidos; cuenta de plataforma usada por otra parte), `INVALID_EFFECTIVE_AT` (R13: > 5 min en el futuro o > 35 días en el pasado), `INVALID_HOLD_TTL` (retención sin plazo o > 7 días) |
 | payments-core | `AMOUNT_OUT_OF_RANGE`, `AMOUNT_BELOW_FEES`, `SPLITS_MISMATCH`, `FEE_POLICY_MISSING`, `RAIL_DISABLED`, `RAIL_UNAVAILABLE`, `TERMINAL_INACTIVE`, `PAYMENT_NOT_CAPTURED`, `REFUND_EXCEEDS_CAPTURED`, `MERCHANT_BALANCE_INSUFFICIENT`, `REFUND_SPLIT_REQUIRED` (un cobro con varios comercios se reembolsa por split: hay que indicar `merchant_party_id`), `EVIDENCE_REQUIRED`, `SIGNATURE_INVALID`, `RAIL_PARTIAL_REFUND_UNSUPPORTED`, `DEPENDENCY_UNAVAILABLE` (ledger, identity o infra-management no respondieron o falta un parámetro: reintentable, nunca un cobro a medias), `INVALID_METADATA` (más de 20 claves o 500 caracteres, o una clave sensible como `card`/`cvv`/`pan`), `INVALID_REFERENCE` (tipo fuera de domain-model §9), `INVALID_EXPIRATION` (vigencia fuera de 1 s–24 h), `INVALID_FEE_POLICY`, `INVALID_LABEL` (nombre de terminal de 1 a 60 caracteres) |
 | settlement | `NOTHING_TO_SETTLE`, `BELOW_MINIMUM`, `INVALID_DESTINATION`, `ALREADY_IMPORTED`, `UNSUPPORTED_FORMAT`, `EVIDENCE_REQUIRED` |
-| fiscal-invoicing | `PROFILE_MISSING`, `NOT_READY`, `INVALID_RUC`, `INVALID_TAXPAYER`, `TOTALS_MISMATCH`, `PAC_AUTH_FAILED`, `PAC_NOT_CONFIGURED` (perfil `PROD` sin adaptador de PAC real, Q-11), `RELATED_NOT_ACCEPTED`, `EXCEEDS_ORIGINAL` |
+| fiscal-invoicing | `PROFILE_MISSING`, `NOT_READY`, `INVALID_RUC`, `INVALID_TAXPAYER`, `TOTALS_MISMATCH`, `PAC_AUTH_FAILED`, `PAC_NOT_CONFIGURED` (perfil `PROD` sin un PAC real habilitado con `FISCAL_PROD_ENABLED`, o adaptador no disponible; ADR 0022), `RELATED_NOT_ACCEPTED`, `EXCEEDS_ORIGINAL` |
 | orders | `PRICE_CHANGED`, `LISTING_UNAVAILABLE`, `CART_LIMIT`, `EMPTY_CART` (cotizar o pagar sin líneas), `DELIVERY_UNAVAILABLE` (entrega a domicilio sin servicio de logistics: solo retiro en tienda), `RAIL_NOT_SUPPORTED` (hoy solo saldo PlentyPay), `PICKUP_CODE_MISMATCH` (el código de 6 dígitos del comprador no coincide al entregar), `ACCEPT_DEADLINE_PASSED`, `ACCEPTANCE_TIMEOUT` (motivo guardado del rechazo automático), `OUT_OF_STOCK`, `OUT_OF_DELIVERY_ZONE`. Motivos de rechazo del comercio guardados en `rejection_reason`: `OUT_OF_STOCK`, `STORE_CLOSED`, `OTHER` |
 | pos | `PRICE_STALE`, `DISCOUNT_EXCEEDS_LIMIT`, `TENDERS_MISMATCH`, `SESSION_ALREADY_OPEN`, `SESSION_CLOSED`, `SALES_PENDING`, `HAS_CAPTURED_PAYMENTS`, `EXCEEDS_SOLD_QTY`, `CREDIT_LIMIT_EXCEEDED`, `INSUFFICIENT_POINTS`, `OUT_OF_DELIVERY_ZONE`, `NOT_SESSION_OWNER` (la sesión de caja es de otro cajero), `EMPTY_SALE` (cobrar sin líneas), `RAIL_NOT_SUPPORTED` (medio sin servicio en caja: hoy solo efectivo y billetera), `PRODUCT_NOT_FOUND` (producto inexistente o archivado al armar la venta), `REASON_REQUIRED` (anular o mover efectivo sin motivo), `DEPENDENCY_UNAVAILABLE` |
 | analytics-bi | `METRIC_NOT_FOUND`, `QUESTION_NOT_UNDERSTOOD` |

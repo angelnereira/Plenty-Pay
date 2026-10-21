@@ -25,3 +25,4 @@ Una decisión = un archivo `NNNN-titulo.md` (plantilla: `docs/templates/ADR-TEMP
 | [0019](0019-descubrimiento-del-gateway.md) | Descubrimiento de la URL pública del gateway | Aceptada (enmienda ADR 0015) |
 | [0020](0020-webauthn-autenticacion-fuerte.md) | WebAuthn y PIN verificado en el servidor como únicas confirmaciones fuertes | Aceptada |
 | [0021](0021-subida-de-imagenes-por-el-gateway.md) | Subida de imágenes del catálogo a través del gateway | Aceptada |
+| [0022](0022-pac-seleccionable-hka.md) | PAC seleccionable por adaptador; The Factory HKA como primer PAC | Aceptada |
