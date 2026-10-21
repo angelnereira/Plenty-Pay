@@ -12,15 +12,18 @@ import '../fiscal/fiscal_data.dart';
 import '../fiscal/fiscal_profile_screen.dart';
 import '../fiscal/invoices_screen.dart';
 import 'payments_list_screen.dart';
+import 'payout_settings_screen.dart';
+import 'settlement_data.dart';
+import 'settlements_screen.dart';
 import 'taxpayers_screen.dart';
 import 'terminals_screen.dart';
 
 /// S-FIN-01 · `/finance` · Resumen. Permiso `payments:read`.
 ///
-/// e1 periodo (Hoy · 7 días · Mes) y e2 totales de los cobros reales de payments-core. Las
-/// tarjetas de liquidación (e3), facturas y folios (e4–e5), ITBMS (e6) y el gráfico (e7) llegan con
-/// settlement (F12) y el resumen de facturas (e4, `ListInvoices` aún no filtra por fecha): no se
-/// muestran mientras no existan. e5 folios y e8 accesos a S-FIN-07/08/09 según permiso (C-12).
+/// e1 periodo (Hoy · 7 días · Mes) y e2 totales de los cobros reales de payments-core; e3 por
+/// liquidar y próxima liquidación (settlement); e5 folios; e8 accesos a S-FIN-05/06/07/08/09 según
+/// permiso (C-12). e4 (resumen de facturas: `ListInvoices` aún no filtra por fecha), e6 (ITBMS) y
+/// e7 (gráfico) no se muestran mientras no existan.
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key, required this.api});
   final ApiClient api;
@@ -35,6 +38,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   late Future<List<PaymentItem>> _future = loadPayments(widget.api);
   late final Future<Permissions> _perms = widget.api.permissions();
   Future<int?>? _foliosFuture; // se pide una vez y solo con `fiscal:read`
+  Future<PayoutSummaryItem>? _settlement; // e3, solo con `settlement:read`
 
   /// e5: folios del perfil fiscal; null si no hay perfil o no se pueden leer.
   Future<int?> _folios() async {
@@ -162,6 +166,22 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 final p = perms.data;
                 if (p == null) return const SizedBox.shrink();
                 final tiles = [
+                  if (p.can('settlement:read'))
+                    ListTile(
+                      leading: const Icon(Icons.account_balance_outlined),
+                      title: Text(l10n.settlementsTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _open(SettlementsScreen(
+                          api: widget.api,
+                          canSettle: p.can('settlement:schedule:manage'))),
+                    ),
+                  if (p.can('settlement:schedule:manage'))
+                    ListTile(
+                      leading: const Icon(Icons.event_repeat_outlined),
+                      title: Text(l10n.payoutSettingsTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _open(PayoutSettingsScreen(api: widget.api)),
+                    ),
                   if (p.can('fiscal:read'))
                     ListTile(
                       leading: const Icon(Icons.description_outlined),
@@ -189,6 +209,41 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 ];
                 if (tiles.isEmpty) return const SizedBox.shrink();
                 return Column(children: [
+                  // e3: por liquidar y próxima liquidación.
+                  if (p.can('settlement:read'))
+                    FutureBuilder<PayoutSummaryItem>(
+                      future: _settlement ??= widget.api
+                          .settlementSummary()
+                          .then(PayoutSummaryItem.fromJson),
+                      builder: (context, s) => s.data == null
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              padding: const EdgeInsets.only(
+                                  top: AppTokens.spacingMd),
+                              child: Card(
+                                margin: EdgeInsets.zero,
+                                elevation: 0,
+                                color: theme.colorScheme.surfaceContainerLow,
+                                child: ListTile(
+                                  leading: const Icon(
+                                      Icons.account_balance_outlined),
+                                  title: Text(l10n.financePendingSettlement(
+                                      MoneyText.format(s.data!.pendingMinor))),
+                                  subtitle: Text(s.data!.nextPayoutAt == null
+                                      ? l10n.settlementManual
+                                      : l10n.settlementNext(settlementDateTime(
+                                          s.data!.nextPayoutAt!,
+                                          Localizations.localeOf(context)
+                                              .toString()))),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => _open(SettlementsScreen(
+                                      api: widget.api,
+                                      canSettle:
+                                          p.can('settlement:schedule:manage'))),
+                                ),
+                              ),
+                            ),
+                    ),
                   if (p.can('fiscal:read'))
                     FutureBuilder<int?>(
                       future: _foliosFuture ??= _folios(),

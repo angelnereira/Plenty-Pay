@@ -9,12 +9,12 @@ Módulo `finance`. Pasos F11.9 (cobros), F12.8 (liquidación), F13.9 (fiscal). C
 |---|---|---|---|
 | e1 | Selector | Hoy · 7 días · Mes · Rango | — |
 | e2 | Tarjetas | Cobrado {x} · Comisiones {y} · Reembolsos {z} · Neto {w} | Cada una → S-FIN-02 filtrada |
-| e3 | Tarjeta | Por liquidar {monto} · Próxima liquidación: {fecha} | → S-FIN-05 |
+| e3 | Tarjeta | Por liquidar {monto} · Próxima liquidación: {fecha} | → S-FIN-05. Solo con `settlement:read`; sin fecha: "Liquidación manual" |
 | e4 | Tarjeta | Facturas del mes: {n} autorizadas · {m} pendientes · {k} rechazadas | Rechazadas en `error` → S-FIN-07. *Pendiente*: `ListInvoices` aún no filtra por fecha; no se muestra |
 | e5 | Tarjeta | Folios disponibles: {n} | En `warning` bajo el mínimo → S-FIN-09. Solo con `fiscal:read` y perfil fiscal; sin tope: "Sin límite de folios" |
 | e6 | Tarjeta | ITBMS del mes: {monto} · Declaración antes del 15 de {mes} | → S-FIN-10 |
 | e7 | Gráfico | Cobros por medio de pago | Barras; lista equivalente accesible |
-| e8 | Lista | Cobros · Puntos de cobro · Documentos fiscales · Clientes fiscales · Perfil fiscal | Accesos a S-FIN-02, S-FIN-04, S-FIN-07, S-FIN-08 y S-FIN-09; cada uno solo con su permiso (C-12): `payments:read`, `finance.terminals`, `fiscal:read`, `fiscal:issue`, `fiscal:profile:manage` |
+| e8 | Lista | Cobros · Puntos de cobro · Liquidaciones · Calendario de pagos · Documentos fiscales · Clientes fiscales · Perfil fiscal | Accesos a S-FIN-02, S-FIN-04, S-FIN-05, S-FIN-06, S-FIN-07, S-FIN-08 y S-FIN-09; cada uno solo con su permiso (C-12): `payments:read`, `finance.terminals`, `settlement:read`, `settlement:schedule:manage`, `fiscal:read`, `fiscal:issue`, `fiscal:profile:manage` |
 
 ### S-FIN-02 · `/finance/payments` · Cobros
 `payments:read` · `/v1/payments`. Filtros: rango, estado (Completado, Confirmando, Rechazado, Reembolsado parcial, Reembolsado), medio, origen (Caja, Tienda en línea, Terminal), monto. Lista: fecha, referencia, origen, medio, bruto, neto, `StatusChip`. Exportar (C-20).
@@ -39,19 +39,19 @@ Errores: `REFUND_EXCEEDS_CAPTURED` "El reembolso supera lo cobrado." `MERCHANT_B
 `payments:terminal:manage` · Pasos F11.9, F23.2. Lista: nombre, sucursal, activo. Crear: nombre, sucursal, monto fijo opcional. Detalle: QR grande, "Imprimir QR" (hoja con nombre del comercio y el texto "Escanea para pagar con PlentyPay"), "Grabar etiqueta NFC" (`NfcPrompt` "Acerca la etiqueta"), "Copiar enlace", e interruptor "Activo" (desactivar con C-05).
 
 ### S-FIN-05 · `/finance/settlements` · Liquidaciones
-`settlement:read` · `/v1/settlement/batches`. Cabecera: "Por liquidar {monto}" y "Próxima liquidación {fecha}". Lista: número, fecha, monto, destino (banco enmascarado o billetera), `StatusChip` (Abierta, En proceso, Pagada, Fallida). Detalle: cobros incluidos, reembolsos descontados, total, referencia bancaria, y descarga del detalle (C-20). Fallida: motivo y "Revisa tu cuenta de destino".
+`settlement:read` · `/v1/settlement/summary`, `/v1/settlement/batches`. Cabecera: "Por liquidar {monto}", "En proceso {monto}" (solo si > 0) y "Próxima liquidación {fecha}" (con frecuencia Manual o sin calendario: "Liquidación manual"). Botón primario "Liquidar ahora" (`settlement:schedule:manage`, `POST /v1/settlement/batches`): crea el lote con lo disponible tras la retención (R4); a la billetera se paga al instante, a un banco queda "En proceso" hasta que PlentyPay confirma la transferencia. Errores: `NOTHING_TO_SETTLE` "No tienes cobros listos para liquidar.", `BELOW_MINIMUM` "Lo disponible no alcanza tu mínimo de liquidación.", `SANDBOX_FUNDS` "Tus cobros de prueba solo se liquidan a la billetera del negocio.", `PAYOUTS_BLOCKED` "Por seguridad, los pagos a tu cuenta nueva empiezan 48 horas después del cambio.". Lista: número (los primeros 8 caracteres del lote), fecha, monto, destino (banco enmascarado o billetera), `StatusChip` (Abierta, En proceso, Pagada, Fallida) y chip "Prueba" si incluye cobros de prueba. Detalle: cobros incluidos, reembolsos descontados, total, referencia bancaria y fecha de pago. Fallida: motivo y "Revisa tu cuenta de destino". *Pendiente*: descarga del detalle (C-20).
 
 ### S-FIN-06 · `/finance/payout-settings` · Calendario y cuenta de destino
 `settlement:schedule:manage` · 🔒 al cambiar destino · Regla: N-PAG-07
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
-| e1 | Selector | Frecuencia: Diaria · Semanal ({día}) · Manual | — |
-| e2 | `MoneyInput` | Liquidar solo si supera | Mínimo de la plataforma |
+| e1 | Selector | Frecuencia: Diaria · Semanal ({día}) · Manual | Diaria y semanal liquidan solas a las 17:00 (hora de Panamá) |
+| e2 | `MoneyInput` | Liquidar solo si supera | Por defecto $1.00 (R6) |
 | e3 | Selector | Destino: Cuenta bancaria · Billetera del negocio | — |
-| e4 | Cuenta | Banco · Tipo · Número · Titular | Número mostrado enmascarado. El titular debe coincidir con el negocio o su representante: `INVALID_DESTINATION` "El titular no coincide con tu negocio." |
-| e5 | Texto | Un cambio de cuenta se aplica a partir de la siguiente liquidación y te avisamos por correo. | — |
-| e6 | `PPButton.primary` | Guardar | S-GEN-21 si cambió e3 o e4 |
+| e4 | Cuenta | Banco · Tipo (Corriente / Ahorros) · Número · Titular | Con una cuenta guardada se muestra "{banco} · {tipo} · •••• {últimos 4} · {titular}" y "Cambiar cuenta"; el número nunca se vuelve a mostrar. El titular debe coincidir con la razón social o el nombre comercial: `INVALID_DESTINATION` "El titular no coincide con tu negocio." |
+| e5 | Texto | Por seguridad, los pagos a una cuenta bancaria nueva empiezan 48 horas después del cambio. | Con el bloqueo activo: "Pagos detenidos hasta el {fecha}" (R5) |
+| e6 | `PPButton.primary` | Guardar | S-GEN-21 (`settlement.destination.update`) si cambió e3 o e4 |
 
 ### S-FIN-07 · `/finance/invoices` · Documentos fiscales
 `fiscal:read` · `/v1/fiscal/invoices` · Reglas: N-FIS-05, N-FIS-08, N-FIS-09

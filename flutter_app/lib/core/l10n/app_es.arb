@@ -1718,5 +1718,129 @@
         "type": "int"
       }
     }
+  },
+  "settlementsTitle": "Liquidaciones",
+  "settlementPending": "Por liquidar",
+  "settlementProcessing": "En proceso: {amount}",
+  "@settlementProcessing": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settlementManual": "Liquidación manual",
+  "settlementNext": "Próxima liquidación: {date}",
+  "@settlementNext": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "settleNow": "Liquidar ahora",
+  "settleNowPaid": "Se pagaron {amount} a tu billetera.",
+  "@settleNowPaid": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settleNowProcessing": "Lote por {amount} en proceso: te avisaremos cuando llegue a tu cuenta.",
+  "@settleNowProcessing": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settlementsEmpty": "Todavía no tienes liquidaciones.",
+  "settlementBatchNumber": "Lote {id}",
+  "@settlementBatchNumber": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "settlementSandbox": "Prueba",
+  "settlementSandboxNotice": "Incluye cobros de prueba: no es dinero real y solo se paga a tu billetera.",
+  "settlementGross": "Cobros incluidos",
+  "settlementRefunds": "Reembolsos descontados",
+  "settlementNet": "Total liquidado",
+  "settlementDestination": "Destino",
+  "settlementBankRef": "Referencia bancaria",
+  "settlementPaidAt": "Pagado el",
+  "settlementFailedHint": "Revisa tu cuenta de destino.",
+  "settlementItems": "{count, plural, =1{1 partida} other{{count} partidas}}",
+  "@settlementItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settlementItemPayment": "Cobro",
+  "settlementItemRefund": "Reembolso",
+  "batchStatusOpen": "Abierta",
+  "batchStatusProcessing": "En proceso",
+  "batchStatusPaid": "Pagada",
+  "batchStatusFailed": "Fallida",
+  "payoutDestinationBankMasked": "Cuenta •••• {last4}",
+  "@payoutDestinationBankMasked": {
+    "placeholders": {
+      "last4": {
+        "type": "String"
+      }
+    }
+  },
+  "payoutDestinationWallet": "Billetera del negocio",
+  "payoutDestinationBank": "Cuenta bancaria",
+  "payoutSettingsTitle": "Calendario de pagos",
+  "payoutSettingsSaved": "Calendario guardado.",
+  "payoutFrequency": "Frecuencia",
+  "payoutDaily": "Diaria",
+  "payoutWeekly": "Semanal",
+  "payoutManual": "Manual",
+  "payoutWeekday": "Día de la semana",
+  "payoutCutoffHint": "Se liquida sola a las 5:00 p. m., hora de Panamá.",
+  "payoutMinimum": "Liquidar solo si supera",
+  "payoutDestination": "Destino",
+  "payoutBank": "Banco",
+  "payoutAccountChecking": "Corriente",
+  "payoutAccountSavings": "Ahorros",
+  "payoutAccountNumber": "Número de cuenta",
+  "payoutHolder": "Titular",
+  "payoutChangeAccount": "Cambiar cuenta",
+  "payoutChangeNotice": "Por seguridad, los pagos a una cuenta bancaria nueva empiezan 48 horas después del cambio.",
+  "payoutBlockedUntil": "Pagos detenidos hasta el {date}.",
+  "@payoutBlockedUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "weekdayMonday": "Lunes",
+  "weekdayTuesday": "Martes",
+  "weekdayWednesday": "Miércoles",
+  "weekdayThursday": "Jueves",
+  "weekdayFriday": "Viernes",
+  "weekdaySaturday": "Sábado",
+  "weekdaySunday": "Domingo",
+  "error_NOTHING_TO_SETTLE": "No tienes cobros listos para liquidar.",
+  "error_BELOW_MINIMUM": "Lo disponible no alcanza tu mínimo de liquidación.",
+  "error_SANDBOX_FUNDS": "Tus cobros de prueba solo se liquidan a la billetera del negocio.",
+  "error_PAYOUTS_BLOCKED": "Por seguridad, los pagos a tu cuenta nueva empiezan 48 horas después del cambio.",
+  "error_INVALID_DESTINATION": "El titular no coincide con tu negocio.",
+  "error_CONCURRENT_BATCH": "Ya se estaba creando una liquidación. Actualiza e intenta de nuevo.",
+  "financePendingSettlement": "Por liquidar {amount}",
+  "@financePendingSettlement": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   }
 }

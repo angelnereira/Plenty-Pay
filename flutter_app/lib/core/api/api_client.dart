@@ -488,6 +488,46 @@ class ApiClient {
   /// Tasas de ITBMS vigentes (`legal.pa.itbms.*`): la app nunca las lleva en su código.
   Future<Map<String, dynamic>> getTaxRates() => _get('/v1/catalog/tax-rates');
 
+  // ── Liquidación a comercios (settlement, api-gateway SPEC §4.3) ──────────────
+  // El negocio sale del token; ninguna llamada manda tenant_id (ADR 0011).
+
+  Future<Map<String, dynamic>> settlementSummary() =>
+      _get('/v1/settlement/summary');
+
+  Future<Map<String, dynamic>> payoutSchedule() =>
+      _get('/v1/settlement/schedule');
+
+  /// 🔒 `settlement.destination.update` si cambia el destino: sin token responde
+  /// STEP_UP_REQUIRED. El número de cuenta viaja una sola vez y se cifra en security.
+  Future<Map<String, dynamic>> setPayoutSchedule(Map<String, Object?> schedule,
+          {Map<String, Object?>? destination,
+          required String idempotencyKey,
+          String? stepUpToken}) =>
+      _put('/v1/settlement/schedule',
+          data: {
+            'schedule': schedule,
+            if (destination != null) 'destination': destination,
+          },
+          headers: _stepUpHeaders(stepUpToken),
+          idempotencyKey: idempotencyKey);
+
+  Future<Map<String, dynamic>> listSettlementBatches(
+          {String status = '', String pageToken = ''}) =>
+      _get('/v1/settlement/batches', queryParameters: {
+        if (status.isNotEmpty) 'status': status,
+        'page_size': '50',
+        if (pageToken.isNotEmpty) 'page_token': pageToken,
+      });
+
+  Future<Map<String, dynamic>> getSettlementBatch(String batchId) =>
+      _get('/v1/settlement/batches/${Uri.encodeComponent(batchId)}');
+
+  /// «Liquidar ahora» (S-FIN-05).
+  Future<Map<String, dynamic>> createSettlementBatch(
+          {required String idempotencyKey}) =>
+      _post('/v1/settlement/batches',
+          data: const <String, Object>{}, idempotencyKey: idempotencyKey);
+
   // ── Facturación electrónica (fiscal-invoicing, api-gateway SPEC §4.3) ──────
   // El negocio sale del token; ninguna llamada manda tenant_id (ADR 0011).
 

@@ -3938,6 +3938,222 @@ class AppLocalizationsEs extends AppLocalizations {
   String homeAlertFolios(int count) {
     return 'Quedan pocos folios: $count';
   }
+
+  @override
+  String get settlementsTitle => 'Liquidaciones';
+
+  @override
+  String get settlementPending => 'Por liquidar';
+
+  @override
+  String settlementProcessing(String amount) {
+    return 'En proceso: $amount';
+  }
+
+  @override
+  String get settlementManual => 'Liquidación manual';
+
+  @override
+  String settlementNext(String date) {
+    return 'Próxima liquidación: $date';
+  }
+
+  @override
+  String get settleNow => 'Liquidar ahora';
+
+  @override
+  String settleNowPaid(String amount) {
+    return 'Se pagaron $amount a tu billetera.';
+  }
+
+  @override
+  String settleNowProcessing(String amount) {
+    return 'Lote por $amount en proceso: te avisaremos cuando llegue a tu cuenta.';
+  }
+
+  @override
+  String get settlementsEmpty => 'Todavía no tienes liquidaciones.';
+
+  @override
+  String settlementBatchNumber(String id) {
+    return 'Lote $id';
+  }
+
+  @override
+  String get settlementSandbox => 'Prueba';
+
+  @override
+  String get settlementSandboxNotice =>
+      'Incluye cobros de prueba: no es dinero real y solo se paga a tu billetera.';
+
+  @override
+  String get settlementGross => 'Cobros incluidos';
+
+  @override
+  String get settlementRefunds => 'Reembolsos descontados';
+
+  @override
+  String get settlementNet => 'Total liquidado';
+
+  @override
+  String get settlementDestination => 'Destino';
+
+  @override
+  String get settlementBankRef => 'Referencia bancaria';
+
+  @override
+  String get settlementPaidAt => 'Pagado el';
+
+  @override
+  String get settlementFailedHint => 'Revisa tu cuenta de destino.';
+
+  @override
+  String settlementItems(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count partidas',
+      one: '1 partida',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settlementItemPayment => 'Cobro';
+
+  @override
+  String get settlementItemRefund => 'Reembolso';
+
+  @override
+  String get batchStatusOpen => 'Abierta';
+
+  @override
+  String get batchStatusProcessing => 'En proceso';
+
+  @override
+  String get batchStatusPaid => 'Pagada';
+
+  @override
+  String get batchStatusFailed => 'Fallida';
+
+  @override
+  String payoutDestinationBankMasked(String last4) {
+    return 'Cuenta •••• $last4';
+  }
+
+  @override
+  String get payoutDestinationWallet => 'Billetera del negocio';
+
+  @override
+  String get payoutDestinationBank => 'Cuenta bancaria';
+
+  @override
+  String get payoutSettingsTitle => 'Calendario de pagos';
+
+  @override
+  String get payoutSettingsSaved => 'Calendario guardado.';
+
+  @override
+  String get payoutFrequency => 'Frecuencia';
+
+  @override
+  String get payoutDaily => 'Diaria';
+
+  @override
+  String get payoutWeekly => 'Semanal';
+
+  @override
+  String get payoutManual => 'Manual';
+
+  @override
+  String get payoutWeekday => 'Día de la semana';
+
+  @override
+  String get payoutCutoffHint =>
+      'Se liquida sola a las 5:00 p. m., hora de Panamá.';
+
+  @override
+  String get payoutMinimum => 'Liquidar solo si supera';
+
+  @override
+  String get payoutDestination => 'Destino';
+
+  @override
+  String get payoutBank => 'Banco';
+
+  @override
+  String get payoutAccountChecking => 'Corriente';
+
+  @override
+  String get payoutAccountSavings => 'Ahorros';
+
+  @override
+  String get payoutAccountNumber => 'Número de cuenta';
+
+  @override
+  String get payoutHolder => 'Titular';
+
+  @override
+  String get payoutChangeAccount => 'Cambiar cuenta';
+
+  @override
+  String get payoutChangeNotice =>
+      'Por seguridad, los pagos a una cuenta bancaria nueva empiezan 48 horas después del cambio.';
+
+  @override
+  String payoutBlockedUntil(String date) {
+    return 'Pagos detenidos hasta el $date.';
+  }
+
+  @override
+  String get weekdayMonday => 'Lunes';
+
+  @override
+  String get weekdayTuesday => 'Martes';
+
+  @override
+  String get weekdayWednesday => 'Miércoles';
+
+  @override
+  String get weekdayThursday => 'Jueves';
+
+  @override
+  String get weekdayFriday => 'Viernes';
+
+  @override
+  String get weekdaySaturday => 'Sábado';
+
+  @override
+  String get weekdaySunday => 'Domingo';
+
+  @override
+  String get error_NOTHING_TO_SETTLE =>
+      'No tienes cobros listos para liquidar.';
+
+  @override
+  String get error_BELOW_MINIMUM =>
+      'Lo disponible no alcanza tu mínimo de liquidación.';
+
+  @override
+  String get error_SANDBOX_FUNDS =>
+      'Tus cobros de prueba solo se liquidan a la billetera del negocio.';
+
+  @override
+  String get error_PAYOUTS_BLOCKED =>
+      'Por seguridad, los pagos a tu cuenta nueva empiezan 48 horas después del cambio.';
+
+  @override
+  String get error_INVALID_DESTINATION =>
+      'El titular no coincide con tu negocio.';
+
+  @override
+  String get error_CONCURRENT_BATCH =>
+      'Ya se estaba creando una liquidación. Actualiza e intenta de nuevo.';
+
+  @override
+  String financePendingSettlement(String amount) {
+    return 'Por liquidar $amount';
+  }
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

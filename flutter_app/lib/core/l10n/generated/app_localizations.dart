@@ -7250,6 +7250,372 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Quedan pocos folios: {count}'**
   String homeAlertFolios(int count);
+
+  /// No description provided for @settlementsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Liquidaciones'**
+  String get settlementsTitle;
+
+  /// No description provided for @settlementPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Por liquidar'**
+  String get settlementPending;
+
+  /// No description provided for @settlementProcessing.
+  ///
+  /// In es, this message translates to:
+  /// **'En proceso: {amount}'**
+  String settlementProcessing(String amount);
+
+  /// No description provided for @settlementManual.
+  ///
+  /// In es, this message translates to:
+  /// **'Liquidación manual'**
+  String get settlementManual;
+
+  /// No description provided for @settlementNext.
+  ///
+  /// In es, this message translates to:
+  /// **'Próxima liquidación: {date}'**
+  String settlementNext(String date);
+
+  /// No description provided for @settleNow.
+  ///
+  /// In es, this message translates to:
+  /// **'Liquidar ahora'**
+  String get settleNow;
+
+  /// No description provided for @settleNowPaid.
+  ///
+  /// In es, this message translates to:
+  /// **'Se pagaron {amount} a tu billetera.'**
+  String settleNowPaid(String amount);
+
+  /// No description provided for @settleNowProcessing.
+  ///
+  /// In es, this message translates to:
+  /// **'Lote por {amount} en proceso: te avisaremos cuando llegue a tu cuenta.'**
+  String settleNowProcessing(String amount);
+
+  /// No description provided for @settlementsEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Todavía no tienes liquidaciones.'**
+  String get settlementsEmpty;
+
+  /// No description provided for @settlementBatchNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'Lote {id}'**
+  String settlementBatchNumber(String id);
+
+  /// No description provided for @settlementSandbox.
+  ///
+  /// In es, this message translates to:
+  /// **'Prueba'**
+  String get settlementSandbox;
+
+  /// No description provided for @settlementSandboxNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'Incluye cobros de prueba: no es dinero real y solo se paga a tu billetera.'**
+  String get settlementSandboxNotice;
+
+  /// No description provided for @settlementGross.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobros incluidos'**
+  String get settlementGross;
+
+  /// No description provided for @settlementRefunds.
+  ///
+  /// In es, this message translates to:
+  /// **'Reembolsos descontados'**
+  String get settlementRefunds;
+
+  /// No description provided for @settlementNet.
+  ///
+  /// In es, this message translates to:
+  /// **'Total liquidado'**
+  String get settlementNet;
+
+  /// No description provided for @settlementDestination.
+  ///
+  /// In es, this message translates to:
+  /// **'Destino'**
+  String get settlementDestination;
+
+  /// No description provided for @settlementBankRef.
+  ///
+  /// In es, this message translates to:
+  /// **'Referencia bancaria'**
+  String get settlementBankRef;
+
+  /// No description provided for @settlementPaidAt.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagado el'**
+  String get settlementPaidAt;
+
+  /// No description provided for @settlementFailedHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisa tu cuenta de destino.'**
+  String get settlementFailedHint;
+
+  /// No description provided for @settlementItems.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 partida} other{{count} partidas}}'**
+  String settlementItems(int count);
+
+  /// No description provided for @settlementItemPayment.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobro'**
+  String get settlementItemPayment;
+
+  /// No description provided for @settlementItemRefund.
+  ///
+  /// In es, this message translates to:
+  /// **'Reembolso'**
+  String get settlementItemRefund;
+
+  /// No description provided for @batchStatusOpen.
+  ///
+  /// In es, this message translates to:
+  /// **'Abierta'**
+  String get batchStatusOpen;
+
+  /// No description provided for @batchStatusProcessing.
+  ///
+  /// In es, this message translates to:
+  /// **'En proceso'**
+  String get batchStatusProcessing;
+
+  /// No description provided for @batchStatusPaid.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagada'**
+  String get batchStatusPaid;
+
+  /// No description provided for @batchStatusFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'Fallida'**
+  String get batchStatusFailed;
+
+  /// No description provided for @payoutDestinationBankMasked.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuenta •••• {last4}'**
+  String payoutDestinationBankMasked(String last4);
+
+  /// No description provided for @payoutDestinationWallet.
+  ///
+  /// In es, this message translates to:
+  /// **'Billetera del negocio'**
+  String get payoutDestinationWallet;
+
+  /// No description provided for @payoutDestinationBank.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuenta bancaria'**
+  String get payoutDestinationBank;
+
+  /// No description provided for @payoutSettingsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Calendario de pagos'**
+  String get payoutSettingsTitle;
+
+  /// No description provided for @payoutSettingsSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Calendario guardado.'**
+  String get payoutSettingsSaved;
+
+  /// No description provided for @payoutFrequency.
+  ///
+  /// In es, this message translates to:
+  /// **'Frecuencia'**
+  String get payoutFrequency;
+
+  /// No description provided for @payoutDaily.
+  ///
+  /// In es, this message translates to:
+  /// **'Diaria'**
+  String get payoutDaily;
+
+  /// No description provided for @payoutWeekly.
+  ///
+  /// In es, this message translates to:
+  /// **'Semanal'**
+  String get payoutWeekly;
+
+  /// No description provided for @payoutManual.
+  ///
+  /// In es, this message translates to:
+  /// **'Manual'**
+  String get payoutManual;
+
+  /// No description provided for @payoutWeekday.
+  ///
+  /// In es, this message translates to:
+  /// **'Día de la semana'**
+  String get payoutWeekday;
+
+  /// No description provided for @payoutCutoffHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Se liquida sola a las 5:00 p. m., hora de Panamá.'**
+  String get payoutCutoffHint;
+
+  /// No description provided for @payoutMinimum.
+  ///
+  /// In es, this message translates to:
+  /// **'Liquidar solo si supera'**
+  String get payoutMinimum;
+
+  /// No description provided for @payoutDestination.
+  ///
+  /// In es, this message translates to:
+  /// **'Destino'**
+  String get payoutDestination;
+
+  /// No description provided for @payoutBank.
+  ///
+  /// In es, this message translates to:
+  /// **'Banco'**
+  String get payoutBank;
+
+  /// No description provided for @payoutAccountChecking.
+  ///
+  /// In es, this message translates to:
+  /// **'Corriente'**
+  String get payoutAccountChecking;
+
+  /// No description provided for @payoutAccountSavings.
+  ///
+  /// In es, this message translates to:
+  /// **'Ahorros'**
+  String get payoutAccountSavings;
+
+  /// No description provided for @payoutAccountNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'Número de cuenta'**
+  String get payoutAccountNumber;
+
+  /// No description provided for @payoutHolder.
+  ///
+  /// In es, this message translates to:
+  /// **'Titular'**
+  String get payoutHolder;
+
+  /// No description provided for @payoutChangeAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar cuenta'**
+  String get payoutChangeAccount;
+
+  /// No description provided for @payoutChangeNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'Por seguridad, los pagos a una cuenta bancaria nueva empiezan 48 horas después del cambio.'**
+  String get payoutChangeNotice;
+
+  /// No description provided for @payoutBlockedUntil.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagos detenidos hasta el {date}.'**
+  String payoutBlockedUntil(String date);
+
+  /// No description provided for @weekdayMonday.
+  ///
+  /// In es, this message translates to:
+  /// **'Lunes'**
+  String get weekdayMonday;
+
+  /// No description provided for @weekdayTuesday.
+  ///
+  /// In es, this message translates to:
+  /// **'Martes'**
+  String get weekdayTuesday;
+
+  /// No description provided for @weekdayWednesday.
+  ///
+  /// In es, this message translates to:
+  /// **'Miércoles'**
+  String get weekdayWednesday;
+
+  /// No description provided for @weekdayThursday.
+  ///
+  /// In es, this message translates to:
+  /// **'Jueves'**
+  String get weekdayThursday;
+
+  /// No description provided for @weekdayFriday.
+  ///
+  /// In es, this message translates to:
+  /// **'Viernes'**
+  String get weekdayFriday;
+
+  /// No description provided for @weekdaySaturday.
+  ///
+  /// In es, this message translates to:
+  /// **'Sábado'**
+  String get weekdaySaturday;
+
+  /// No description provided for @weekdaySunday.
+  ///
+  /// In es, this message translates to:
+  /// **'Domingo'**
+  String get weekdaySunday;
+
+  /// No description provided for @error_NOTHING_TO_SETTLE.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes cobros listos para liquidar.'**
+  String get error_NOTHING_TO_SETTLE;
+
+  /// No description provided for @error_BELOW_MINIMUM.
+  ///
+  /// In es, this message translates to:
+  /// **'Lo disponible no alcanza tu mínimo de liquidación.'**
+  String get error_BELOW_MINIMUM;
+
+  /// No description provided for @error_SANDBOX_FUNDS.
+  ///
+  /// In es, this message translates to:
+  /// **'Tus cobros de prueba solo se liquidan a la billetera del negocio.'**
+  String get error_SANDBOX_FUNDS;
+
+  /// No description provided for @error_PAYOUTS_BLOCKED.
+  ///
+  /// In es, this message translates to:
+  /// **'Por seguridad, los pagos a tu cuenta nueva empiezan 48 horas después del cambio.'**
+  String get error_PAYOUTS_BLOCKED;
+
+  /// No description provided for @error_INVALID_DESTINATION.
+  ///
+  /// In es, this message translates to:
+  /// **'El titular no coincide con tu negocio.'**
+  String get error_INVALID_DESTINATION;
+
+  /// No description provided for @error_CONCURRENT_BATCH.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya se estaba creando una liquidación. Actualiza e intenta de nuevo.'**
+  String get error_CONCURRENT_BATCH;
+
+  /// No description provided for @financePendingSettlement.
+  ///
+  /// In es, this message translates to:
+  /// **'Por liquidar {amount}'**
+  String financePendingSettlement(String amount);
 }
 
 class _AppLocalizationsDelegate

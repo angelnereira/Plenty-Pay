@@ -3933,4 +3933,219 @@ class AppLocalizationsEn extends AppLocalizations {
   String homeAlertFolios(int count) {
     return 'Few folios left: $count';
   }
+
+  @override
+  String get settlementsTitle => 'Payouts';
+
+  @override
+  String get settlementPending => 'Pending payout';
+
+  @override
+  String settlementProcessing(String amount) {
+    return 'Processing: $amount';
+  }
+
+  @override
+  String get settlementManual => 'Manual payouts';
+
+  @override
+  String settlementNext(String date) {
+    return 'Next payout: $date';
+  }
+
+  @override
+  String get settleNow => 'Pay out now';
+
+  @override
+  String settleNowPaid(String amount) {
+    return '$amount was paid to your wallet.';
+  }
+
+  @override
+  String settleNowProcessing(String amount) {
+    return 'Payout of $amount in progress: we\'ll let you know when it reaches your account.';
+  }
+
+  @override
+  String get settlementsEmpty => 'You don\'t have payouts yet.';
+
+  @override
+  String settlementBatchNumber(String id) {
+    return 'Batch $id';
+  }
+
+  @override
+  String get settlementSandbox => 'Test';
+
+  @override
+  String get settlementSandboxNotice =>
+      'Includes test charges: it isn\'t real money and is only paid to your wallet.';
+
+  @override
+  String get settlementGross => 'Charges included';
+
+  @override
+  String get settlementRefunds => 'Refunds deducted';
+
+  @override
+  String get settlementNet => 'Total paid out';
+
+  @override
+  String get settlementDestination => 'Destination';
+
+  @override
+  String get settlementBankRef => 'Bank reference';
+
+  @override
+  String get settlementPaidAt => 'Paid on';
+
+  @override
+  String get settlementFailedHint => 'Check your destination account.';
+
+  @override
+  String settlementItems(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settlementItemPayment => 'Charge';
+
+  @override
+  String get settlementItemRefund => 'Refund';
+
+  @override
+  String get batchStatusOpen => 'Open';
+
+  @override
+  String get batchStatusProcessing => 'Processing';
+
+  @override
+  String get batchStatusPaid => 'Paid';
+
+  @override
+  String get batchStatusFailed => 'Failed';
+
+  @override
+  String payoutDestinationBankMasked(String last4) {
+    return 'Account •••• $last4';
+  }
+
+  @override
+  String get payoutDestinationWallet => 'Business wallet';
+
+  @override
+  String get payoutDestinationBank => 'Bank account';
+
+  @override
+  String get payoutSettingsTitle => 'Payout schedule';
+
+  @override
+  String get payoutSettingsSaved => 'Schedule saved.';
+
+  @override
+  String get payoutFrequency => 'Frequency';
+
+  @override
+  String get payoutDaily => 'Daily';
+
+  @override
+  String get payoutWeekly => 'Weekly';
+
+  @override
+  String get payoutManual => 'Manual';
+
+  @override
+  String get payoutWeekday => 'Day of the week';
+
+  @override
+  String get payoutCutoffHint =>
+      'Paid out automatically at 5:00 p.m. Panama time.';
+
+  @override
+  String get payoutMinimum => 'Pay out only above';
+
+  @override
+  String get payoutDestination => 'Destination';
+
+  @override
+  String get payoutBank => 'Bank';
+
+  @override
+  String get payoutAccountChecking => 'Checking';
+
+  @override
+  String get payoutAccountSavings => 'Savings';
+
+  @override
+  String get payoutAccountNumber => 'Account number';
+
+  @override
+  String get payoutHolder => 'Account holder';
+
+  @override
+  String get payoutChangeAccount => 'Change account';
+
+  @override
+  String get payoutChangeNotice =>
+      'For security, payouts to a new bank account start 48 hours after the change.';
+
+  @override
+  String payoutBlockedUntil(String date) {
+    return 'Payouts on hold until $date.';
+  }
+
+  @override
+  String get weekdayMonday => 'Monday';
+
+  @override
+  String get weekdayTuesday => 'Tuesday';
+
+  @override
+  String get weekdayWednesday => 'Wednesday';
+
+  @override
+  String get weekdayThursday => 'Thursday';
+
+  @override
+  String get weekdayFriday => 'Friday';
+
+  @override
+  String get weekdaySaturday => 'Saturday';
+
+  @override
+  String get weekdaySunday => 'Sunday';
+
+  @override
+  String get error_NOTHING_TO_SETTLE => 'You have no charges ready to pay out.';
+
+  @override
+  String get error_BELOW_MINIMUM =>
+      'The available amount doesn\'t reach your payout minimum.';
+
+  @override
+  String get error_SANDBOX_FUNDS =>
+      'Your test charges can only be paid out to the business wallet.';
+
+  @override
+  String get error_PAYOUTS_BLOCKED =>
+      'For security, payouts to your new account start 48 hours after the change.';
+
+  @override
+  String get error_INVALID_DESTINATION =>
+      'The account holder doesn\'t match your business.';
+
+  @override
+  String get error_CONCURRENT_BATCH =>
+      'A payout was already being created. Refresh and try again.';
+
+  @override
+  String financePendingSettlement(String amount) {
+    return 'Pending payout $amount';
+  }
 }
