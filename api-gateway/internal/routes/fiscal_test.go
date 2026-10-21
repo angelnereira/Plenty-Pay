@@ -16,6 +16,7 @@ func TestF13_FiscalRoutes(t *testing.T) {
 		"GET /v1/fiscal/profile":                   {"GetFiscalProfile", "fiscal:read"},
 		"PUT /v1/fiscal/profile":                   {"ConfigureFiscalProfile", "fiscal:profile:manage"},
 		"GET /v1/fiscal/folios":                    {"GetFolioStatus", "fiscal:read"},
+		"GET /v1/fiscal/pac-providers":             {"ListPacProviders", "fiscal:profile:manage"},
 		"GET /v1/fiscal/invoices":                  {"ListInvoices", "fiscal:read"},
 		"POST /v1/fiscal/invoices":                 {"IssueInvoice", "fiscal:issue"},
 		"GET /v1/fiscal/invoices/i1":               {"GetInvoice", "fiscal:read"},

@@ -23,6 +23,13 @@ var fiscalRoutes = []Route{
 		NewResponse: func() proto.Message { return &pb.FiscalProfile{} },
 	},
 	{
+		// Selector de PAC del perfil fiscal (R10, ADR 0022).
+		Method: "GET", Path: "/v1/fiscal/pac-providers", RPC: "/plentypay.fiscal.v1.FiscalInvoicing/ListPacProviders",
+		Backend: BackendFiscal, RequireAuth: true, Permission: "fiscal:profile:manage",
+		NewRequest:  func() proto.Message { return &pb.ListPacProvidersRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListPacProvidersResponse{} },
+	},
+	{
 		Method: "GET", Path: "/v1/fiscal/folios", RPC: "/plentypay.fiscal.v1.FiscalInvoicing/GetFolioStatus",
 		Backend: BackendFiscal, RequireAuth: true, Permission: "fiscal:read",
 		NewRequest:  func() proto.Message { return &pb.GetFolioStatusRequest{} },

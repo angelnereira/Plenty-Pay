@@ -110,6 +110,7 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | POST `/v1/fiscal/invoices/{id}/credit-notes` · `/debit-notes` | IssueCreditNote · IssueDebitNote | `fiscal:note:issue` |
 | GET `/v1/fiscal/taxpayers?q=` · PUT | SearchTaxpayers · UpsertTaxpayer | `fiscal:issue` |
 | GET `/v1/fiscal/folios` | GetFolioStatus | `fiscal:read` |
+| GET `/v1/fiscal/pac-providers` | ListPacProviders (selector de PAC, ADR 0022) | `fiscal:profile:manage` |
 
 ### 4.4 Catálogo, marketplace y pedidos (F15)
 | Método y ruta | RPC | Permiso |
