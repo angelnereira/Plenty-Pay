@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/widgets/money_text.dart';
+import '../../core/format/dates.dart';
 
 /// F23.7 · Recibo compartible.
 ///
@@ -68,8 +68,7 @@ class ReceiptView extends StatelessWidget {
   /// Formatea una fecha con el mes **en texto** (N-STD-10): ninguna fecha se muestra
   /// solo con números.
   static String formatDate(DateTime d, String locale) {
-    final f = DateFormat('d MMMM y · HH:mm', locale);
-    return f.format(d.toLocal());
+    return longDateTime(d.toLocal(), locale);
   }
 
   @override

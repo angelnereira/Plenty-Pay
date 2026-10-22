@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/l10n/generated/app_localizations.dart';
-import 'feature_unavailable.dart';
+import 'pay_scan_screen.dart';
 
-/// S-WAL-03 · `/wallet/send` · Enviar dinero. Las transferencias entre personas (T4,
-/// `POST /v1/wallet/transfers`) aún no existen en payments-core: la pantalla lo dice.
+/// S-WAL-03 · `/wallet/send` · Enviar dinero (F11.10). `wallet:transfer`.
+///
+/// Se envía escaneando el QR personal de quien recibe (S-WAL-04) o escribiendo su código; la
+/// persona se verifica en el servidor antes de confirmar. Buscar por correo o teléfono espera
+/// Q-54 (directorio de personas).
 class SendScreen extends StatelessWidget {
-  const SendScreen({super.key, required this.api});
+  const SendScreen({super.key, required this.api, this.startScanner = true});
   final ApiClient api;
 
+  /// Falso en pruebas de widget (sin cámara).
+  final bool startScanner;
+
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return FeatureUnavailableScreen(
-        title: l10n.sendTitle,
-        message: l10n.sendUnavailable,
-        icon: Icons.send_outlined);
-  }
+  Widget build(BuildContext context) =>
+      PayScanScreen(api: api, send: true, startScanner: startScanner);
 }

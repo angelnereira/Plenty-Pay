@@ -5,6 +5,8 @@ import 'package:plentypay/features/finance/terminals_screen.dart';
 import 'package:plentypay/features/home/home_screen.dart';
 import 'package:plentypay/features/modules/module_registry.dart';
 import 'package:plentypay/features/wallet/pay_confirm_screen.dart';
+import 'package:plentypay/features/wallet/receive_screen.dart';
+import 'package:plentypay/features/wallet/send_screen.dart';
 import 'package:plentypay/features/wallet/wallet_screen.dart';
 
 import '../support/fake_gateway.dart';
@@ -18,6 +20,18 @@ void main() {
     'GET /v1/me': (_) =>
         json({'user_id': 'u-1', 'role': 'CUSTOMER', 'tenant_id': ''}),
     'GET /v1/wallet/balance': (_) => json(balance(1234567, held: 2500)),
+    'GET /v1/wallet/receive-code': (_) => json({
+          'code': 'PeRsOnAlCoDe0123456789',
+          'link': 'https://plentypay.app/t/PeRsOnAlCoDe0123456789',
+          'display_name': 'Maximiliano Fernández-Arosemena Q.',
+          'expires_at': '2026-10-22T23:00:00Z',
+        }),
+    'GET /v1/pay-links/PeRsOnAlCoDe0123456789': (_) => json({
+          'public_code': 'PeRsOnAlCoDe0123456789',
+          'merchant_name': 'Maximiliano Fernández-Arosemena Q.',
+          'active': true,
+          'kind': 'PERSON',
+        }),
     'GET /v1/wallet/statement': (_) => json({
           'lines': [
             {
@@ -58,6 +72,10 @@ void main() {
     'billetera': () => WalletScreen(api: fakeApi(routes)),
     'confirmar pago': () =>
         PayConfirmScreen(api: fakeApi(routes), code: 'AbCdEfGhIjKlMnOpQrStUv'),
+    'recibir': () => ReceiveScreen(api: fakeApi(routes)),
+    'enviar': () => SendScreen(api: fakeApi(routes), startScanner: false),
+    'enviar a persona': () => PayConfirmScreen(
+        api: fakeApi(routes), code: 'PeRsOnAlCoDe0123456789', amountMinor: 123456789),
     'finanzas': () => FinanceScreen(api: fakeApi(routes)),
     'puntos de cobro': () => TerminalsScreen(api: fakeApi(routes)),
   };

@@ -1406,5 +1406,15 @@
   "scanCameraDenied": "No camera permission. You can type the code.",
   "scanEnableCamera": "Turn on camera",
   "scanManualLabel": "Or type the code",
-  "scanManualSubmit": "Use this code"
+  "scanManualSubmit": "Use this code",
+  "payVerifiedPerson": "Verified PlentyPay user",
+  "sendButton": "Send {total}",
+  "sendNoFee": "Sending between people has no fee.",
+  "sendScanHint": "Scan the recipient's code or type it below.",
+  "receiveScanToSend": "Code to send you money with PlentyPay",
+  "receiveHint": "Show this code to receive money. It identifies you without showing your email or phone.",
+  "receiveValidUntil": "Valid until {date}",
+  "receiveAmount": "Request an amount (optional)",
+  "receiveAppOnly": "For now this code is read with the PlentyPay app.",
+  "error_SELF_TRANSFER": "You can't send money to yourself."
 }

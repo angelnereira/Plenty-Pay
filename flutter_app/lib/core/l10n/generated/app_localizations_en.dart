@@ -4484,4 +4484,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanManualSubmit => 'Use this code';
+
+  @override
+  String get payVerifiedPerson => 'Verified PlentyPay user';
+
+  @override
+  String sendButton(String total) {
+    return 'Send $total';
+  }
+
+  @override
+  String get sendNoFee => 'Sending between people has no fee.';
+
+  @override
+  String get sendScanHint => 'Scan the recipient\'s code or type it below.';
+
+  @override
+  String get receiveScanToSend => 'Code to send you money with PlentyPay';
+
+  @override
+  String get receiveHint =>
+      'Show this code to receive money. It identifies you without showing your email or phone.';
+
+  @override
+  String receiveValidUntil(String date) {
+    return 'Valid until $date';
+  }
+
+  @override
+  String get receiveAmount => 'Request an amount (optional)';
+
+  @override
+  String get receiveAppOnly =>
+      'For now this code is read with the PlentyPay app.';
+
+  @override
+  String get error_SELF_TRANSFER => 'You can\'t send money to yourself.';
 }

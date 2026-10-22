@@ -413,6 +413,9 @@ class ApiClient {
           },
           idempotencyKey: idempotencyKey);
 
+  /// F11.10 · S-WAL-04: código personal para recibir (vence a las 24 h).
+  Future<Map<String, dynamic>> receiveCode() => _get('/v1/wallet/receive-code');
+
   Future<Map<String, dynamic>> confirmPaymentIntent(String intentId,
           {required String idempotencyKey}) =>
       _post('/v1/payments/intents/${Uri.encodeComponent(intentId)}/confirm',

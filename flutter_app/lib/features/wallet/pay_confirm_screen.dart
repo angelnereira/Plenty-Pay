@@ -22,6 +22,9 @@ import 'wallet_data.dart';
 /// alcanza) · e4 desglose de `/v1/payments/quote` · e6 "Pagar {total}". El step-up se pide solo si
 /// payments-core responde `STEP_UP_REQUIRED` (el umbral vive en infra-management, no en la app).
 /// e5 (factura con RUC) llega con F13.
+///
+/// F11.10: si el código es el personal de alguien, es un envío (S-WAL-03): persona verificada
+/// abreviada, sin comisión (se envía exactamente el monto) y permiso `wallet:transfer`.
 class PayConfirmScreen extends StatefulWidget {
   const PayConfirmScreen(
       {super.key,
@@ -55,6 +58,9 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   Object? _quoteError;
   bool _paying = false;
 
+  /// null hasta que el servidor dice a quién lleva el código; mientras tanto no se cotiza.
+  bool? _isPerson;
+
   /// Una clave por intento de pago: se reutiliza al reintentar el mismo monto y se renueva al
   /// cambiarlo (grpc-conventions §3).
   String _createKey = newRequestId();
@@ -65,15 +71,19 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     final fixed = widget.amountMinor;
     if (fixed != null) {
       _amount.text = MoneyText.format(fixed, symbol: '');
-      _onAmountChanged(_amount.text);
     }
   }
 
   Future<_Loaded> _load() async {
     final results = await Future.wait(
         [widget.api.resolvePayLink(widget.code), widget.api.walletBalance()]);
-    return _Loaded(PayLink.fromJson(widget.code, results[0]),
+    final loaded = _Loaded(PayLink.fromJson(widget.code, results[0]),
         WalletBalance.fromJson(results[1]));
+    if (mounted) {
+      setState(() => _isPerson = loaded.link.isPerson);
+      if (_amount.text.isNotEmpty) _onAmountChanged(_amount.text);
+    }
+    return loaded;
   }
 
   @override
@@ -91,7 +101,11 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       _quote = null;
       _quoteError = null;
     });
-    if (minor == null || minor <= 0) return;
+    if (minor == null || minor <= 0 || _isPerson == null) return;
+    if (_isPerson!) {
+      setState(() => _quote = PayQuote.free(minor));
+      return;
+    }
     _debounce = Timer(const Duration(milliseconds: 350), () async {
       try {
         final q = PayQuote.fromJson(minor, await widget.api.quoteFees(minor));
@@ -169,7 +183,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     final l10n = AppLocalizations.of(context);
     final margin = WindowClass.of(context).horizontalMargin;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.walletPay)),
+      appBar: AppBar(
+          title: Text(_isPerson ?? false ? l10n.sendTitle : l10n.walletPay)),
       body: FutureBuilder<_Loaded>(
         future: _future,
         builder: (context, snap) => ListView(
@@ -207,12 +222,17 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         elevation: 0,
         color: theme.colorScheme.surfaceContainerHigh,
         child: ListTile(
-          leading: Icon(Icons.verified,
+          leading: Icon(
+              data.link.isPerson ? Icons.verified_user : Icons.verified,
               color: theme.colorScheme.primary,
-              semanticLabel: l10n.payVerifiedMerchant),
+              semanticLabel: data.link.isPerson
+                  ? l10n.payVerifiedPerson
+                  : l10n.payVerifiedMerchant),
           title:
               Text(data.link.merchantName, style: theme.textTheme.titleMedium),
-          subtitle: Text(data.link.label),
+          subtitle: Text(data.link.isPerson
+              ? l10n.payVerifiedPerson
+              : data.link.label),
         ),
       ),
       const SizedBox(height: AppTokens.spacingLg),
@@ -258,7 +278,10 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       // e4
       if (q != null) ...[
         const SizedBox(height: AppTokens.spacingSm),
-        _Line(label: l10n.payBreakdownPurchase, minor: q.baseMinor),
+        if (data.link.isPerson)
+          Text(l10n.sendNoFee, style: theme.textTheme.bodyMedium)
+        else
+          _Line(label: l10n.payBreakdownPurchase, minor: q.baseMinor),
         if (q.customerPaysFees) ...[
           _Line(label: l10n.payBreakdownFee, minor: q.platformFeeMinor),
           _Line(label: l10n.payBreakdownTax, minor: q.taxMinor),
@@ -270,8 +293,10 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       // e6
       PPButton.primary(
         label: q == null
-            ? l10n.walletPay
-            : l10n.payButton(MoneyText.format(q.totalMinor)),
+            ? (data.link.isPerson ? l10n.sendTitle : l10n.walletPay)
+            : data.link.isPerson
+                ? l10n.sendButton(MoneyText.format(q.totalMinor))
+                : l10n.payButton(MoneyText.format(q.totalMinor)),
         loading: _paying,
         onPressed:
             q == null || insufficient || _paying ? null : () => _pay(data, q),
@@ -293,10 +318,15 @@ class _Line extends StatelessWidget {
         : Theme.of(context).textTheme.bodyMedium;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTokens.spacingXs),
-      child: Row(children: [
-        Expanded(child: Text(label, style: style)),
-        MoneyText(minor, style: style),
-      ]),
+      // Wrap: con texto grande o montos largos el monto baja a otra línea en vez de desbordar.
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        spacing: AppTokens.spacingSm,
+        children: [
+          Text(label, style: style),
+          MoneyText(minor, style: style),
+        ],
+      ),
     );
   }
 }

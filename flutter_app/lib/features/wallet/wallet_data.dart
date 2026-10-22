@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
+import '../../core/format/dates.dart';
 
 /// Montos del contrato: enteros en unidades menores. protojson envía los `int64` como texto;
 /// nunca se convierten a `double` (ADR 0013).
@@ -124,7 +124,7 @@ String transactionTypeLabel(AppLocalizations l10n, String type) =>
 
 /// Fecha con el mes en texto (N-STD-10): «20 de octubre de 2026 · 08:40».
 String walletDateTime(DateTime t, String locale) =>
-    DateFormat('d MMMM y · HH:mm', locale).format(t);
+    longDateTime(t, locale);
 
 /// Preferencia de ocultar el saldo (S-WAL-01 e1, S-GEN-05 e4): compartida entre Inicio y Billetera
 /// mientras la app está abierta.

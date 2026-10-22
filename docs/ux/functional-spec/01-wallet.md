@@ -32,7 +32,9 @@ Vacío: "Aún no tienes movimientos." con acción "Recargar".
 Flujo: confirmación → espera de resultado → S-WAL-07. Si la recarga supera B/. 10 000 acumulados en 24 h, antes de e5 se pide "Origen de estos fondos" (lista de S-GEN-14 paso 3).
 
 ### S-WAL-03 · `/wallet/send` · Enviar dinero
-`wallet:transfer` · `POST /v1/wallet/transfers` · 🔒 desde el umbral
+`wallet:transfer` · Paso F11.10 · `GET /v1/pay-links/{código}` → `POST /v1/payments/intents` (con el código) → `/confirm` · 🔒 desde el umbral
+
+**Implementado (F11.10)**: «Enviar» abre el lector de S-WAL-05 con el título "Enviar" y la instrucción "Escanea el código de quien recibe o escríbelo abajo."; el código se resuelve en el servidor como persona (`kind = PERSON`) y la confirmación es S-WAL-06 en modo envío: "Persona verificada en PlentyPay", nombre abreviado, "Enviar entre personas no tiene comisión." y botón "Enviar {monto}". Una transferencia no cobra comisión (R10). `SELF_TRANSFER`: "No puedes enviarte dinero a ti mismo." *Pendiente*: e1 búsqueda por correo o teléfono (Q-54), e3 recientes y e5 concepto.
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
@@ -50,10 +52,10 @@ No se puede enviar a uno mismo. Éxito → S-WAL-07.
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
-| e1 | `QrView` | — | Contiene un enlace firmado al usuario; rota cada 24 h |
-| e2 | Texto | {nombre} | — |
-| e3 | `MoneyInput` opcional | Pedir un monto específico | Si se llena, el QR lleva el monto |
-| e4 | `PPButton.secondary` | Compartir enlace | Hoja de compartir del sistema |
+| e1 | `QrView` | — | Contiene `https://plentypay.app/t/{código}`: un código opaco de 128 bits de la persona, que vence a las 24 h (pedirlo de nuevo con menos de 1 h por delante emite otro). No lleva datos personales: identifica a la persona en el servidor |
+| e2 | Texto | {nombre abreviado} · "Muestra este código para que te envíen dinero. Te identifica sin mostrar tu correo ni tu teléfono." · "Válido hasta el {fecha y hora con mes en texto}" | El nombre es nombre + inicial del apellido (N-DAT-12) |
+| e3 | `MoneyInput` opcional | Pedir un monto (opcional) | Si se llena, el QR lleva `?amount={centavos}` y quien envía no lo puede cambiar |
+| e4 | `PPButton.secondary` | Copiar enlace | Copia el enlace del QR. "Por ahora este código se lee con la app PlentyPay." mientras el dominio no exista (Q-53). *Pendiente*: hoja de compartir del sistema (F22) |
 
 ### S-WAL-05 · `/pay/scan` · Pagar: escanear o acercar
 `wallet:pay` · Pasos F11.9, F23.1, F23.2 · `GET /v1/pay-links/:code`

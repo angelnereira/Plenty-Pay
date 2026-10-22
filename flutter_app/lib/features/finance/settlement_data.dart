@@ -1,8 +1,8 @@
-import 'package:intl/intl.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
 import '../business/access_labels.dart' show reasonMessage;
+import '../../core/format/dates.dart';
 
 // Liquidaciones tal como las entrega el gateway (settlement, protojson con nombres snake_case,
 // int64 como texto y enums por nombre). Los montos son centavos enteros (ADR 0013).
@@ -16,11 +16,11 @@ DateTime? _date(Object? v) => DateTime.tryParse('${v ?? ''}')?.toLocal();
 
 /// Fecha con el mes en texto (N-STD-10): «23 de octubre de 2026».
 String settlementDate(DateTime t, String locale) =>
-    DateFormat.yMMMMd(locale).format(t);
+    longDate(t, locale);
 
 /// Fecha y hora con el mes en texto: «23 de octubre de 2026 · 17:00».
 String settlementDateTime(DateTime t, String locale) =>
-    DateFormat('d MMMM y · HH:mm', locale).format(t);
+    longDateTime(t, locale);
 
 /// Cabecera de S-FIN-05 (settlement.PayoutSummary).
 class PayoutSummaryItem {

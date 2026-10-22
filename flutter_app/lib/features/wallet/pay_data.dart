@@ -10,17 +10,28 @@ const stepUpPaymentCreate = 'payments.intent.create';
 /// VERIFICADO por identity, nunca el contenido del QR.
 class PayLink {
   const PayLink(
-      {required this.code, required this.label, required this.merchantName});
+      {required this.code,
+      required this.label,
+      required this.merchantName,
+      this.kind = 'TERMINAL'});
 
   factory PayLink.fromJson(String code, Map<String, dynamic> j) => PayLink(
         code: code,
         label: j['label'] as String? ?? '',
         merchantName: j['merchant_name'] as String? ?? '',
+        kind: j['kind'] as String? ?? 'TERMINAL',
       );
 
   final String code;
   final String label;
+
+  /// Comercio verificado, o persona abreviada («Ana G.») si [isPerson].
   final String merchantName;
+
+  /// "TERMINAL" (punto de cobro de un comercio) o "PERSON" (código personal, F11.10).
+  final String kind;
+
+  bool get isPerson => kind == 'PERSON';
 }
 
 /// Desglose de QuoteFees (contrato: gross == merchant_net + Σ líneas; con portador CUSTOMER
@@ -31,6 +42,13 @@ class PayQuote {
       required this.totalMinor,
       required this.platformFeeMinor,
       required this.taxMinor});
+
+  /// Transferencia entre personas (F11.10, R10): sin comisión, se envía exactamente el monto.
+  const PayQuote.free(int amountMinor)
+      : baseMinor = amountMinor,
+        totalMinor = amountMinor,
+        platformFeeMinor = 0,
+        taxMinor = 0;
 
   factory PayQuote.fromJson(int baseMinor, Map<String, dynamic> j) {
     int line(String kind) {
@@ -107,6 +125,7 @@ String payErrorMessage(AppLocalizations l10n, Object error) {
   if (error is! ApiException) return l10n.errorNoConnection;
   return switch (error.reason) {
     'INSUFFICIENT_FUNDS' => l10n.error_INSUFFICIENT_FUNDS,
+    'SELF_TRANSFER' => l10n.error_SELF_TRANSFER,
     'TENANT_NOT_ACTIVE' => l10n.error_TENANT_NOT_ACTIVE,
     'TERMINAL_INACTIVE' || 'NOT_FOUND' => l10n.error_TERMINAL_INACTIVE,
     'AMOUNT_OUT_OF_RANGE' => l10n.error_AMOUNT_OUT_OF_RANGE,

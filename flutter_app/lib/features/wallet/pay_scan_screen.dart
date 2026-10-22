@@ -17,8 +17,15 @@ import 'pay_confirm_screen.dart';
 /// El contenido del QR nunca se muestra como verdad: el código viaja al servidor y S-WAL-06
 /// muestra el comercio verificado. NFC (e2) llega en F23.2.
 class PayScanScreen extends StatefulWidget {
-  const PayScanScreen({super.key, required this.api, this.startScanner = true});
+  const PayScanScreen(
+      {super.key,
+      required this.api,
+      this.startScanner = true,
+      this.send = false});
   final ApiClient api;
+
+  /// S-WAL-03 (F11.10): «Enviar» escanea o escribe el código personal de quien recibe.
+  final bool send;
 
   /// Falso en pruebas de widget (sin cámara).
   final bool startScanner;
@@ -117,7 +124,9 @@ class _PayScanScreenState extends State<PayScanScreen> {
     final margin = WindowClass.of(context).horizontalMargin;
     final scanner = _scanner;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.walletPay), actions: [
+      appBar: AppBar(
+          title: Text(widget.send ? l10n.sendTitle : l10n.walletPay),
+          actions: [
         if (scanner != null)
           IconButton(
             tooltip: l10n.payTorch,
@@ -175,7 +184,7 @@ class _PayScanScreenState extends State<PayScanScreen> {
             ),
           ),
           const SizedBox(height: AppTokens.spacingSm),
-          Text(l10n.payScanHint,
+          Text(widget.send ? l10n.sendScanHint : l10n.payScanHint,
               textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
           const SizedBox(height: AppTokens.spacingLg),
           Text(l10n.payEnterCode, style: theme.textTheme.titleSmall),

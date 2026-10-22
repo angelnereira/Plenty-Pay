@@ -8162,6 +8162,66 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Usar este código'**
   String get scanManualSubmit;
+
+  /// No description provided for @payVerifiedPerson.
+  ///
+  /// In es, this message translates to:
+  /// **'Persona verificada en PlentyPay'**
+  String get payVerifiedPerson;
+
+  /// No description provided for @sendButton.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar {total}'**
+  String sendButton(String total);
+
+  /// No description provided for @sendNoFee.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar entre personas no tiene comisión.'**
+  String get sendNoFee;
+
+  /// No description provided for @sendScanHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanea el código de quien recibe o escríbelo abajo.'**
+  String get sendScanHint;
+
+  /// No description provided for @receiveScanToSend.
+  ///
+  /// In es, this message translates to:
+  /// **'Código para enviarte dinero con PlentyPay'**
+  String get receiveScanToSend;
+
+  /// No description provided for @receiveHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Muestra este código para que te envíen dinero. Te identifica sin mostrar tu correo ni tu teléfono.'**
+  String get receiveHint;
+
+  /// No description provided for @receiveValidUntil.
+  ///
+  /// In es, this message translates to:
+  /// **'Válido hasta el {date}'**
+  String receiveValidUntil(String date);
+
+  /// No description provided for @receiveAmount.
+  ///
+  /// In es, this message translates to:
+  /// **'Pedir un monto (opcional)'**
+  String get receiveAmount;
+
+  /// No description provided for @receiveAppOnly.
+  ///
+  /// In es, this message translates to:
+  /// **'Por ahora este código se lee con la app PlentyPay.'**
+  String get receiveAppOnly;
+
+  /// No description provided for @error_SELF_TRANSFER.
+  ///
+  /// In es, this message translates to:
+  /// **'No puedes enviarte dinero a ti mismo.'**
+  String get error_SELF_TRANSFER;
 }
 
 class _AppLocalizationsDelegate

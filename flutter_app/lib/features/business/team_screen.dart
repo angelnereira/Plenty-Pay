@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
@@ -10,6 +9,7 @@ import '../../core/widgets/status_chip.dart';
 import 'access_labels.dart';
 import 'member_access_sheet.dart';
 import 'step_up_flow.dart';
+import '../../core/format/dates.dart';
 
 /// Datos de S-ADM-02: equipo, invitaciones pendientes, roles asignables y sucursales activas.
 class TeamData {
@@ -285,8 +285,7 @@ String _scopeText(
 String _formatDate(BuildContext context, String? iso) {
   final d = DateTime.tryParse(iso ?? '');
   if (d == null) return '';
-  return DateFormat('d MMMM y', Localizations.localeOf(context).toString())
-      .format(d.toLocal());
+  return longDate(d.toLocal(), Localizations.localeOf(context).toString());
 }
 
 class _MembersTab extends StatelessWidget {

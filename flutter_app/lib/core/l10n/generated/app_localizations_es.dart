@@ -4492,6 +4492,43 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get scanManualSubmit => 'Usar este código';
+
+  @override
+  String get payVerifiedPerson => 'Persona verificada en PlentyPay';
+
+  @override
+  String sendButton(String total) {
+    return 'Enviar $total';
+  }
+
+  @override
+  String get sendNoFee => 'Enviar entre personas no tiene comisión.';
+
+  @override
+  String get sendScanHint =>
+      'Escanea el código de quien recibe o escríbelo abajo.';
+
+  @override
+  String get receiveScanToSend => 'Código para enviarte dinero con PlentyPay';
+
+  @override
+  String get receiveHint =>
+      'Muestra este código para que te envíen dinero. Te identifica sin mostrar tu correo ni tu teléfono.';
+
+  @override
+  String receiveValidUntil(String date) {
+    return 'Válido hasta el $date';
+  }
+
+  @override
+  String get receiveAmount => 'Pedir un monto (opcional)';
+
+  @override
+  String get receiveAppOnly =>
+      'Por ahora este código se lee con la app PlentyPay.';
+
+  @override
+  String get error_SELF_TRANSFER => 'No puedes enviarte dinero a ti mismo.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

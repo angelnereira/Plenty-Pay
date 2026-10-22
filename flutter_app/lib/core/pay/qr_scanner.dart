@@ -128,8 +128,21 @@ QrScanResult parsePaymentQr(String raw, {Set<String>? allowedHosts}) {
     return QrScanResult.accepted(QrPaymentLink(code: code, host: host));
   }
   final amount = int.tryParse(amountText ?? '');
-  if (sale == null ||
-      !_uuidPattern.hasMatch(sale) ||
+  // F11.10 · S-WAL-04 e3: un código personal puede pedir un monto, sin venta.
+  if (sale == null) {
+    if (amount == null ||
+        amount <= 0 ||
+        amount > maxQrAmountMinor ||
+        (uri.queryParameters['currency'] ?? 'USD') != 'USD') {
+      return const QrScanResult.rejected(
+        QrRejection.invalidCode,
+        'Ese código de cobro no es válido.',
+      );
+    }
+    return QrScanResult.accepted(
+        QrPaymentLink(code: code, host: host, amountMinor: amount));
+  }
+  if (!_uuidPattern.hasMatch(sale) ||
       amount == null ||
       amount <= 0 ||
       amount > maxQrAmountMinor ||

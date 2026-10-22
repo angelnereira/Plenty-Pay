@@ -1,9 +1,9 @@
-import 'package:intl/intl.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/widgets/status_chip.dart';
 import '../catalog/catalog_errors.dart' show catalogErrorMessage;
+import '../../core/format/dates.dart';
 
 // Compras tal como las entrega el gateway (inventory, protojson snake_case, int64 como texto).
 // Cantidades en milésimas de unidad; costos en centavos (ADR 0013).
@@ -178,7 +178,7 @@ class ReorderItem {
 
 /// Fecha con el mes en texto (N-STD-10): «23 de octubre de 2026».
 String purchaseDate(DateTime t, String locale) =>
-    DateFormat.yMMMMd(locale).format(t);
+    longDate(t, locale);
 
 String poStatusLabel(AppLocalizations l10n, String s) => switch (s) {
       'DRAFT' => l10n.poStatusDraft,
