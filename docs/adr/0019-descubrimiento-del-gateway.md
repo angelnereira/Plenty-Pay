@@ -32,10 +32,20 @@ incrustada en v0.2.3 empezó a responder 530; la app se veía vacía y con aviso
    `publish-release.sh` (que reescribe `gh-pages` completo).
 6. Una URL antigua de `*.trycloudflare.com` guardada como «URL manual» se descarta al arrancar: los
    túneles rápidos son efímeros y solo el descubrimiento los conoce.
+7. **Vigilancia del túnel (2026-10-22)**. Un túnel rápido puede quedar en «Tunnel not found» con
+   `cloudflared` vivo y reintentando para siempre: Docker no lo reinicia y las apps quedan sin
+   servidor (ocurrió el 2026-10-22). `publish-server-url.sh` cuenta las revisiones en que la URL
+   vigente no responde mientras el gateway sí responde en local; a la segunda seguida (~4 min)
+   reinicia el contenedor `tunnel`, espera la URL nueva y la publica. Si el gateway no responde en
+   local, no toca el túnel. El contador vive en `~/.local/state/plentypay/` y el umbral se cambia
+   con `PP_TUNNEL_MAX_FAILS`. Ningún valor de red queda fijo en la app de producción: la URL del
+   build es solo el último respaldo (la inyecta `build-release.sh`) y las compilaciones de
+   desarrollo apuntan a `localhost`.
 
 ## Consecuencias
 + Un reinicio del túnel deja de romper las apps instaladas: se recuperan solas en ~2–3 minutos
   (temporizador + caché de GitHub Pages).
++ Un túnel muerto se reinicia solo (§7): la caída se resuelve en ~5–10 minutos sin intervención.
 + No hace falta publicar un release solo porque cambió la URL.
 − Depende de GitHub Pages para el primer arranque tras un cambio; si no responde, la app usa la
   última URL conocida.
