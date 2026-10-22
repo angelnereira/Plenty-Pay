@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/google/uuid"
 	"slices"
 	"sort"
 	"strings"
@@ -484,4 +486,38 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// MaxContacts es el tope de usuarios por consulta de GetUserContacts (contrato: máx. 100).
+const MaxContacts = 100
+
+// ErrTooManyContacts: la consulta pide más usuarios que MaxContacts.
+var ErrTooManyContacts = errors.New("too many user ids")
+
+// Contacts devuelve los usuarios ACTIVOS de la lista (para servicios internos: notifications y
+// payments-core, F11.10). Un id inexistente, inválido o de un usuario suspendido no aparece: quien
+// consulta lo trata como «no existe». No se revela el motivo.
+func (s *IdentityService) Contacts(ctx context.Context, userIDs []string) ([]domain.User, error) {
+	if len(userIDs) > MaxContacts {
+		return nil, ErrTooManyContacts
+	}
+	seen := make(map[string]bool, len(userIDs))
+	out := make([]domain.User, 0, len(userIDs))
+	for _, id := range userIDs {
+		if _, err := uuid.Parse(id); err != nil || seen[id] {
+			continue
+		}
+		seen[id] = true
+		u, err := s.users.FindByID(ctx, id)
+		if errors.Is(err, domain.ErrUserNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("find user %s: %w", id, err)
+		}
+		if u.IsActive() {
+			out = append(out, *u)
+		}
+	}
+	return out, nil
 }

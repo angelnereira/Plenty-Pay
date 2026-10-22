@@ -279,6 +279,24 @@ func (s *IdentityServer) GetTenant(ctx context.Context, req *pb.GetTenantRequest
 	return toPBTenant(t), nil
 }
 
+// GetUserContacts devuelve nombre y correo de usuarios activos para servicios internos
+// (notifications, payments-core en F11.10). No tiene ruta en el gateway: solo se alcanza dentro
+// de la red de servicios (SPIFFE, mtls.go). Un id inexistente o suspendido no aparece.
+func (s *IdentityServer) GetUserContacts(ctx context.Context, req *pb.GetUserContactsRequest) (*pb.GetUserContactsResult, error) {
+	users, err := s.svc.Contacts(ctx, req.GetUserIds())
+	if errors.Is(err, service.ErrTooManyContacts) {
+		return nil, ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "máximo 100 usuarios por consulta")
+	}
+	if err != nil {
+		return nil, status.Error(codes.Internal, observability.Wrap(err, "get user contacts").Error())
+	}
+	out := &pb.GetUserContactsResult{}
+	for _, u := range users {
+		out.Contacts = append(out.Contacts, &pb.UserContact{UserId: u.ID, Email: u.Email, FullName: u.FullName})
+	}
+	return out, nil
+}
+
 // ListTenants pagina los negocios (consola de plataforma).
 func (s *IdentityServer) ListTenants(ctx context.Context, req *pb.ListTenantsRequest) (*pb.ListTenantsResult, error) {
 	list, err := s.svc.ListTenants(ctx, pbStatusString(req.Status), int(req.PageSize))
