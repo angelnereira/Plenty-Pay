@@ -26,6 +26,8 @@ var AllowedIdentityCallers = map[string]bool{
 	"notifications": true,
 	// GetTenant (datos legales del emisor) y ConsumeStepUp (perfil fiscal, ADR 0020).
 	"fiscal-invoicing": true,
+	// Solo ConsumeStepUp de sus devoluciones (ADR 0023).
+	"pos": true,
 }
 
 // ExtractSPIFFEService extrae el nombre de servicio del SAN URI SPIFFE (spiffe://plentypay/<service>)
