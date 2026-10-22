@@ -68,6 +68,8 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.NotFound, "PRODUCT_NOT_FOUND", "el producto no existe o está archivado")
 	case errors.Is(err, service.ErrDiscountNotAllowed):
 		return ErrorInfo(codes.PermissionDenied, "DISCOUNT_EXCEEDS_LIMIT", "necesitas autorización para descontar")
+	case errors.Is(err, domain.ErrInvalidLabel):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "la nota admite hasta 60 caracteres")
 	case errors.Is(err, domain.ErrInvalidLine), errors.Is(err, domain.ErrInvalidAmount), errors.Is(err, domain.ErrOverflow):
 		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", err.Error())
 	case errors.Is(err, client.ErrUnavailable):
@@ -126,7 +128,8 @@ func salePB(s domain.Sale, terminal string) *pb.Sale {
 	out := &pb.Sale{SaleId: s.ID, SessionId: s.SessionID, Status: pb.SaleStatus(s.Status),
 		Subtotal: money(s.SubtotalMinor, s.Currency), Tax: money(s.TaxMinor, s.Currency), Total: money(s.TotalMinor, s.Currency),
 		ChangeDue: money(s.ChangeMinor, s.Currency), ClientSaleId: s.ClientSaleID, CreatedAt: ts(s.CreatedAt),
-		PaidAt: ts(s.PaidAt), Version: s.Version, DocumentType: pb.DocumentType_DOCUMENT_TYPE_INTERNAL_RECEIPT}
+		PaidAt: ts(s.PaidAt), Version: s.Version, DocumentType: pb.DocumentType_DOCUMENT_TYPE_INTERNAL_RECEIPT,
+		ParkLabel: s.ParkLabel, ParkedAt: ts(s.ParkedAt)}
 	if s.ReceiptNumber > 0 {
 		out.ReceiptNumber = fmt.Sprintf("%08d", s.ReceiptNumber)
 	}
@@ -264,6 +267,32 @@ func (s *Server) VoidSale(ctx context.Context, req *pb.VoidSaleRequest) (*pb.Sal
 		return nil, err
 	}
 	sale, err := s.svc.VoidSale(ctx, a, req.GetSaleId(), req.GetReason())
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return salePB(sale, ""), nil
+}
+
+// ParkSale estaciona una venta abierta de la sesión del cajero (F17.4, S-POS-06).
+func (s *Server) ParkSale(ctx context.Context, req *pb.ParkSaleRequest) (*pb.Sale, error) {
+	a, err := authorize(ctx, "pos:sell")
+	if err != nil {
+		return nil, err
+	}
+	sale, err := s.svc.ParkSale(ctx, a, req.GetSaleId(), req.GetLabel())
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return salePB(sale, ""), nil
+}
+
+// ResumeSale retoma una venta estacionada (F17.4).
+func (s *Server) ResumeSale(ctx context.Context, req *pb.ResumeSaleRequest) (*pb.Sale, error) {
+	a, err := authorize(ctx, "pos:sell")
+	if err != nil {
+		return nil, err
+	}
+	sale, err := s.svc.ResumeSale(ctx, a, req.GetSaleId())
 	if err != nil {
 		return nil, toStatus(err)
 	}

@@ -175,8 +175,9 @@ func (s *Store) CloseSession(ctx context.Context, tenantID, id, closedBy string,
 			return err
 		}
 		var pending int
-		if err := tx.QueryRow(ctx, `SELECT count(*) FROM sales WHERE session_id = $1 AND status = $2`,
-			id, domain.AwaitingPayment).Scan(&pending); err != nil {
+		// S-POS-10 e4: ventas por confirmar o estacionadas impiden cerrar (F17.4).
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM sales WHERE session_id = $1 AND status IN ($2, $3)`,
+			id, domain.AwaitingPayment, domain.Parked).Scan(&pending); err != nil {
 			return fmt.Errorf("count pending sales: %w", err)
 		}
 		if pending > 0 {
@@ -225,14 +226,14 @@ func (s *Store) AddCashMovement(ctx context.Context, tenantID string, m domain.C
 
 const saleCols = `id, tenant_id, session_id, cashier_id, status, lines, tenders, subtotal_minor, tax_minor,
 	total_minor, change_minor, currency, coalesce(receipt_number, 0), client_sale_id, needs_review, created_at,
-	updated_at, coalesce(paid_at, 'epoch'::timestamptz), version`
+	updated_at, coalesce(paid_at, 'epoch'::timestamptz), version, park_label, coalesce(parked_at, 'epoch'::timestamptz)`
 
 func scanSale(row pgx.Row) (domain.Sale, error) {
 	var sl domain.Sale
 	var lines, tenders []byte
 	err := row.Scan(&sl.ID, &sl.TenantID, &sl.SessionID, &sl.CashierID, &sl.Status, &lines, &tenders,
 		&sl.SubtotalMinor, &sl.TaxMinor, &sl.TotalMinor, &sl.ChangeMinor, &sl.Currency, &sl.ReceiptNumber,
-		&sl.ClientSaleID, &sl.NeedsReview, &sl.CreatedAt, &sl.UpdatedAt, &sl.PaidAt, &sl.Version)
+		&sl.ClientSaleID, &sl.NeedsReview, &sl.CreatedAt, &sl.UpdatedAt, &sl.PaidAt, &sl.Version, &sl.ParkLabel, &sl.ParkedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return sl, domain.ErrNotFound
 	}
@@ -317,6 +318,42 @@ func (s *Store) MutateSale(ctx context.Context, tenantID, id string, expectedVer
 	return out, err
 }
 
+// MutateSaleInOpenSession es MutateSale para transiciones que solo valen con la caja abierta
+// (estacionar y retomar, F17.4). Bloquea la venta y luego su sesión FOR SHARE: el cierre toma la
+// sesión FOR UPDATE y cuenta las estacionadas, así que una venta no queda estacionada en una caja
+// cerrada. Si `mutate` responde ErrNoChange (reintento) devuelve la venta sin escribir.
+func (s *Store) MutateSaleInOpenSession(ctx context.Context, tenantID, id string, mutate func(*domain.Sale) error,
+	now time.Time) (domain.Sale, error) {
+	var out domain.Sale
+	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		sl, err := scanSale(tx.QueryRow(ctx, `SELECT `+saleCols+` FROM sales WHERE id = $1 FOR UPDATE`, id))
+		if err != nil {
+			return err
+		}
+		var status string
+		if err := tx.QueryRow(ctx, `SELECT status FROM cash_sessions WHERE id = $1 FOR SHARE`, sl.SessionID).
+			Scan(&status); err != nil {
+			return fmt.Errorf("lock session of sale: %w", err)
+		}
+		if status != "OPEN" {
+			return domain.ErrSessionClosed
+		}
+		probe := sl
+		switch err := mutate(&probe); {
+		case errors.Is(err, domain.ErrNoChange):
+			out = sl
+			return nil
+		case err != nil:
+			return err
+		}
+		out, err = saveSale(ctx, tx, sl, mutate, func(domain.Sale) ([]OutboxEvent, []StockTask, error) {
+			return nil, nil, nil
+		}, now)
+		return err
+	})
+	return out, err
+}
+
 func saveSale(ctx context.Context, tx pgx.Tx, sl domain.Sale, mutate func(*domain.Sale) error, onPaid OnPaid, now time.Time) (domain.Sale, error) {
 	wasPaid := sl.Status == domain.Paid
 	if err := mutate(&sl); err != nil {
@@ -371,10 +408,15 @@ func saveSale(ctx context.Context, tx pgx.Tx, sl domain.Sale, mutate func(*domai
 	if sl.ReceiptNumber > 0 {
 		receipt = sl.ReceiptNumber
 	}
+	var parkedAt any
+	if !sl.ParkedAt.IsZero() && sl.ParkedAt.Unix() != 0 {
+		parkedAt = sl.ParkedAt
+	}
 	if _, err := tx.Exec(ctx, `UPDATE sales SET status=$2, lines=$3, tenders=$4, subtotal_minor=$5, tax_minor=$6,
-		total_minor=$7, change_minor=$8, receipt_number=$9, needs_review=$10, updated_at=$11, paid_at=$12, version=$13
+		total_minor=$7, change_minor=$8, receipt_number=$9, needs_review=$10, updated_at=$11, paid_at=$12, version=$13,
+		park_label=$14, parked_at=$15
 		WHERE id = $1`, sl.ID, sl.Status, string(lines), string(tenders), sl.SubtotalMinor, sl.TaxMinor, sl.TotalMinor,
-		sl.ChangeMinor, receipt, sl.NeedsReview, sl.UpdatedAt, paidAt, sl.Version); err != nil {
+		sl.ChangeMinor, receipt, sl.NeedsReview, sl.UpdatedAt, paidAt, sl.Version, sl.ParkLabel, parkedAt); err != nil {
 		return sl, fmt.Errorf("update sale: %w", err)
 	}
 	return sl, nil

@@ -61,7 +61,7 @@ CREATE TABLE pos.settings (tenant_id uuid PRIMARY KEY, receipt_footer text, tax_
 | OpenCashSession / CloseCashSession / GetCashSession | `pos:session:manage` | sí | apertura con fondo; cierre con conteo → diferencia y reporte Z | `SESSION_ALREADY_OPEN`, `SALES_PENDING` |
 | RecordCashMovement | `pos:session:manage` | sí | entradas/salidas de efectivo con motivo | `SESSION_CLOSED` |
 | CreateSale / UpdateSale | `pos:sell` (+`pos:discount:apply`) | sí | líneas con precio de catalog (o caché del cliente validada), impuestos por línea `half_up`; si incluye `delivery_address`, cotiza cobertura/tarifa con `logistics.QuoteDelivery` | `PRICE_STALE`, `DISCOUNT_EXCEEDS_LIMIT`, `OUT_OF_DELIVERY_ZONE` |
-| ParkSale / ResumeSale | `pos:sell` | — | OPEN ↔ PARKED | `INVALID_STATE_TRANSITION` |
+| ParkSale / ResumeSale | `pos:sell` | por estado (repetir devuelve la venta sin cambios) | OPEN ↔ PARKED, §5 R13 | `INVALID_STATE_TRANSITION`, `EMPTY_SALE`, `SESSION_CLOSED`, `NOT_SESSION_OWNER`, `INVALID_REQUEST` (nota > 60) |
 | Checkout | `pos:sell` | sí | §5 R4 y R12 | `TENDERS_MISMATCH`, `CREDIT_LIMIT_EXCEEDED`, `INSUFFICIENT_POINTS`, `OUT_OF_DELIVERY_ZONE` |
 | VoidSale | `pos:void` (+ supervisor si `require_manager_for_void`) | sí | solo sin tenders electrónicos capturados | `HAS_CAPTURED_PAYMENTS` |
 | RefundSale | `pos:refund` + step-up | sí | por líneas/cantidades; reembolso por el mismo medio (electrónico → payments.RefundPayment; efectivo → salida de caja); stock RETURN; nota de crédito si hubo factura | `EXCEEDS_SOLD_QTY` |
@@ -84,6 +84,7 @@ CREATE TABLE pos.settings (tenant_id uuid PRIMARY KEY, receipt_footer text, tax_
 - **R10** Número de recibo interno consecutivo por tenant (independiente del folio fiscal).
 - **R11** Customer display: solo datos de la venta activa (líneas, total, QR de pago); nunca datos de otros clientes.
 - **R12** Venta con envío a domicilio: cuando el cajero registra `delivery_address` y datos del destinatario en la venta, se valida cobertura y tarifa con `logistics.QuoteDelivery`. Al pasar la venta a `PAID`, `pos` invoca `logistics.CreateDelivery` con `source={type:"sale", id:sale_id}`, `recipient_user_id=customer_user_id` (si el cliente está identificado en PlentyPay), `branch_id` y `warehouse_id` del register, y guarda `delivery_id` en la venta. Si la entrega termina en `FAILED` definitivo (3 intentos fallidos, evento `DeliveryStatusChanged`), la venta se marca `needs_review=true` para gestionar el reintegro al cliente y el retorno de mercancía a la bodega.
+- **R13** Estacionar (F17.4): solo el cajero de la sesión y con la caja abierta (la transición bloquea la sesión `FOR SHARE`; el cierre la toma `FOR UPDATE`); solo una venta con líneas; nota opcional ≤ 60 caracteres. Una venta PARKED no se edita ni se cobra hasta retomarla; no reserva ni descuenta existencias (eso ocurre al pagar); impide cerrar la caja (`SALES_PENDING`) hasta retomarla y cobrarla o anularla. No caduca sola (Q-46).
 
 ## 6. Eventos
 Publica: `SalePaid`, `SaleRefunded`, `AuditRecorded` (anulaciones, descuentos, diferencias de caja). Consume: `PaymentCaptured/Failed/Unknown`, `RefundSucceeded`, `InvoiceAccepted/Rejected`, `DeliveryStatusChanged` (entregas originadas en ventas POS).

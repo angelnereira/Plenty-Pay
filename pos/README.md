@@ -17,11 +17,12 @@ Caja de mostrador: sesiones con fondo y arqueo, ventas con precio de catálogo, 
 | Atomicidad al pagar: recibo consecutivo (R10), efectivo esperado, tareas de stock y `SalePaid` en UNA transacción | ✅ L2 | mismo caso + `TestR4_CashOnlyPaysAtOnceWithConsecutiveReceipts` |
 | Consumidor durable `pos-payments` de `PP_PAYMENTS` (cobros con `reference = {sale, id}`), idempotente por `event_id` | ✅ L2 · ⏳ en vivo | `TestADR0012_DuplicatePaymentEventHasNoEffect`, `TestRLS_SalesAndPaymentEventsAreTenantScoped` |
 | Descuento de existencias en inventory con clave `sale:<venta>:<línea>`; inventory caído → diferido con backoff; rechazo → venta para revisión | ✅ L2 | `TestStockWorker_InventoryDownIsDeferredNotLost` |
-| Devoluciones, crédito de la casa, puntos, ventas offline, estacionar, pantalla del cliente, configuración | 📋 | responden `UNIMPLEMENTED` |
+| Estacionar y retomar (F17.4): OPEN ↔ PARKED solo con la caja abierta (sesión bloqueada `FOR SHARE`), reintento sin cambios, estacionadas bloquean el cierre (`SALES_PENDING`) y no se cobran; no tocan inventario | ✅ L1 · ✅ L2 · ✅ L4 humo | `TestR13_ParkAndResumeTransitions`, `TestL2_R13_*` (incluye 10 retomas concurrentes → una transición), `TestReasons_ParkAndResumeUseGlossaryNames` |
+| Devoluciones, crédito de la casa, puntos, ventas offline, pantalla del cliente, configuración | 📋 | responden `UNIMPLEMENTED` |
 | Observabilidad | ◐ | `pp_pos_stock_tasks_total{result}`, `pp_pos_stock_tasks_pending`, `pp_pos_stock_task_oldest_seconds`, `pp_pos_payment_events_total`. **Faltan** `pp_pos_checkout_duration_seconds` y el histograma de diferencias de caja |
-| Despliegue en producción | ⏳ | `~/plentypay-backups/commerce-reset.sh` |
+| Despliegue en producción | ✅ | 2026-10-20 (0001); 2026-10-21 migración `0002_park` con respaldo previo (`pos-before-0002-*.sql.gz`) |
 
-11 pruebas L2 en verde (`./pos/test/test_l2.sh`, 2026-10-20).
+14 pruebas L2 en verde (`./pos/test/test_l2.sh`, 2026-10-21).
 
 ## Arranque
 ```bash

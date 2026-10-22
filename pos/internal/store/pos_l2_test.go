@@ -396,3 +396,123 @@ func TestPrivileges_ServiceRoleCannotDeleteSales(t *testing.T) {
 		t.Fatal("pos_svc pudo borrar ventas")
 	}
 }
+
+// F17.4: estacionar → listar → retomar conserva líneas y totales; estacionar no toca inventario;
+// una estacionada bloquea el cierre y no se cobra; repetir la transición no falla ni escribe.
+func TestL2_R13_ParkResumeAndCloseBlocked(t *testing.T) {
+	ctx, w, tenant := context.Background(), newWorld(t), id()
+	a := cashier(tenant)
+	sale := openSale(t, w, a, "CAJA-17", service.LineInput{ProductID: w.cafe, QtyMilli: 2000})
+	parked, err := w.svc.ParkSale(ctx, a, sale.ID, "Cliente fue por la leche")
+	if err != nil || parked.Status != domain.Parked || parked.ParkLabel != "Cliente fue por la leche" ||
+		parked.ParkedAt.IsZero() || parked.Version != sale.Version+1 {
+		t.Fatalf("%v %+v", err, parked)
+	}
+	again, err := w.svc.ParkSale(ctx, a, sale.ID, "otra nota")
+	if err != nil || again.Version != parked.Version || again.ParkLabel != parked.ParkLabel {
+		t.Fatalf("reintento de estacionar: %v %+v", err, again)
+	}
+	list, _, err := w.svc.ListSales(ctx, a, store.SaleFilter{SessionID: sale.SessionID, Status: domain.Parked, Limit: 50})
+	if err != nil || len(list) != 1 || list[0].ID != sale.ID {
+		t.Fatalf("lista de estacionadas: %v %d", err, len(list))
+	}
+	if len(w.inv.moves) != 0 || count(t, tenant, `SELECT count(*) FROM stock_tasks`) != 0 {
+		t.Fatal("estacionar no reserva ni descuenta existencias")
+	}
+	if _, err := w.svc.Checkout(ctx, a, sale.ID, []domain.Tender{{Rail: domain.RailCash, AmountMinor: 3700}}); !errors.Is(err, domain.ErrInvalidTransition) {
+		t.Fatalf("cobrar una estacionada: %v", err)
+	}
+	if _, err := w.svc.UpdateSale(ctx, a, sale.ID, parked.Version, []service.LineInput{{ProductID: w.pan, QtyMilli: 1000}}); !errors.Is(err, domain.ErrInvalidTransition) {
+		t.Fatalf("editar una estacionada: %v", err)
+	}
+	if _, err := w.svc.CloseSession(ctx, a, sale.SessionID, 5000, ""); !errors.Is(err, domain.ErrSalesPending) {
+		t.Fatalf("cerrar con una estacionada: %v", err)
+	}
+	if _, err := w.svc.ResumeSale(ctx, cashier(tenant), sale.ID); !errors.Is(err, domain.ErrNotYourSession) {
+		t.Fatalf("otro cajero retoma: %v", err)
+	}
+	resumed, err := w.svc.ResumeSale(ctx, a, sale.ID)
+	if err != nil || resumed.Status != domain.Open || len(resumed.Lines) != 1 || resumed.TotalMinor != 3700 {
+		t.Fatalf("%v %+v", err, resumed)
+	}
+	if again, err := w.svc.ResumeSale(ctx, a, sale.ID); err != nil || again.Version != resumed.Version {
+		t.Fatalf("reintento de retomar: %v", err)
+	}
+	paid, err := w.svc.Checkout(ctx, a, sale.ID, []domain.Tender{{Rail: domain.RailCash, AmountMinor: 3700}})
+	if err != nil || paid.Status != domain.Paid {
+		t.Fatalf("%v %+v", err, paid.Status)
+	}
+	if _, err := w.svc.CloseSession(ctx, a, sale.SessionID, 8700, ""); err != nil {
+		t.Fatalf("cerrar sin estacionadas: %v", err)
+	}
+}
+
+// F17.4: una venta vacía no se estaciona; una estacionada se anula con motivo; con la caja cerrada
+// no se estaciona ni se retoma.
+func TestL2_R13_EmptyVoidAndClosedSession(t *testing.T) {
+	ctx, w, tenant := context.Background(), newWorld(t), id()
+	a := cashier(tenant)
+	ss, err := w.svc.OpenSession(ctx, a, "CAJA-18", 5000, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty, err := w.svc.CreateSale(ctx, a, ss.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.svc.ParkSale(ctx, a, empty.ID, ""); !errors.Is(err, domain.ErrEmptySale) {
+		t.Fatalf("estacionar vacía: %v", err)
+	}
+	sale := openSale(t, w, a, "CAJA-18", service.LineInput{ProductID: w.pan, QtyMilli: 1000})
+	if _, err := w.svc.ParkSale(ctx, a, sale.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if v, err := w.svc.VoidSale(ctx, a, sale.ID, "el cliente no volvió"); err != nil || v.Status != domain.Voided {
+		t.Fatalf("anular estacionada: %v", err)
+	}
+	other := openSale(t, w, a, "CAJA-18", service.LineInput{ProductID: w.pan, QtyMilli: 1000})
+	if _, err := w.svc.VoidSale(ctx, a, empty.ID, "vacía"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.svc.VoidSale(ctx, a, other.ID, "prueba"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.svc.CloseSession(ctx, a, ss.ID, 5000, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.svc.ParkSale(ctx, a, other.ID, ""); !errors.Is(err, domain.ErrSessionClosed) {
+		t.Fatalf("estacionar con la caja cerrada: %v", err)
+	}
+}
+
+// F17.4 · concurrencia: diez retomas simultáneas de la misma venta dejan una sola transición
+// (versión +1) y todas responden la venta abierta.
+func TestL2_R13_ConcurrentResumeIsSingleTransition(t *testing.T) {
+	ctx, w, tenant := context.Background(), newWorld(t), id()
+	a := cashier(tenant)
+	sale := openSale(t, w, a, "CAJA-19", service.LineInput{ProductID: w.cafe, QtyMilli: 1000})
+	parked, err := w.svc.ParkSale(ctx, a, sale.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, 10)
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, err := w.svc.ResumeSale(ctx, a, sale.ID)
+			if err == nil && (got.Status != domain.Open || got.Version != parked.Version+1) {
+				err = fmt.Errorf("estado %v versión %d", got.Status, got.Version)
+			}
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}

@@ -29,6 +29,8 @@ type Store interface {
 	GetSale(ctx context.Context, tenantID, id string) (domain.Sale, error)
 	MutateSale(ctx context.Context, tenantID, id string, expectedVersion int32, mutate func(*domain.Sale) error,
 		onPaid store.OnPaid, now time.Time) (domain.Sale, error)
+	MutateSaleInOpenSession(ctx context.Context, tenantID, id string, mutate func(*domain.Sale) error,
+		now time.Time) (domain.Sale, error)
 	ApplyPaymentEvent(ctx context.Context, e store.PaymentEvent, onPaid store.OnPaid) (bool, error)
 	ListSales(ctx context.Context, tenantID string, f store.SaleFilter) ([]domain.Sale, *store.SaleCursor, error)
 	ClaimStockTasks(ctx context.Context, limit int, now time.Time) ([]store.StockTask, error)
@@ -209,6 +211,28 @@ func (p *Pos) VoidSale(ctx context.Context, a Actor, saleID, reason string) (dom
 	return p.store.MutateSale(ctx, a.TenantID, saleID, 0, func(s *domain.Sale) error {
 		return s.Void(reason)
 	}, p.onPaid, p.now())
+}
+
+// ParkSale estaciona una venta (F17.4): solo el cajero de la sesión, con la caja abierta. No toca
+// inventario: una venta de caja descuenta existencias al pagarse (stock_tasks), nunca al estacionarse.
+func (p *Pos) ParkSale(ctx context.Context, a Actor, saleID, label string) (domain.Sale, error) {
+	now := p.now()
+	return p.store.MutateSaleInOpenSession(ctx, a.TenantID, saleID, func(s *domain.Sale) error {
+		if s.CashierID != a.UserID {
+			return domain.ErrNotYourSession
+		}
+		return s.Park(label, now)
+	}, now)
+}
+
+// ResumeSale retoma una venta estacionada de la sesión del cajero (F17.4).
+func (p *Pos) ResumeSale(ctx context.Context, a Actor, saleID string) (domain.Sale, error) {
+	return p.store.MutateSaleInOpenSession(ctx, a.TenantID, saleID, func(s *domain.Sale) error {
+		if s.CashierID != a.UserID {
+			return domain.ErrNotYourSession
+		}
+		return s.Resume()
+	}, p.now())
 }
 
 // GetSale lee una venta.

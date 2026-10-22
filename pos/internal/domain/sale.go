@@ -29,6 +29,9 @@ var (
 	ErrOverflow          = errors.New("amount overflow")
 	ErrProductInactive   = errors.New("product not sellable")
 	ErrKeyReused         = errors.New("idempotency key reused")
+	ErrInvalidLabel      = errors.New("invalid park label")
+	// ErrNoChange: la transición ya estaba hecha (reintento); el store devuelve la venta sin escribir.
+	ErrNoChange = errors.New("no change")
 )
 
 // Status de una venta (pos.proto SaleStatus).
@@ -143,6 +146,8 @@ type Sale struct {
 	UpdatedAt     time.Time
 	PaidAt        time.Time
 	Version       int32
+	ParkLabel     string    // nota del cajero al estacionar
+	ParkedAt      time.Time // última vez que se estacionó; cero si nunca
 }
 
 // Recalculate suma las líneas (R2). Las líneas deben venir ya con Price().
@@ -170,7 +175,7 @@ func (s Sale) Editable() error {
 // PrepareCheckout valida los medios (R4, R6): Σ montos = total; el efectivo recibido puede
 // exceder su monto y el vuelto sale en centavos; solo efectivo y billetera en caja.
 func (s *Sale) PrepareCheckout(tenders []Tender) error {
-	if s.Status != Open && s.Status != Parked {
+	if s.Status != Open { // domain-model §8.9: una venta estacionada se retoma antes de cobrarla
 		return ErrInvalidTransition
 	}
 	if len(s.Lines) == 0 || s.TotalMinor <= 0 {
@@ -352,4 +357,40 @@ func (m CashMovement) Signed() int64 {
 		return -m.AmountMinor
 	}
 	return m.AmountMinor
+}
+
+// MaxParkLabel es el largo máximo de la nota de una venta estacionada (S-POS-06).
+const MaxParkLabel = 60
+
+// Park aparta una venta abierta con líneas (domain-model §8.9: OPEN → PARKED). Estacionar una
+// venta ya estacionada es un reintento: ErrNoChange.
+func (s *Sale) Park(label string, at time.Time) error {
+	label = strings.TrimSpace(label)
+	if utf8.RuneCountInString(label) > MaxParkLabel {
+		return ErrInvalidLabel
+	}
+	switch s.Status {
+	case Parked:
+		return ErrNoChange
+	case Open:
+	default:
+		return ErrInvalidTransition
+	}
+	if len(s.Lines) == 0 {
+		return ErrEmptySale
+	}
+	s.Status, s.ParkLabel, s.ParkedAt = Parked, label, at
+	return nil
+}
+
+// Resume retoma una venta estacionada (PARKED → OPEN). Retomar una abierta es un reintento.
+func (s *Sale) Resume() error {
+	switch s.Status {
+	case Open:
+		return ErrNoChange
+	case Parked:
+		s.Status = Open
+		return nil
+	}
+	return ErrInvalidTransition
 }
