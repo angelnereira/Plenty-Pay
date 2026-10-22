@@ -16,6 +16,7 @@ class ProductItem {
     required this.taxRateBps,
     required this.taxExempt,
     required this.tracksInventory,
+    this.tracksLots = false,
     required this.archived,
     required this.imageUrls,
     required this.version,
@@ -35,6 +36,7 @@ class ProductItem {
         taxRateBps: (j['tax_rate_bps'] as num?)?.toInt() ?? 0,
         taxExempt: j['tax_exempt'] as bool? ?? false,
         tracksInventory: j['tracks_inventory'] as bool? ?? false,
+        tracksLots: j['tracks_lots'] as bool? ?? false,
         archived: j['status'] == 'PRODUCT_STATUS_ARCHIVED',
         imageUrls: (j['image_object_keys'] as List<dynamic>? ?? const [])
             .cast<String>(),
@@ -53,6 +55,9 @@ class ProductItem {
   final int taxRateBps;
   final bool taxExempt;
   final bool tracksInventory;
+
+  /// F16.4: las entradas de existencias exigen lote y vencimiento (solo si lleva inventario).
+  final bool tracksLots;
   final bool archived;
   final List<String> imageUrls;
   final int version;

@@ -39,7 +39,7 @@ Vacío: "Aún no tienes productos." con "Nuevo producto" e "Importar desde un ar
 | Variantes | Atributos y combinaciones | Cada variante: SKU, código de barras, precio y existencias propias |
 | Precios por sucursal | Tabla sucursal → precio | Opcional |
 | Inventario | Controlar existencias | Activo por defecto |
-| | Controla lote y vencimiento | Obligatorio en alimentos perecederos y medicamentos |
+| | Controla lotes y vencimientos | Solo si lleva inventario (`LOTS_REQUIRE_INVENTORY`). Texto de ayuda: "Cada entrada pide el lote del proveedor; las ventas salen primero de lo que vence antes." Obligatorio en alimentos perecederos y medicamentos (lo decide el comercio; el sistema no lo impone por categoría hasta F15.11) |
 | | Existencia mínima | Dispara la alerta de quiebre |
 | Garantía y devoluciones | Días de garantía | Entero ≥ 0. 0 solo si la categoría lo permite |
 | | Política de devolución | Lista: 7 / 15 / 30 días, o la de la tienda. Sin opción de negar devolución por defecto |
@@ -83,7 +83,7 @@ Botón primario "Guardar". Acción secundaria "Archivar" (C-05; el producto deja
 | e5 | Menú | Ajustar · Transferir · Órdenes de compra · Proveedores · Sugerencias de reorden · Exportar | Según permiso: `inventory:adjust`, `inventory:purchase:manage` o `inventory:receive` (órdenes), `inventory:purchase:manage` (proveedores), `inventory:read` (sugerencias). *Pendiente*: Exportar |
 
 ### S-INV-02 · `/inventory/:variant` · Detalle de existencias
-Interruptor "Mostrar en el marketplace" del producto (mismo comportamiento que S-CAT-02, con `catalog:listing:manage`). Existencias por bodega; lotes con fecha de vencimiento (vencidos en `error`, próximos en `warning`); movimientos con fecha, tipo (Recepción, Venta, Ajuste, Transferencia, Devolución, Baja), cantidad con signo, saldo, documento de origen enlazado y usuario; cobertura en días según velocidad de venta.
+Interruptor "Mostrar en el marketplace" del producto (mismo comportamiento que S-CAT-02, con `catalog:listing:manage`). Existencias por bodega; lotes con fecha de vencimiento (F16.4: «Lote {código}» · bodega · «Vence el {fecha con mes en texto}» o «Sin vencimiento» · existencia; vencidos con la etiqueta "Vencido" en `error` y los que vencen en 30 días con "Vence pronto" en `warning`, nunca solo color; sin lotes: "Sin lotes con existencia."); cada movimiento muestra su lote; movimientos con fecha, tipo (Recepción, Venta, Ajuste, Transferencia, Devolución, Baja), cantidad con signo, saldo, documento de origen enlazado y usuario; cobertura en días según velocidad de venta.
 
 ### S-INV-03 · `/inventory/adjust` · Ajuste
 `inventory:adjust`
@@ -92,6 +92,7 @@ Interruptor "Mostrar en el marketplace" del producto (mismo comportamiento que S
 |---|---|---|---|
 | e1 | Selector | Bodega | — |
 | e2 | Líneas | Producto · Sistema {n} · Contado · Diferencia | Se puede escanear para contar |
+| e2b | Lote (F16.4) | Entrada: "Lote del proveedor" y "Vencimiento" (calendario; vacío = sin vencimiento) · Salida: "Lote que sale" con "Automático (primero lo que vence antes)" o un lote | Solo si el producto controla lotes. Entrada sin lote: `LOT_REQUIRED`; vencimiento pasado: `LOT_EXPIRED`; lote ajeno a la bodega: `LOT_NOT_FOUND`. Para desechar lo vencido se elige su lote |
 | e3 | Selector | Motivo | Conteo físico, Daño, Vencimiento, Robo o pérdida, Error de registro, Otro + texto. Obligatorio |
 | e4 | Adjunto opcional | Evidencia | — |
 | e5 | `PPButton.primary` | Aplicar ajuste | C-05 con el número de líneas y el valor al costo |
@@ -111,7 +112,7 @@ Un ajuste no se edita ni se borra: se corrige con otro ajuste.
 |---|---|---|---|
 | e1 | Cabecera | Orden {número} · {proveedor} | — |
 | e2 | Líneas | Producto · Pedido {n} · Recibido antes {m} · Recibido ahora | No se recibe más de lo pedido: `RECEIPT_EXCEEDS_ORDERED` "Estás recibiendo más de lo pedido." *Pendiente*: escáner |
-| e3 | Por línea | Lote · Vencimiento | *Pendiente* (lotes, F16.4): obligatorios si el producto controla lote; vencimiento pasado bloqueado |
+| e3 | Por línea | Lote del proveedor · Vencimiento | F16.8: obligatorio si el producto controla lotes (`LOT_REQUIRED`); vencimiento pasado bloqueado (`LOT_EXPIRED`). Un mismo producto puede recibirse en varios lotes (una línea por lote vía API; en la app, un lote por recepción) |
 | e4 | Campo | Factura del proveedor (número) | Opcional, hasta 60 caracteres |
 | e5 | `PPButton.primary` | Registrar recepción | Genera los movimientos y actualiza el estado de la orden |
 

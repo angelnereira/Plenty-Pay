@@ -48,7 +48,8 @@ class MovementItem {
       required this.deltaMilli,
       required this.reason,
       required this.referenceType,
-      required this.occurredAt});
+      required this.occurredAt,
+      this.lotCode = ''});
 
   factory MovementItem.fromJson(Map<String, dynamic> j) => MovementItem(
         id: j['movement_id'] as String? ?? '',
@@ -62,7 +63,10 @@ class MovementItem {
         occurredAt:
             DateTime.tryParse(j['occurred_at'] as String? ?? '')?.toLocal() ??
                 DateTime.fromMillisecondsSinceEpoch(0),
+        lotCode: j['lot_code'] as String? ?? '',
       );
+
+  /// F16.4: lote del movimiento (vacío si el producto no maneja lotes).
 
   final String id;
   final String productId;
@@ -70,6 +74,7 @@ class MovementItem {
   final String type;
   final int deltaMilli;
   final String reason;
+  final String lotCode;
   final String referenceType;
   final DateTime occurredAt;
 }
@@ -153,4 +158,55 @@ List<StockItem> sumByProduct(List<StockItem> levels) {
           );
   }
   return by.values.toList();
+}
+
+/// Un lote de un producto en una bodega (inventory.Lot, F16.4).
+class LotItem {
+  const LotItem(
+      {required this.id,
+      required this.warehouseId,
+      required this.code,
+      required this.onHandMilli,
+      required this.expired,
+      this.expiresOn});
+
+  factory LotItem.fromJson(Map<String, dynamic> j) {
+    final exp = DateTime.tryParse(j['expires_at'] as String? ?? '');
+    return LotItem(
+      id: j['lot_id'] as String? ?? '',
+      warehouseId: j['warehouse_id'] as String? ?? '',
+      code: j['code'] as String? ?? '',
+      onHandMilli: _milli(j['on_hand_milli']),
+      expired: j['expired'] as bool? ?? false,
+      // El contrato manda las 00:00 de Panamá (05:00 UTC): la fecha es la del día UTC.
+      expiresOn: exp == null
+          ? null
+          : DateTime(exp.toUtc().year, exp.toUtc().month, exp.toUtc().day),
+    );
+  }
+
+  final String id;
+  final String warehouseId;
+  final String code;
+  final int onHandMilli;
+  final bool expired;
+  final DateTime? expiresOn;
+
+  /// Vence dentro de [days] días (y aún no venció): se muestra en `warning`.
+  bool expiresWithin(int days, DateTime today) =>
+      !expired &&
+      expiresOn != null &&
+      !expiresOn!.isAfter(DateTime(today.year, today.month, today.day)
+          .add(Duration(days: days)));
+}
+
+Future<List<LotItem>> loadLots(ApiClient api, String productId,
+    {String warehouseId = '', bool includeEmpty = false}) async {
+  final body = await api.listLots(productId,
+      warehouseId: warehouseId, includeEmpty: includeEmpty);
+  return [
+    for (final l in (body['lots'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>())
+      LotItem.fromJson(l)
+  ];
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/format/dates.dart';
 import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/layout/window_class.dart';
 import '../../core/observability/app_logger.dart' show newRequestId;
@@ -60,6 +61,12 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
   int? _systemMilli;
   final _counted = TextEditingController();
   final _otherReason = TextEditingController();
+
+  /// F16.4: lote de una entrada (código y vencimiento) o de una salida ('' = FEFO automático).
+  final _lotCode = TextEditingController();
+  DateTime? _lotExpiry;
+  String _outLot = '';
+  List<LotItem> _lots = const [];
   AdjustReason? _reason;
   String _key = newRequestId();
   bool _saving = false;
@@ -83,8 +90,15 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
     final p = _product;
     if (p == null || _warehouse.isEmpty) return;
     final body = await widget.api.getStock(p.id, warehouseId: _warehouse);
+    final lots = p.tracksLots
+        ? await loadLots(widget.api, p.id, warehouseId: _warehouse)
+        : const <LotItem>[];
     if (mounted) {
-      setState(() => _systemMilli = StockItem.fromJson(body).onHandMilli);
+      setState(() {
+        _systemMilli = StockItem.fromJson(body).onHandMilli;
+        _lots = lots;
+        _outLot = '';
+      });
     }
   }
 
@@ -110,7 +124,8 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
     final l10n = AppLocalizations.of(context);
     final code = await BarcodeScannerDialog.scan(context,
         logger: widget.api.logger,
-        title: l10n.scanBarcode, subtitle: l10n.invProduct);
+        title: l10n.scanBarcode,
+        subtitle: l10n.invProduct);
     if (code == null || !mounted) return;
     final match = products.where((p) => p.barcode == code.trim());
     if (match.isEmpty) {
@@ -124,6 +139,7 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
   void dispose() {
     _counted.dispose();
     _otherReason.dispose();
+    _lotCode.dispose();
     super.dispose();
   }
 
@@ -148,6 +164,8 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
     setState(() => _submitted = true);
     final delta = _delta;
     if (_product == null || delta == null || _reasonText.isEmpty) return;
+    final needsLot = _product!.tracksLots && delta > 0;
+    if (needsLot && _lotCode.text.trim().isEmpty) return;
     if (delta == 0) {
       setState(() => _error = l10n.invNoDifference);
       return;
@@ -179,6 +197,8 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
         deltaMilli: delta,
         type: adjustMovementType(_reason!, delta),
         reason: _reasonText,
+        lotCode: needsLot ? _lotCode.text.trim() : (delta < 0 ? _outLot : ''),
+        lotExpiresOn: needsLot ? _lotExpiry : null,
         idempotencyKey: _key,
       );
       if (!mounted) return;
@@ -304,6 +324,47 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
                             ),
                           ),
                         ],
+                        if (_product!.tracksLots &&
+                            delta != null &&
+                            delta > 0) ...[
+                          gap,
+                          TextField(
+                            controller: _lotCode,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              labelText: l10n.invLotCode,
+                              errorText:
+                                  _submitted && _lotCode.text.trim().isEmpty
+                                      ? l10n.error_LOT_REQUIRED
+                                      : null,
+                            ),
+                          ),
+                          LotExpiryField(
+                              value: _lotExpiry,
+                              onChanged: (d) => setState(() => _lotExpiry = d)),
+                        ],
+                        if (_product!.tracksLots &&
+                            delta != null &&
+                            delta < 0 &&
+                            _lots.isNotEmpty) ...[
+                          gap,
+                          DropdownButtonFormField<String>(
+                            initialValue: _outLot,
+                            isExpanded: true,
+                            decoration:
+                                InputDecoration(labelText: l10n.invLotOut),
+                            items: [
+                              DropdownMenuItem(
+                                  value: '', child: Text(l10n.invLotAuto)),
+                              for (final lot in _lots)
+                                DropdownMenuItem(
+                                    value: lot.code,
+                                    child: Text(l10n.invLotOption(lot.code,
+                                        formatQty(lot.onHandMilli, unit)))),
+                            ],
+                            onChanged: (v) => setState(() => _outLot = v ?? ''),
+                          ),
+                        ],
                       ],
                       gap,
                       DropdownButtonFormField<AdjustReason>(
@@ -356,6 +417,44 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Vencimiento de un lote que entra (F16.4): fecha con el mes en texto; vacío = no vence. Una
+/// fecha pasada la rechaza el servidor (`LOT_EXPIRED`).
+class LotExpiryField extends StatelessWidget {
+  const LotExpiryField(
+      {super.key, required this.value, required this.onChanged});
+  final DateTime? value;
+  final ValueChanged<DateTime?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).toString();
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.event_outlined),
+      title: Text(l10n.invLotExpiry),
+      subtitle:
+          Text(value == null ? l10n.invLotNoExpiry : longDate(value!, locale)),
+      trailing: value == null
+          ? null
+          : IconButton(
+              tooltip: l10n.invLotClearExpiry,
+              icon: const Icon(Icons.clear),
+              onPressed: () => onChanged(null)),
+      onTap: () async {
+        final now = DateTime.now();
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: value ?? now.add(const Duration(days: 180)),
+          firstDate: DateTime(now.year, now.month, now.day),
+          lastDate: DateTime(now.year + 10),
+        );
+        if (picked != null) onChanged(picked);
+      },
     );
   }
 }

@@ -8222,6 +8222,120 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No puedes enviarte dinero a ti mismo.'**
   String get error_SELF_TRANSFER;
+
+  /// No description provided for @catTrackLots.
+  ///
+  /// In es, this message translates to:
+  /// **'Controla lotes y vencimientos'**
+  String get catTrackLots;
+
+  /// No description provided for @catTrackLotsHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Cada entrada pide el lote del proveedor; las ventas salen primero de lo que vence antes.'**
+  String get catTrackLotsHint;
+
+  /// No description provided for @invLots.
+  ///
+  /// In es, this message translates to:
+  /// **'Lotes'**
+  String get invLots;
+
+  /// No description provided for @invNoLots.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin lotes con existencia.'**
+  String get invNoLots;
+
+  /// No description provided for @invLotLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Lote {code}'**
+  String invLotLabel(String code);
+
+  /// No description provided for @invLotExpires.
+  ///
+  /// In es, this message translates to:
+  /// **'Vence el {date}'**
+  String invLotExpires(String date);
+
+  /// No description provided for @invLotNoExpiry.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin vencimiento'**
+  String get invLotNoExpiry;
+
+  /// No description provided for @invLotExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'Vencido'**
+  String get invLotExpired;
+
+  /// No description provided for @invLotExpiringSoon.
+  ///
+  /// In es, this message translates to:
+  /// **'Vence pronto'**
+  String get invLotExpiringSoon;
+
+  /// No description provided for @invLotCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Lote del proveedor'**
+  String get invLotCode;
+
+  /// No description provided for @invLotExpiry.
+  ///
+  /// In es, this message translates to:
+  /// **'Vencimiento'**
+  String get invLotExpiry;
+
+  /// No description provided for @invLotClearExpiry.
+  ///
+  /// In es, this message translates to:
+  /// **'Quitar vencimiento'**
+  String get invLotClearExpiry;
+
+  /// No description provided for @invLotOut.
+  ///
+  /// In es, this message translates to:
+  /// **'Lote que sale'**
+  String get invLotOut;
+
+  /// No description provided for @invLotAuto.
+  ///
+  /// In es, this message translates to:
+  /// **'Automático (primero lo que vence antes)'**
+  String get invLotAuto;
+
+  /// No description provided for @invLotOption.
+  ///
+  /// In es, this message translates to:
+  /// **'{code} · {qty}'**
+  String invLotOption(String code, String qty);
+
+  /// No description provided for @error_LOT_REQUIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Este producto controla lotes: indica el lote.'**
+  String get error_LOT_REQUIRED;
+
+  /// No description provided for @error_LOT_EXPIRED.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese lote está vencido.'**
+  String get error_LOT_EXPIRED;
+
+  /// No description provided for @error_LOT_NOT_FOUND.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese lote no existe en esta bodega.'**
+  String get error_LOT_NOT_FOUND;
+
+  /// No description provided for @error_LOTS_REQUIRE_INVENTORY.
+  ///
+  /// In es, this message translates to:
+  /// **'Para controlar lotes, el producto debe llevar inventario.'**
+  String get error_LOTS_REQUIRE_INVENTORY;
 }
 
 class _AppLocalizationsDelegate

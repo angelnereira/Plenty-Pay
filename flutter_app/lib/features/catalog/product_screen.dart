@@ -51,6 +51,7 @@ class _ProductScreenState extends State<ProductScreen> {
   late bool _exempt = widget.product?.taxExempt ?? false;
   late int _rateBps = widget.product?.taxRateBps ?? 0;
   late bool _track = widget.product?.tracksInventory ?? true;
+  late bool _lots = widget.product?.tracksLots ?? false;
   late final List<String> _photos = [...?widget.product?.imageUrls];
 
   late final Future<(List<CategoryItem>, List<TaxRateItem>)> _refs =
@@ -189,6 +190,7 @@ class _ProductScreenState extends State<ProductScreen> {
       'tax_rate_bps': _exempt ? 0 : _rateBps,
       'tax_exempt': _exempt,
       'tracks_inventory': _track,
+      'tracks_lots': _track && _lots,
       'image_object_keys': _photos,
       if (!_isNew) 'version': widget.product!.version,
     };
@@ -218,6 +220,7 @@ class _ProductScreenState extends State<ProductScreen> {
               'price',
               'tax_rate_bps',
               'tracks_inventory',
+              'tracks_lots',
               'image_object_keys',
             ],
             idempotencyKey: _key);
@@ -518,6 +521,14 @@ class _ProductScreenState extends State<ProductScreen> {
                   value: _track,
                   onChanged: (v) => setState(() => _track = v),
                 ),
+                if (_track)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.catTrackLots),
+                    subtitle: Text(l10n.catTrackLotsHint),
+                    value: _lots,
+                    onChanged: (v) => setState(() => _lots = v),
+                  ),
               ]),
               if (!_isNew)
                 _section(context, l10n.moduleMarketplace, [

@@ -8,6 +8,8 @@ import '../../core/widgets/async_view.dart';
 import '../catalog/catalog_data.dart';
 import '../catalog/catalog_errors.dart';
 import '../catalog/listing_switch.dart';
+import '../../core/format/dates.dart';
+import '../../core/widgets/status_chip.dart';
 import '../wallet/wallet_data.dart' show walletDateTime;
 import 'inventory_data.dart';
 import 'stock_adjust_screen.dart';
@@ -17,10 +19,14 @@ class StockDetail {
   const StockDetail(
       {required this.warehouses,
       required this.levels,
-      required this.movements});
+      required this.movements,
+      this.lots = const []});
   final List<WarehouseItem> warehouses;
   final List<StockItem> levels;
   final List<MovementItem> movements;
+
+  /// F16.4: lotes con existencia (solo si el producto maneja lotes).
+  final List<LotItem> lots;
 }
 
 /// Etiqueta de un tipo de movimiento (S-INV-02).
@@ -35,9 +41,10 @@ String movementLabel(AppLocalizations l10n, String type) => switch (type) {
       _ => type,
     };
 
-/// S-INV-02 · `/inventory/:variant` · Detalle de existencias: por bodega y movimientos con fecha,
-/// tipo, cantidad con signo y motivo, e interruptor "Mostrar en el marketplace". Lotes y cobertura
-/// llegan con F16.4 y F16.6.
+/// S-INV-02 · `/inventory/:variant` · Detalle de existencias: por bodega, lotes con su vencimiento
+/// (vencidos en `error`, por vencer en 30 días en `warning`, F16.4), movimientos con fecha, tipo,
+/// lote, cantidad con signo y motivo, e interruptor "Mostrar en el marketplace". La cobertura en
+/// días llega con F16.6 en S-INV-08.
 class StockDetailScreen extends StatefulWidget {
   const StockDetailScreen(
       {super.key, required this.api, required this.product});
@@ -57,10 +64,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final levels = await loadStock(widget.api);
     final movements =
         await loadMovements(widget.api, productId: widget.product.id);
+    final lots = widget.product.tracksLots
+        ? await loadLots(widget.api, widget.product.id)
+        : const <LotItem>[];
     return StockDetail(
       warehouses: warehouses,
       levels: levels.where((l) => l.productId == widget.product.id).toList(),
       movements: movements,
+      lots: lots,
     );
   }
 
@@ -145,6 +156,28 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                               ),
                           ]),
                         ),
+                        if (widget.product.tracksLots) ...[
+                          const SizedBox(height: AppTokens.spacingLg),
+                          Semantics(
+                              header: true,
+                              child: Text(l10n.invLots,
+                                  style: theme.textTheme.titleMedium)),
+                          const SizedBox(height: AppTokens.spacingSm),
+                          Card(
+                            margin: EdgeInsets.zero,
+                            elevation: 0,
+                            color: theme.colorScheme.surfaceContainerLow,
+                            child: Column(children: [
+                              if (d.lots.isEmpty)
+                                ListTile(title: Text(l10n.invNoLots)),
+                              for (final lot in d.lots)
+                                _LotTile(
+                                    lot: lot,
+                                    unit: unit,
+                                    warehouse: names[lot.warehouseId] ?? ''),
+                            ]),
+                          ),
+                        ],
                         const SizedBox(height: AppTokens.spacingLg),
                         Semantics(
                             header: true,
@@ -164,6 +197,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                 subtitle: Text([
                                   walletDateTime(m.occurredAt, locale),
                                   names[m.warehouseId] ?? '',
+                                  if (m.lotCode.isNotEmpty)
+                                    l10n.invLotLabel(m.lotCode),
                                   if (m.reason.isNotEmpty) m.reason,
                                 ].where((s) => s.isNotEmpty).join(' · ')),
                                 trailing: Text(
@@ -183,6 +218,49 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Un lote: código, bodega y vencimiento con el mes en texto; vencido en `error`, por vencer en
+/// 30 días en `warning` (S-INV-02). El estado también va en texto, no solo en color.
+class _LotTile extends StatelessWidget {
+  const _LotTile(
+      {required this.lot, required this.unit, required this.warehouse});
+  final LotItem lot;
+  final String unit;
+  final String warehouse;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final locale = Localizations.localeOf(context).toString();
+    final soon = lot.expiresWithin(30, DateTime.now());
+    final tone =
+        lot.expired ? StatusTone.error : (soon ? StatusTone.warning : null);
+    return ListTile(
+      title: Text(l10n.invLotLabel(lot.code)),
+      subtitle: Wrap(
+        spacing: AppTokens.spacingSm,
+        runSpacing: AppTokens.spacingXs,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text([
+            if (warehouse.isNotEmpty) warehouse,
+            lot.expiresOn == null
+                ? l10n.invLotNoExpiry
+                : l10n.invLotExpires(longDate(lot.expiresOn!, locale)),
+          ].join(' · ')),
+          if (tone != null)
+            StatusChip(
+                label:
+                    lot.expired ? l10n.invLotExpired : l10n.invLotExpiringSoon,
+                tone: tone),
+        ],
+      ),
+      trailing: Text(formatQty(lot.onHandMilli, unit),
+          style: theme.textTheme.titleMedium),
     );
   }
 }

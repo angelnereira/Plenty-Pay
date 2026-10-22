@@ -9,15 +9,20 @@ import '../../core/widgets/pp_button.dart';
 import '../../core/widgets/pp_text_field.dart';
 import '../catalog/catalog_data.dart';
 import 'purchasing_data.dart';
+import 'stock_adjust_screen.dart' show LotExpiryField;
 
 /// S-INV-06 · `/inventory/receive/:po` · Recepción. `inventory:receive`.
 ///
 /// e1 «Orden {número} · {proveedor}», e2 por línea «Pedido · Recibido antes · Recibido ahora»
 /// (propone lo pendiente; no se recibe más de lo pedido, `RECEIPT_EXCEEDS_ORDERED`), e4 factura del
-/// proveedor opcional, e5 «Registrar recepción». Lotes y escáner llegan con F16.4.
+/// proveedor opcional, e5 «Registrar recepción». e3 (F16.8): lote y vencimiento por línea si el
+/// producto maneja lotes. El escáner llega con F16.11.
 class PurchaseReceiveScreen extends StatefulWidget {
   const PurchaseReceiveScreen(
-      {super.key, required this.api, required this.order, required this.products});
+      {super.key,
+      required this.api,
+      required this.order,
+      required this.products});
   final ApiClient api;
   final PurchaseOrderItem order;
   final Map<String, ProductItem> products;
@@ -30,17 +35,27 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
   late final Map<String, TextEditingController> _now = {
     for (final l in widget.order.lines)
       if (l.pendingMilli > 0)
-        l.productId: TextEditingController(
-            text: formatQty(l.pendingMilli, 'UNIT')),
+        l.productId:
+            TextEditingController(text: formatQty(l.pendingMilli, 'UNIT')),
   };
   final _invoice = TextEditingController();
+
+  /// F16.8: lote y vencimiento por línea de un producto que maneja lotes.
+  late final Map<String, TextEditingController> _lot = {
+    for (final l in widget.order.lines)
+      if (l.pendingMilli > 0 &&
+          (widget.products[l.productId]?.tracksLots ?? false))
+        l.productId: TextEditingController(),
+  };
+  final Map<String, DateTime?> _expiry = {};
+  bool _submitted = false;
   final String _key = newRequestId();
   bool _saving = false;
   String? _error;
 
   @override
   void dispose() {
-    for (final c in _now.values) {
+    for (final c in [..._now.values, ..._lot.values]) {
       c.dispose();
     }
     _invoice.dispose();
@@ -55,7 +70,16 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
       if (c == null || c.text.trim().isEmpty) continue;
       final q = parseQtyMilli(c.text);
       if (q == null || q > l.pendingMilli) return null;
-      if (q > 0) out.add({'product_id': l.productId, 'received_milli': '$q'});
+      if (q > 0) {
+        final lot = _lot[l.productId]?.text.trim() ?? '';
+        final exp = _expiry[l.productId];
+        out.add({
+          'product_id': l.productId,
+          'received_milli': '$q',
+          if (lot.isNotEmpty) 'lot_code': lot,
+          if (exp != null) 'expires_at': lotDateWire(exp),
+        });
+      }
     }
     return out;
   }
@@ -64,6 +88,12 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
     final l10n = AppLocalizations.of(context);
     final lines = _received;
     if (lines == null || lines.isEmpty) return;
+    setState(() => _submitted = true);
+    // F16.8: una línea con cantidad de un producto con lotes necesita su lote.
+    final missingLot = lines.any((l) =>
+        _lot.containsKey(l['product_id']) &&
+        !(l as Map).containsKey('lot_code'));
+    if (missingLot) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -130,6 +160,21 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
                           onChanged: (_) => setState(() {}),
                           error: _lineError(l10n, l, c),
                         ),
+                      ],
+                      if (_lot[l.productId] case final lc?) ...[
+                        const SizedBox(height: AppTokens.spacingSm),
+                        PPTextField(
+                          controller: lc,
+                          labelText: l10n.invLotCode,
+                          onChanged: (_) => setState(() {}),
+                          error: _submitted && lc.text.trim().isEmpty
+                              ? l10n.error_LOT_REQUIRED
+                              : null,
+                        ),
+                        LotExpiryField(
+                            value: _expiry[l.productId],
+                            onChanged: (d) =>
+                                setState(() => _expiry[l.productId] = d)),
                       ],
                     ]),
               ),

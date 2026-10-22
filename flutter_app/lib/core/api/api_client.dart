@@ -804,6 +804,8 @@ class ApiClient {
           required int deltaMilli,
           required String type,
           String reason = '',
+          String lotCode = '',
+          DateTime? lotExpiresOn,
           required String idempotencyKey}) =>
       _post('/v1/inventory/adjustments',
           data: {
@@ -812,6 +814,8 @@ class ApiClient {
             'delta_milli': '$deltaMilli',
             'type': type,
             if (reason.isNotEmpty) 'reason': reason,
+            if (lotCode.isNotEmpty) 'lot_code': lotCode,
+            if (lotExpiresOn != null) 'lot_expires_at': lotDateWire(lotExpiresOn),
           },
           idempotencyKey: idempotencyKey);
 
@@ -831,6 +835,15 @@ class ApiClient {
             if (reason.isNotEmpty) 'reason': reason,
           },
           idempotencyKey: idempotencyKey);
+
+  /// F16.4: lotes de un producto, primero los que vencen antes.
+  Future<Map<String, dynamic>> listLots(String productId,
+          {String warehouseId = '', bool includeEmpty = false}) =>
+      _get('/v1/inventory/lots', queryParameters: {
+        'product_id': productId,
+        if (warehouseId.isNotEmpty) 'warehouse_id': warehouseId,
+        if (includeEmpty) 'include_empty': 'true',
+      });
 
   Future<Map<String, dynamic>> listMovements(
           {String productId = '',
@@ -1579,3 +1592,8 @@ class _HttpAdapter implements HttpClientAdapter {
     _client.close();
   }
 }
+
+/// Un vencimiento es una fecha: viaja como las 00:00 de ese día en Panamá (05:00 UTC), el
+/// convenio del contrato de inventory (F16.4).
+String lotDateWire(DateTime d) =>
+    DateTime.utc(d.year, d.month, d.day, 5).toIso8601String();

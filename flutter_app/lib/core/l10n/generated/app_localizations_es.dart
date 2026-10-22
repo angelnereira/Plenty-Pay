@@ -4529,6 +4529,72 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get error_SELF_TRANSFER => 'No puedes enviarte dinero a ti mismo.';
+
+  @override
+  String get catTrackLots => 'Controla lotes y vencimientos';
+
+  @override
+  String get catTrackLotsHint =>
+      'Cada entrada pide el lote del proveedor; las ventas salen primero de lo que vence antes.';
+
+  @override
+  String get invLots => 'Lotes';
+
+  @override
+  String get invNoLots => 'Sin lotes con existencia.';
+
+  @override
+  String invLotLabel(String code) {
+    return 'Lote $code';
+  }
+
+  @override
+  String invLotExpires(String date) {
+    return 'Vence el $date';
+  }
+
+  @override
+  String get invLotNoExpiry => 'Sin vencimiento';
+
+  @override
+  String get invLotExpired => 'Vencido';
+
+  @override
+  String get invLotExpiringSoon => 'Vence pronto';
+
+  @override
+  String get invLotCode => 'Lote del proveedor';
+
+  @override
+  String get invLotExpiry => 'Vencimiento';
+
+  @override
+  String get invLotClearExpiry => 'Quitar vencimiento';
+
+  @override
+  String get invLotOut => 'Lote que sale';
+
+  @override
+  String get invLotAuto => 'Automático (primero lo que vence antes)';
+
+  @override
+  String invLotOption(String code, String qty) {
+    return '$code · $qty';
+  }
+
+  @override
+  String get error_LOT_REQUIRED =>
+      'Este producto controla lotes: indica el lote.';
+
+  @override
+  String get error_LOT_EXPIRED => 'Ese lote está vencido.';
+
+  @override
+  String get error_LOT_NOT_FOUND => 'Ese lote no existe en esta bodega.';
+
+  @override
+  String get error_LOTS_REQUIRE_INVENTORY =>
+      'Para controlar lotes, el producto debe llevar inventario.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

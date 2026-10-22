@@ -4520,4 +4520,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get error_SELF_TRANSFER => 'You can\'t send money to yourself.';
+
+  @override
+  String get catTrackLots => 'Tracks lots and expiry dates';
+
+  @override
+  String get catTrackLotsHint =>
+      'Each intake asks for the supplier lot; sales take what expires first.';
+
+  @override
+  String get invLots => 'Lots';
+
+  @override
+  String get invNoLots => 'No lots in stock.';
+
+  @override
+  String invLotLabel(String code) {
+    return 'Lot $code';
+  }
+
+  @override
+  String invLotExpires(String date) {
+    return 'Expires on $date';
+  }
+
+  @override
+  String get invLotNoExpiry => 'No expiry date';
+
+  @override
+  String get invLotExpired => 'Expired';
+
+  @override
+  String get invLotExpiringSoon => 'Expires soon';
+
+  @override
+  String get invLotCode => 'Supplier lot';
+
+  @override
+  String get invLotExpiry => 'Expiry date';
+
+  @override
+  String get invLotClearExpiry => 'Clear expiry date';
+
+  @override
+  String get invLotOut => 'Lot taken out';
+
+  @override
+  String get invLotAuto => 'Automatic (what expires first)';
+
+  @override
+  String invLotOption(String code, String qty) {
+    return '$code · $qty';
+  }
+
+  @override
+  String get error_LOT_REQUIRED => 'This product tracks lots: enter the lot.';
+
+  @override
+  String get error_LOT_EXPIRED => 'That lot is expired.';
+
+  @override
+  String get error_LOT_NOT_FOUND =>
+      'That lot does not exist in this warehouse.';
+
+  @override
+  String get error_LOTS_REQUIRE_INVENTORY =>
+      'To track lots, the product must track inventory.';
 }

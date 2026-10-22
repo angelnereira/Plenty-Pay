@@ -2086,5 +2086,48 @@
   },
   "receiveAmount": "Pedir un monto (opcional)",
   "receiveAppOnly": "Por ahora este código se lee con la app PlentyPay.",
-  "error_SELF_TRANSFER": "No puedes enviarte dinero a ti mismo."
+  "error_SELF_TRANSFER": "No puedes enviarte dinero a ti mismo.",
+  "catTrackLots": "Controla lotes y vencimientos",
+  "catTrackLotsHint": "Cada entrada pide el lote del proveedor; las ventas salen primero de lo que vence antes.",
+  "invLots": "Lotes",
+  "invNoLots": "Sin lotes con existencia.",
+  "invLotLabel": "Lote {code}",
+  "@invLotLabel": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "invLotExpires": "Vence el {date}",
+  "@invLotExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "invLotNoExpiry": "Sin vencimiento",
+  "invLotExpired": "Vencido",
+  "invLotExpiringSoon": "Vence pronto",
+  "invLotCode": "Lote del proveedor",
+  "invLotExpiry": "Vencimiento",
+  "invLotClearExpiry": "Quitar vencimiento",
+  "invLotOut": "Lote que sale",
+  "invLotAuto": "Automático (primero lo que vence antes)",
+  "invLotOption": "{code} · {qty}",
+  "@invLotOption": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      },
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "error_LOT_REQUIRED": "Este producto controla lotes: indica el lote.",
+  "error_LOT_EXPIRED": "Ese lote está vencido.",
+  "error_LOT_NOT_FOUND": "Ese lote no existe en esta bodega.",
+  "error_LOTS_REQUIRE_INVENTORY": "Para controlar lotes, el producto debe llevar inventario."
 }
