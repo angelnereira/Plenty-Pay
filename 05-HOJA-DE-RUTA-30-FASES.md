@@ -271,6 +271,8 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F13.8 | Facturación de comisiones de PlentyPay a comercios | fiscal-invoicing | Factura mensual por tenant con total = comisiones del ledger | L4 |
 | F13.9 | Pantallas Flutter: perfil fiscal, facturas, notas, contribuyentes | flutter_app | Widget tests 4 estados | L4 |
 
+Cierre comercial de F13.5 (factura pedida por pos y orders al vender): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §C «F13.5 · Cierre».
+
 ## F14 — Geolocalización
 
 - **Objetivo**: Ubicaciones en vivo y geocercas como servicio base de logística y nómina.
@@ -307,6 +309,11 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F15.8 | Checkout saga + consumidores de pagos | orders | Pruebas de aceptación 1, 3, 4 | L4 |
 | F15.9 | Aceptación/SLA + reembolsos + integración logística y fiscal | orders | Prueba de aceptación 2 | L4 |
 | F15.10 | Pantallas Flutter: catálogo del comercio, vitrina, marketplace, carrito, checkout, mis pedidos, pedidos del comercio | flutter_app | integration_test: compra multi-comercio | L4 |
+| F15.11 | Ficha de producto por categoría (plantillas por vertical, validación condicional en el servidor) | catalog, flutter_app | Alta rápida con lo mínimo; campo obligatorio de la plantilla validado en el servidor | L2 |
+| F15.12 | Historial de cambios del producto | catalog | Cada cambio deja su fila inmutable en la misma transacción | L2 |
+| F15.13 | Aviso de pedido entrante en tiempo real (depende de F20.3/F20.4) | notifications, flutter_app | Aviso en < 5 s solo a quien tiene `orders:manage` | L4 |
+
+Fichas ejecutables de los pasos abiertos de F15 (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §A y §G.
 
 ## F16 — Inventario
 
@@ -324,6 +331,14 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F16.5 | Proveedores, órdenes de compra y recepción | inventory | §8.12 | L2 |
 | F16.6 | Velocidad de venta, StockLow y reorden | inventory | R6 contra cálculo de referencia | L2 |
 | F16.7 | Pantallas Flutter: stock, movimientos, ajustes, transferencias, compras, recepción con escáner, sugerencias | flutter_app | Widget tests 4 estados | L4 |
+| F16.8 | Lotes y vencimiento en la recepción de compras (depende de F16.4) | inventory, flutter_app | `LOT_REQUIRED` y `LOT_EXPIRED` en la recepción; Σ lotes = existencias | L2 |
+| F16.9 | Sucursal en bodegas y `BRANCH_OUT_OF_SCOPE` (ADR 0018) | inventory | Vectores V3/V7 aplicados a bodegas | L2 |
+| F16.10 | Existencias bloqueadas o dañadas y alertas de vencimiento (depende de F16.4) | inventory, flutter_app | disponible = on_hand − reservado − bloqueado con vectores | L2 |
+| F16.11 | Escáner en inventario (cámara y lector HID, antirrebote) | flutter_app | Doble lectura cuenta una vez; L4 en dispositivo físico | L4 |
+| F16.12 | Incidencias y diferencias de recepción; cerrar orden con faltante (depende de F16.10) | inventory, flutter_app | Lo dañado no queda disponible | L2 |
+| F16.13 | Historial de compras y costo de adquisición (costo de lo vendido ⛔ Q-52) | inventory, flutter_app | Coincide con las recepciones | L2 |
+
+Fichas ejecutables (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §A y §B.
 
 ## F17 — Punto de venta
 
@@ -344,6 +359,17 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F17.8 | Stream de pantalla del cliente | pos, api-gateway | Display emparejado recibe líneas en < 500 ms | L4 |
 | F17.9 | Devoluciones y anulaciones | pos | Prueba de aceptación 4 | L4 |
 | F17.10 | Pantallas Flutter del POS (venta en 2 paneles, cobro, cierre, devoluciones, display del cliente) | flutter_app | integration_test: venta mixta efectivo+wallet | L4 |
+| F17.11 | Configuración de caja (`GetPosSettings`/`UpdatePosSettings`, S-POS-11) | pos, flutter_app | Un cambio rige en la venta siguiente | L2 |
+| F17.12 | Sucursal en cajas y ventas; `BRANCH_OUT_OF_SCOPE` (depende de F16.9) | pos | Cajero con alcance a una sucursal no abre cajas de otra | L2 |
+| F17.13 | Cambio de turno y cierre forzado de sesiones abandonadas (supuesto Q-51) | pos, flutter_app | Relevo sin perder ventas ni efectivo; cierre forzado con confirmación fuerte | L2 |
+| F17.14 | Correcciones posteriores a la venta: cada tipo por el mecanismo de su dominio | flutter_app, pos | Ninguna corrección edita una venta pagada | L1 |
+| F17.15 | Programa de lealtad: reglas versionadas por comercio (activación ⛔ Q-45) | pos, identity (permisos `loyalty:*`) | Programa desactivado por defecto; versión en cada asiento | L2 |
+| F17.16 | Acumulación y reversión de puntos (T8 vía `payments.PostMemoEntry`, depende de F17.6) | pos, payments-core | Saldo de puntos = Σ asientos | L4 |
+| F17.17 | Canje de puntos en el cobro | pos, payments-core, flutter_app | `INSUFFICIENT_POINTS`; nunca saldo negativo | L4 |
+| F17.18 | Cupones y tarjetas de regalo | pos, payments-core | ⛔ Q-48 | — |
+| F17.19 | Propinas | pos, fiscal-invoicing | ⛔ Q-21 | — |
+
+Fichas ejecutables (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §C, §D y §H. F17.4 se cierra con estacionar/retomar (ficha detallada en ese documento).
 
 ## F18 — Logística y entregas
 
@@ -361,6 +387,9 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F18.5 | Seguimiento público + stream | logistics, api-gateway | R5; sin datos personales | L4 |
 | F18.6 | Integración con orders + página pública de seguimiento en `web` | logistics, orders, web | Sub-pedido COMPLETED al entregar | L4 |
 | F18.7 | Pantallas Flutter: despacho (comercio) y app de repartidor (ruta, escaneo, prueba) | flutter_app | integration_test de entrega | L4 |
+| F18.8 | Confirmación de entrega con QR de un solo uso (concreta el código de F18.4) | logistics, flutter_app | No confirma otra entrega, no se reutiliza y vence | L2 |
+
+Fichas ejecutables (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §F. F18.5 queda ⛔ por Q-49 y F14: sin mapa ni coordenadas simuladas.
 
 ## F19 — Equipo, asistencia y nómina
 

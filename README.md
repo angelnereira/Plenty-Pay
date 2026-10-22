@@ -2,7 +2,7 @@
 
 Una sola plataforma para que un negocio venda, cobre en cualquier forma de pago, controle inventario, entregue, pague a su equipo, facture ante la DGI y entienda sus números — y para que cualquier persona pague, reciba dinero y compre en un marketplace compartido. Descripción de producto sin tecnicismos: [`00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md`](00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md).
 
-> **Estado honesto (2026-10-14)**: el proyecto está en la **Fase 7 de 30**. Existe la documentación completa que gobierna el desarrollo, los 18 contratos gRPC, y código funcional de `identity` y `api-gateway` (login/registro/permisos, probado con pruebas unitarias y una prueba extremo a extremo). La pila de datos y plataforma opera en Docker Compose: PostgreSQL 16 esquemas/roles aislados + PgBouncer + respaldos PITR, ScyllaDB, NATS JetStream, OpenBao, y la pila de observabilidad (OTel, Prometheus, Loki, Tempo, Grafana, Alertmanager). La app Flutter tiene la base multiplataforma (login + navegación dinámica, flavors, español/inglés); los módulos de negocio aún no tienen pantallas. **Nada mueve dinero real.** Detalle paso a paso: [`docs/roadmap/status.md`](docs/roadmap/status.md).
+> **Estado (2026-10-21, v0.6.0)**: en producción corren identity, api-gateway, ledger (Rust), payments-core (Rust), settlement (Rust), fiscal-invoicing, catalog, inventory, pos y orders, con la app Flutter conectada a ellos (billetera, catálogo, inventario y compras, caja, pedidos, facturación y liquidaciones). Los rieles de pago externos y el PAC están en sandbox: **nada mueve dinero real**. logistics, notifications, geolocation, payroll y analytics-bi aún no tienen servidor. Detalle: [`docs/roadmap/status.md`](docs/roadmap/status.md) · auditoría: [`docs/audits/2026-10-21-comercio-estado-real.md`](docs/audits/2026-10-21-comercio-estado-real.md) · continuidad: [`docs/roadmap/continuity.md`](docs/roadmap/continuity.md).
 
 ## Stack (ADR 0001)
 | Capa | Tecnología |
@@ -26,6 +26,8 @@ Todo de código abierto; sin dependencia de un proveedor de nube.
 | [`ENGINEERING.md`](ENGINEERING.md) | Cómo se construye, verifica y entrega |
 | [`05-HOJA-DE-RUTA-30-FASES.md`](05-HOJA-DE-RUTA-30-FASES.md) | 30 fases, 224 pasos con criterio de aceptación |
 | [`docs/roadmap/status.md`](docs/roadmap/status.md) | Qué está hecho, con evidencia |
+| [`docs/roadmap/continuity.md`](docs/roadmap/continuity.md) | Entrada para retomar el trabajo: siguiente paso, archivos y comandos |
+| [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) | Fichas ejecutables de los pasos comerciales abiertos |
 | [`docs/adr/`](docs/adr/README.md) | 17 decisiones de arquitectura |
 | [`docs/glossary.md`](docs/glossary.md) | Glosario universal: todos los nombres (tipos, enums, permisos, `reason`, eventos, variables) y su fuente de verdad |
 | [`docs/domain/domain-model.md`](docs/domain/domain-model.md) | Reglas de dinero, ledger, estados (con vectores de prueba) |
