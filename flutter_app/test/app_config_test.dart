@@ -29,10 +29,12 @@ void main() {
     expect(dev.apiBaseUrl, 'http://localhost:8080');
   });
 
-  test('sin dart-define arranca en dev con la url por defecto', () {
+  // ADR 0019 §7: ninguna URL de túnel incrustada (caduca); la vigente la da el descubrimiento.
+  test('sin dart-define arranca en dev contra el gateway local, nunca un túnel incrustado', () {
     final config = AppConfig.fromEnvironment();
     expect(config.flavor, Flavor.dev);
-    expect(config.apiBaseUrl, 'https://undo-guards-roots-lectures.trycloudflare.com');
+    expect(config.apiBaseUrl, 'http://localhost:8080');
+    expect(config.apiBaseUrl, isNot(contains('trycloudflare')));
   });
 
   test('flavor desconocido falla al arrancar', () {
