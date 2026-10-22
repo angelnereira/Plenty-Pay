@@ -76,6 +76,8 @@ message SaleLine {
   plentypay.common.v1.Money discount = 6;
   int32 tax_rate_bps = 7;
   plentypay.common.v1.Money line_total = 8;  // calculado por el servidor
+  int64 refunded_milli = 9;                  // F17.9: cantidad ya devuelta (S-POS-08 «ya devuelto»)
+  plentypay.common.v1.Money refunded = 10;   // F17.9: monto ya devuelto de la línea (la última unidad toma el resto exacto)
 }
 message Tender {
   plentypay.common.v1.PaymentRail rail = 1;
