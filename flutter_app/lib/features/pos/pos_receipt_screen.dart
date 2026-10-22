@@ -113,7 +113,10 @@ class _PosReceiptScreenState extends State<PosReceiptScreen> {
                             ]),
                         const SizedBox(height: AppTokens.spacingXs),
                         Text(
-                            '${walletDateTime(sale.createdAt, locale)} · $terminalLabel',
+                            [
+                              walletDateTime(sale.createdAt, locale),
+                              if (terminalLabel.isNotEmpty) terminalLabel,
+                            ].join(' · '),
                             style: theme.textTheme.bodySmall),
                         const Divider(height: AppTokens.spacingLg),
                         for (final l in sale.lines)

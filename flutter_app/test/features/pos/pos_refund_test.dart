@@ -237,6 +237,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Devolver'), findsNothing, reason: 'sin pos:refund');
 
+      await tester.pumpWidget(harness(PosReceiptScreen(
+          api: fakeApi({}), sale: partial, terminalLabel: '')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining(RegExp(r' · $')), findsNothing,
+          reason: 'sin nombre de caja no queda un separador colgando');
+
       final full = SaleItem.fromJson(
           mixedSale(status: 'REFUNDED', refundedMilli: 3000, refunded: 1000));
       await tester.pumpWidget(harness(PosReceiptScreen(

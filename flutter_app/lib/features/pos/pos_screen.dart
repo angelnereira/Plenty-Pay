@@ -332,7 +332,8 @@ class _PosSellViewState extends State<PosSellView> {
     final l10n = AppLocalizations.of(context);
     final code = await BarcodeScannerDialog.scan(context,
         logger: widget.api.logger,
-        title: l10n.scanBarcode, subtitle: l10n.posSearchHint);
+        title: l10n.scanBarcode,
+        subtitle: l10n.posSearchHint);
     if (code == null || !mounted) return;
     _addByCode(products, code.trim());
   }
@@ -456,8 +457,10 @@ class _PosSellViewState extends State<PosSellView> {
   Future<void> _menu(String action) async {
     if (action == 'parked') return _openParked();
     final screen = switch (action) {
-      'sales' => PosSalesHistoryScreen(api: widget.api, session: widget.session)
-          as Widget,
+      'sales' => PosSalesHistoryScreen(
+          api: widget.api,
+          session: widget.session,
+          terminalLabel: _terminalLabel) as Widget,
       'cash' =>
         PosCashMovementsScreen(api: widget.api, sessionId: widget.session.id),
       _ => PosCloseSessionScreen(api: widget.api, sessionId: widget.session.id),
