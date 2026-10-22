@@ -939,6 +939,15 @@ class ApiClient {
       _post('/v1/pos/sales/${Uri.encodeComponent(saleId)}/void',
           data: {'reason': reason}, idempotencyKey: idempotencyKey);
 
+  /// F17.4: estacionar y retomar son transiciones por estado; repetirlas devuelve la venta sin
+  /// cambios, por eso no llevan clave de idempotencia.
+  Future<Map<String, dynamic>> parkSale(String saleId, {String label = ''}) =>
+      _post('/v1/pos/sales/${Uri.encodeComponent(saleId)}/park',
+          data: {'label': label});
+
+  Future<Map<String, dynamic>> resumeSale(String saleId) =>
+      _post('/v1/pos/sales/${Uri.encodeComponent(saleId)}/resume', data: {});
+
   Future<Map<String, dynamic>> getSale(String saleId) =>
       _get('/v1/pos/sales/${Uri.encodeComponent(saleId)}');
 

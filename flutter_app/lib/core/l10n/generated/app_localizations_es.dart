@@ -4406,6 +4406,73 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get error_PO_STATE =>
       'La orden ya cambió de estado. Actualiza e intenta de nuevo.';
+
+  @override
+  String get posPark => 'Estacionar';
+
+  @override
+  String get posParkTitle => 'Estacionar venta';
+
+  @override
+  String get posParkLabel => 'Nota para reconocerla (opcional)';
+
+  @override
+  String get posParked => 'Venta estacionada.';
+
+  @override
+  String get posMenuParked => 'Estacionadas';
+
+  @override
+  String get posParkedTitle => 'Ventas estacionadas';
+
+  @override
+  String get posParkedBusy =>
+      'Cobra, estaciona o vacía la venta en curso para retomar otra.';
+
+  @override
+  String get posParkedEmpty => 'No tienes ventas estacionadas.';
+
+  @override
+  String get posParkedNoLabel => 'Sin nota';
+
+  @override
+  String posParkedAt(String date, String time) {
+    return 'Estacionada el $date a las $time';
+  }
+
+  @override
+  String posParkedItems(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count productos',
+      one: '1 producto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get posParkedResume => 'Retomar';
+
+  @override
+  String get posParkedVoid => 'Anular';
+
+  @override
+  String get posParkedVoidTitle => '¿Anular la venta estacionada?';
+
+  @override
+  String get posParkedVoided => 'Venta anulada.';
+
+  @override
+  String posParkedRemoved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count productos ya no están a la venta y se quitaron.',
+      one: '1 producto ya no está a la venta y se quitó.',
+    );
+    return '$_temp0';
+  }
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

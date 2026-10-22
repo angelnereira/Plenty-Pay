@@ -1384,5 +1384,21 @@
   "error_INVALID_SUPPLIER": "Check the supplier details: RUC with DV, valid email and phone.",
   "error_RECEIPT_EXCEEDS_ORDERED": "You are receiving more than was ordered.",
   "error_UNKNOWN_ORDER_LINE": "That product is not in the order.",
-  "error_PO_STATE": "The order already changed status. Refresh and try again."
+  "error_PO_STATE": "The order already changed status. Refresh and try again.",
+  "posPark": "Park",
+  "posParkTitle": "Park sale",
+  "posParkLabel": "Note to recognize it (optional)",
+  "posParked": "Sale parked.",
+  "posMenuParked": "Parked sales",
+  "posParkedTitle": "Parked sales",
+  "posParkedBusy": "Charge, park or clear the current sale to resume another one.",
+  "posParkedEmpty": "You have no parked sales.",
+  "posParkedNoLabel": "No note",
+  "posParkedAt": "Parked on {date} at {time}",
+  "posParkedItems": "{count, plural, =1{1 item} other{{count} items}}",
+  "posParkedResume": "Resume",
+  "posParkedVoid": "Void",
+  "posParkedVoidTitle": "Void the parked sale?",
+  "posParkedVoided": "Sale voided.",
+  "posParkedRemoved": "{count, plural, =1{1 item is no longer for sale and was removed.} other{{count} items are no longer for sale and were removed.}}"
 }

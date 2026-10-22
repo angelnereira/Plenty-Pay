@@ -35,7 +35,7 @@ Panel de ticket:
 | e7 | `PPButton.text` | Descuento de ley | Ver "Descuento legal" abajo |
 | e8 | Totales | Subtotal · Descuentos · Envío (si aplica) · ITBMS 7 % {x} · ITBMS 10 % {y} · ITBMS 15 % {z} · Exento {w} · **Total** | Una fila por tasa presente. Total en `displayMoney` |
 | e9 | `PPButton.primary` | Cobrar {total} | Deshabilitado con ticket vacío → S-POS-03 |
-| e10 | Acciones secundarias | Entrega a domicilio · Estacionar · Nota · Vaciar | "Vaciar" con C-05. Ver "Entrega a domicilio" abajo |
+| e10 | Acciones secundarias | Entrega a domicilio · Estacionar · Nota · Vaciar | "Vaciar" con C-05. "Estacionar" (F17.4) pide una nota opcional de hasta 60 caracteres ("Nota para reconocerla"), guarda la venta y deja el ticket vacío: "Venta estacionada." Ver "Entrega a domicilio" abajo |
 | e11 | Indicador | En línea / Sin conexión ({n} ventas por sincronizar) | Sin conexión solo se cobra en efectivo o crédito de la casa |
 
 **Entrega a domicilio (en e10).** Hoja opcional para ventas con despacho desde la sucursal: pide dirección y punto en el mapa, nombre de quien recibe y teléfono (precargados si se seleccionó cliente en e4). Cotiza tarifa y cobertura con `POST /v1/logistics/quote`; si está fuera de cobertura devuelve `OUT_OF_DELIVERY_ZONE` "Esta sucursal no entrega en esa zona." Al pagarse la venta en S-POS-03, `pos` crea automáticamente la entrega en `logistics` (`CreateDelivery`) y el recibo incluye el enlace de seguimiento.
@@ -86,7 +86,13 @@ Diálogo tras finalizar, solo con preferencia fiscal `ASK_ALWAYS`: "¿Qué docum
 Contenido del recibo, en orden: nombre comercial, razón social, RUC y DV, dirección de la sucursal; tipo y número de documento; fecha y hora; caja y cajero; cliente y su RUC si aplica; líneas (cantidad con unidad, descripción, precio unitario, total); descuentos con su tipo ("Descuento Ley 6: 25 %"); subtotal; envío a domicilio (si aplica, con enlace `/track/{token}`); ITBMS por tasa; exento; **total**; pagos por medio y vuelto; propina; CUFE y QR de la DGI (solo factura autorizada); puntos ganados; política de devolución. Un recibo interno lleva al pie "Este documento no es una factura fiscal." Una factura pendiente lleva "Comprobante en proceso de autorización."
 
 ### S-POS-06 · `/pos/parked` · Ventas estacionadas
-Lista: nota o cliente, hora, total, cajero. Acciones: "Retomar" (→ S-POS-02) y "Anular" (`pos:void`, motivo obligatorio). Las ventas estacionadas se cierran o anulan antes del cierre de caja.
+`pos:sell` · Paso F17.4 · `GET /v1/pos/sales?session_id={id}&status=SALE_STATUS_PARKED`. Se abre desde el menú de la caja: "Estacionadas".
+
+Lista de la sesión abierta, la más reciente primero: nota (o "Sin nota"), "Estacionada el {fecha con mes en texto} a las {hora}", número de productos y total. El cajero no se muestra: una venta estacionada nunca sale de la sesión de su cajero (R1). Acciones por venta:
+- "Retomar" (`POST /v1/pos/sales/{id}/resume`) → S-POS-02 con sus líneas; esa misma venta es la que se cobra. Deshabilitado mientras haya un ticket en curso, con el aviso "Cobra, estaciona o vacía la venta en curso para retomar otra." Si un producto de la venta ya no se vende, se quita del ticket y se avisa "{n} productos ya no están a la venta y se quitaron."
+- "Anular" (`pos:void`; sin el permiso no aparece): motivo obligatorio y confirmación (C-05).
+
+Vacío: "No tienes ventas estacionadas." Las ventas estacionadas se cobran o anulan antes del cierre de caja (S-POS-10 e4, `SALES_PENDING`). No caducan solas (Q-46).
 
 ### S-POS-07 · `/pos/sales` · Ventas del turno e historial
 Filtros: Hoy / Rango · Caja · Cajero · Medio de pago · Estado. Lista: número, hora, total, medios, `StatusChip` (Pagada, Por confirmar, Devuelta parcial, Devuelta, Anulada). Toca: detalle con el recibo y acciones "Reimprimir", "Devolver" (→ S-POS-08) y "Emitir factura" (si fue recibo interno y el período lo permite).

@@ -17,6 +17,7 @@ import 'package:plentypay/features/inventory/warehouses_screen.dart';
 import 'package:plentypay/features/pos/pos_checkout_screen.dart';
 import 'package:plentypay/features/pos/pos_close_session_screen.dart';
 import 'package:plentypay/features/pos/pos_data.dart';
+import 'package:plentypay/features/pos/pos_parked_screen.dart';
 import 'package:plentypay/features/pos/pos_receipt_screen.dart';
 import 'package:plentypay/features/pos/pos_screen.dart';
 
@@ -24,7 +25,7 @@ import '../support/commerce_fixtures.dart';
 import '../support/fake_gateway.dart';
 
 /// gravital-experience-ui §15.3: texto al 200 %, compact y expanded, oscuro y claro, sin desbordes,
-/// para catálogo (S-CAT-01/02/04), inventario (S-INV-01/03/04/05/06/07/08/09) y caja (S-POS-02/03/05/10).
+/// para catálogo (S-CAT-01/02/04), inventario (S-INV-01/03/04/05/06/07/08/09) y caja (S-POS-02/03/05/06/10).
 final purchaseOrder = <String, Object>{
   'purchase_order_id': '01a15fc9-1083-745b-aed2-163be0ceeb01',
   'supplier_id': 's-1',
@@ -88,6 +89,11 @@ void main() {
     'GET /v1/pos/sessions/current': (_) => json(session()),
     'GET /v1/terminals': (_) => json(terminalsBody),
     'GET /v1/pos/sessions/$sessionId': (_) => json(session()),
+    'GET /v1/pos/sales': (_) => json({
+          'sales': [
+            {...sale('PARKED'), 'park_label': 'Cliente de la fila dos que fue a buscar la leche deslactosada', 'parked_at': '2026-09-30T23:59:00Z'},
+          ]
+        }),
   };
 
   final po = PurchaseOrderItem.fromJson(purchaseOrder);
@@ -120,6 +126,7 @@ void main() {
     'caja · cobro': () => PosCheckoutScreen(api: fakeApi(routes), sale: SaleItem.fromJson(sale('OPEN')), terminalLabel: 'Caja principal'),
     'caja · recibo': () => PosReceiptScreen(api: fakeApi(routes), sale: paid, terminalLabel: 'Caja principal de la sucursal'),
     'caja · cierre': () => PosCloseSessionScreen(api: fakeApi(routes), sessionId: sessionId),
+    'caja · estacionadas': () => PosParkedScreen(api: fakeApi(routes), sessionId: sessionId, canResume: false),
   };
 
   for (final entry in screens.entries) {

@@ -4399,4 +4399,71 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get error_PO_STATE =>
       'The order already changed status. Refresh and try again.';
+
+  @override
+  String get posPark => 'Park';
+
+  @override
+  String get posParkTitle => 'Park sale';
+
+  @override
+  String get posParkLabel => 'Note to recognize it (optional)';
+
+  @override
+  String get posParked => 'Sale parked.';
+
+  @override
+  String get posMenuParked => 'Parked sales';
+
+  @override
+  String get posParkedTitle => 'Parked sales';
+
+  @override
+  String get posParkedBusy =>
+      'Charge, park or clear the current sale to resume another one.';
+
+  @override
+  String get posParkedEmpty => 'You have no parked sales.';
+
+  @override
+  String get posParkedNoLabel => 'No note';
+
+  @override
+  String posParkedAt(String date, String time) {
+    return 'Parked on $date at $time';
+  }
+
+  @override
+  String posParkedItems(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get posParkedResume => 'Resume';
+
+  @override
+  String get posParkedVoid => 'Void';
+
+  @override
+  String get posParkedVoidTitle => 'Void the parked sale?';
+
+  @override
+  String get posParkedVoided => 'Sale voided.';
+
+  @override
+  String posParkedRemoved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items are no longer for sale and were removed.',
+      one: '1 item is no longer for sale and was removed.',
+    );
+    return '$_temp0';
+  }
 }

@@ -2016,5 +2016,45 @@
   "error_INVALID_SUPPLIER": "Revisa los datos del proveedor: RUC con DV, correo y teléfono válidos.",
   "error_RECEIPT_EXCEEDS_ORDERED": "Estás recibiendo más de lo pedido.",
   "error_UNKNOWN_ORDER_LINE": "Ese producto no está en la orden.",
-  "error_PO_STATE": "La orden ya cambió de estado. Actualiza e intenta de nuevo."
+  "error_PO_STATE": "La orden ya cambió de estado. Actualiza e intenta de nuevo.",
+  "posPark": "Estacionar",
+  "posParkTitle": "Estacionar venta",
+  "posParkLabel": "Nota para reconocerla (opcional)",
+  "posParked": "Venta estacionada.",
+  "posMenuParked": "Estacionadas",
+  "posParkedTitle": "Ventas estacionadas",
+  "posParkedBusy": "Cobra, estaciona o vacía la venta en curso para retomar otra.",
+  "posParkedEmpty": "No tienes ventas estacionadas.",
+  "posParkedNoLabel": "Sin nota",
+  "posParkedAt": "Estacionada el {date} a las {time}",
+  "@posParkedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "posParkedItems": "{count, plural, =1{1 producto} other{{count} productos}}",
+  "@posParkedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "posParkedResume": "Retomar",
+  "posParkedVoid": "Anular",
+  "posParkedVoidTitle": "¿Anular la venta estacionada?",
+  "posParkedVoided": "Venta anulada.",
+  "posParkedRemoved": "{count, plural, =1{1 producto ya no está a la venta y se quitó.} other{{count} productos ya no están a la venta y se quitaron.}}",
+  "@posParkedRemoved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

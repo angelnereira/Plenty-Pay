@@ -93,13 +93,15 @@ class SessionItem {
 /// Línea guardada de una venta (instantánea del servidor).
 class SaleLineItem {
   const SaleLineItem(
-      {required this.description,
+      {this.productId = '',
+      required this.description,
       required this.qtyMilli,
       required this.unitPriceMinor,
       required this.taxRateBps,
       required this.totalMinor});
 
   factory SaleLineItem.fromJson(Map<String, dynamic> j) => SaleLineItem(
+        productId: j['product_id'] as String? ?? '',
         description: j['description'] as String? ?? '',
         qtyMilli: minorUnits(j['quantity_milli']),
         unitPriceMinor: minorUnits(
@@ -109,6 +111,7 @@ class SaleLineItem {
             (j['line_total'] as Map<String, dynamic>?)?['amount_minor']),
       );
 
+  final String productId;
   final String description;
   final int qtyMilli;
   final int unitPriceMinor;
@@ -158,6 +161,8 @@ class SaleItem {
     required this.receiptNumber,
     required this.createdAt,
     required this.version,
+    this.parkLabel = '',
+    this.parkedAt,
   });
 
   factory SaleItem.fromJson(Map<String, dynamic> j) {
@@ -179,6 +184,8 @@ class SaleItem {
           DateTime.tryParse(j['created_at'] as String? ?? '')?.toLocal() ??
               DateTime.fromMillisecondsSinceEpoch(0),
       version: (j['version'] as num?)?.toInt() ?? 0,
+      parkLabel: j['park_label'] as String? ?? '',
+      parkedAt: DateTime.tryParse(j['parked_at'] as String? ?? '')?.toLocal(),
     );
   }
 
@@ -193,6 +200,10 @@ class SaleItem {
   final String receiptNumber;
   final DateTime createdAt;
   final int version;
+
+  /// Nota del cajero al estacionar (F17.4) y última vez que se estacionó.
+  final String parkLabel;
+  final DateTime? parkedAt;
 
   bool get isPaid => status == 'PAID';
 
@@ -240,4 +251,17 @@ Future<List<SaleItem>> loadSessionSales(ApiClient api, String sessionId) async {
         .cast<Map<String, dynamic>>())
       SaleItem.fromJson(s),
   ];
+}
+
+/// Ventas estacionadas de la sesión, la más reciente primero (S-POS-06, F17.4).
+Future<List<SaleItem>> loadParkedSales(ApiClient api, String sessionId) async {
+  final body = await api.listSales(
+      sessionId: sessionId, status: 'SALE_STATUS_PARKED', pageSize: 200);
+  final out = [
+    for (final s in (body['sales'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>())
+      SaleItem.fromJson(s),
+  ]..sort((a, b) => (b.parkedAt ?? b.createdAt)
+      .compareTo(a.parkedAt ?? a.createdAt));
+  return out;
 }

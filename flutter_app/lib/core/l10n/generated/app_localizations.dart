@@ -8030,6 +8030,102 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'La orden ya cambió de estado. Actualiza e intenta de nuevo.'**
   String get error_PO_STATE;
+
+  /// No description provided for @posPark.
+  ///
+  /// In es, this message translates to:
+  /// **'Estacionar'**
+  String get posPark;
+
+  /// No description provided for @posParkTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Estacionar venta'**
+  String get posParkTitle;
+
+  /// No description provided for @posParkLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Nota para reconocerla (opcional)'**
+  String get posParkLabel;
+
+  /// No description provided for @posParked.
+  ///
+  /// In es, this message translates to:
+  /// **'Venta estacionada.'**
+  String get posParked;
+
+  /// No description provided for @posMenuParked.
+  ///
+  /// In es, this message translates to:
+  /// **'Estacionadas'**
+  String get posMenuParked;
+
+  /// No description provided for @posParkedTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas estacionadas'**
+  String get posParkedTitle;
+
+  /// No description provided for @posParkedBusy.
+  ///
+  /// In es, this message translates to:
+  /// **'Cobra, estaciona o vacía la venta en curso para retomar otra.'**
+  String get posParkedBusy;
+
+  /// No description provided for @posParkedEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes ventas estacionadas.'**
+  String get posParkedEmpty;
+
+  /// No description provided for @posParkedNoLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin nota'**
+  String get posParkedNoLabel;
+
+  /// No description provided for @posParkedAt.
+  ///
+  /// In es, this message translates to:
+  /// **'Estacionada el {date} a las {time}'**
+  String posParkedAt(String date, String time);
+
+  /// No description provided for @posParkedItems.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 producto} other{{count} productos}}'**
+  String posParkedItems(int count);
+
+  /// No description provided for @posParkedResume.
+  ///
+  /// In es, this message translates to:
+  /// **'Retomar'**
+  String get posParkedResume;
+
+  /// No description provided for @posParkedVoid.
+  ///
+  /// In es, this message translates to:
+  /// **'Anular'**
+  String get posParkedVoid;
+
+  /// No description provided for @posParkedVoidTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Anular la venta estacionada?'**
+  String get posParkedVoidTitle;
+
+  /// No description provided for @posParkedVoided.
+  ///
+  /// In es, this message translates to:
+  /// **'Venta anulada.'**
+  String get posParkedVoided;
+
+  /// No description provided for @posParkedRemoved.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 producto ya no está a la venta y se quitó.} other{{count} productos ya no están a la venta y se quitaron.}}'**
+  String posParkedRemoved(int count);
 }
 
 class _AppLocalizationsDelegate

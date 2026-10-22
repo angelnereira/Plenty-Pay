@@ -17,6 +17,7 @@ import 'pos_cash_movements_screen.dart';
 import 'pos_checkout_screen.dart';
 import 'pos_close_session_screen.dart';
 import 'pos_data.dart';
+import 'pos_parked_screen.dart';
 import 'pos_sales_history_screen.dart';
 
 /// Estado de entrada a la caja: sesión abierta (o null) y los puntos de cobro del negocio.
@@ -242,6 +243,35 @@ class _PosSellViewState extends State<PosSellView> {
   /// Una venta por ticket: el reintento usa el mismo `client_sale_id` y no crea otra (R7).
   String _clientSaleId = newRequestId();
 
+  /// Venta del servidor de este ticket cuando ya existe (retomada de S-POS-06): se cobra esa
+  /// misma, nunca una nueva (F17.4).
+  String? _saleId;
+  bool _parking = false;
+
+  void _resetTicket() {
+    _lines.clear();
+    _clientSaleId = newRequestId();
+    _saleId = null;
+  }
+
+  /// Guarda el ticket en el servidor: crea la venta si aún no existe y reemplaza sus líneas (el
+  /// precio lo pone el servidor desde el catálogo).
+  Future<SaleItem> _saveSale() async {
+    final id = _saleId ??
+        SaleItem.fromJson(await widget.api.createSale(widget.session.id,
+                clientSaleId: _clientSaleId,
+                idempotencyKey: 'create-$_clientSaleId'))
+            .id;
+    _saleId = id;
+    return SaleItem.fromJson(await widget.api.updateSale(
+        id,
+        [
+          for (final l in _lines)
+            (productId: l.product.id, qtyMilli: l.qtyMilli)
+        ],
+        idempotencyKey: newRequestId()));
+  }
+
   @override
   void dispose() {
     _search.dispose();
@@ -336,34 +366,80 @@ class _PosSellViewState extends State<PosSellView> {
         ],
       ),
     );
-    if (ok == true) setState(_lines.clear);
+    if (ok == true) setState(_resetTicket);
+  }
+
+  /// S-POS-02 e10 «Estacionar» (F17.4): nota opcional, guarda la venta y deja el ticket vacío.
+  Future<void> _park() async {
+    final l10n = AppLocalizations.of(context);
+    final label = await PosTextPrompt.show(context,
+        title: l10n.posParkTitle,
+        label: l10n.posParkLabel,
+        confirm: l10n.posPark,
+        maxLength: 60);
+    if (label == null || !mounted) return;
+    setState(() => _parking = true);
+    try {
+      final sale = await _saveSale();
+      await widget.api.parkSale(sale.id, label: label);
+      if (!mounted) return;
+      setState(_resetTicket);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.posParked)));
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'pos.park', e is ApiException ? e.reason : 'network');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(catalogErrorMessage(l10n, e))));
+      }
+    } finally {
+      if (mounted) setState(() => _parking = false);
+    }
+  }
+
+  /// S-POS-06: al retomar, el ticket se arma con las líneas guardadas; un producto que ya no se
+  /// vende se quita y se avisa.
+  Future<void> _openParked() async {
+    final l10n = AppLocalizations.of(context);
+    final resumed = await Navigator.of(context).push<SaleItem>(
+        MaterialPageRoute(
+            builder: (_) => PosParkedScreen(
+                api: widget.api,
+                sessionId: widget.session.id,
+                canResume: _lines.isEmpty)));
+    if (resumed == null || !mounted) return;
+    final products = await _products;
+    if (!mounted) return;
+    var missing = 0;
+    setState(() {
+      _resetTicket();
+      _saleId = resumed.id;
+      for (final l in resumed.lines) {
+        final p = products[l.productId];
+        if (p == null) {
+          missing++;
+        } else {
+          _lines.add(TicketLine(p, l.qtyMilli));
+        }
+      }
+    });
+    if (missing > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.posParkedRemoved(missing))));
+    }
   }
 
   Future<void> _charge() async {
     final l10n = AppLocalizations.of(context);
     setState(() => _charging = true);
     try {
-      final created = SaleItem.fromJson(await widget.api.createSale(
-          widget.session.id,
-          clientSaleId: _clientSaleId,
-          idempotencyKey: 'create-$_clientSaleId'));
-      final sale = SaleItem.fromJson(await widget.api.updateSale(
-          created.id,
-          [
-            for (final l in _lines)
-              (productId: l.product.id, qtyMilli: l.qtyMilli)
-          ],
-          idempotencyKey: newRequestId()));
+      final sale = await _saveSale();
       if (!mounted) return;
       final done = await Navigator.of(context).push<bool>(MaterialPageRoute(
           builder: (_) => PosCheckoutScreen(
               api: widget.api, sale: sale, terminalLabel: _terminalLabel)));
-      if (done == true && mounted) {
-        setState(() {
-          _lines.clear();
-          _clientSaleId = newRequestId();
-        });
-      }
+      if (done == true && mounted) setState(_resetTicket);
     } on Object catch (e) {
       widget.api.logger.breadcrumb(
           'ui', 'pos.charge', e is ApiException ? e.reason : 'network');
@@ -377,6 +453,7 @@ class _PosSellViewState extends State<PosSellView> {
   }
 
   Future<void> _menu(String action) async {
+    if (action == 'parked') return _openParked();
     final screen = switch (action) {
       'sales' => PosSalesHistoryScreen(api: widget.api, session: widget.session)
           as Widget,
@@ -553,8 +630,12 @@ class _PosSellViewState extends State<PosSellView> {
               row(l10n.posTotal, totals.totalMinor, strong: true),
               const SizedBox(height: AppTokens.spacingMd),
               if (withCharge) _chargeButton(context, totals),
-              if (_lines.isNotEmpty)
+              if (_lines.isNotEmpty) ...[
+                PPButton.text(
+                    label: l10n.posPark,
+                    onPressed: _parking || _charging ? null : _park),
                 PPButton.text(label: l10n.posClear, onPressed: _clear),
+              ],
             ]),
       ),
     );
@@ -571,6 +652,7 @@ class _PosSellViewState extends State<PosSellView> {
           PopupMenuButton<String>(
             onSelected: _menu,
             itemBuilder: (_) => [
+              PopupMenuItem(value: 'parked', child: Text(l10n.posMenuParked)),
               PopupMenuItem(value: 'sales', child: Text(l10n.posMenuSales)),
               PopupMenuItem(value: 'cash', child: Text(l10n.posMenuCash)),
               PopupMenuItem(value: 'close', child: Text(l10n.posMenuClose)),
