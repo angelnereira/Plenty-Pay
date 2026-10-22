@@ -55,6 +55,10 @@ type Pos struct {
 	inventory Inventory
 	now       func() time.Time
 	newID     func() string
+	// F17.9: devoluciones (UseRefunds).
+	refunds  RefundStore
+	stepUp   StepUp
+	refunder Refunder
 }
 
 // New arma el servicio.
@@ -73,7 +77,9 @@ type Actor struct {
 	Permissions map[string]bool
 }
 
-func (a Actor) who() client.Who { return client.Who{TenantID: a.TenantID, UserID: a.UserID, RequestID: a.RequestID} }
+func (a Actor) who() client.Who {
+	return client.Who{TenantID: a.TenantID, UserID: a.UserID, RequestID: a.RequestID}
+}
 
 // ── Sesiones ───────────────────────────────────────────────────────────────────────────────
 

@@ -19,6 +19,8 @@ type Config struct {
 	CatalogAddr      string
 	CatalogTimeout   time.Duration
 	InventoryAddr    string
+	IdentityAddr     string // F17.9: ConsumeStepUp de las devoluciones (ADR 0023)
+	PaymentsAddr     string // F17.9: reintegro al saldo PlentyPay
 	InventoryTimeout time.Duration
 }
 
@@ -41,6 +43,8 @@ func Load() (Config, error) {
 		NATSPass:      os.Getenv("PP_NATS_PASS"),
 		CatalogAddr:   env("PP_CATALOG_ADDR", "catalog:50065"),
 		InventoryAddr: env("PP_INVENTORY_ADDR", "inventory:50066"),
+		IdentityAddr:  env("PP_IDENTITY_ADDR", "identity:50060"),
+		PaymentsAddr:  env("PP_PAYMENTS_ADDR", "payments-core:50062"),
 	}
 	d, err := time.ParseDuration(env("PP_CATALOG_TIMEOUT", "500ms"))
 	if err != nil {

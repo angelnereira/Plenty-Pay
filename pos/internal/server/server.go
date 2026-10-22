@@ -12,6 +12,7 @@ import (
 
 	errdetails "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -68,6 +69,16 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.NotFound, "PRODUCT_NOT_FOUND", "el producto no existe o está archivado")
 	case errors.Is(err, service.ErrDiscountNotAllowed):
 		return ErrorInfo(codes.PermissionDenied, "DISCOUNT_EXCEEDS_LIMIT", "necesitas autorización para descontar")
+	case errors.Is(err, domain.ErrKeyReused):
+		return ErrorInfo(codes.AlreadyExists, "IDEMPOTENCY_KEY_REUSED", "esa clave ya se usó con otra devolución")
+	case errors.Is(err, domain.ErrExceedsSoldQty):
+		return ErrorInfo(codes.FailedPrecondition, "EXCEEDS_SOLD_QTY", "no puedes devolver más de lo vendido")
+	case errors.Is(err, domain.ErrNotRefundable):
+		return ErrorInfo(codes.FailedPrecondition, "INVALID_STATE_TRANSITION", "solo se devuelve una venta pagada")
+	case errors.Is(err, service.ErrStepUpRequired):
+		return ErrorInfo(codes.FailedPrecondition, "STEP_UP_REQUIRED", "confirma la devolución")
+	case errors.Is(err, service.ErrStepUpInvalid):
+		return ErrorInfo(codes.PermissionDenied, "STEP_UP_INVALID", "la confirmación no es válida")
 	case errors.Is(err, domain.ErrInvalidLabel):
 		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "la nota admite hasta 60 caracteres")
 	case errors.Is(err, domain.ErrInvalidLine), errors.Is(err, domain.ErrInvalidAmount), errors.Is(err, domain.ErrOverflow):
@@ -129,14 +140,15 @@ func salePB(s domain.Sale, terminal string) *pb.Sale {
 		Subtotal: money(s.SubtotalMinor, s.Currency), Tax: money(s.TaxMinor, s.Currency), Total: money(s.TotalMinor, s.Currency),
 		ChangeDue: money(s.ChangeMinor, s.Currency), ClientSaleId: s.ClientSaleID, CreatedAt: ts(s.CreatedAt),
 		PaidAt: ts(s.PaidAt), Version: s.Version, DocumentType: pb.DocumentType_DOCUMENT_TYPE_INTERNAL_RECEIPT,
-		ParkLabel: s.ParkLabel, ParkedAt: ts(s.ParkedAt)}
+		ParkLabel: s.ParkLabel, ParkedAt: ts(s.ParkedAt), Refunded: money(s.RefundedMinor(), s.Currency)}
 	if s.ReceiptNumber > 0 {
 		out.ReceiptNumber = fmt.Sprintf("%08d", s.ReceiptNumber)
 	}
 	for _, l := range s.Lines {
 		out.Lines = append(out.Lines, &pb.SaleLine{LineId: l.ID, ProductId: l.ProductID, Description: l.Description,
 			QuantityMilli: l.QtyMilli, UnitPrice: money(l.UnitPriceMinor, s.Currency), Discount: money(l.DiscountMinor, s.Currency),
-			TaxRateBps: l.TaxRateBps, LineTotal: money(l.LineTotalMinor, s.Currency)})
+			TaxRateBps: l.TaxRateBps, LineTotal: money(l.LineTotalMinor, s.Currency), RefundedMilli: l.RefundedMilli,
+			Refunded: money(l.RefundedMinor, s.Currency)})
 	}
 	for _, t := range s.Tenders {
 		tp := &pb.Tender{Rail: pb.PaymentRail(t.Rail), Amount: money(t.AmountMinor, s.Currency), PaymentIntentId: t.PaymentIntentID,
@@ -259,6 +271,33 @@ func (s *Server) Checkout(ctx context.Context, req *pb.PosCheckoutRequest) (*pb.
 		return nil, err
 	}
 	return salePB(sale, terminal), nil
+}
+
+// RefundSale devuelve líneas de una venta pagada (F17.9, R9, S-POS-08). `pos:refund` y
+// confirmación fuerte (`pos.sale.void`, ADR 0023): el token llega en el cuerpo o en x-pp-step-up.
+func (s *Server) RefundSale(ctx context.Context, req *pb.RefundSaleRequest) (*pb.Sale, error) {
+	a, err := authorize(ctx, "pos:refund")
+	if err != nil {
+		return nil, err
+	}
+	token := req.GetStepUpToken()
+	if token == "" {
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			if v := md.Get("x-pp-step-up"); len(v) > 0 {
+				token = v[0]
+			}
+		}
+	}
+	var lines []domain.RefundLineRequest
+	for _, l := range req.GetLines() {
+		lines = append(lines, domain.RefundLineRequest{LineID: l.GetLineId(), QtyMilli: l.GetQuantityMilli()})
+	}
+	sale, _, err := s.svc.RefundSale(ctx, a, service.RefundRequest{SaleID: req.GetSaleId(), Lines: lines,
+		Reason: req.GetReason(), Restock: req.GetRestock(), Key: req.GetIdempotencyKey(), StepUpToken: token})
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return salePB(sale, ""), nil
 }
 
 func (s *Server) VoidSale(ctx context.Context, req *pb.VoidSaleRequest) (*pb.Sale, error) {

@@ -198,6 +198,8 @@ services:
       PP_MIGRATE_DSN: "${POS_MIGRATE_DSN:-postgres://migrator_pos:pos_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
       PP_CATALOG_ADDR: "catalog:50065"
       PP_INVENTORY_ADDR: "inventory:50066"
+      PP_IDENTITY_ADDR: "identity:50060"
+      PP_PAYMENTS_ADDR: "payments-core:50062"
       PP_NATS_URL: "${POS_NATS_URL:-nats://event-bus:4222}"
       PP_NATS_USER: "${POS_NATS_USER:-pos_svc}"
       PP_NATS_PASS: "${POS_NATS_PASS:-pos_nats_secret}"

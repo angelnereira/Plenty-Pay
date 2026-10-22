@@ -520,3 +520,200 @@ func TestL2_R13_ConcurrentResumeIsSingleTransition(t *testing.T) {
 		}
 	}
 }
+
+// ── F17.9: devoluciones (R9) ────────────────────────────────────────────────────────────────
+
+type fakeStepUp struct {
+	mu    sync.Mutex
+	calls int
+	last  int64
+}
+
+func (f *fakeStepUp) ConsumeStepUp(_ context.Context, _ client.Who, token, op string, amount int64, _ string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls++
+	f.last = amount
+	if token != "ok" || op != service.StepUpOperation {
+		return "MISMATCH", nil
+	}
+	return "", nil
+}
+
+type fakeRefunder struct {
+	mu      sync.Mutex
+	outcome client.RefundOutcome
+	keys    map[string]int64
+}
+
+func (f *fakeRefunder) Refund(_ context.Context, _ client.Who, _, key, _ string, amount int64) (client.RefundOutcome, string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.keys[key] = amount
+	if f.outcome == client.RefundFailed {
+		return client.RefundFailed, "MERCHANT_BALANCE_INSUFFICIENT", nil
+	}
+	return f.outcome, "", nil
+}
+
+func refunding(t *testing.T, w *world) (*fakeStepUp, *fakeRefunder) {
+	su, rf := &fakeStepUp{}, &fakeRefunder{keys: map[string]int64{}}
+	w.svc.UseRefunds(open(t), su, rf)
+	return su, rf
+}
+
+func refundReq(sale domain.Sale, qty int64, key, token string) service.RefundRequest {
+	return service.RefundRequest{SaleID: sale.ID, Lines: []domain.RefundLineRequest{{LineID: sale.Lines[0].ID, QtyMilli: qty}},
+		Reason: "Defectuoso", Restock: true, Key: key, StepUpToken: token}
+}
+
+// R9 · efectivo: la devolución sale de la caja que devuelve, deja el RETURN a inventario y la
+// venta devuelta en parte; exige confirmación fuerte atada al monto; repetirla no duplica nada.
+func TestL2_R9_CashRefundIsAtomicAndIdempotent(t *testing.T) {
+	ctx, w, tenant := context.Background(), newWorld(t), id()
+	a := cashier(tenant)
+	su, _ := refunding(t, w)
+	sale := openSale(t, w, a, "CAJA-21", service.LineInput{ProductID: w.cafe, QtyMilli: 3000})
+	paid, err := w.svc.Checkout(ctx, a, sale.ID, []domain.Tender{{Rail: domain.RailCash, AmountMinor: 5550, CashTendered: 6000}})
+	if err != nil || paid.Status != domain.Paid {
+		t.Fatalf("%v %v", err, paid.Status)
+	}
+	before, err := w.svc.GetSession(ctx, a, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := w.svc.RefundSale(ctx, a, refundReq(paid, 4000, key16(), "ok")); !errors.Is(err, domain.ErrExceedsSoldQty) {
+		t.Fatalf("más de lo vendido: %v", err)
+	}
+	if su.calls != 0 {
+		t.Fatal("la confirmación no se gasta si la devolución no es válida")
+	}
+	if _, _, err := w.svc.RefundSale(ctx, a, refundReq(paid, 1000, key16(), "")); !errors.Is(err, service.ErrStepUpRequired) {
+		t.Fatalf("sin confirmación: %v", err)
+	}
+	if _, _, err := w.svc.RefundSale(ctx, a, refundReq(paid, 1000, key16(), "otro")); !errors.Is(err, service.ErrStepUpInvalid) {
+		t.Fatalf("confirmación inválida: %v", err)
+	}
+
+	k := key16()
+	s1, r1, err := w.svc.RefundSale(ctx, a, refundReq(paid, 1000, k, "ok"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if su.last != 1850 || r1.TotalMinor != 1850 || r1.CashMinor != 1850 || r1.Status != "DONE" ||
+		s1.Status != domain.PartiallyRefunded || s1.Lines[0].RefundedMilli != 1000 {
+		t.Fatalf("devolución: %+v venta %v", r1, s1.Status)
+	}
+	s2, r2, err := w.svc.RefundSale(ctx, a, refundReq(paid, 1000, k, "ok"))
+	if err != nil || r2.ID != r1.ID || s2.Lines[0].RefundedMilli != 1000 {
+		t.Fatalf("reintento: %v %+v", err, r2)
+	}
+	after, err := w.svc.GetSession(ctx, a, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.ExpectedCash != before.ExpectedCash-1850 {
+		t.Fatalf("esperado en caja %d → %d", before.ExpectedCash, after.ExpectedCash)
+	}
+	if n := count(t, tenant, `SELECT count(*) FROM stock_tasks WHERE movement_type = 6 AND sale_id = $1`, sale.ID); n != 1 {
+		t.Fatalf("tareas RETURN: %d", n)
+	}
+	if n := count(t, tenant, `SELECT count(*) FROM cash_movements WHERE direction = 'OUT'`); n != 1 {
+		t.Fatalf("salidas de caja: %d", n)
+	}
+	// ADR 0012: SaleRefunded en el outbox de la misma transacción, una sola vez pese al reintento.
+	if n := count(t, tenant, `SELECT count(*) FROM outbox WHERE aggregate_id = $1 AND subject = 'pp.pos.sale.refunded.v1'`, r1.ID); n != 1 {
+		t.Fatalf("eventos SaleRefunded: %d", n)
+	}
+}
+
+// R9 · saldo PlentyPay: la devolución queda PENDING con su tarea de reintegro; payments-core la
+// cierra (DONE) o la rechaza (FAILED y la venta para revisión), nunca dos reintegros por medio.
+func TestL2_R9_WalletRefundIsDeliveredOnce(t *testing.T) {
+	ctx, w, tenant := context.Background(), newWorld(t), id()
+	a := cashier(tenant)
+	_, rf := refunding(t, w)
+	for i, outcome := range []client.RefundOutcome{client.RefundDone, client.RefundFailed} {
+		rf.outcome = outcome
+		sale := openSale(t, w, a, fmt.Sprintf("CAJA-2%d", 2+i), service.LineInput{ProductID: w.pan, QtyMilli: 2000})
+		if _, err := w.svc.Checkout(ctx, a, sale.ID, []domain.Tender{{Rail: domain.RailWallet, AmountMinor: 850}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.svc.HandlePayment(ctx, store.PaymentEvent{EventID: id(), TenantID: tenant, SaleID: sale.ID, Amount: 850, Captured: true}); err != nil {
+			t.Fatal(err)
+		}
+		paid, err := w.svc.GetSale(ctx, a, sale.ID)
+		if err != nil || paid.Status != domain.Paid {
+			t.Fatalf("%v %v", err, paid.Status)
+		}
+		_, r, err := w.svc.RefundSale(ctx, a, refundReq(paid, 2000, key16(), "ok"))
+		if err != nil || r.Status != "PENDING" || r.WalletMinor != 850 {
+			t.Fatalf("%v %+v", err, r)
+		}
+		for j := 0; j < 2; j++ {
+			if _, err := w.svc.DeliverRefunds(ctx, 50, func(store.RefundTask, error) {}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		refunds, err := w.svc.RefundsOfSale(ctx, a, sale.ID)
+		if err != nil || len(refunds) != 1 {
+			t.Fatalf("%v %d", err, len(refunds))
+		}
+		want := map[client.RefundOutcome]string{client.RefundDone: "DONE", client.RefundFailed: "FAILED"}[outcome]
+		if refunds[0].Status != want {
+			t.Fatalf("estado %s, quiero %s", refunds[0].Status, want)
+		}
+		if n := count(t, tenant, `SELECT count(*) FROM refund_tasks WHERE sale_id = $1`, sale.ID); n != 1 {
+			t.Fatalf("tareas de reintegro: %d", n)
+		}
+		if outcome == client.RefundFailed &&
+			count(t, tenant, `SELECT count(*) FROM sales WHERE id = $1 AND needs_review`, sale.ID) != 1 {
+			t.Fatal("un reintegro rechazado deja la venta para revisión")
+		}
+	}
+	if len(rf.keys) != 2 {
+		t.Fatalf("un reintegro por medio y devolución: %v", rf.keys)
+	}
+}
+
+// R9 · concurrencia: dos devoluciones simultáneas de la última unidad con claves distintas: una
+// gana y la otra responde EXCEEDS_SOLD_QTY.
+func TestL2_R9_ConcurrentRefundsNeverExceedSold(t *testing.T) {
+	ctx, w, tenant := context.Background(), newWorld(t), id()
+	a := cashier(tenant)
+	refunding(t, w)
+	sale := openSale(t, w, a, "CAJA-24", service.LineInput{ProductID: w.pan, QtyMilli: 1000})
+	paid, err := w.svc.Checkout(ctx, a, sale.ID, []domain.Tender{{Rail: domain.RailCash, AmountMinor: 425}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, 5)
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _, err := w.svc.RefundSale(ctx, a, refundReq(paid, 1000, key16(), "ok"))
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	ok, exceeded := 0, 0
+	for err := range errs {
+		switch {
+		case err == nil:
+			ok++
+		case errors.Is(err, domain.ErrExceedsSoldQty), errors.Is(err, domain.ErrNotRefundable):
+			exceeded++
+		default:
+			t.Fatal(err)
+		}
+	}
+	if ok != 1 || exceeded != 4 {
+		t.Fatalf("ok=%d rechazadas=%d", ok, exceeded)
+	}
+}
+
+func key16() string { return "rk-" + id() }

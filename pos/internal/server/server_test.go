@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"plentypay/pos/internal/domain"
+	"plentypay/pos/internal/service"
 )
 
 // F17.4: los errores de estacionar y retomar salen con los `reason` del glosario (§ pos), también
@@ -25,6 +26,11 @@ func TestReasons_ParkAndResumeUseGlossaryNames(t *testing.T) {
 		{domain.ErrNotYourSession, codes.PermissionDenied, "NOT_SESSION_OWNER"},
 		{domain.ErrSalesPending, codes.FailedPrecondition, "SALES_PENDING"},
 		{domain.ErrInvalidLabel, codes.InvalidArgument, "INVALID_REQUEST"},
+		{domain.ErrExceedsSoldQty, codes.FailedPrecondition, "EXCEEDS_SOLD_QTY"},
+		{domain.ErrNotRefundable, codes.FailedPrecondition, "INVALID_STATE_TRANSITION"},
+		{service.ErrStepUpRequired, codes.FailedPrecondition, "STEP_UP_REQUIRED"},
+		{service.ErrStepUpInvalid, codes.PermissionDenied, "STEP_UP_INVALID"},
+		{domain.ErrKeyReused, codes.AlreadyExists, "IDEMPOTENCY_KEY_REUSED"},
 	}
 	for _, c := range cases {
 		st, _ := status.FromError(toStatus(fmt.Errorf("park sale: %w", c.err)))

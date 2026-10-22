@@ -25,9 +25,13 @@ const Producer = "pos"
 // SubjectSalePaid (events-and-messaging.md §7): lo consumen analytics-bi, notifications y fiscal.
 const SubjectSalePaid = "pp.pos.sale.paid.v1"
 
+// SubjectSaleRefunded (events-and-messaging.md §7, F17.9): lo consume analytics-bi.
+const SubjectSaleRefunded = "pp.pos.sale.refunded.v1"
+
 // typeURLs: el mensaje proto que viaja en cada subject.
 var typeURLs = map[string]string{
-	SubjectSalePaid: "type.googleapis.com/plentypay.pos.v1.SalePaid",
+	SubjectSalePaid:     "type.googleapis.com/plentypay.pos.v1.SalePaid",
+	SubjectSaleRefunded: "type.googleapis.com/plentypay.pos.v1.SaleRefunded",
 }
 
 // Outbox es lo que el relay necesita del store.

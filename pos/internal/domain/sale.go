@@ -38,11 +38,13 @@ var (
 type Status int16
 
 const (
-	Open            Status = 1
-	Parked          Status = 2
-	AwaitingPayment Status = 3
-	Paid            Status = 4
-	Voided          Status = 5
+	Open              Status = 1
+	Parked            Status = 2
+	AwaitingPayment   Status = 3
+	Paid              Status = 4
+	Voided            Status = 5
+	PartiallyRefunded Status = 6
+	Refunded          Status = 7
 )
 
 // Rails (common.PaymentRail) que acepta hoy la caja: efectivo y billetera PlentyPay. Los demás
@@ -89,6 +91,8 @@ type Line struct {
 	TracksInventory bool
 	LineTotalMinor  int64 // con impuesto incluido
 	TaxMinor        int64
+	RefundedMilli   int64 // F17.9: cantidad ya devuelta
+	RefundedMinor   int64 // F17.9: monto ya devuelto de esta línea
 }
 
 // Price calcula total e impuesto de la línea (R2): total = precio × qty − descuento; con impuesto
@@ -123,6 +127,7 @@ type Tender struct {
 	ChangeMinor     int64
 	PaymentIntentID string
 	Status          string
+	RefundedMinor   int64 // F17.9: lo ya reintegrado por este medio
 }
 
 // Sale es una venta de mostrador.

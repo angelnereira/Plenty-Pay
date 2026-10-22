@@ -104,6 +104,26 @@ func main() {
 		}
 	}()
 	svc := service.New(st, cat, inv, func() time.Time { return time.Now().UTC() }, service.NewUUIDv7)
+	// F17.9: devoluciones. identity solo para ConsumeStepUp (ADR 0023); payments-core reintegra.
+	ids, err := client.NewIdentity(cfg.IdentityAddr, cfg.InventoryTimeout)
+	if err != nil {
+		fatal("identity client failed", err)
+	}
+	defer func() {
+		if err := ids.Close(); err != nil {
+			reporter.Dependency(ctx, "close identity client failed", "identity", err)
+		}
+	}()
+	pay, err := client.NewPayments(cfg.PaymentsAddr, 5*time.Second)
+	if err != nil {
+		fatal("payments client failed", err)
+	}
+	defer func() {
+		if err := pay.Close(); err != nil {
+			reporter.Dependency(ctx, "close payments client failed", "payments-core", err)
+		}
+	}()
+	svc.UseRefunds(st, ids, pay)
 
 	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
 	if err != nil {
@@ -152,6 +172,7 @@ func main() {
 	}
 	go backlogGauge(jobs, st, metrics, reporter)
 	go deliverStock(jobs, svc, st, metrics, reporter)
+	go deliverRefunds(jobs, svc, metrics, reporter)
 	go purgeIdempotency(jobs, idem, reporter)
 
 	lis, err := net.Listen("tcp", ":"+cfg.Port)
@@ -233,6 +254,30 @@ func purgeIdempotency(ctx context.Context, st store.IdempotencyStore, reporter *
 
 // deliverStock entrega cada 2 s los descuentos de existencias de las ventas pagadas (SPEC §7:
 // si inventory cae, el movimiento queda diferido y se reintenta con la misma clave).
+// deliverRefunds entrega a payments-core los reintegros pendientes de las devoluciones (F17.9).
+func deliverRefunds(ctx context.Context, svc *service.Pos, metrics *observability.Metrics, reporter *observability.Reporter) {
+	t := time.NewTicker(3 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			out, err := svc.DeliverRefunds(ctx, 20, func(task store.RefundTask, err error) {
+				reporter.Dependency(ctx, "refund delivery failed", "payments-core", observability.Wrap(err, "deliver refund"),
+					slog.String("pp.sale_id", task.SaleID), slog.String("pp.refund_id", task.RefundID), slog.Int("pp.attempt", task.Attempts))
+			})
+			if err != nil {
+				reporter.Dependency(ctx, "refund worker iteration failed", "postgres-db", observability.Wrap(err, "refund worker"))
+				continue
+			}
+			metrics.Add("pp_pos_refund_tasks_total", float64(out.Done), "result", "done")
+			metrics.Add("pp_pos_refund_tasks_total", float64(out.Retried), "result", "retried")
+			metrics.Add("pp_pos_refund_tasks_total", float64(out.Failed), "result", "failed")
+		}
+	}
+}
+
 func deliverStock(ctx context.Context, svc *service.Pos, st *store.Store, metrics *observability.Metrics, reporter *observability.Reporter) {
 	t := time.NewTicker(2 * time.Second)
 	defer t.Stop()
