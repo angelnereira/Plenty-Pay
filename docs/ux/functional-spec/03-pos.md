@@ -98,16 +98,18 @@ Vacío: "No tienes ventas estacionadas." Las ventas estacionadas se cobran o anu
 Filtros: Hoy / Rango · Caja · Cajero · Medio de pago · Estado. Lista: número, hora, total, medios, `StatusChip` (Pagada, Por confirmar, Devuelta parcial, Devuelta, Anulada). Toca: detalle con el recibo y acciones "Reimprimir", "Devolver" (→ S-POS-08) y "Emitir factura" (si fue recibo interno y el período lo permite).
 
 ### S-POS-08 · `/pos/sales/:id/refund` · Devolución
-`pos:refund` · 🔒 · Reglas: N-FIS-08, N-CON-03
+`pos:refund` · 🔒 `pos.sale.void` atado al monto (ADR 0023) · `POST /v1/pos/sales/{id}/refund` · Reglas: R9, N-FIS-08, N-CON-03
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
-| e1 | Líneas | Casilla · producto · vendido {n} · ya devuelto {m} · a devolver ± | `EXCEEDS_SOLD_QTY`: "No puedes devolver más de lo vendido." |
-| e2 | Selector | Motivo | Defectuoso, Cambio, Error de cobro, Garantía, Otro |
-| e3 | Interruptor por línea | Regresa al inventario | Desactivado por defecto si el motivo es Defectuoso |
-| e4 | Reintegro | Por el mismo medio: {medio} {monto} | Efectivo se devuelve en efectivo; electrónico por su riel; mixto en proporción |
-| e5 | Resumen | Devolución {monto} · ITBMS {monto} · Nota de crédito sobre factura {número} | Si la venta tuvo factura |
-| e6 | `PPButton.primary` | Devolver {monto} | S-GEN-21 |
+| e1 | Líneas | Producto · "Vendido {n} · ya devuelto {m}" · "A devolver" − {cantidad} + | Sube de una unidad hasta lo pendiente (vendido − devuelto); una línea por peso devuelve primero el resto fraccionario. `EXCEEDS_SOLD_QTY`: "No puedes devolver más de lo vendido." |
+| e2 | Selector | Motivo | Defectuoso, Cambio, Error de cobro, Garantía, Otro (obligatorio; se guarda el código `DEFECTIVE`, `EXCHANGE`, `BILLING_ERROR`, `WARRANTY`, `OTHER`) |
+| e3 | Interruptor | Regresa al inventario · "Apágalo si el producto no se puede volver a vender." | **Uno por devolución** (el contrato lleva un solo `restock`). Se apaga al elegir Defectuoso; la persona puede cambiarlo |
+| e4 | Reintegro | Por el mismo medio: {medio} {monto} | Del último medio pagado hacia atrás, descontando lo ya devuelto (R9). Efectivo sale de la caja abierta de quien devuelve; saldo PlentyPay por `payments.RefundPayment` |
+| e5 | Resumen | Devolución {monto} · ITBMS {monto} · "La nota de crédito electrónica llega con la facturación desde la venta." | La nota de crédito sobre factura llega con F13.5; mientras tanto se muestra ese aviso |
+| e6 | `PPButton.primary` | Devolver {monto} | Habilitado con al menos una unidad y un motivo. Abre S-GEN-21 con el monto exacto; al terminar vuelve al recibo con la venta actualizada y "Devolución registrada: {monto}." |
+
+El recibo (S-POS-05) abierto desde S-POS-07 muestra "Devolver" (secundario) solo con `pos:refund` y una venta Pagada o Devuelta parcial; las líneas devueltas se listan como "{producto} · Devuelto {n}: {monto}" y el total como "Devuelto".
 
 ### S-POS-09 · `/pos/cash` · Movimientos de caja
 `pos:session:manage`. Lista del turno (entradas, salidas, ventas en efectivo, vueltos) con saldo esperado. Botones "Entrada" y "Salida": monto, motivo (Cambio, Pago a proveedor, Retiro a caja fuerte, Otro + texto) y, para salidas mayores al tope configurado, PIN de supervisor.

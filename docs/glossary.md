@@ -189,6 +189,7 @@ Valores sin prefijo. Las transiciones legales están en [`domain/domain-model.md
 | `OrderStatus` | orders | PENDING_PAYMENT, PAID, PARTIALLY_FULFILLED, COMPLETED, CANCELLED, REFUNDED | §8.10 |
 | `SubOrderStatus` | orders | PENDING_PAYMENT, AWAITING_ACCEPTANCE, ACCEPTED, READY, IN_DELIVERY, COMPLETED, REJECTED, CANCELLED | §8.10 |
 | `SaleStatus` | pos | OPEN, PARKED, AWAITING_PAYMENT, PAID, VOIDED, PARTIALLY_REFUNDED, REFUNDED | §8.9 |
+| Motivo de devolución (`RefundSaleRequest.reason`) | pos | DEFECTIVE, EXCHANGE, BILLING_ERROR, WARRANTY, OTHER | S-POS-08 e2 |
 | `DeliveryStatus` | logistics | PENDING, ASSIGNED, PICKED_UP, IN_TRANSIT, ARRIVED, DELIVERED, FAILED, CANCELLED | §8.11 |
 | `VehicleKind` | logistics | BICYCLE, MOTORCYCLE, CAR, VAN, TRUCK, WALKING | — |
 | `DriverEmploymentKind` | logistics | EMPLOYEE, CONTRACTOR | — |

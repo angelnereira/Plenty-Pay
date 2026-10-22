@@ -24,9 +24,10 @@ _Última actualización: 2026-10-22, al cerrar F16.4 (lotes y FEFO) y F16.8 (lot
 ## 2.2 Cerrado el 2026-10-22
 - **F16.4 · Lotes y FEFO** y **F16.8 · Lotes en la recepción** (✅ L1, L2 inventory 22/22 y catalog 16/16, L4 por API y en el Pixel). Migraciones aplicadas: `inventory/migrations/0004_lots`, `catalog/migrations/0003_lots` (respaldo `~/plentypay-backups/inventory-catalog-before-lots-*.sql.gz`). Lógica en `inventory/internal/store/lots.go` (`resolveLots`) y `inventory/internal/domain/lots.go`.
 - Fechas de vencimiento: viajan como las 00:00 de ese día en Panamá (`lotDateWire` en la app); `domain.DateOnly` es idempotente.
+- **F17.9 · Devoluciones en caja** (efectivo y saldo PlentyPay; L2 pos 17/17, L4 de humo en efectivo). Migración `pos/migrations/0003_refunds` aplicada (respaldo `~/plentypay-backups/pos-before-0003-*.sql.gz`). ADR 0023: pos consume la confirmación fuerte en identity. Lógica en `pos/internal/domain/refund.go` (R9), `pos/internal/store/refunds.go` y `pos/internal/service/refunds.go`; app en `flutter_app/lib/features/pos/pos_refund_screen.dart` (S-POS-08). Pendiente: probar S-POS-08 en el Pixel, nota de crédito (F13.5) y Q-47.
 
 ## 3. Siguiente paso recomendado
-**F17.9 · Devoluciones** ([ficha](commerce-plan.md#f179--devoluciones)) en su parte desbloqueada (efectivo y saldo PlentyPay; depende de F11.6), o **F16.10 · Existencias bloqueadas y alertas de vencimiento** ([ficha](commerce-plan.md#f1610--existencias-no-vendibles-y-alertas-de-vencimiento)), que ya tiene sus predecesores (F16.4 ✅).
+**F16.10 · Existencias bloqueadas y alertas de vencimiento** ([ficha](commerce-plan.md#f1610--existencias-no-vendibles-y-alertas-de-vencimiento)), que ya tiene sus predecesores (F16.4 ✅).
 
 Leer, en este orden:
 1. Ficha del paso en `commerce-plan.md` (25 campos).

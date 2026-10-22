@@ -20,7 +20,7 @@ El orden sale de las dependencias de la hoja de ruta (F16 → F17; F14 → F18; 
 |---|---|---|---|
 | ✅ | [F17.4](#f174--estacionar-y-retomar-ventas) Estacionar y retomar | hecho 2026-10-21 | — |
 | ✅ | [F16.4](#f164--lotes-y-fefo) Lotes y FEFO | hecho 2026-10-22 | — |
-| 3 | [F17.9](#f179--devoluciones) Devoluciones | parcial | Efectivo y saldo PlentyPay sí; efectivo cruzado y vales esperan Q-47 |
+| 3 | [F17.9](#f179--devoluciones) Devoluciones | en curso (2026-10-22) | Efectivo y saldo PlentyPay implementados con L2; faltan L4, nota de crédito (F13.5); efectivo cruzado y vales esperan Q-47 |
 | ✅ | [F16.8](#f168--lotes-y-vencimiento-en-la-recepción) Lotes en la recepción | hecho 2026-10-22 | — |
 | 5 | [F17.11](#f1711--configuración-de-caja) Configuración de caja | sí | Necesaria para lealtad, propina y documento |
 | 6 | [F16.9](#f169--sucursal-en-bodegas-y-alcance) / [F17.12](#f1712--sucursal-en-cajas-y-ventas) Sucursal y alcance | sí | ADR 0018 ya decidido |
