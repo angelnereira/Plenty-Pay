@@ -128,7 +128,8 @@ func (s *Server) ReceiveGoods(ctx context.Context, req *pb.ReceiveGoodsRequest) 
 	}
 	var in []domain.Received
 	for _, l := range req.GetLines() {
-		in = append(in, domain.Received{ProductID: l.GetProductId(), ReceivedMilli: l.GetReceivedMilli()})
+		in = append(in, domain.Received{ProductID: l.GetProductId(), ReceivedMilli: l.GetReceivedMilli(),
+			LotCode: l.GetLotCode(), LotExpiresOn: optTime(l.GetExpiresAt())})
 	}
 	out, err := s.svc.ReceiveGoods(ctx, caller(a), req.GetPurchaseOrderId(), req.GetIdempotencyKey(), req.GetSupplierInvoice(), in)
 	if err != nil {

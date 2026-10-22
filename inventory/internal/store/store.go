@@ -220,16 +220,43 @@ type EventsFor func(levels []domain.Level, lowNotify map[string]bool) ([]OutboxE
 func levelKey(warehouseID, productID string) string { return warehouseID + "/" + productID }
 
 const movementCols = `id, tenant_id, warehouse_id, product_id, type, delta_milli, reason, reference_type,
-	reference_id, coalesce(actor_user_id::text, ''), actor_service, idempotency_key, created_at`
+	reference_id, coalesce(actor_user_id::text, ''), actor_service, idempotency_key, created_at,
+	coalesce(lot_id::text, ''), coalesce((SELECT l.code FROM lots l WHERE l.id = movements.lot_id), ''),
+	(SELECT l.expires_on::timestamp FROM lots l WHERE l.id = movements.lot_id)`
 
 func scanMovement(row pgx.Row) (domain.Movement, error) {
 	var m domain.Movement
 	err := row.Scan(&m.ID, &m.TenantID, &m.WarehouseID, &m.ProductID, &m.Type, &m.DeltaMilli, &m.Reason,
-		&m.ReferenceType, &m.ReferenceID, &m.ActorUserID, &m.ActorService, &m.IdempotencyKey, &m.OccurredAt)
+		&m.ReferenceType, &m.ReferenceID, &m.ActorUserID, &m.ActorService, &m.IdempotencyKey, &m.OccurredAt,
+		&m.LotID, &m.LotCode, &m.LotExpiresOn)
 	if err != nil {
 		return m, fmt.Errorf("scan movement: %w", err)
 	}
 	return m, nil
+}
+
+// insertMovement guarda un movimiento inmutable (R1) con su lote, si lo tiene.
+func insertMovement(ctx context.Context, tx pgx.Tx, tenantID string, m domain.Movement, key string, hash []byte, now time.Time) error {
+	var actor, lot any
+	if m.ActorUserID != "" {
+		actor = m.ActorUserID
+	}
+	if m.LotID != "" {
+		lot = m.LotID
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO movements (id, tenant_id, warehouse_id, product_id, type, delta_milli, reason,
+			reference_type, reference_id, actor_user_id, actor_service, idempotency_key, request_hash, created_at, lot_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+		m.ID, tenantID, m.WarehouseID, m.ProductID, m.Type, m.DeltaMilli, strings.TrimSpace(m.Reason),
+		m.ReferenceType, m.ReferenceID, actor, m.ActorService, key, hash, now, lot); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return errConcurrentKey
+		}
+		return fmt.Errorf("insert movement: %w", err)
+	}
+	return nil
 }
 
 // replay devuelve los movimientos ya guardados con la clave si el contenido coincide.
@@ -244,7 +271,8 @@ func replay(ctx context.Context, tx pgx.Tx, key string, hash []byte) (*Applied, 
 		var m domain.Movement
 		var h []byte
 		if err := rows.Scan(&m.ID, &m.TenantID, &m.WarehouseID, &m.ProductID, &m.Type, &m.DeltaMilli, &m.Reason,
-			&m.ReferenceType, &m.ReferenceID, &m.ActorUserID, &m.ActorService, &m.IdempotencyKey, &m.OccurredAt, &h); err != nil {
+			&m.ReferenceType, &m.ReferenceID, &m.ActorUserID, &m.ActorService, &m.IdempotencyKey, &m.OccurredAt,
+			&m.LotID, &m.LotCode, &m.LotExpiresOn, &h); err != nil {
 			return nil, fmt.Errorf("scan movement: %w", err)
 		}
 		if !bytes.Equal(h, hash) {
@@ -319,30 +347,25 @@ func (s *Store) Apply(ctx context.Context, b Batch, events EventsFor) (Applied, 
 			return err
 		}
 
-		for _, m := range b.Movements {
-			l := levels[levelKey(m.WarehouseID, m.ProductID)]
-			if err := l.Apply(m); err != nil {
+		mirror := map[string][]domain.Allocation{}
+		for _, orig := range b.Movements {
+			// R5: un movimiento de un producto con lotes se reparte en movimientos por lote.
+			parts, err := resolveLots(ctx, tx, b.TenantID, orig, b.Now, mirror)
+			if err != nil {
 				return err
 			}
-			var actor any
-			if m.ActorUserID != "" {
-				actor = m.ActorUserID
-			}
-			if _, err := tx.Exec(ctx, `
-				INSERT INTO movements (id, tenant_id, warehouse_id, product_id, type, delta_milli, reason,
-					reference_type, reference_id, actor_user_id, actor_service, idempotency_key, request_hash, created_at)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-				m.ID, b.TenantID, m.WarehouseID, m.ProductID, m.Type, m.DeltaMilli, strings.TrimSpace(m.Reason),
-				m.ReferenceType, m.ReferenceID, actor, m.ActorService, b.IdempotencyKey, b.RequestHash, b.Now); err != nil {
-				var pgErr *pgconn.PgError
-				if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-					return errConcurrentKey
+			for _, m := range parts {
+				l := levels[levelKey(m.WarehouseID, m.ProductID)]
+				if err := l.Apply(m); err != nil {
+					return err
 				}
-				return fmt.Errorf("insert movement: %w", err)
+				if err := insertMovement(ctx, tx, b.TenantID, m, b.IdempotencyKey, b.RequestHash, b.Now); err != nil {
+					return err
+				}
+				mm := m
+				mm.TenantID, mm.IdempotencyKey, mm.OccurredAt = b.TenantID, b.IdempotencyKey, b.Now
+				out.Movements = append(out.Movements, mm)
 			}
-			mm := m
-			mm.TenantID, mm.IdempotencyKey, mm.OccurredAt = b.TenantID, b.IdempotencyKey, b.Now
-			out.Movements = append(out.Movements, mm)
 		}
 
 		lowNotify, saved, err := saveLevels(ctx, tx, levels, ordered, b.Now)

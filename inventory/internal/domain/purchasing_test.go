@@ -52,20 +52,20 @@ func TestPO_Receive(t *testing.T) {
 	o := PurchaseOrder{SupplierID: "s", Status: POSent, Lines: []POLine{
 		{ProductID: "a", OrderedMilli: 10000}, {ProductID: "b", OrderedMilli: 2000},
 	}}
-	if err := o.Receive([]Received{{"a", 4000}}); err != nil || o.Status != POPartial || o.Lines[0].ReceivedMilli != 4000 {
+	if err := o.Receive([]Received{{ProductID: "a", ReceivedMilli: 4000}}); err != nil || o.Status != POPartial || o.Lines[0].ReceivedMilli != 4000 {
 		t.Fatalf("%v %+v", err, o)
 	}
-	if err := o.Receive([]Received{{"a", 7000}}); !errors.Is(err, ErrOverReceipt) {
+	if err := o.Receive([]Received{{ProductID: "a", ReceivedMilli: 7000}}); !errors.Is(err, ErrOverReceipt) {
 		t.Fatalf("exceso: %v", err)
 	}
-	if err := o.Receive([]Received{{"c", 1}}); !errors.Is(err, ErrNotInOrder) {
+	if err := o.Receive([]Received{{ProductID: "c", ReceivedMilli: 1}}); !errors.Is(err, ErrNotInOrder) {
 		t.Fatalf("fuera de la orden: %v", err)
 	}
-	if err := o.Receive([]Received{{"a", 6000}, {"b", 2000}}); err != nil || o.Status != POReceived {
+	if err := o.Receive([]Received{{ProductID: "a", ReceivedMilli: 6000}, {ProductID: "b", ReceivedMilli: 2000}}); err != nil || o.Status != POReceived {
 		t.Fatalf("%v %+v", err, o)
 	}
 	draft := PurchaseOrder{Status: PODraft, Lines: []POLine{{ProductID: "a", OrderedMilli: 1}}}
-	if !errors.Is(draft.Receive([]Received{{"a", 1}}), ErrPOTransition) {
+	if !errors.Is(draft.Receive([]Received{{ProductID: "a", ReceivedMilli: 1}}), ErrPOTransition) {
 		t.Fatal("un borrador no recibe")
 	}
 }

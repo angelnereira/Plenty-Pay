@@ -148,6 +148,8 @@ func (o *PurchaseOrder) Prepare() error {
 type Received struct {
 	ProductID     string
 	ReceivedMilli int64
+	LotCode       string     // F16.8: lote del proveedor (obligatorio si el producto maneja lotes)
+	LotExpiresOn  *time.Time // vencimiento del lote
 }
 
 // Receive aplica una recepción: suma a cada línea sin pasar lo pedido y devuelve el nuevo estado

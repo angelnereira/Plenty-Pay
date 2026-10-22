@@ -22,6 +22,7 @@ import (
 // Store es lo que el servicio usa de la persistencia.
 type Store interface {
 	Apply(ctx context.Context, b store.Batch, events store.EventsFor) (store.Applied, error)
+	ListLots(ctx context.Context, tenantID, productID, warehouseID string, includeEmpty bool) ([]domain.Lot, error)
 	DefaultWarehouse(ctx context.Context, tenantID, newID string, now time.Time) (domain.Warehouse, error)
 	UpsertWarehouse(ctx context.Context, w domain.Warehouse, create bool) (domain.Warehouse, error)
 	ListWarehouses(ctx context.Context, tenantID, newID string, now time.Time) ([]domain.Warehouse, error)
@@ -108,20 +109,50 @@ func requestHash(parts ...string) []byte {
 // validateProduct: el producto debe existir en el catálogo del comercio, estar activo y llevar
 // inventario. Las devoluciones aceptan productos archivados (la mercancía vuelve igual).
 func (s *Inventory) validateProduct(ctx context.Context, productID string, t domain.MovementType) error {
+	_, err := s.trackedProduct(ctx, productID, t)
+	return err
+}
+
+// trackedProduct valida el producto y dice si controla lotes (F16.4: sus entradas exigen lote).
+func (s *Inventory) trackedProduct(ctx context.Context, productID string, t domain.MovementType) (client.Product, error) {
 	if _, err := uuid.Parse(productID); err != nil {
-		return domain.ErrProductNotFound
+		return client.Product{}, domain.ErrProductNotFound
 	}
 	p, err := s.products.Product(ctx, productID)
 	if err != nil {
-		return err
+		return p, err
 	}
 	if !p.Active && t != domain.Return {
-		return domain.ErrProductNotFound
+		return p, domain.ErrProductNotFound
 	}
 	if !p.TracksInventory {
-		return domain.ErrNotTracked
+		return p, domain.ErrNotTracked
 	}
+	return p, nil
+}
+
+// lotFields valida el código del lote (si viene) y lo deja en el movimiento.
+func lotFields(m *domain.Movement, code string, expires *time.Time, requireLot bool) error {
+	if strings.TrimSpace(code) != "" {
+		c, err := domain.NormalizeLotCode(code)
+		if err != nil {
+			return err
+		}
+		m.LotCode = c
+	}
+	if expires != nil {
+		d := domain.DateOnly(*expires)
+		m.LotExpiresOn = &d
+	}
+	m.RequireLot = requireLot
 	return nil
+}
+
+func lotHash(code string, expires *time.Time) string {
+	if expires == nil {
+		return code
+	}
+	return code + "@" + domain.DateOnly(*expires).Format("2006-01-02")
 }
 
 // AdjustRequest es un movimiento manual o de venta/devolución.
@@ -134,6 +165,8 @@ type AdjustRequest struct {
 	Reason         string
 	ReferenceType  string
 	ReferenceID    string
+	LotCode        string     // F16.4
+	LotExpiresOn   *time.Time // F16.4: al crear el lote en una entrada
 }
 
 // AdjustStock registra un movimiento (SPEC §4). Idempotente por clave dentro del tenant.
@@ -147,13 +180,17 @@ func (s *Inventory) AdjustStock(ctx context.Context, c Caller, r AdjustRequest) 
 	if err := m.AllowedFor(c.Service); err != nil {
 		return m, err
 	}
-	if err := s.validateProduct(ctx, r.ProductID, r.Type); err != nil {
+	p, err := s.trackedProduct(ctx, r.ProductID, r.Type)
+	if err != nil {
+		return m, err
+	}
+	if err := lotFields(&m, r.LotCode, r.LotExpiresOn, p.TracksLots && r.DeltaMilli > 0); err != nil {
 		return m, err
 	}
 	res, err := s.store.Apply(ctx, store.Batch{
 		TenantID: c.TenantID, IdempotencyKey: r.IdempotencyKey, NewWarehouseID: s.newID(), Now: s.now(),
 		RequestHash: requestHash("adjust", r.ProductID, r.WarehouseID, fmt.Sprint(r.DeltaMilli), fmt.Sprint(r.Type),
-			m.Reason, r.ReferenceType, r.ReferenceID),
+			m.Reason, r.ReferenceType, r.ReferenceID, lotHash(m.LotCode, m.LotExpiresOn)),
 		Movements: []domain.Movement{m},
 	}, s.eventsFor)
 	if err != nil {
@@ -164,7 +201,7 @@ func (s *Inventory) AdjustStock(ctx context.Context, c Caller, r AdjustRequest) 
 
 // TransferStock mueve existencias entre dos bodegas: TRANSFER_OUT y TRANSFER_IN en la misma
 // transacción (SPEC §4).
-func (s *Inventory) TransferStock(ctx context.Context, c Caller, key, productID, from, to string, qty int64, reason string) (domain.Movement, domain.Movement, error) {
+func (s *Inventory) TransferStock(ctx context.Context, c Caller, key, productID, from, to string, qty int64, reason, lotCode string) (domain.Movement, domain.Movement, error) {
 	if from == "" || to == "" {
 		return domain.Movement{}, domain.Movement{}, domain.ErrInvalidWarehouse
 	}
@@ -179,11 +216,15 @@ func (s *Inventory) TransferStock(ctx context.Context, c Caller, key, productID,
 	}
 	out := domain.Movement{ID: s.newID(), WarehouseID: from, ProductID: productID, Type: domain.TransferOut,
 		DeltaMilli: -qty, Reason: reason, ReferenceType: "transfer", ActorUserID: c.UserID, ActorService: c.Service}
+	// F16.4: la salida toma ese lote (o FEFO) y la entrada replica en el destino lo que salió.
+	if err := lotFields(&out, lotCode, nil, false); err != nil {
+		return out, domain.Movement{}, err
+	}
 	in := out
-	in.ID, in.WarehouseID, in.Type, in.DeltaMilli = s.newID(), to, domain.TransferIn, qty
+	in.ID, in.WarehouseID, in.Type, in.DeltaMilli, in.LotCode = s.newID(), to, domain.TransferIn, qty, ""
 	out.ReferenceID, in.ReferenceID = in.ID, out.ID
 	res, err := s.store.Apply(ctx, store.Batch{TenantID: c.TenantID, IdempotencyKey: key, NewWarehouseID: s.newID(),
-		Now: s.now(), RequestHash: requestHash("transfer", productID, from, to, fmt.Sprint(qty), reason),
+		Now: s.now(), RequestHash: requestHash("transfer", productID, from, to, fmt.Sprint(qty), reason, out.LotCode),
 		Movements: []domain.Movement{out, in}}, s.eventsFor)
 	if err != nil {
 		return out, in, err
@@ -318,4 +359,9 @@ func (s *Inventory) ExpireReservations(ctx context.Context, limit int) (int, err
 		n++
 	}
 	return n, nil
+}
+
+// ListLots: lotes de un producto (F16.4).
+func (s *Inventory) ListLots(ctx context.Context, tenantID, productID, warehouseID string, includeEmpty bool) ([]domain.Lot, error) {
+	return s.store.ListLots(ctx, tenantID, productID, warehouseID, includeEmpty)
 }

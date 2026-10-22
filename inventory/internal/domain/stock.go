@@ -56,6 +56,13 @@ type Movement struct {
 	ActorService   string
 	IdempotencyKey string
 	OccurredAt     time.Time
+
+	// F16.4 (R5). Entrada: LotCode crea o suma al lote. Salida: LotCode toma ese lote; vacío =
+	// FEFO si el producto tiene lotes. RequireLot lo fija el servicio con la marca del catálogo.
+	LotID        string
+	LotCode      string
+	LotExpiresOn *time.Time
+	RequireLot   bool
 }
 
 // ServiceTypes solo los generan pos y orders al vender o devolver (SPEC §4 AdjustStock).

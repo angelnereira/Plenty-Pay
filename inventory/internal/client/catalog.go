@@ -26,6 +26,7 @@ type Product struct {
 	ID              string
 	Active          bool
 	TracksInventory bool
+	TracksLots      bool // F16.4: las entradas exigen lote
 }
 
 // Catalog valida productos contra catalog (SPEC §7: 500 ms, lectura).
@@ -70,7 +71,7 @@ func (c *Catalog) Product(ctx context.Context, productID string) (Product, error
 	switch status.Code(err) {
 	case codes.OK:
 		return Product{ID: p.GetProductId(), Active: p.GetStatus() == pb.ProductStatus_PRODUCT_STATUS_ACTIVE,
-			TracksInventory: p.GetTracksInventory()}, nil
+			TracksInventory: p.GetTracksInventory(), TracksLots: p.GetTracksLots()}, nil
 	case codes.NotFound:
 		return Product{}, domain.ErrProductNotFound
 	}

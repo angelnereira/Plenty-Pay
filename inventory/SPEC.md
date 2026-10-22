@@ -48,6 +48,7 @@ CREATE TABLE inventory.sales_velocity (tenant_id uuid, variant_id uuid, warehous
 | CreatePurchaseOrder / UpdatePurchaseOrderStatus / ListPurchaseOrders | `inventory:purchase:manage` (listar también `inventory:receive`) | §8.12 domain-model; nace en DRAFT; DRAFT→SENT, DRAFT/SENT→CANCELLED; total = Σ half_up(cantidad × costo / 1000) | `VARIANT_NOT_FOUND`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
 | ReceiveGoods | `inventory:receive` | recepción parcial/total por línea (SENT o PARTIALLY_RECEIVED); RECEIPT con costo en la misma transacción; factura del proveedor opcional (≤ 60). Lotes con F16.4 | `UNKNOWN_ORDER_LINE`, `RECEIPT_EXCEEDS_ORDERED`, `LOT_REQUIRED`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
 | GetReorderSuggestions | `inventory:read` | §5 R6 | — |
+| ListLots | `inventory:read` | lotes de un producto (de una bodega o todas), primero los que vencen antes; `expired` según la fecha de Panamá | `INVALID_REQUEST` |
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LOG-01 y N-LOG-07. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
@@ -55,7 +56,7 @@ CREATE TABLE inventory.sales_velocity (tenant_id uuid, variant_id uuid, warehous
 - **R2** Por defecto `available` no puede quedar < 0 en reservas y ajustes; ventas POS **sí** pueden dejar negativo (venta física ya ocurrida) marcando alerta `NEGATIVE_STOCK` para revisión (configurable por tenant).
 - **R3** Bloqueo por fila de `stock_levels` en orden `(warehouse_id, variant_id)` ascendente.
 - **R4** Reservas todo-o-nada; TTL vencido → EXPIRED por job cada 30 s.
-- **R5** Lotes: salida FEFO (primero en vencer, primero en salir) si el producto maneja lotes.
+- **R5** Lotes: salida FEFO (primero en vencer, primero en salir) si el producto maneja lotes. **Implementado (F16.4, 2026-10-22)**: `lots` (bodega, producto, código, vencimiento, existencia ≥ 0), migración 0004; una entrada de un producto con `catalog.Product.tracks_lots` exige lote (`LOT_REQUIRED`) y no recibe un lote vencido (`LOT_EXPIRED`); una salida con lote sale de ese lote (venta de un vencido: `LOT_EXPIRED`; lote inexistente: `LOT_NOT_FOUND`); sin lote, FEFO por vencimiento y código (las ventas nunca toman vencidos; ajustes y bajas sí), un movimiento por lote con la misma clave (índice `movements_once` con el lote); lo que no alcanza queda sin lote y la existencia agregada decide (R2); una transferencia replica en el destino los lotes que salieron; la confirmación de una reserva vende FEFO. «Vencido» = antes de hoy en America/Panama; un vencimiento viaja como las 00:00 de ese día en Panamá.
 - **R6** Sugerencia de reorden: velocidad = media ponderada exponencial de ventas diarias (α=0.3, 28 días); días de cobertura = available / velocidad; sugerir si cobertura < lead_time + 7; cantidad = velocidad × (lead_time + 14) − available − en tránsito.
 - **R7** `StockLow` cuando cobertura < lead_time o available ≤ reorder_point (máx. 1 evento/día/variante).
 - **R8** `StockChanged` agregado (debounce 5 s por variante) para la proyección de catalog.

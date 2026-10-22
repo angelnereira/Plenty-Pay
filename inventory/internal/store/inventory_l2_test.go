@@ -22,10 +22,10 @@ import (
 )
 
 // products simula la respuesta de catalog (catalog no corre en esta prueba de store).
-type products struct{ archived, untracked map[string]bool }
+type products struct{ archived, untracked, lots map[string]bool }
 
 func (p products) Product(_ context.Context, id string) (client.Product, error) {
-	return client.Product{ID: id, Active: !p.archived[id], TracksInventory: !p.untracked[id]}, nil
+	return client.Product{ID: id, Active: !p.archived[id], TracksInventory: !p.untracked[id], TracksLots: p.lots[id]}, nil
 }
 
 var (
@@ -237,10 +237,10 @@ func TestSPEC4_TransferIsAtomic(t *testing.T) {
 		t.Fatal(err)
 	}
 	receive(t, s, tenant, product, 4000)
-	if _, _, err := s.TransferStock(ctx, person(tenant), key(), product, a.ID, b.ID, 9000, ""); !errors.Is(err, domain.ErrOutOfStock) {
+	if _, _, err := s.TransferStock(ctx, person(tenant), key(), product, a.ID, b.ID, 9000, "", ""); !errors.Is(err, domain.ErrOutOfStock) {
 		t.Fatalf("transferir más de lo que hay: %v", err)
 	}
-	out, in, err := s.TransferStock(ctx, person(tenant), key(), product, a.ID, b.ID, 1500, "reposición")
+	out, in, err := s.TransferStock(ctx, person(tenant), key(), product, a.ID, b.ID, 1500, "reposición", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestSPEC4_TransferIsAtomic(t *testing.T) {
 	if la.OnHandMilli != 2500 || lb.OnHandMilli != 1500 || out.ReferenceID != in.ID {
 		t.Fatalf("A=%d B=%d", la.OnHandMilli, lb.OnHandMilli)
 	}
-	if _, _, err := s.TransferStock(ctx, person(tenant), key(), product, a.ID, a.ID, 1, ""); !errors.Is(err, domain.ErrSameWarehouse) {
+	if _, _, err := s.TransferStock(ctx, person(tenant), key(), product, a.ID, a.ID, 1, "", ""); !errors.Is(err, domain.ErrSameWarehouse) {
 		t.Fatal(err)
 	}
 }

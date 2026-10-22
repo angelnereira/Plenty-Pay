@@ -156,16 +156,19 @@ func (s *Store) Finish(ctx context.Context, tenantID, id string, to domain.Reser
 			}
 			m := domain.Movement{ID: newID(), WarehouseID: r.WarehouseID, ProductID: l.ProductID, Type: domain.Sale,
 				DeltaMilli: -l.QtyMilli, ReferenceType: r.ReferenceType, ReferenceID: r.ReferenceID, ActorService: actorService}
-			if err := lv.Apply(m); err != nil {
+			// R5: la venta de un producto con lotes sale FEFO de los lotes no vencidos.
+			parts, err := resolveLots(ctx, tx, tenantID, m, now, map[string][]domain.Allocation{})
+			if err != nil {
 				return err
 			}
 			key := "commit:" + r.ID + ":" + l.ProductID
-			if _, err := tx.Exec(ctx, `INSERT INTO movements (id, tenant_id, warehouse_id, product_id, type, delta_milli, reason,
-				reference_type, reference_id, actor_service, idempotency_key, request_hash, created_at)
-				VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,$10,$11,$12)`,
-				m.ID, tenantID, m.WarehouseID, m.ProductID, m.Type, m.DeltaMilli, m.ReferenceType, m.ReferenceID,
-				actorService, key, []byte(key), now); err != nil {
-				return fmt.Errorf("insert commit movement: %w", err)
+			for _, pm := range parts {
+				if err := lv.Apply(pm); err != nil {
+					return err
+				}
+				if err := insertMovement(ctx, tx, tenantID, pm, key, []byte(key), now); err != nil {
+					return fmt.Errorf("insert commit movement: %w", err)
+				}
 			}
 		}
 		if _, err := tx.Exec(ctx, `UPDATE reservations SET status = $2, updated_at = $3 WHERE id = $1`, id, to, now); err != nil {

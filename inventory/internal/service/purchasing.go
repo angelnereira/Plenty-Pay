@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -103,18 +104,32 @@ func (s *Inventory) ReceiveGoods(ctx context.Context, c Caller, poID, key, invoi
 	parts := []string{"receipt", poID, invoice}
 	moves := make([]domain.Movement, 0, len(in))
 	seen := map[string]bool{}
+	lotsOf := map[string]bool{}
 	for _, r := range in {
-		if seen[r.ProductID] {
+		// F16.8: un producto puede llegar en varios lotes, una línea por lote.
+		if seen[r.ProductID+"\x1f"+strings.TrimSpace(r.LotCode)] {
 			return domain.PurchaseOrder{}, domain.ErrInvalidOrder
 		}
-		seen[r.ProductID] = true
+		seen[r.ProductID+"\x1f"+strings.TrimSpace(r.LotCode)] = true
 		m := domain.Movement{ID: s.newID(), WarehouseID: wh, ProductID: r.ProductID, Type: domain.Receipt,
 			DeltaMilli: r.ReceivedMilli, ReferenceType: "purchase_order", ReferenceID: poID, ActorUserID: c.UserID,
 			ActorService: c.Service, Reason: "recepción de compra"}
 		if err := m.Validate(); err != nil {
 			return domain.PurchaseOrder{}, err
 		}
-		parts = append(parts, fmt.Sprintf("%s:%d", r.ProductID, r.ReceivedMilli))
+		tracks, ok := lotsOf[r.ProductID]
+		if !ok {
+			p, err := s.trackedProduct(ctx, r.ProductID, domain.Receipt)
+			if err != nil && !errors.Is(err, domain.ErrNotTracked) {
+				return domain.PurchaseOrder{}, err
+			}
+			tracks = p.TracksLots
+			lotsOf[r.ProductID] = tracks
+		}
+		if err := lotFields(&m, r.LotCode, r.LotExpiresOn, tracks); err != nil {
+			return domain.PurchaseOrder{}, err
+		}
+		parts = append(parts, fmt.Sprintf("%s:%d:%s", r.ProductID, r.ReceivedMilli, lotHash(m.LotCode, m.LotExpiresOn)))
 		moves = append(moves, m)
 	}
 	hash := requestHash(parts...)

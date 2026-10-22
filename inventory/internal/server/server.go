@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/google/uuid"
 	"time"
 
 	errdetails "google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -41,6 +42,14 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.NotFound, "VARIANT_NOT_FOUND", "el producto no existe o está archivado")
 	case errors.Is(err, domain.ErrNotTracked):
 		return ErrorInfo(codes.FailedPrecondition, "INVENTORY_NOT_TRACKED", "el producto no lleva inventario")
+	case errors.Is(err, domain.ErrLotRequired):
+		return ErrorInfo(codes.InvalidArgument, "LOT_REQUIRED", "este producto controla lotes: indica el lote")
+	case errors.Is(err, domain.ErrLotExpired):
+		return ErrorInfo(codes.FailedPrecondition, "LOT_EXPIRED", "el lote está vencido")
+	case errors.Is(err, domain.ErrLotNotFound):
+		return ErrorInfo(codes.NotFound, "LOT_NOT_FOUND", "ese lote no existe en esta bodega")
+	case errors.Is(err, domain.ErrInvalidLot):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "código de lote inválido")
 	case errors.Is(err, domain.ErrOutOfStock):
 		return ErrorInfo(codes.FailedPrecondition, "OUT_OF_STOCK", "no hay existencia suficiente")
 	case errors.Is(err, domain.ErrReasonRequired):
@@ -116,7 +125,51 @@ func movementPB(m domain.Movement) *pb.StockMovement {
 		DeltaMilli: m.DeltaMilli, Reason: m.Reason,
 		Reference:  &pb.Reference{Type: m.ReferenceType, Id: m.ReferenceID},
 		OccurredAt: timestamppb.New(m.OccurredAt), ActorUserId: m.ActorUserID,
+		LotId: m.LotID, LotCode: m.LotCode, LotExpiresAt: dateTS(m.LotExpiresOn),
 	}
+}
+
+// optTime: un Timestamp ausente es «sin valor», nunca la época.
+func optTime(ts *timestamppb.Timestamp) *time.Time {
+	if ts == nil {
+		return nil
+	}
+	v := ts.AsTime()
+	return &v
+}
+
+// dateTS: una fecha pura (vencimiento de un lote) como 00:00 de ese día en Panamá.
+func dateTS(d *time.Time) *timestamppb.Timestamp {
+	if d == nil {
+		return nil
+	}
+	return timestamppb.New(time.Date(d.Year(), d.Month(), d.Day(), 5, 0, 0, 0, time.UTC))
+}
+
+func lotPB(l domain.Lot, today time.Time) *pb.Lot {
+	return &pb.Lot{LotId: l.ID, ProductId: l.ProductID, WarehouseId: l.WarehouseID, Code: l.Code,
+		ExpiresAt: dateTS(l.ExpiresOn), OnHandMilli: l.OnHandMilli, Expired: l.Expired(today)}
+}
+
+// ListLots devuelve los lotes de un producto, primero los que vencen antes (F16.4, R5).
+func (s *Server) ListLots(ctx context.Context, req *pb.ListLotsRequest) (*pb.ListLotsResponse, error) {
+	a, err := authorize(ctx, "inventory:read")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := uuid.Parse(req.GetProductId()); err != nil {
+		return nil, ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "producto inválido")
+	}
+	lots, err := s.svc.ListLots(ctx, a.TenantID, req.GetProductId(), req.GetWarehouseId(), req.GetIncludeEmpty())
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	out := &pb.ListLotsResponse{}
+	today := domain.Today(time.Now())
+	for _, l := range lots {
+		out.Lots = append(out.Lots, lotPB(l, today))
+	}
+	return out, nil
 }
 
 func levelPB(l domain.Level) *pb.StockLevel {
@@ -141,6 +194,7 @@ func (s *Server) AdjustStock(ctx context.Context, req *pb.AdjustStockRequest) (*
 		IdempotencyKey: req.GetIdempotencyKey(), ProductID: req.GetProductId(), WarehouseID: req.GetWarehouseId(),
 		DeltaMilli: req.GetDeltaMilli(), Type: domain.MovementType(req.GetType()), Reason: req.GetReason(),
 		ReferenceType: req.GetReference().GetType(), ReferenceID: req.GetReference().GetId(),
+		LotCode: req.GetLotCode(), LotExpiresOn: optTime(req.GetLotExpiresAt()),
 	})
 	if err != nil {
 		return nil, toStatus(err)
@@ -157,7 +211,7 @@ func (s *Server) TransferStock(ctx context.Context, req *pb.TransferStockRequest
 		return nil, err
 	}
 	out, in, err := s.svc.TransferStock(ctx, caller(a), req.GetIdempotencyKey(), req.GetProductId(),
-		req.GetFromWarehouseId(), req.GetToWarehouseId(), req.GetQuantityMilli(), req.GetReason())
+		req.GetFromWarehouseId(), req.GetToWarehouseId(), req.GetQuantityMilli(), req.GetReason(), req.GetLotCode())
 	if err != nil {
 		return nil, toStatus(err)
 	}
