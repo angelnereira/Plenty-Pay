@@ -110,6 +110,8 @@ message Sale {
   string recipient_name = 22;
   string recipient_phone = 23;
   plentypay.common.v1.Money delivery_fee = 24;
+  string park_label = 25;                      // nota del cajero al estacionar (S-POS-06), ≤ 60 caracteres
+  google.protobuf.Timestamp parked_at = 26;    // última vez que se estacionó
 }
 message CreateSaleRequest { string session_id = 1; string client_sale_id = 2; 
   string idempotency_key = 3;}
