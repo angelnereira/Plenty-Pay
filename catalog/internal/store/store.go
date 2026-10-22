@@ -106,6 +106,7 @@ func uniqueViolation(err error) error {
 const productCols = `id, tenant_id, sku, coalesce(barcode, ''), name, description, coalesce(category_id::text, ''),
 	brand, unit_type, price_minor, currency, tax_rate_bps, cpbs_code, image_object_keys, attributes, status,
 	tracks_inventory, coalesce(created_by::text, ''), created_at, updated_at, version,
+	tracks_lots,
 	coalesce((SELECT l.listed FROM listings l WHERE l.product_id = products.id), false)`
 
 func scanProduct(row pgx.Row) (domain.Product, error) {
@@ -113,7 +114,7 @@ func scanProduct(row pgx.Row) (domain.Product, error) {
 	var attrs []byte
 	err := row.Scan(&p.ID, &p.TenantID, &p.SKU, &p.Barcode, &p.Name, &p.Description, &p.CategoryID,
 		&p.Brand, &p.UnitType, &p.PriceMinor, &p.Currency, &p.TaxRateBps, &p.CPBSCode, &p.ImageObjectKeys,
-		&attrs, &p.Status, &p.TracksInventory, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt, &p.Version, &p.Listed)
+		&attrs, &p.Status, &p.TracksInventory, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt, &p.Version, &p.TracksLots, &p.Listed)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, domain.ErrNotFound
 	}
@@ -163,11 +164,11 @@ func (s *Store) CreateProduct(ctx context.Context, p domain.Product, event func(
 		_, err := tx.Exec(ctx, `
 			INSERT INTO products (id, tenant_id, sku, barcode, name, description, category_id, brand, unit_type,
 				price_minor, currency, tax_rate_bps, cpbs_code, image_object_keys, attributes, status,
-				tracks_inventory, created_by, created_at, updated_at, version)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$19,$20)`,
+				tracks_inventory, created_by, created_at, updated_at, version, tracks_lots)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$19,$20,$21)`,
 			p.ID, p.TenantID, p.SKU, nullable(p.Barcode), p.Name, p.Description, nullable(p.CategoryID), p.Brand,
 			p.UnitType, p.PriceMinor, p.Currency, p.TaxRateBps, p.CPBSCode, p.ImageObjectKeys, string(attrs), p.Status,
-			p.TracksInventory, nullable(p.CreatedBy), p.CreatedAt, p.Version)
+			p.TracksInventory, nullable(p.CreatedBy), p.CreatedAt, p.Version, p.TracksLots)
 		if err != nil {
 			return uniqueViolation(fmt.Errorf("insert product: %w", err))
 		}
@@ -206,11 +207,11 @@ func (s *Store) UpdateProduct(ctx context.Context, tenantID, id string, expected
 			UPDATE products SET sku=$2, barcode=$3, name=$4, description=$5, category_id=$6, brand=$7,
 				unit_type=$8, price_minor=$9, currency=$10, tax_rate_bps=$11, cpbs_code=$12,
 				image_object_keys=$13, attributes=$14, status=$15, tracks_inventory=$16, updated_at=$17,
-				version=$18
+				version=$18, tracks_lots=$19
 			WHERE id = $1`,
 			p.ID, p.SKU, nullable(p.Barcode), p.Name, p.Description, nullable(p.CategoryID), p.Brand, p.UnitType,
 			p.PriceMinor, p.Currency, p.TaxRateBps, p.CPBSCode, p.ImageObjectKeys, string(attrs), p.Status,
-			p.TracksInventory, p.UpdatedAt, p.Version)
+			p.TracksInventory, p.UpdatedAt, p.Version, p.TracksLots)
 		if err != nil {
 			return uniqueViolation(fmt.Errorf("update product: %w", err))
 		}

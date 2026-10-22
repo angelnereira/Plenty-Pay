@@ -136,6 +136,9 @@ func UpdateFields(dst *domain.Product, src domain.Product, mask []string) {
 	if set("tracks_inventory") {
 		dst.TracksInventory = src.TracksInventory
 	}
+	if set("tracks_lots") {
+		dst.TracksLots = src.TracksLots
+	}
 }
 
 // UpdateProduct cambia los campos de la máscara. R3: el precio nuevo no toca ventas pasadas

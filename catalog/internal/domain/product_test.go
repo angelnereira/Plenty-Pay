@@ -136,3 +136,17 @@ func TestSPEC_SetListing_RequiresActiveTenantPhotoPriceAndFulfillment(t *testing
 		t.Fatal("despublicar siempre se puede")
 	}
 }
+
+// F16.4 (R5 de inventory): controlar lotes exige llevar inventario.
+func TestR5_LotsRequireInventoryTracking(t *testing.T) {
+	p := Product{Name: "Ibuprofeno 400 mg", SKU: "IBU-400", Currency: "USD", UnitType: "UNIT", TaxRateBps: 0,
+		TracksLots: true}
+	rates := TaxRates{0: true, 700: true}
+	if err := p.Validate(rates, true); !errors.Is(err, ErrLotsNeedInventory) {
+		t.Fatalf("lotes sin inventario: %v", err)
+	}
+	p.TracksInventory = true
+	if err := p.Validate(rates, true); err != nil {
+		t.Fatal(err)
+	}
+}

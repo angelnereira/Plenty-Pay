@@ -90,3 +90,5 @@ F15.1 productos/variantes → F15.2 categorías + imágenes → F15.3 importaci�
 - **N-FIS-01**: la tasa de un producto debe ser 0 o una de `legal.pa.itbms.standard_bps|alcohol_bps|tobacco_bps` vigentes (infra-management, caché 60 s); sin tratamiento explícito → `TAX_TREATMENT_MISSING`; sin infra-management → `DEPENDENCY_UNAVAILABLE`.
 - **Modelo**: una variante por producto en la misma fila (`sku`, `barcode`, `price_minor`); `variants` y `branch_prices` llegan con F15.1b. La categoría de un producto se verifica bajo RLS en la misma transacción (la FK no ve la RLS).
 - **Errores agregados**: `INVALID_TAX_RATE`, `DEPENDENCY_UNAVAILABLE`, `VERSION_CONFLICT`, `TENANT_REQUIRED`.
+
+**F16.4 (2026-10-22)**: `Product.tracks_lots` (migración 0003): el producto controla lotes y vencimientos; exige `tracks_inventory` (`LOTS_REQUIRE_INVENTORY`). inventory lo usa para exigir lote en las entradas (R5 de inventory).

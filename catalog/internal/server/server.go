@@ -49,6 +49,8 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.InvalidArgument, "INVALID_BARCODE", "código de barras inválido")
 	case errors.Is(err, domain.ErrInvalidUnit):
 		return ErrorInfo(codes.InvalidArgument, "INVALID_UNIT", "unidad inválida")
+	case errors.Is(err, domain.ErrLotsNeedInventory):
+		return ErrorInfo(codes.InvalidArgument, "LOTS_REQUIRE_INVENTORY", "para controlar lotes el producto debe llevar inventario")
 	case errors.Is(err, domain.ErrInvalidTaxRate):
 		return ErrorInfo(codes.InvalidArgument, "INVALID_TAX_RATE", "la tasa de ITBMS no es una tasa vigente")
 	case errors.Is(err, domain.ErrTaxTreatment):
@@ -111,6 +113,7 @@ func fromPB(p *pb.Product) domain.Product {
 		UnitType: p.GetUnitType(), PriceMinor: p.GetPrice().GetAmountMinor(), Currency: p.GetPrice().GetCurrency(),
 		TaxRateBps: p.GetTaxRateBps(), CPBSCode: p.GetCpbsCode(), ImageObjectKeys: p.GetImageObjectKeys(),
 		Attributes: p.GetAttributes(), TracksInventory: p.GetTracksInventory(), Version: p.GetVersion(),
+		TracksLots: p.GetTracksLots(),
 	}
 }
 
@@ -122,6 +125,7 @@ func toPB(p domain.Product) *pb.Product {
 		CpbsCode: p.CPBSCode, ImageObjectKeys: p.ImageObjectKeys, Attributes: p.Attributes,
 		Status: pb.ProductStatus(p.Status), TracksInventory: p.TracksInventory, TaxExempt: p.TaxRateBps == 0,
 		UpdatedAt: timestamppb.New(p.UpdatedAt), Version: p.Version, ListedInMarketplace: p.Listed,
+		TracksLots: p.TracksLots,
 	}
 }
 

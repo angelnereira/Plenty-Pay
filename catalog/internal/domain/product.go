@@ -18,6 +18,7 @@ var (
 	ErrInvalidCurrency    = errors.New("invalid currency")
 	ErrInvalidUnit        = errors.New("invalid unit")
 	ErrInvalidTaxRate     = errors.New("tax rate is not a legal ITBMS rate")
+	ErrLotsNeedInventory  = errors.New("lots require inventory tracking")
 	ErrTaxTreatment       = errors.New("tax treatment missing")
 	ErrInvalidDescription = errors.New("invalid description")
 	ErrInvalidCategory    = errors.New("invalid category")
@@ -72,6 +73,7 @@ type Product struct {
 	Attributes      map[string]string
 	Status          Status
 	TracksInventory bool
+	TracksLots      bool // F16.4: las entradas exigen lote; solo si TracksInventory
 	CreatedBy       string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -130,6 +132,8 @@ func (p Product) Validate(rates TaxRates, taxSet bool) error {
 		return ErrTaxTreatment
 	case !rates[p.TaxRateBps]:
 		return ErrInvalidTaxRate
+	case p.TracksLots && !p.TracksInventory:
+		return ErrLotsNeedInventory
 	}
 	return nil
 }
