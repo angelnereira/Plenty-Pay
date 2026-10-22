@@ -964,6 +964,26 @@ class ApiClient {
   Future<Map<String, dynamic>> resumeSale(String saleId) =>
       _post('/v1/pos/sales/${Uri.encodeComponent(saleId)}/resume', data: {});
 
+  /// F17.9 · S-POS-08: devolución con confirmación fuerte (`pos.sale.void`).
+  Future<Map<String, dynamic>> refundSale(String saleId,
+          {required Map<String, int> qtyByLine,
+          required String reason,
+          required bool restock,
+          required String stepUpToken,
+          required String idempotencyKey}) =>
+      _post('/v1/pos/sales/${Uri.encodeComponent(saleId)}/refund',
+          data: {
+            'lines': [
+              for (final e in qtyByLine.entries)
+                if (e.value > 0)
+                  {'line_id': e.key, 'quantity_milli': '${e.value}'}
+            ],
+            'reason': reason,
+            'restock': restock,
+          },
+          headers: {'X-Step-Up-Token': stepUpToken},
+          idempotencyKey: idempotencyKey);
+
   Future<Map<String, dynamic>> getSale(String saleId) =>
       _get('/v1/pos/sales/${Uri.encodeComponent(saleId)}');
 

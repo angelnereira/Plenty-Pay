@@ -19,6 +19,7 @@ import 'package:plentypay/features/pos/pos_close_session_screen.dart';
 import 'package:plentypay/features/pos/pos_data.dart';
 import 'package:plentypay/features/pos/pos_parked_screen.dart';
 import 'package:plentypay/features/pos/pos_receipt_screen.dart';
+import 'package:plentypay/features/pos/pos_refund_screen.dart';
 import 'package:plentypay/features/pos/pos_screen.dart';
 
 import '../support/commerce_fixtures.dart';
@@ -125,6 +126,7 @@ void main() {
     'caja · venta': () => PosScreen(api: fakeApi(routes)),
     'caja · cobro': () => PosCheckoutScreen(api: fakeApi(routes), sale: SaleItem.fromJson(sale('OPEN')), terminalLabel: 'Caja principal'),
     'caja · recibo': () => PosReceiptScreen(api: fakeApi(routes), sale: paid, terminalLabel: 'Caja principal de la sucursal'),
+    'caja · devolución': () => PosRefundScreen(api: fakeApi(routes), sale: paid),
     'caja · cierre': () => PosCloseSessionScreen(api: fakeApi(routes), sessionId: sessionId),
     'caja · estacionadas': () => PosParkedScreen(api: fakeApi(routes), sessionId: sessionId, canResume: false),
   };

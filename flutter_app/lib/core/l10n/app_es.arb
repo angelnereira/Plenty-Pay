@@ -2129,5 +2129,90 @@
   "error_LOT_REQUIRED": "Este producto controla lotes: indica el lote.",
   "error_LOT_EXPIRED": "Ese lote está vencido.",
   "error_LOT_NOT_FOUND": "Ese lote no existe en esta bodega.",
-  "error_LOTS_REQUIRE_INVENTORY": "Para controlar lotes, el producto debe llevar inventario."
+  "error_LOTS_REQUIRE_INVENTORY": "Para controlar lotes, el producto debe llevar inventario.",
+  "saleStatus_PARTIALLY_REFUNDED": "Devuelta parcial",
+  "saleStatus_REFUNDED": "Devuelta",
+  "posRefund": "Devolver",
+  "posRefundTitle": "Devolución",
+  "posRefundSoldRefunded": "Vendido {sold} · ya devuelto {refunded}",
+  "@posRefundSoldRefunded": {
+    "placeholders": {
+      "sold": {
+        "type": "String"
+      },
+      "refunded": {
+        "type": "String"
+      }
+    }
+  },
+  "posRefundQty": "A devolver",
+  "posRefundLess": "Devolver uno menos de {product}",
+  "@posRefundLess": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "posRefundMore": "Devolver uno más de {product}",
+  "@posRefundMore": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "posRefundReason": "Motivo",
+  "posRefundReason_DEFECTIVE": "Defectuoso",
+  "posRefundReason_EXCHANGE": "Cambio",
+  "posRefundReason_BILLING_ERROR": "Error de cobro",
+  "posRefundReason_WARRANTY": "Garantía",
+  "posRefundReason_OTHER": "Otro",
+  "posRefundRestock": "Regresa al inventario",
+  "posRefundRestockHint": "Apágalo si el producto no se puede volver a vender.",
+  "posRefundByRail": "Por el mismo medio: {method} {amount}",
+  "@posRefundByRail": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posRefundTotal": "Devolución",
+  "posRefundTax": "ITBMS",
+  "posRefundCreditNotePending": "La nota de crédito electrónica llega con la facturación desde la venta.",
+  "posRefundSubmit": "Devolver {amount}",
+  "@posRefundSubmit": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posRefundPickLines": "Elige qué productos se devuelven.",
+  "posRefundDone": "Devolución registrada: {amount}.",
+  "@posRefundDone": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posRefunded": "Devuelto",
+  "posRefundedLine": "Devuelto {qty}: {amount}",
+  "@posRefundedLine": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "stepUpOpPosRefund": "Devolución en caja",
+  "error_EXCEEDS_SOLD_QTY": "No puedes devolver más de lo vendido."
 }

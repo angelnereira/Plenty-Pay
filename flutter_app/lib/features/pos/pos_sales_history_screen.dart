@@ -21,11 +21,17 @@ import 'pos_receipt_screen.dart';
           StatusTone.warning
         ),
       'VOIDED' => (l10n.saleStatus_VOIDED, StatusTone.neutral),
+      'PARTIALLY_REFUNDED' => (
+          l10n.saleStatus_PARTIALLY_REFUNDED,
+          StatusTone.warning
+        ),
+      'REFUNDED' => (l10n.saleStatus_REFUNDED, StatusTone.neutral),
       _ => (l10n.saleStatus_OPEN, StatusTone.info),
     };
 
 /// S-POS-07 · `/pos/sales` · Ventas del turno. Número, hora, total y estado; toca → recibo.
-/// Filtros por rango, caja, cajero y medio, y "Devolver" llegan con F17.9.
+/// Con `pos:refund`, el recibo ofrece "Devolver" (S-POS-08). Los filtros por rango, caja, cajero y
+/// medio llegan después.
 class PosSalesHistoryScreen extends StatefulWidget {
   const PosSalesHistoryScreen(
       {super.key,
@@ -42,11 +48,15 @@ class PosSalesHistoryScreen extends StatefulWidget {
 
 class _PosSalesHistoryScreenState extends State<PosSalesHistoryScreen> {
   late Future<List<SaleItem>> _future = _load();
+  bool _canRefund = false;
 
-  Future<List<SaleItem>> _load() async =>
-      (await loadSessionSales(widget.api, widget.session.id))
-          .where((s) => s.status != 'OPEN')
-          .toList();
+  Future<List<SaleItem>> _load() async {
+    final perms = await widget.api.permissions();
+    _canRefund = perms.can('pos:refund');
+    return (await loadSessionSales(widget.api, widget.session.id))
+        .where((s) => s.status != 'OPEN')
+        .toList();
+  }
 
   void _reload() => setState(() {
         _future = _load();
@@ -102,13 +112,19 @@ class _PosSalesHistoryScreenState extends State<PosSalesHistoryScreen> {
                                     style: theme.textTheme.titleMedium),
                                 StatusChip(label: label, tone: tone),
                               ]),
-                          onTap: s.isPaid
-                              ? () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                      builder: (_) => PosReceiptScreen(
-                                          api: widget.api,
-                                          sale: s,
-                                          terminalLabel: widget.terminalLabel)))
+                          onTap: s.hasReceipt
+                              ? () async {
+                                  await Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                          builder: (_) => PosReceiptScreen(
+                                              api: widget.api,
+                                              sale: s,
+                                              terminalLabel:
+                                                  widget.terminalLabel,
+                                              canRefund: _canRefund)));
+                                  // Al volver, el estado de la venta pudo cambiar por una devolución.
+                                  if (mounted) _reload();
+                                }
                               : null,
                         );
                       }),

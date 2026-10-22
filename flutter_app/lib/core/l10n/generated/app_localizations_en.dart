@@ -4586,4 +4586,101 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get error_LOTS_REQUIRE_INVENTORY =>
       'To track lots, the product must track inventory.';
+
+  @override
+  String get saleStatus_PARTIALLY_REFUNDED => 'Partially refunded';
+
+  @override
+  String get saleStatus_REFUNDED => 'Refunded';
+
+  @override
+  String get posRefund => 'Refund';
+
+  @override
+  String get posRefundTitle => 'Refund';
+
+  @override
+  String posRefundSoldRefunded(String sold, String refunded) {
+    return 'Sold $sold · already refunded $refunded';
+  }
+
+  @override
+  String get posRefundQty => 'To refund';
+
+  @override
+  String posRefundLess(String product) {
+    return 'Refund one less of $product';
+  }
+
+  @override
+  String posRefundMore(String product) {
+    return 'Refund one more of $product';
+  }
+
+  @override
+  String get posRefundReason => 'Reason';
+
+  @override
+  String get posRefundReason_DEFECTIVE => 'Defective';
+
+  @override
+  String get posRefundReason_EXCHANGE => 'Exchange';
+
+  @override
+  String get posRefundReason_BILLING_ERROR => 'Billing error';
+
+  @override
+  String get posRefundReason_WARRANTY => 'Warranty';
+
+  @override
+  String get posRefundReason_OTHER => 'Other';
+
+  @override
+  String get posRefundRestock => 'Goes back to inventory';
+
+  @override
+  String get posRefundRestockHint =>
+      'Turn it off if the product cannot be sold again.';
+
+  @override
+  String posRefundByRail(String method, String amount) {
+    return 'By the same method: $method $amount';
+  }
+
+  @override
+  String get posRefundTotal => 'Refund';
+
+  @override
+  String get posRefundTax => 'ITBMS';
+
+  @override
+  String get posRefundCreditNotePending =>
+      'The electronic credit note arrives with invoicing from the sale.';
+
+  @override
+  String posRefundSubmit(String amount) {
+    return 'Refund $amount';
+  }
+
+  @override
+  String get posRefundPickLines => 'Choose which products are refunded.';
+
+  @override
+  String posRefundDone(String amount) {
+    return 'Refund recorded: $amount.';
+  }
+
+  @override
+  String get posRefunded => 'Refunded';
+
+  @override
+  String posRefundedLine(String qty, String amount) {
+    return 'Refunded $qty: $amount';
+  }
+
+  @override
+  String get stepUpOpPosRefund => 'Point-of-sale refund';
+
+  @override
+  String get error_EXCEEDS_SOLD_QTY => 'You cannot refund more than was sold.';
 }

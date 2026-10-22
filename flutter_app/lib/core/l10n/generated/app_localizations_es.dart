@@ -4595,6 +4595,103 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get error_LOTS_REQUIRE_INVENTORY =>
       'Para controlar lotes, el producto debe llevar inventario.';
+
+  @override
+  String get saleStatus_PARTIALLY_REFUNDED => 'Devuelta parcial';
+
+  @override
+  String get saleStatus_REFUNDED => 'Devuelta';
+
+  @override
+  String get posRefund => 'Devolver';
+
+  @override
+  String get posRefundTitle => 'Devolución';
+
+  @override
+  String posRefundSoldRefunded(String sold, String refunded) {
+    return 'Vendido $sold · ya devuelto $refunded';
+  }
+
+  @override
+  String get posRefundQty => 'A devolver';
+
+  @override
+  String posRefundLess(String product) {
+    return 'Devolver uno menos de $product';
+  }
+
+  @override
+  String posRefundMore(String product) {
+    return 'Devolver uno más de $product';
+  }
+
+  @override
+  String get posRefundReason => 'Motivo';
+
+  @override
+  String get posRefundReason_DEFECTIVE => 'Defectuoso';
+
+  @override
+  String get posRefundReason_EXCHANGE => 'Cambio';
+
+  @override
+  String get posRefundReason_BILLING_ERROR => 'Error de cobro';
+
+  @override
+  String get posRefundReason_WARRANTY => 'Garantía';
+
+  @override
+  String get posRefundReason_OTHER => 'Otro';
+
+  @override
+  String get posRefundRestock => 'Regresa al inventario';
+
+  @override
+  String get posRefundRestockHint =>
+      'Apágalo si el producto no se puede volver a vender.';
+
+  @override
+  String posRefundByRail(String method, String amount) {
+    return 'Por el mismo medio: $method $amount';
+  }
+
+  @override
+  String get posRefundTotal => 'Devolución';
+
+  @override
+  String get posRefundTax => 'ITBMS';
+
+  @override
+  String get posRefundCreditNotePending =>
+      'La nota de crédito electrónica llega con la facturación desde la venta.';
+
+  @override
+  String posRefundSubmit(String amount) {
+    return 'Devolver $amount';
+  }
+
+  @override
+  String get posRefundPickLines => 'Elige qué productos se devuelven.';
+
+  @override
+  String posRefundDone(String amount) {
+    return 'Devolución registrada: $amount.';
+  }
+
+  @override
+  String get posRefunded => 'Devuelto';
+
+  @override
+  String posRefundedLine(String qty, String amount) {
+    return 'Devuelto $qty: $amount';
+  }
+
+  @override
+  String get stepUpOpPosRefund => 'Devolución en caja';
+
+  @override
+  String get error_EXCEEDS_SOLD_QTY => 'No puedes devolver más de lo vendido.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

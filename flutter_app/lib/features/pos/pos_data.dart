@@ -93,14 +93,21 @@ class SessionItem {
 /// Línea guardada de una venta (instantánea del servidor).
 class SaleLineItem {
   const SaleLineItem(
-      {this.productId = '',
+      {this.id = '',
+      this.productId = '',
       required this.description,
       required this.qtyMilli,
       required this.unitPriceMinor,
       required this.taxRateBps,
-      required this.totalMinor});
+      required this.totalMinor,
+      this.refundedMilli = 0,
+      this.refundedMinor = 0});
 
   factory SaleLineItem.fromJson(Map<String, dynamic> j) => SaleLineItem(
+        id: j['line_id'] as String? ?? '',
+        refundedMilli: minorUnits(j['refunded_milli']),
+        refundedMinor: minorUnits(
+            (j['refunded'] as Map<String, dynamic>?)?['amount_minor']),
         productId: j['product_id'] as String? ?? '',
         description: j['description'] as String? ?? '',
         qtyMilli: minorUnits(j['quantity_milli']),
@@ -111,12 +118,19 @@ class SaleLineItem {
             (j['line_total'] as Map<String, dynamic>?)?['amount_minor']),
       );
 
+  final String id;
   final String productId;
   final String description;
   final int qtyMilli;
   final int unitPriceMinor;
   final int taxRateBps;
   final int totalMinor;
+
+  /// F17.9: cantidad y monto ya devueltos.
+  final int refundedMilli;
+  final int refundedMinor;
+
+  int get pendingMilli => qtyMilli - refundedMilli;
 }
 
 /// Un medio de pago de la venta.
@@ -163,6 +177,8 @@ class SaleItem {
     required this.version,
     this.parkLabel = '',
     this.parkedAt,
+    this.refundedMinor = 0,
+    this.currency = 'USD',
   });
 
   factory SaleItem.fromJson(Map<String, dynamic> j) {
@@ -186,6 +202,11 @@ class SaleItem {
       version: (j['version'] as num?)?.toInt() ?? 0,
       parkLabel: j['park_label'] as String? ?? '',
       parkedAt: DateTime.tryParse(j['parked_at'] as String? ?? '')?.toLocal(),
+      refundedMinor: money('refunded'),
+      currency: switch ((j['total'] as Map<String, dynamic>?)?['currency']) {
+        final String c when c.isNotEmpty => c,
+        _ => 'USD',
+      },
     );
   }
 
@@ -205,7 +226,17 @@ class SaleItem {
   final String parkLabel;
   final DateTime? parkedAt;
 
+  /// F17.9: total ya devuelto y moneda de la venta (la confirmación fuerte se ata a ambos).
+  final int refundedMinor;
+  final String currency;
+
   bool get isPaid => status == 'PAID';
+
+  /// F17.9: se puede devolver una venta pagada o devuelta en parte.
+  bool get isRefundable => status == 'PAID' || status == 'PARTIALLY_REFUNDED';
+
+  /// El recibo existe para toda venta cobrada, aunque después se haya devuelto.
+  bool get hasReceipt => isRefundable || status == 'REFUNDED';
 
   /// Impuesto por tasa calculado de las líneas guardadas (para el recibo).
   Map<int, int> get taxByRate {
@@ -261,7 +292,49 @@ Future<List<SaleItem>> loadParkedSales(ApiClient api, String sessionId) async {
     for (final s in (body['sales'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>())
       SaleItem.fromJson(s),
-  ]..sort((a, b) => (b.parkedAt ?? b.createdAt)
-      .compareTo(a.parkedAt ?? a.createdAt));
+  ]..sort((a, b) =>
+      (b.parkedAt ?? b.createdAt).compareTo(a.parkedAt ?? a.createdAt));
   return out;
+}
+
+/// Vista previa de una devolución con la misma regla que pos (R9): por línea,
+/// half_up(total × cantidad / vendida) y, si se devuelve todo lo pendiente, el resto exacto; el
+/// reintegro sale primero del último medio de pago. El monto debe coincidir con el del servidor:
+/// la confirmación fuerte queda atada a él.
+class RefundPreview {
+  const RefundPreview(this.totalMinor, this.byRail);
+  final int totalMinor;
+
+  /// Medio (`CASH`, `WALLET`) → monto que se reintegra por él.
+  final Map<String, int> byRail;
+}
+
+/// Monto de una línea por devolver: proporcional half_up y, si se devuelve todo lo pendiente,
+/// el resto exacto (la suma de devoluciones de una línea nunca pasa de su total).
+int refundLineAmount(SaleLineItem l, int qtyMilli) => qtyMilli >= l.pendingMilli
+    ? l.totalMinor - l.refundedMinor
+    : halfUp(l.totalMinor, qtyMilli, l.qtyMilli);
+
+RefundPreview refundPreview(SaleItem sale, Map<String, int> qtyByLine) {
+  var total = 0;
+  for (final l in sale.lines) {
+    final q = qtyByLine[l.id] ?? 0;
+    if (q <= 0) continue;
+    total += refundLineAmount(l, q);
+  }
+  // Lo ya devuelto antes salió también del último medio hacia atrás.
+  var already = sale.lines.fold(0, (a, l) => a + l.refundedMinor);
+  var rest = total;
+  final byRail = <String, int>{};
+  for (final t in sale.tenders.reversed) {
+    if (t.status != 'CAPTURED') continue;
+    final usedBefore = already < t.amountMinor ? already : t.amountMinor;
+    already -= usedBefore;
+    final free = t.amountMinor - usedBefore;
+    final take = rest < free ? rest : free;
+    if (take <= 0) continue;
+    byRail[t.rail] = (byRail[t.rail] ?? 0) + take;
+    rest -= take;
+  }
+  return RefundPreview(total, byRail);
 }

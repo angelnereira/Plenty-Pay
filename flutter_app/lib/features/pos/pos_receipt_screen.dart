@@ -10,6 +10,7 @@ import '../../core/widgets/status_chip.dart';
 import '../catalog/catalog_data.dart';
 import '../wallet/wallet_data.dart' show walletDateTime;
 import 'pos_data.dart';
+import 'pos_refund_screen.dart';
 
 /// S-POS-05 · `/pos/receipt/:id` · Recibo. `pos:sell`.
 ///
@@ -17,13 +18,16 @@ import 'pos_data.dart';
 /// descripción, precio unitario, total), subtotal, ITBMS por tasa, exento, total, pagos por medio
 /// y vuelto; e2 "Recibo interno" con su leyenda "Este documento no es una factura fiscal."; e3
 /// "Nueva venta". Imprimir, enviar y la factura electrónica llegan con F24.1 y F13.
-class PosReceiptScreen extends StatelessWidget {
+/// Desde S-POS-07, con `pos:refund`, "Devolver" abre S-POS-08 (F17.9); lo devuelto se muestra
+/// por línea y en total.
+class PosReceiptScreen extends StatefulWidget {
   const PosReceiptScreen(
       {super.key,
       required this.api,
       required this.sale,
       required this.terminalLabel,
-      this.closeReturns = false});
+      this.closeReturns = false,
+      this.canRefund = false});
   final ApiClient api;
   final SaleItem sale;
   final String terminalLabel;
@@ -31,8 +35,32 @@ class PosReceiptScreen extends StatelessWidget {
   /// Al venir del cobro, "Nueva venta" devuelve `true` para vaciar el ticket.
   final bool closeReturns;
 
+  /// La persona tiene `pos:refund`.
+  final bool canRefund;
+
+  @override
+  State<PosReceiptScreen> createState() => _PosReceiptScreenState();
+}
+
+class _PosReceiptScreenState extends State<PosReceiptScreen> {
+  late SaleItem sale = widget.sale;
+
+  @override
+  void didUpdateWidget(PosReceiptScreen old) {
+    super.didUpdateWidget(old);
+    if (old.sale != widget.sale) sale = widget.sale;
+  }
+
+  Future<void> _refund() async {
+    final updated = await Navigator.of(context).push<SaleItem>(
+        MaterialPageRoute(
+            builder: (_) => PosRefundScreen(api: widget.api, sale: sale)));
+    if (updated != null && mounted) setState(() => sale = updated);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final terminalLabel = widget.terminalLabel;
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).toString();
@@ -102,6 +130,12 @@ class PosReceiptScreen extends StatelessWidget {
                                   MoneyText(l.totalMinor),
                                 ]),
                           ),
+                        for (final l
+                            in sale.lines.where((l) => l.refundedMilli > 0))
+                          Text(
+                              '${l.description} · ${l10n.posRefundedLine(formatQty(l.refundedMilli, 'UNIT'), MoneyText.format(l.refundedMinor))}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant)),
                         const Divider(height: AppTokens.spacingLg),
                         row(l10n.posSubtotal, sale.subtotalMinor),
                         for (final r in rates)
@@ -121,6 +155,9 @@ class PosReceiptScreen extends StatelessWidget {
                               t.amountMinor),
                         if (sale.changeMinor > 0)
                           row(l10n.posChange(''), sale.changeMinor),
+                        if (sale.refundedMinor > 0)
+                          row(l10n.posRefunded, sale.refundedMinor,
+                              strong: true),
                         const SizedBox(height: AppTokens.spacingMd),
                         Text(l10n.posNotFiscal,
                             textAlign: TextAlign.center,
@@ -131,10 +168,12 @@ class PosReceiptScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppTokens.spacingLg),
-          if (closeReturns)
+          if (widget.closeReturns)
             PPButton.primary(
                 label: l10n.posNewSale,
                 onPressed: () => Navigator.of(context).pop(true)),
+          if (widget.canRefund && sale.isRefundable)
+            PPButton.secondary(label: l10n.posRefund, onPressed: _refund),
         ],
       ),
     );

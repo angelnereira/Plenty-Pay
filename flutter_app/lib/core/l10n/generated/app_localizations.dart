@@ -8336,6 +8336,168 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Para controlar lotes, el producto debe llevar inventario.'**
   String get error_LOTS_REQUIRE_INVENTORY;
+
+  /// No description provided for @saleStatus_PARTIALLY_REFUNDED.
+  ///
+  /// In es, this message translates to:
+  /// **'Devuelta parcial'**
+  String get saleStatus_PARTIALLY_REFUNDED;
+
+  /// No description provided for @saleStatus_REFUNDED.
+  ///
+  /// In es, this message translates to:
+  /// **'Devuelta'**
+  String get saleStatus_REFUNDED;
+
+  /// No description provided for @posRefund.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolver'**
+  String get posRefund;
+
+  /// No description provided for @posRefundTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolución'**
+  String get posRefundTitle;
+
+  /// No description provided for @posRefundSoldRefunded.
+  ///
+  /// In es, this message translates to:
+  /// **'Vendido {sold} · ya devuelto {refunded}'**
+  String posRefundSoldRefunded(String sold, String refunded);
+
+  /// No description provided for @posRefundQty.
+  ///
+  /// In es, this message translates to:
+  /// **'A devolver'**
+  String get posRefundQty;
+
+  /// No description provided for @posRefundLess.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolver uno menos de {product}'**
+  String posRefundLess(String product);
+
+  /// No description provided for @posRefundMore.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolver uno más de {product}'**
+  String posRefundMore(String product);
+
+  /// No description provided for @posRefundReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo'**
+  String get posRefundReason;
+
+  /// No description provided for @posRefundReason_DEFECTIVE.
+  ///
+  /// In es, this message translates to:
+  /// **'Defectuoso'**
+  String get posRefundReason_DEFECTIVE;
+
+  /// No description provided for @posRefundReason_EXCHANGE.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambio'**
+  String get posRefundReason_EXCHANGE;
+
+  /// No description provided for @posRefundReason_BILLING_ERROR.
+  ///
+  /// In es, this message translates to:
+  /// **'Error de cobro'**
+  String get posRefundReason_BILLING_ERROR;
+
+  /// No description provided for @posRefundReason_WARRANTY.
+  ///
+  /// In es, this message translates to:
+  /// **'Garantía'**
+  String get posRefundReason_WARRANTY;
+
+  /// No description provided for @posRefundReason_OTHER.
+  ///
+  /// In es, this message translates to:
+  /// **'Otro'**
+  String get posRefundReason_OTHER;
+
+  /// No description provided for @posRefundRestock.
+  ///
+  /// In es, this message translates to:
+  /// **'Regresa al inventario'**
+  String get posRefundRestock;
+
+  /// No description provided for @posRefundRestockHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Apágalo si el producto no se puede volver a vender.'**
+  String get posRefundRestockHint;
+
+  /// No description provided for @posRefundByRail.
+  ///
+  /// In es, this message translates to:
+  /// **'Por el mismo medio: {method} {amount}'**
+  String posRefundByRail(String method, String amount);
+
+  /// No description provided for @posRefundTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolución'**
+  String get posRefundTotal;
+
+  /// No description provided for @posRefundTax.
+  ///
+  /// In es, this message translates to:
+  /// **'ITBMS'**
+  String get posRefundTax;
+
+  /// No description provided for @posRefundCreditNotePending.
+  ///
+  /// In es, this message translates to:
+  /// **'La nota de crédito electrónica llega con la facturación desde la venta.'**
+  String get posRefundCreditNotePending;
+
+  /// No description provided for @posRefundSubmit.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolver {amount}'**
+  String posRefundSubmit(String amount);
+
+  /// No description provided for @posRefundPickLines.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige qué productos se devuelven.'**
+  String get posRefundPickLines;
+
+  /// No description provided for @posRefundDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolución registrada: {amount}.'**
+  String posRefundDone(String amount);
+
+  /// No description provided for @posRefunded.
+  ///
+  /// In es, this message translates to:
+  /// **'Devuelto'**
+  String get posRefunded;
+
+  /// No description provided for @posRefundedLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Devuelto {qty}: {amount}'**
+  String posRefundedLine(String qty, String amount);
+
+  /// No description provided for @stepUpOpPosRefund.
+  ///
+  /// In es, this message translates to:
+  /// **'Devolución en caja'**
+  String get stepUpOpPosRefund;
+
+  /// No description provided for @error_EXCEEDS_SOLD_QTY.
+  ///
+  /// In es, this message translates to:
+  /// **'No puedes devolver más de lo vendido.'**
+  String get error_EXCEEDS_SOLD_QTY;
 }
 
 class _AppLocalizationsDelegate
