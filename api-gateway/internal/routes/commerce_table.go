@@ -219,6 +219,15 @@ var commerceRoutes = []Route{
 		NewRequest:  func() proto.Message { return &pb.ListMovementsRequest{} },
 		NewResponse: func() proto.Message { return &pb.ListMovementsResponse{} },
 	},
+	{
+		// F16.4 (R5): lotes de un producto con vencimiento y existencia.
+		Method: "GET", Path: "/v1/inventory/lots", RPC: "/plentypay.inventory.v1.Inventory/ListLots",
+		Backend: BackendInventory, RequireAuth: true, Permission: "inventory:read",
+		QueryParams: map[string]string{"product_id": "product_id", "warehouse_id": "warehouse_id",
+			"include_empty": "include_empty"},
+		NewRequest:  func() proto.Message { return &pb.ListLotsRequest{} },
+		NewResponse: func() proto.Message { return &pb.ListLotsResponse{} },
+	},
 
 	// ── pos ───────────────────────────────────────────────────────────────────────────────
 	{
