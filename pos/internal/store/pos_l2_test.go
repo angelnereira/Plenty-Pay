@@ -342,6 +342,10 @@ func TestR8_VoidBeforePaymentOnly(t *testing.T) {
 	if v, err := w.svc.VoidSale(ctx, a, open1.ID, "error de digitación"); err != nil || v.Status != domain.Voided {
 		t.Fatalf("%v %+v", err, v.Status)
 	}
+	// El motivo queda guardado para auditoría (defecto encontrado en el L4 de F17.4: se validaba y no se guardaba).
+	if got, err := w.svc.GetSale(ctx, a, open1.ID); err != nil || got.VoidReason != "error de digitación" {
+		t.Fatalf("motivo de anulación no guardado: %q %v", got.VoidReason, err)
+	}
 	paid := openSale(t, w, a, "CAJA-08", service.LineInput{ProductID: w.pan, QtyMilli: 1000})
 	if _, err := w.svc.Checkout(ctx, a, paid.ID, []domain.Tender{{Rail: domain.RailCash, AmountMinor: 425}}); err != nil {
 		t.Fatal(err)

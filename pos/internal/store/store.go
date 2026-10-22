@@ -226,14 +226,14 @@ func (s *Store) AddCashMovement(ctx context.Context, tenantID string, m domain.C
 
 const saleCols = `id, tenant_id, session_id, cashier_id, status, lines, tenders, subtotal_minor, tax_minor,
 	total_minor, change_minor, currency, coalesce(receipt_number, 0), client_sale_id, needs_review, created_at,
-	updated_at, coalesce(paid_at, 'epoch'::timestamptz), version, park_label, coalesce(parked_at, 'epoch'::timestamptz)`
+	updated_at, coalesce(paid_at, 'epoch'::timestamptz), version, park_label, coalesce(parked_at, 'epoch'::timestamptz), void_reason`
 
 func scanSale(row pgx.Row) (domain.Sale, error) {
 	var sl domain.Sale
 	var lines, tenders []byte
 	err := row.Scan(&sl.ID, &sl.TenantID, &sl.SessionID, &sl.CashierID, &sl.Status, &lines, &tenders,
 		&sl.SubtotalMinor, &sl.TaxMinor, &sl.TotalMinor, &sl.ChangeMinor, &sl.Currency, &sl.ReceiptNumber,
-		&sl.ClientSaleID, &sl.NeedsReview, &sl.CreatedAt, &sl.UpdatedAt, &sl.PaidAt, &sl.Version, &sl.ParkLabel, &sl.ParkedAt)
+		&sl.ClientSaleID, &sl.NeedsReview, &sl.CreatedAt, &sl.UpdatedAt, &sl.PaidAt, &sl.Version, &sl.ParkLabel, &sl.ParkedAt, &sl.VoidReason)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return sl, domain.ErrNotFound
 	}
@@ -414,9 +414,9 @@ func saveSale(ctx context.Context, tx pgx.Tx, sl domain.Sale, mutate func(*domai
 	}
 	if _, err := tx.Exec(ctx, `UPDATE sales SET status=$2, lines=$3, tenders=$4, subtotal_minor=$5, tax_minor=$6,
 		total_minor=$7, change_minor=$8, receipt_number=$9, needs_review=$10, updated_at=$11, paid_at=$12, version=$13,
-		park_label=$14, parked_at=$15
+		park_label=$14, parked_at=$15, void_reason=$16
 		WHERE id = $1`, sl.ID, sl.Status, string(lines), string(tenders), sl.SubtotalMinor, sl.TaxMinor, sl.TotalMinor,
-		sl.ChangeMinor, receipt, sl.NeedsReview, sl.UpdatedAt, paidAt, sl.Version, sl.ParkLabel, parkedAt); err != nil {
+		sl.ChangeMinor, receipt, sl.NeedsReview, sl.UpdatedAt, paidAt, sl.Version, sl.ParkLabel, parkedAt, sl.VoidReason); err != nil {
 		return sl, fmt.Errorf("update sale: %w", err)
 	}
 	return sl, nil

@@ -147,6 +147,7 @@ type Sale struct {
 	PaidAt        time.Time
 	Version       int32
 	ParkLabel     string    // nota del cajero al estacionar
+	VoidReason    string    // motivo obligatorio de la anulación (R8), auditable
 	ParkedAt      time.Time // última vez que se estacionó; cero si nunca
 }
 
@@ -280,7 +281,7 @@ func (s *Sale) Void(reason string) error {
 			return ErrHasCaptured
 		}
 	}
-	s.Status = Voided
+	s.Status, s.VoidReason = Voided, strings.TrimSpace(reason)
 	return nil
 }
 

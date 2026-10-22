@@ -132,8 +132,9 @@ func TestR8_VoidOnlyBeforeElectronicCapture(t *testing.T) {
 		t.Fatal("una venta pagada se devuelve, no se anula")
 	}
 	pending := saleOf(t, priced(t, 1000, 1000, 700))
-	if err := pending.Void("error de digitación"); err != nil || pending.Status != Voided {
-		t.Fatal(err)
+	if err := pending.Void("  error de digitación "); err != nil || pending.Status != Voided ||
+		pending.VoidReason != "error de digitación" {
+		t.Fatal(err, pending.VoidReason)
 	}
 }
 

@@ -5,13 +5,13 @@ Entrada para retomar el trabajo sin reconstruir el contexto. **No es un diario**
 _Última actualización: 2026-10-21, al cerrar F17.4._
 
 ## 1. Estado verificado
-- Versión publicada: `v0.6.0`; en `main` hay trabajo posterior sin release hasta que se publique la siguiente (ver `git log`).
+- Versión publicada: ver el último tag (`git ls-remote --tags origin | tail -1`); F17.4 salió en `v0.7.0`.
 - En producción (`docker compose ps`): identity, api-gateway, ledger, payments-core, settlement, fiscal-invoicing, catalog, inventory, pos, orders, security, infra-management, web. Rieles de pago externos y PAC en **sandbox/simulador**.
 - Sin servidor: logistics, notifications, geolocation, payroll, analytics-bi. Sus módulos abren «Disponible próximamente» (`ModuleDef.live`).
 - Punto de partida y discrepancias: [auditoría del 2026-10-21](../audits/2026-10-21-comercio-estado-real.md).
 
 ## 2. Último paso cerrado
-**F17.4 · Estacionar y retomar ventas** (✅ L1, L2 14/14, L4 de humo en producción; falta L4 en el Pixel 8 Pro).
+**F17.4 · Estacionar y retomar ventas** (✅ L1, L2 14/14, L4 de humo en producción y en el Pixel 8 Pro). El L4 destapó que el motivo de anulación no se guardaba: corregido.
 - Contrato: `Sale.park_label = 25`, `Sale.parked_at = 26` (`network-contracts/proto/pos.proto`).
 - Migraciones aplicadas en producción: `pos/migrations/0002_park` (2026-10-21, respaldo `~/plentypay-backups/pos-before-0002-*.sql.gz`); `inventory/migrations/0003_purchasing` (2026-10-21).
 - Regla: `pos/SPEC.md` §5 R13.
@@ -53,5 +53,5 @@ Q-02/Q-03 (rieles y tarjetas), Q-11 (PAC en producción), Q-21 (propinas → F17
 ## 7. Riesgos conocidos
 - **Pruebas de humo en producción**: no hagas acciones que cierren o cobren si un paso previo falló. El 2026-10-21 un guion sin producto activo cerró dos sesiones de caja de la cuenta demo (ver `status.md` F17.4). Usa guiones con `set -e` y comprueba el estado antes de cada acción irreversible.
 - El catálogo de la cuenta demo no tiene productos activos: crea uno de prueba y archívalo al terminar.
-- El Pixel 8 Pro está desconectado y quedó con la rotación bloqueada en vertical: al reconectarlo, `adb shell settings put system accelerometer_rotation 1`.
+- Pixel 8 Pro (`41191FDJG002UT`): la app de producción tiene abierta la cuenta personal del dueño; para pruebas usa la app de depuración `app.plentypay.pay.debug` (`flutter build apk --debug`, `adb reverse tcp:8080 tcp:8080`), con su propia sesión. Escribe credenciales con `adb shell input text` sin volcar la pantalla mientras el campo de contraseña tenga foco; si una notificación del sistema aparece en el volcado, ciérrala (`adb shell cmd statusbar collapse`) y no registres su contenido.
 - No reiniciar el contenedor `tunnel` sin necesidad (AGENTS §3.1).

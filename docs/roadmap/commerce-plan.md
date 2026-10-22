@@ -105,7 +105,7 @@ F16.5 y F16.6 están ✅ (v0.6.0). Máquina de estados de la orden: `domain-mode
 1 **F17.4** (cierre: ventas ✅ L2; falta estacionar/retomar).
 2 El cajero aparta una venta en curso, atiende a otro cliente y la retoma después sin perder líneas.
 3 En la fila del supermercado un cliente olvida algo; sin estacionar, el cajero anula y vuelve a escanear todo.
-4 ✅ 2026-10-21 (L1, L2, L4 de humo); falta L4 en dispositivo.
+4 ✅ 2026-10-21 (L1, L2, L4 de humo y en el Pixel 8 Pro).
 5 Incluye: `ParkSale` (OPEN → PARKED, nota opcional ≤ 60 caracteres), `ResumeSale` (PARKED → OPEN), lista de estacionadas de la sesión (`ListSales` con `status=PARKED` y `session_id`), anular una estacionada (`VoidSale` existente, motivo obligatorio), cierre de caja bloqueado si hay estacionadas (`SALES_PENDING`), cobro prohibido desde PARKED (corrige auditoría D3).
 6 Excluye: reservar existencias al estacionar (**decisión**: una venta de caja no reserva; las existencias se descuentan al pagar con `stock_tasks`, así que estacionar no toca inventory y no hay doble reserva); caducidad automática (Q-46); pasar una estacionada a otra caja o cajero (Q-51).
 7 Depende de F17.3 ✅ (sesiones) y del resto de F17.4 ✅.
