@@ -277,6 +277,21 @@ var commerceRoutes = []Route{
 		NewResponse: func() proto.Message { return &pb.Sale{} },
 	},
 	{
+		// F17.4: estacionar es una transición por estado (repetirla devuelve la venta sin cambios).
+		Method: "POST", Path: "/v1/pos/sales/{sale_id}/park", RPC: "/plentypay.pos.v1.Pos/ParkSale",
+		Backend: BackendPos, RequireAuth: true, Permission: "pos:sell",
+		PathParams:  map[string]string{"sale_id": "sale_id"},
+		NewRequest:  func() proto.Message { return &pb.ParkSaleRequest{} },
+		NewResponse: func() proto.Message { return &pb.Sale{} },
+	},
+	{
+		Method: "POST", Path: "/v1/pos/sales/{sale_id}/resume", RPC: "/plentypay.pos.v1.Pos/ResumeSale",
+		Backend: BackendPos, RequireAuth: true, Permission: "pos:sell",
+		PathParams:  map[string]string{"sale_id": "sale_id"},
+		NewRequest:  func() proto.Message { return &pb.ResumeSaleRequest{} },
+		NewResponse: func() proto.Message { return &pb.Sale{} },
+	},
+	{
 		Method: "POST", Path: "/v1/pos/sales/{sale_id}/void", RPC: "/plentypay.pos.v1.Pos/VoidSale",
 		Backend: BackendPos, RequireAuth: true, Idempotency: true, Permission: "pos:void",
 		PathParams:  map[string]string{"sale_id": "sale_id"},
