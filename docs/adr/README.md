@@ -26,3 +26,4 @@ Una decisión = un archivo `NNNN-titulo.md` (plantilla: `docs/templates/ADR-TEMP
 | [0020](0020-webauthn-autenticacion-fuerte.md) | WebAuthn y PIN verificado en el servidor como únicas confirmaciones fuertes | Aceptada |
 | [0021](0021-subida-de-imagenes-por-el-gateway.md) | Subida de imágenes del catálogo a través del gateway | Aceptada |
 | [0022](0022-pac-seleccionable-hka.md) | PAC seleccionable y desacoplado; The Factory HKA como primer proveedor | Aceptada |
+| [0023](0023-pos-consume-confirmacion-fuerte.md) | pos consume la confirmación fuerte de sus devoluciones en identity | Aceptada |
