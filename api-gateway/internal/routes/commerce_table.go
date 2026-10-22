@@ -301,6 +301,14 @@ var commerceRoutes = []Route{
 		NewResponse: func() proto.Message { return &pb.Sale{} },
 	},
 	{
+		// F17.9 · S-POS-08: devolución con confirmación fuerte (pos.sale.void, ADR 0023).
+		Method: "POST", Path: "/v1/pos/sales/{sale_id}/refund", RPC: "/plentypay.pos.v1.Pos/RefundSale",
+		Backend: BackendPos, RequireAuth: true, Idempotency: true, StepUp: true, Permission: "pos:refund",
+		PathParams:  map[string]string{"sale_id": "sale_id"},
+		NewRequest:  func() proto.Message { return &pb.RefundSaleRequest{} },
+		NewResponse: func() proto.Message { return &pb.Sale{} },
+	},
+	{
 		Method: "POST", Path: "/v1/pos/sales/{sale_id}/void", RPC: "/plentypay.pos.v1.Pos/VoidSale",
 		Backend: BackendPos, RequireAuth: true, Idempotency: true, Permission: "pos:void",
 		PathParams:  map[string]string{"sale_id": "sale_id"},
