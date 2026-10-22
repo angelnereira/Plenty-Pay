@@ -16,6 +16,8 @@ service Inventory {
   rpc AdjustStock(AdjustStockRequest) returns (StockMovement);
   rpc TransferStock(TransferStockRequest) returns (TransferStockResponse);
   rpc ListMovements(ListMovementsRequest) returns (ListMovementsResponse);
+  // F16.4 (R5): lotes de un producto con su vencimiento y su existencia.
+  rpc ListLots(ListLotsRequest) returns (ListLotsResponse);
 
   // Reservas: protegen el stock entre "agregar al carrito" y "pago confirmado"
   rpc ReserveStock(ReserveStockRequest) returns (Reservation);      // todo o nada, idempotente
@@ -71,6 +73,8 @@ message StockMovement {
   string lot_id = 8;
   google.protobuf.Timestamp occurred_at = 9;
   string actor_user_id = 10;
+  string lot_code = 11;                          // F16.4: código del lote del movimiento
+  google.protobuf.Timestamp lot_expires_at = 12; // vencimiento del lote (00:00 del día, America/Panama)
 }
 message AdjustStockRequest {
   string idempotency_key = 1;
@@ -81,11 +85,28 @@ message AdjustStockRequest {
   string reason = 6;              // obligatorio para ADJUSTMENT y WRITE_OFF
   string lot_id = 7;
   plentypay.common.v1.Reference reference = 8; // qué lo causó (p. ej. {sale, <id>}); lo fijan pos/orders
+  string lot_code = 9;                          // F16.4: entrada → lote (se crea si no existe); salida → ese lote; vacío en salida = FEFO
+  google.protobuf.Timestamp lot_expires_at = 10; // vencimiento al crear el lote en una entrada
 }
-message TransferStockRequest { string idempotency_key = 1; string product_id = 2; string from_warehouse_id = 3; string to_warehouse_id = 4; int64 quantity_milli = 5; string reason = 6; }
+message TransferStockRequest { string idempotency_key = 1; string product_id = 2; string from_warehouse_id = 3; string to_warehouse_id = 4; int64 quantity_milli = 5; string reason = 6;
+  string lot_code = 7; // F16.4: vacío = FEFO; el destino recibe los mismos lotes
+}
 message TransferStockResponse { StockMovement out = 1; StockMovement in = 2; }
 message ListMovementsRequest { string product_id = 1; string warehouse_id = 2; plentypay.common.v1.TimeRange range = 3; plentypay.common.v1.PageRequest page = 4; }
 message ListMovementsResponse { repeated StockMovement movements = 1; plentypay.common.v1.PageInfo page = 2; }
+
+// F16.4 (R5): un lote de un producto en una bodega.
+message Lot {
+  string lot_id = 1;
+  string product_id = 2;
+  string warehouse_id = 3;
+  string code = 4;
+  google.protobuf.Timestamp expires_at = 5;  // vacío = sin vencimiento
+  int64 on_hand_milli = 6;
+  bool expired = 7;                          // vence antes de hoy (America/Panama)
+}
+message ListLotsRequest { string product_id = 1; string warehouse_id = 2; bool include_empty = 3; }
+message ListLotsResponse { repeated Lot lots = 1; }
 
 message ReservationLine { string product_id = 1; int64 quantity_milli = 2; }
 enum ReservationStatus {

@@ -60,6 +60,7 @@ message Product {
   int32 version = 18;                       // bloqueo optimista
   bool tax_exempt = 19;                     // exento de ITBMS declarado (tax_rate_bps = 0); el impuesto nunca se asume (N-FIS-01)
   bool listed_in_marketplace = 20;          // solo lectura: publicado en el marketplace; se cambia con SetListing (R4)
+  bool tracks_lots = 21;                    // F16.4: las entradas exigen lote y vencimiento (requiere tracks_inventory)
 }
 message CreateProductRequest { Product product = 1; string idempotency_key = 2; }
 message UpdateProductRequest { Product product = 1; repeated string update_mask = 2; 

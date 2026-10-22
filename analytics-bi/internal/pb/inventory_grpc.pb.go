@@ -26,6 +26,7 @@ const (
 	Inventory_AdjustStock_FullMethodName               = "/plentypay.inventory.v1.Inventory/AdjustStock"
 	Inventory_TransferStock_FullMethodName             = "/plentypay.inventory.v1.Inventory/TransferStock"
 	Inventory_ListMovements_FullMethodName             = "/plentypay.inventory.v1.Inventory/ListMovements"
+	Inventory_ListLots_FullMethodName                  = "/plentypay.inventory.v1.Inventory/ListLots"
 	Inventory_ReserveStock_FullMethodName              = "/plentypay.inventory.v1.Inventory/ReserveStock"
 	Inventory_CommitReservation_FullMethodName         = "/plentypay.inventory.v1.Inventory/CommitReservation"
 	Inventory_ReleaseReservation_FullMethodName        = "/plentypay.inventory.v1.Inventory/ReleaseReservation"
@@ -51,6 +52,8 @@ type InventoryClient interface {
 	AdjustStock(ctx context.Context, in *AdjustStockRequest, opts ...grpc.CallOption) (*StockMovement, error)
 	TransferStock(ctx context.Context, in *TransferStockRequest, opts ...grpc.CallOption) (*TransferStockResponse, error)
 	ListMovements(ctx context.Context, in *ListMovementsRequest, opts ...grpc.CallOption) (*ListMovementsResponse, error)
+	// F16.4 (R5): lotes de un producto con su vencimiento y su existencia.
+	ListLots(ctx context.Context, in *ListLotsRequest, opts ...grpc.CallOption) (*ListLotsResponse, error)
 	// Reservas: protegen el stock entre "agregar al carrito" y "pago confirmado"
 	ReserveStock(ctx context.Context, in *ReserveStockRequest, opts ...grpc.CallOption) (*Reservation, error)
 	CommitReservation(ctx context.Context, in *CommitReservationRequest, opts ...grpc.CallOption) (*Reservation, error)
@@ -136,6 +139,16 @@ func (c *inventoryClient) ListMovements(ctx context.Context, in *ListMovementsRe
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListMovementsResponse)
 	err := c.cc.Invoke(ctx, Inventory_ListMovements_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *inventoryClient) ListLots(ctx context.Context, in *ListLotsRequest, opts ...grpc.CallOption) (*ListLotsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListLotsResponse)
+	err := c.cc.Invoke(ctx, Inventory_ListLots_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -255,6 +268,8 @@ type InventoryServer interface {
 	AdjustStock(context.Context, *AdjustStockRequest) (*StockMovement, error)
 	TransferStock(context.Context, *TransferStockRequest) (*TransferStockResponse, error)
 	ListMovements(context.Context, *ListMovementsRequest) (*ListMovementsResponse, error)
+	// F16.4 (R5): lotes de un producto con su vencimiento y su existencia.
+	ListLots(context.Context, *ListLotsRequest) (*ListLotsResponse, error)
 	// Reservas: protegen el stock entre "agregar al carrito" y "pago confirmado"
 	ReserveStock(context.Context, *ReserveStockRequest) (*Reservation, error)
 	CommitReservation(context.Context, *CommitReservationRequest) (*Reservation, error)
@@ -296,6 +311,9 @@ func (UnimplementedInventoryServer) TransferStock(context.Context, *TransferStoc
 }
 func (UnimplementedInventoryServer) ListMovements(context.Context, *ListMovementsRequest) (*ListMovementsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListMovements not implemented")
+}
+func (UnimplementedInventoryServer) ListLots(context.Context, *ListLotsRequest) (*ListLotsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListLots not implemented")
 }
 func (UnimplementedInventoryServer) ReserveStock(context.Context, *ReserveStockRequest) (*Reservation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReserveStock not implemented")
@@ -470,6 +488,24 @@ func _Inventory_ListMovements_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(InventoryServer).ListMovements(ctx, req.(*ListMovementsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Inventory_ListLots_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListLotsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InventoryServer).ListLots(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Inventory_ListLots_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InventoryServer).ListLots(ctx, req.(*ListLotsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -688,6 +724,10 @@ var Inventory_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListMovements",
 			Handler:    _Inventory_ListMovements_Handler,
+		},
+		{
+			MethodName: "ListLots",
+			Handler:    _Inventory_ListLots_Handler,
 		},
 		{
 			MethodName: "ReserveStock",
