@@ -2,7 +2,7 @@
 
 Entrada para retomar el trabajo sin reconstruir el contexto. **No es un diario**: se reescribe al cerrar cada paso. Las reglas viven en [`AGENTS.md`](../../AGENTS.md); el estado con evidencia, en [`status.md`](status.md); las fichas de los pasos comerciales, en [`commerce-plan.md`](commerce-plan.md).
 
-_Última actualización: 2026-10-21, al cerrar F17.4._
+_Última actualización: 2026-10-21, al cerrar F11.10 (transferencias y código personal) y corregir el escáner._
 
 ## 1. Estado verificado
 - Versión publicada: ver el último tag (`git ls-remote --tags origin | tail -1`); F17.4 salió en `v0.7.0`.
@@ -15,6 +15,11 @@ _Última actualización: 2026-10-21, al cerrar F17.4._
 - Contrato: `Sale.park_label = 25`, `Sale.parked_at = 26` (`network-contracts/proto/pos.proto`).
 - Migraciones aplicadas en producción: `pos/migrations/0002_park` (2026-10-21, respaldo `~/plentypay-backups/pos-before-0002-*.sql.gz`); `inventory/migrations/0003_purchasing` (2026-10-21).
 - Regla: `pos/SPEC.md` §5 R13.
+
+## 2.1 También cerrado el 2026-10-21
+- **F11.10 · Transferencias entre personas y código personal para recibir** (✅ L2 40/40, L4 en producción y en el Pixel). Migración `payments-core/migrations/0004_receive_codes.sql` aplicada (respaldo `~/plentypay-backups/payments-before-0004-*.sql.gz`). Contrato: `GetMyReceiveCode`, `ReceiveCode`, `PublicTerminalInfo.kind`.
+- **Escáner de códigos de barras** (diálogo de caja, catálogo e inventario) que no se dibujaba: reescrito (`flutter_app/lib/core/widgets/barcode_scanner_dialog.dart`), publicado en v0.7.2.
+- Fechas largas centralizadas en `flutter_app/lib/core/format/dates.dart` («22 de octubre de 2026»); no uses patrones literales como `'d MMMM y'`.
 
 ## 3. Siguiente paso recomendado
 **F16.4 · Lotes y FEFO** ([ficha](commerce-plan.md#f164--lotes-y-fefo)). Predecesores: F16.2 ✅. Alternativa si se prioriza caja: **F17.9 · Devoluciones** ([ficha](commerce-plan.md#f179--devoluciones)) en su parte desbloqueada (efectivo y saldo PlentyPay; depende de F11.6).

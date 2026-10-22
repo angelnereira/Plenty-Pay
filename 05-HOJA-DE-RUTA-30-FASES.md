@@ -233,6 +233,9 @@ Niveles de verificación L0–L5: `docs/standards/testing-strategy.md` §1. Defi
 | F11.7 | Adaptador sandbox genérico + job UNKNOWN | payments-core | Prueba de aceptación 2 | L4 |
 | F11.8 | Webhooks con verificación de firma | payments-core, api-gateway | Duplicados sin efecto; firma inválida 401 | L4 |
 | F11.9 | Pantallas Flutter: billetera, recargar, enviar, cobrar/pagar con QR, detalle y estado 'confirmando', terminales del comercio | flutter_app | integration_test: pago QR wallet de punta a punta | L4 |
+| F11.10 | Transferencias entre personas (T4) y código personal para recibir (QR de S-WAL-04, rota cada 24 h; también identifica a la persona) | payments-core, identity, api-gateway, flutter_app | T4 balanceado, sin auto-transferencia, código vencido o ajeno rechazado, reintento sin duplicar | L4 |
+
+Ficha ejecutable de F11.10 (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §D.
 
 ## F12 — Liquidación y conciliación
 
