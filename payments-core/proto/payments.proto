@@ -37,6 +37,10 @@ service Payments {
   // Asiento de memoria (T8/T9): crédito de la casa y puntos del POS. No mueve dinero de un riel:
   // payments-core pide a ledger el asiento de la plantilla del caso.
   rpc PostMemoEntry(PostMemoEntryRequest) returns (MemoEntry);
+
+  // F11.10: código personal para recibir (QR de S-WAL-04). Opaco, vence a las 24 h; pedirlo con
+  // el vigente a punto de vencer emite uno nuevo. El mismo código identifica a la persona.
+  rpc GetMyReceiveCode(GetMyReceiveCodeRequest) returns (ReceiveCode);
 }
 
 enum PaymentStatus {
@@ -81,7 +85,7 @@ message CreatePaymentIntentRequest {
   plentypay.common.v1.Money amount = 2;
   plentypay.common.v1.PaymentRail rail = 3;
   string payer_party_id = 4;          // quién paga; la identidad verificada del contexto manda
-  string terminal_code = 5;           // si el cobro nace de un QR/tag de terminal
+  string terminal_code = 5;           // código de un enlace /t/: punto de cobro (pago a comercio) o código personal (F11.10: transferencia a esa persona)
   repeated Split splits = 6;          // vacío = todo el monto es del comercio del contexto
   plentypay.common.v1.Reference reference = 7;
   map<string, string> metadata = 8;   // máx. 20 claves, 500 chars; sin datos sensibles
@@ -205,8 +209,17 @@ message ResolveTerminalRequest { string public_code = 1; }
 message PublicTerminalInfo {
   string public_code = 1;
   string label = 2;
-  string merchant_name = 3;
+  string merchant_name = 3;              // comercio, o persona abreviada (nombre + inicial) si kind = PERSON
   bool active = 4;
+  string kind = 5;                       // "TERMINAL" | "PERSON" (F11.10)
+}
+
+message GetMyReceiveCodeRequest {}
+message ReceiveCode {
+  string code = 1;                       // ^[A-Za-z0-9_-]{22}$, lo único que viaja en el QR
+  string link = 2;                       // https://plentypay.app/t/<code>
+  string display_name = 3;               // como lo verá quien envía
+  google.protobuf.Timestamp expires_at = 4;
 }
 
 message FeeLine {

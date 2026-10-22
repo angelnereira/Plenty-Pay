@@ -37,6 +37,7 @@ const (
 	Payments_HandleRailWebhook_FullMethodName     = "/plentypay.payments.v1.Payments/HandleRailWebhook"
 	Payments_ResolveUnknownPayment_FullMethodName = "/plentypay.payments.v1.Payments/ResolveUnknownPayment"
 	Payments_PostMemoEntry_FullMethodName         = "/plentypay.payments.v1.Payments/PostMemoEntry"
+	Payments_GetMyReceiveCode_FullMethodName      = "/plentypay.payments.v1.Payments/GetMyReceiveCode"
 )
 
 // PaymentsClient is the client API for Payments service.
@@ -69,6 +70,9 @@ type PaymentsClient interface {
 	// Asiento de memoria (T8/T9): crédito de la casa y puntos del POS. No mueve dinero de un riel:
 	// payments-core pide a ledger el asiento de la plantilla del caso.
 	PostMemoEntry(ctx context.Context, in *PostMemoEntryRequest, opts ...grpc.CallOption) (*MemoEntry, error)
+	// F11.10: código personal para recibir (QR de S-WAL-04). Opaco, vence a las 24 h; pedirlo con
+	// el vigente a punto de vencer emite uno nuevo. El mismo código identifica a la persona.
+	GetMyReceiveCode(ctx context.Context, in *GetMyReceiveCodeRequest, opts ...grpc.CallOption) (*ReceiveCode, error)
 }
 
 type paymentsClient struct {
@@ -259,6 +263,16 @@ func (c *paymentsClient) PostMemoEntry(ctx context.Context, in *PostMemoEntryReq
 	return out, nil
 }
 
+func (c *paymentsClient) GetMyReceiveCode(ctx context.Context, in *GetMyReceiveCodeRequest, opts ...grpc.CallOption) (*ReceiveCode, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReceiveCode)
+	err := c.cc.Invoke(ctx, Payments_GetMyReceiveCode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PaymentsServer is the server API for Payments service.
 // All implementations must embed UnimplementedPaymentsServer
 // for forward compatibility.
@@ -289,6 +303,9 @@ type PaymentsServer interface {
 	// Asiento de memoria (T8/T9): crédito de la casa y puntos del POS. No mueve dinero de un riel:
 	// payments-core pide a ledger el asiento de la plantilla del caso.
 	PostMemoEntry(context.Context, *PostMemoEntryRequest) (*MemoEntry, error)
+	// F11.10: código personal para recibir (QR de S-WAL-04). Opaco, vence a las 24 h; pedirlo con
+	// el vigente a punto de vencer emite uno nuevo. El mismo código identifica a la persona.
+	GetMyReceiveCode(context.Context, *GetMyReceiveCodeRequest) (*ReceiveCode, error)
 	mustEmbedUnimplementedPaymentsServer()
 }
 
@@ -352,6 +369,9 @@ func (UnimplementedPaymentsServer) ResolveUnknownPayment(context.Context, *Resol
 }
 func (UnimplementedPaymentsServer) PostMemoEntry(context.Context, *PostMemoEntryRequest) (*MemoEntry, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PostMemoEntry not implemented")
+}
+func (UnimplementedPaymentsServer) GetMyReceiveCode(context.Context, *GetMyReceiveCodeRequest) (*ReceiveCode, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMyReceiveCode not implemented")
 }
 func (UnimplementedPaymentsServer) mustEmbedUnimplementedPaymentsServer() {}
 func (UnimplementedPaymentsServer) testEmbeddedByValue()                  {}
@@ -698,6 +718,24 @@ func _Payments_PostMemoEntry_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Payments_GetMyReceiveCode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMyReceiveCodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentsServer).GetMyReceiveCode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Payments_GetMyReceiveCode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentsServer).GetMyReceiveCode(ctx, req.(*GetMyReceiveCodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Payments_ServiceDesc is the grpc.ServiceDesc for Payments service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -776,6 +814,10 @@ var Payments_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PostMemoEntry",
 			Handler:    _Payments_PostMemoEntry_Handler,
+		},
+		{
+			MethodName: "GetMyReceiveCode",
+			Handler:    _Payments_GetMyReceiveCode_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
