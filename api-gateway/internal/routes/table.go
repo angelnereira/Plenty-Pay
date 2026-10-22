@@ -351,8 +351,10 @@ var Table = []Route{
 		NewResponse: func() proto.Message { return &pb.PaymentIntent{} },
 	},
 	{
+		// F11.10: confirma un pago a comercio (wallet:pay) o una transferencia (wallet:transfer);
+		// payments-core exige el permiso exacto según el intent.
 		Method: "POST", Path: "/v1/payments/intents/{payment_intent_id}/confirm", RPC: "/plentypay.payments.v1.Payments/ConfirmPaymentIntent",
-		Backend: BackendPayments, RequireAuth: true, Idempotency: true, Permission: "wallet:pay",
+		Backend: BackendPayments, RequireAuth: true, Idempotency: true, Permission: "wallet:pay|wallet:transfer",
 		PathParams:  map[string]string{"payment_intent_id": "payment_intent_id"},
 		NewRequest:  func() proto.Message { return &pb.ConfirmPaymentIntentRequest{} },
 		NewResponse: func() proto.Message { return &pb.PaymentIntent{} },
@@ -397,6 +399,13 @@ var Table = []Route{
 		PathParams:  map[string]string{"payment_id": "payment_id"},
 		NewRequest:  func() proto.Message { return &pb.GetPaymentRequest{} },
 		NewResponse: func() proto.Message { return &pb.Payment{} },
+	},
+	{
+		// F11.10 · S-WAL-04: código personal para recibir (vence a las 24 h).
+		Method: "GET", Path: "/v1/wallet/receive-code", RPC: "/plentypay.payments.v1.Payments/GetMyReceiveCode",
+		Backend: BackendPayments, RequireAuth: true, Permission: "wallet:read",
+		NewRequest:  func() proto.Message { return &pb.GetMyReceiveCodeRequest{} },
+		NewResponse: func() proto.Message { return &pb.ReceiveCode{} },
 	},
 	{
 		// F3: quien paga ve el nombre VERIFICADO del comercio antes de confirmar (R16).

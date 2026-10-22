@@ -85,8 +85,9 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | POST `/v1/wallet/topups` | payments.CreatePaymentIntent (reference `topup`) | `wallet:topup` |
 | POST `/v1/wallet/transfers` 🔒(≥ umbral) | payments.CreatePaymentIntent (WALLET, reference `transfer`) + Confirm | `wallet:transfer` |
 | GET `/v1/pay-links/{code}` | payments.ResolveTerminal | autenticado |
-| POST `/v1/payments/intents` 🔒(≥ umbral) | CreatePaymentIntent | `wallet:pay` (pagador) o `payments:charge` (comercio) |
-| POST `/v1/payments/intents/{id}/confirm` | ConfirmPaymentIntent | ídem |
+| GET `/v1/wallet/receive-code` | payments.GetMyReceiveCode (F11.10, S-WAL-04) | `wallet:read` |
+| POST `/v1/payments/intents` 🔒(≥ umbral) | CreatePaymentIntent | `wallet:pay` (pagador), `wallet:transfer` (transferencia a un código personal, F11.10) o `payments:charge` (comercio) |
+| POST `/v1/payments/intents/{id}/confirm` | ConfirmPaymentIntent | `wallet:pay` o `wallet:transfer` (payments-core exige el exacto) |
 | POST `/v1/payments/intents/{id}/cancel` | CancelPaymentIntent | ídem |
 | GET `/v1/payments/intents/{id}` | GetPaymentIntent | ídem o `payments:read` |
 | GET `/v1/payments` · `/v1/payments/{id}` | ListPayments · GetPayment | `payments:read` |
