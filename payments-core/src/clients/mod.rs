@@ -236,6 +236,7 @@ impl Clients {
     /// CaptureHold con asiento T3 (`WALLET_PAYMENT`) y clave `pay:<payment_id>` (R9): el ledger
     /// debita la wallet y acredita las piernas en una sola transacción. Devuelve el id del asiento.
     #[tracing::instrument(skip_all, err, fields(pp.payment_id = %payment_id))]
+    #[allow(clippy::too_many_arguments)]
     pub async fn capture_hold(
         &self,
         request_id: &str,
@@ -244,12 +245,14 @@ impl Clients {
         tenant_id: Uuid,
         currency: &str,
         legs: &[Leg],
+        transaction_type: &str,
+        idempotency_key: &str,
     ) -> Result<Uuid, DependencyError> {
         let req = ledger::CaptureHoldRequest {
             hold_id: hold_id.to_string(),
-            idempotency_key: format!("pay:{payment_id}"),
+            idempotency_key: idempotency_key.to_string(),
             tenant_id: tenant_id.to_string(),
-            transaction_type: "WALLET_PAYMENT".into(),
+            transaction_type: transaction_type.into(),
             reference: Some(Reference {
                 r#type: "payment".into(),
                 id: payment_id.to_string(),
@@ -400,6 +403,33 @@ impl Clients {
             cache.insert(tenant_id, (info.clone(), Instant::now()));
         }
         Ok(info)
+    }
+
+    /// F11.10: nombre completo de una persona ACTIVA (None si no existe o está suspendida). Solo
+    /// se usa el nombre; el correo que trae el contrato no se lee ni se guarda (N-DAT-12).
+    #[tracing::instrument(skip_all, err)]
+    pub async fn person_name(
+        &self,
+        request_id: &str,
+        user_id: Uuid,
+    ) -> Result<Option<String>, DependencyError> {
+        let r = self
+            .identity
+            .clone()
+            .get_user_contacts(request(
+                identity::GetUserContactsRequest {
+                    user_ids: vec![user_id.to_string()],
+                },
+                request_id,
+            ))
+            .await
+            .map_err(|s| classify("identity", s))?
+            .into_inner();
+        let id = user_id.to_string();
+        Ok(r.contacts
+            .into_iter()
+            .find(|c| c.user_id == id)
+            .map(|c| c.full_name))
     }
 
     /// R5: consume el token de confirmación fuerte atado a la operación exacta. Devuelve el

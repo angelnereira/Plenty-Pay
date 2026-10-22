@@ -517,16 +517,28 @@ impl Payments for PaymentsService {
         request: Request<pb::ResolveTerminalRequest>,
     ) -> R<pb::PublicTerminalInfo> {
         let a = actor(request.metadata());
-        let (t, name) = self
+        let code = request.get_ref().public_code.clone();
+        let resolved = self
             .core
-            .resolve_terminal(&a, &request.get_ref().public_code)
+            .resolve_pay_code(&a, &code)
             .await
             .map_err(|e| to_status(e, "ResolveTerminal", &a.request_id))?;
-        Ok(Response::new(pb::PublicTerminalInfo {
-            public_code: t.public_code,
-            label: t.label,
-            merchant_name: name,
-            active: t.active,
+        Ok(Response::new(match resolved {
+            crate::service::PayCode::Terminal(t, name) => pb::PublicTerminalInfo {
+                public_code: t.public_code,
+                label: t.label,
+                merchant_name: name,
+                active: t.active,
+                kind: "TERMINAL".into(),
+            },
+            // F11.10: una persona; solo su nombre abreviado, nunca su correo ni su id.
+            crate::service::PayCode::Person(rc) => pb::PublicTerminalInfo {
+                public_code: rc.code,
+                label: String::new(),
+                merchant_name: rc.display_name,
+                active: true,
+                kind: "PERSON".into(),
+            },
         }))
     }
 
@@ -649,6 +661,25 @@ impl Payments for PaymentsService {
 
     async fn post_memo_entry(&self, _: Request<pb::PostMemoEntryRequest>) -> R<pb::MemoEntry> {
         Err(unimplemented("F17"))
+    }
+
+    #[tracing::instrument(skip_all, fields(rpc = "GetMyReceiveCode"))]
+    async fn get_my_receive_code(
+        &self,
+        request: Request<pb::GetMyReceiveCodeRequest>,
+    ) -> R<pb::ReceiveCode> {
+        let a = actor(request.metadata());
+        let rc = self
+            .core
+            .receive_code(&a)
+            .await
+            .map_err(|e| to_status(e, "GetMyReceiveCode", &a.request_id))?;
+        Ok(Response::new(pb::ReceiveCode {
+            link: format!("https://plentypay.app/t/{}", rc.code),
+            code: rc.code,
+            display_name: rc.display_name,
+            expires_at: Some(ts(rc.expires_at)),
+        }))
     }
 }
 

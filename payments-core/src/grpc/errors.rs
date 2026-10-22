@@ -186,6 +186,11 @@ pub fn to_status(err: Error, rpc: &'static str, request_id: &str) -> Status {
             "EVIDENCE_REQUIRED",
             "la resolución necesita evidencia",
         ),
+        Error::SelfTransfer => status(
+            Code::InvalidArgument,
+            "SELF_TRANSFER",
+            "no puedes enviarte dinero a ti mismo",
+        ),
         Error::InvalidLabel => status(
             Code::InvalidArgument,
             "INVALID_LABEL",

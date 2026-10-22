@@ -20,8 +20,8 @@ use crate::pb::ledger::AccountType;
 use crate::rails;
 use crate::store::{
     Capture, ConfirmStart, FeePolicyRow, FrozenFees, IntentRow, NewFeePolicy, NewIntent,
-    PaymentFilter, PaymentRow, PendingPosting, PgPayments, Scope, SplitFees, SplitJson, StoreError,
-    TerminalRow,
+    PaymentFilter, PaymentRow, PendingPosting, PgPayments, ReceiveCodeRow, Scope, SplitFees, SplitJson,
+    StoreError, TerminalRow,
 };
 
 /// Party de la plataforma (domain-model §2): dueña de PLATFORM_FEES y TAX_PAYABLE.
@@ -30,6 +30,34 @@ pub const PLATFORM_PARTY: &str = "00000000-0000-0000-0000-000000000001";
 pub const RAIL_WALLET: i16 = 1;
 /// `common.Reference.type` de una recarga (domain-model §9, R10).
 pub const REF_TOPUP: &str = "topup";
+/// `common.Reference.type` de una transferencia entre personas (R10, T4, F11.10).
+pub const REF_TRANSFER: &str = "transfer";
+/// Vigencia de un código personal para recibir (S-WAL-04: rota cada 24 h).
+pub const RECEIVE_CODE_TTL_HOURS: i64 = 24;
+/// Con menos de esto por delante, pedir el código emite uno nuevo (quien lo muestra no queda con
+/// un QR a punto de vencer).
+pub const RECEIVE_CODE_MIN_LEFT_MINUTES: i64 = 60;
+
+/// Nombre que ve quien envía (N-DAT-12, mínimo necesario): primer nombre e inicial del último
+/// apellido. «Ana María Pérez Gómez» → «Ana G.»; un solo nombre queda igual.
+pub fn short_name(full: &str) -> String {
+    let words: Vec<&str> = full.split_whitespace().collect();
+    let out = match words.as_slice() {
+        [] => String::new(),
+        [only] => (*only).to_string(),
+        [first, .., last] => match last.chars().next() {
+            Some(c) => format!("{first} {}.", c.to_uppercase()),
+            None => (*first).to_string(),
+        },
+    };
+    out.chars().take(80).collect()
+}
+
+/// A quién lleva un código de un enlace `/t/`: un punto de cobro (comercio) o una persona.
+pub enum PayCode {
+    Terminal(TerminalRow, String),
+    Person(ReceiveCodeRow),
+}
 
 fn platform_party() -> Uuid {
     Uuid::from_u128(1)
@@ -158,6 +186,8 @@ pub enum Error {
     InvalidExpiration,
     #[error("invalid label")]
     InvalidLabel,
+    #[error("cannot transfer to yourself")]
+    SelfTransfer,
     #[error("evidence required")]
     EvidenceRequired,
     #[error("payment not captured")]
@@ -306,6 +336,28 @@ pub fn terms(p: &FeePolicyRow) -> Result<FeeTerms, DomainError> {
     };
     t.validate()?;
     Ok(t)
+}
+
+/// Piernas de crédito del asiento T4 (domain-model §5.2): todo a la billetera del destinatario,
+/// sin comisión (R10, política P2P en 0). Σ piernas = monto retenido.
+pub fn transfer_legs(fees: &FrozenFees) -> Result<(Vec<Leg>, i64), DomainError> {
+    let [s] = fees.splits.as_slice() else {
+        return Err(DomainError::SplitsMismatch);
+    };
+    if s.platform_fee_minor != 0 || s.tax_minor != 0 || s.rail_fee_minor != 0 {
+        return Err(DomainError::InvalidFeePolicy);
+    }
+    if s.total_charged_minor <= 0 || s.merchant_net_minor != s.total_charged_minor {
+        return Err(DomainError::SplitsMismatch);
+    }
+    Ok((
+        vec![Leg {
+            party_id: s.merchant_party_id.to_string(),
+            account_type: AccountType::Wallet as i32,
+            amount_minor: s.total_charged_minor,
+        }],
+        s.total_charged_minor,
+    ))
 }
 
 /// Piernas de crédito del asiento T3 (domain-model §5.2): neto a cada comercio, comisión e
@@ -486,6 +538,38 @@ impl PaymentsCore {
         Ok(IntentView { intent, payment })
     }
 
+    /// F11.10: destinatario de una transferencia por su código personal. Solo con saldo
+    /// PlentyPay, sin splits ni referencia propia, con `wallet:transfer`, nunca a uno mismo y a una
+    /// persona activa con un código vigente.
+    async fn transfer_recipient(&self, actor: &Actor, cmd: &CreateIntent) -> Result<Uuid, Error> {
+        let rc = match self.store.receive_code(&cmd.terminal_code).await {
+            Ok(rc) => rc,
+            Err(StoreError::NotFound) => return Err(Error::NotFound),
+            Err(e) => return Err(e.into()),
+        };
+        if rc.expires_at <= Utc::now() {
+            return Err(Error::NotFound);
+        }
+        if !actor.has("wallet:transfer") {
+            return Err(Error::PermissionDenied);
+        }
+        if cmd.rail != RAIL_WALLET || !cmd.reference_type.is_empty() || !cmd.splits.is_empty() {
+            return Err(DomainError::InvalidReference.into());
+        }
+        if rc.user_id == actor.user()? {
+            return Err(Error::SelfTransfer);
+        }
+        if self
+            .clients
+            .person_name(&actor.request_id, rc.user_id)
+            .await?
+            .is_none()
+        {
+            return Err(Error::NotFound);
+        }
+        Ok(rc.user_id)
+    }
+
     // ── CreatePaymentIntent ─────────────────────────────────────────────────────────────────
 
     #[tracing::instrument(skip_all, err, fields(pp.rail = cmd.rail))]
@@ -502,13 +586,30 @@ impl PaymentsCore {
         request::metadata(cmd.metadata.iter().map(|(k, v)| (k.as_str(), v.as_str())))?;
         let is_topup = cmd.reference_type == REF_TOPUP;
         let intent_id = Uuid::now_v7();
-        // R10: la recarga se identifica por su propio intent.
-        let reference_id = if is_topup && cmd.reference_id.is_empty() {
+        // F11.10: un código de enlace /t/ que no es de un punto de cobro puede ser el código
+        // personal de alguien: entonces es una transferencia (R10, T4) a esa persona.
+        let transfer_to = if !is_topup && !cmd.terminal_code.is_empty() {
+            match self.store.terminal_by_code(&cmd.terminal_code).await {
+                Ok(_) => None,
+                Err(StoreError::NotFound) => Some(self.transfer_recipient(actor, &cmd).await?),
+                Err(e) => return Err(e.into()),
+            }
+        } else {
+            None
+        };
+        let is_transfer = transfer_to.is_some();
+        // R10: la recarga y la transferencia se identifican por su propio intent.
+        let reference_type = if is_transfer {
+            REF_TRANSFER.to_string()
+        } else {
+            cmd.reference_type.clone()
+        };
+        let reference_id = if (is_topup && cmd.reference_id.is_empty()) || is_transfer {
             intent_id.to_string()
         } else {
             cmd.reference_id.clone()
         };
-        request::reference(&cmd.reference_type, &reference_id)?;
+        request::reference(&reference_type, &reference_id)?;
         for s in &cmd.splits {
             request::reference(&s.reference_type, &s.reference_id)?;
         }
@@ -534,6 +635,10 @@ impl PaymentsCore {
             if !actor.has("wallet:topup") || !cmd.terminal_code.is_empty() {
                 return Err(Error::PermissionDenied);
             }
+            let user = actor.user()?;
+            (platform_party(), user, Some(user), None)
+        } else if is_transfer {
+            // La persona que envía paga; el dueño contable es la plataforma, como en T1.
             let user = actor.user()?;
             (platform_party(), user, Some(user), None)
         } else if !cmd.terminal_code.is_empty() {
@@ -566,7 +671,14 @@ impl PaymentsCore {
             return Err(Error::PermissionDenied);
         };
 
-        let splits: Vec<SplitJson> = if is_topup {
+        let splits: Vec<SplitJson> = if let Some(to) = transfer_to {
+            vec![SplitJson {
+                merchant_party_id: to,
+                amount_minor: cmd.amount_minor,
+                reference_type: String::new(),
+                reference_id: String::new(),
+            }]
+        } else if is_topup {
             if !cmd.splits.is_empty() {
                 return Err(DomainError::SplitsMismatch.into());
             }
@@ -615,7 +727,9 @@ impl PaymentsCore {
             return self.view(existing).await;
         }
 
-        if !is_topup {
+        // Los splits de un cobro son negocios; el de una transferencia es una persona, ya
+        // verificada como activa en `transfer_recipient`.
+        if !is_topup && !is_transfer {
             for s in &splits {
                 self.require_active(&actor.request_id, s.merchant_party_id)
                     .await?;
@@ -627,7 +741,9 @@ impl PaymentsCore {
         }
         let limits = self.clients.limits(&actor.request_id).await?;
         let now = Utc::now();
-        let fees = self.fees_for(is_topup, cmd.rail, &splits, now).await?;
+        let fees = self
+            .fees_for(is_topup || is_transfer, cmd.rail, &splits, now)
+            .await?;
         let charged = fees
             .splits
             .iter()
@@ -658,7 +774,7 @@ impl PaymentsCore {
                 currency: cmd.currency.clone(),
                 rail: cmd.rail,
                 terminal_id: terminal,
-                reference_type: cmd.reference_type,
+                reference_type,
                 reference_id,
                 metadata: serde_json::to_value(&cmd.metadata).map_err(StoreError::from)?,
                 splits,
@@ -696,8 +812,11 @@ impl PaymentsCore {
             Err(e) => return Err(e.into()),
         };
         let is_topup = intent.reference_type == REF_TOPUP;
+        let is_transfer = intent.reference_type == REF_TRANSFER;
         if !actor.has(if is_topup {
             "wallet:topup"
+        } else if is_transfer {
+            "wallet:transfer"
         } else {
             "wallet:pay"
         }) {
@@ -728,7 +847,19 @@ impl PaymentsCore {
         } else {
             Some(rails::external(intent.rail).ok_or(Error::RailDisabled)?)
         };
-        if !is_topup {
+        if is_transfer {
+            // F11.10: el destinatario sigue activo al confirmar.
+            for s in &intent.splits {
+                if self
+                    .clients
+                    .person_name(&actor.request_id, s.merchant_party_id)
+                    .await?
+                    .is_none()
+                {
+                    return Err(Error::NotFound);
+                }
+            }
+        } else if !is_topup {
             for s in &intent.splits {
                 self.require_active(&actor.request_id, s.merchant_party_id)
                     .await?;
@@ -744,7 +875,7 @@ impl PaymentsCore {
         let limits = self.clients.limits(&actor.request_id).await?;
         let now = Utc::now();
         let fees = self
-            .fees_for(is_topup, intent.rail, &intent.splits, now)
+            .fees_for(is_topup || is_transfer, intent.rail, &intent.splits, now)
             .await?;
         let charged = total_charged(&fees)?;
         if charged > limits.max_payment_minor {
@@ -1015,7 +1146,16 @@ impl PaymentsCore {
             .fees
             .clone()
             .ok_or(StoreError::Corrupt("payment without fees"))?;
-        let (legs, total) = wallet_legs(&fees)?;
+        // F11.10: una transferencia acredita la billetera del destinatario (T4, `p2p:<id>`); un
+        // pago a comercio, su cuenta por pagar y las comisiones (T3, `pay:<id>`).
+        let intent = self.store.intent(&Scope::service(), p.intent_id).await?;
+        let (legs, total, ttype, key) = if intent.reference_type == REF_TRANSFER {
+            let (legs, total) = transfer_legs(&fees)?;
+            (legs, total, "P2P_TRANSFER", format!("p2p:{}", p.id))
+        } else {
+            let (legs, total) = wallet_legs(&fees)?;
+            (legs, total, "WALLET_PAYMENT", format!("pay:{}", p.id))
+        };
         let rail = rail_name(p.rail);
 
         let hold_id = match p.hold_id {
@@ -1045,7 +1185,9 @@ impl PaymentsCore {
 
         let r = self
             .clients
-            .capture_hold(request_id, p.id, hold_id, p.tenant_id, &p.currency, &legs)
+            .capture_hold(
+                request_id, p.id, hold_id, p.tenant_id, &p.currency, &legs, ttype, &key,
+            )
             .await;
         self.count_rail(rail, "capture_hold", &r);
         match r {
@@ -1401,6 +1543,70 @@ impl PaymentsCore {
             return Err(Error::TerminalInactive);
         }
         Ok((t, info.trade_name))
+    }
+
+    /// Resuelve el código de un enlace `/t/`: primero un punto de cobro activo de un negocio
+    /// activo; si no hay, el código personal vigente de una persona (F11.10). Vencido, inexistente
+    /// o de una persona que ya no está activa → NOT_FOUND, sin decir cuál (grpc-conventions §4).
+    pub async fn resolve_pay_code(&self, actor: &Actor, code: &str) -> Result<PayCode, Error> {
+        match self.resolve_terminal(actor, code).await {
+            Ok((t, name)) => return Ok(PayCode::Terminal(t, name)),
+            Err(Error::NotFound) => {}
+            Err(e) => return Err(e),
+        }
+        let rc = match self.store.receive_code(code).await {
+            Ok(rc) => rc,
+            Err(StoreError::NotFound) => return Err(Error::NotFound),
+            Err(e) => return Err(e.into()),
+        };
+        if rc.expires_at <= Utc::now() {
+            return Err(Error::NotFound);
+        }
+        if self
+            .clients
+            .person_name(&actor.request_id, rc.user_id)
+            .await?
+            .is_none()
+        {
+            return Err(Error::NotFound);
+        }
+        Ok(PayCode::Person(rc))
+    }
+
+    /// GetMyReceiveCode (F11.10, S-WAL-04): el código vigente de la persona o uno nuevo de 24 h.
+    #[tracing::instrument(skip_all, err)]
+    pub async fn receive_code(&self, actor: &Actor) -> Result<ReceiveCodeRow, Error> {
+        if !actor.has("wallet:read") {
+            return Err(Error::PermissionDenied);
+        }
+        let user = actor.user()?;
+        let full = self
+            .clients
+            .person_name(&actor.request_id, user)
+            .await?
+            .ok_or(Error::NotFound)?;
+        let mut display = short_name(&full);
+        if display.is_empty() {
+            display = "PlentyPay".into();
+        }
+        let now = Utc::now();
+        let fresh = ReceiveCodeRow {
+            code: new_public_code(),
+            user_id: user,
+            display_name: display,
+            created_at: now,
+            expires_at: now
+                .checked_add_signed(chrono::Duration::hours(RECEIVE_CODE_TTL_HOURS))
+                .ok_or(DomainError::Overflow)?,
+        };
+        Ok(self
+            .store
+            .receive_code_for(
+                user,
+                chrono::Duration::minutes(RECEIVE_CODE_MIN_LEFT_MINUTES),
+                fresh,
+            )
+            .await?)
     }
 
     // ── Comisiones ──────────────────────────────────────────────────────────────────────────

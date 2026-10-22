@@ -75,6 +75,26 @@ pub struct FrozenFees {
     pub splits: Vec<SplitFees>,
 }
 
+/// Código personal para recibir (F11.10).
+#[derive(Debug, Clone)]
+pub struct ReceiveCodeRow {
+    pub code: String,
+    pub user_id: Uuid,
+    pub display_name: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+
+fn receive_code_row(r: &sqlx::postgres::PgRow) -> Result<ReceiveCodeRow, StoreError> {
+    Ok(ReceiveCodeRow {
+        code: r.try_get("code")?,
+        user_id: r.try_get("user_id")?,
+        display_name: r.try_get("display_name")?,
+        created_at: r.try_get("created_at")?,
+        expires_at: r.try_get("expires_at")?,
+    })
+}
+
 #[derive(Debug, Clone)]
 pub struct TerminalRow {
     pub id: Uuid,
@@ -408,6 +428,61 @@ impl PgPayments {
             .ok_or(StoreError::NotFound)?;
         tx.commit().await?;
         terminal_row(&row)
+    }
+
+    // ── Códigos personales para recibir (F11.10) ────────────────────────────────────────────
+
+    /// Devuelve el código vigente de la persona si le queda más de `min_left`; si no, guarda
+    /// `fresh` y lo devuelve. Un bloqueo por persona evita dos códigos por pedidos simultáneos.
+    pub async fn receive_code_for(
+        &self,
+        user_id: Uuid,
+        min_left: chrono::Duration,
+        fresh: ReceiveCodeRow,
+    ) -> Result<ReceiveCodeRow, StoreError> {
+        let mut tx = self.begin(&Scope::service()).await?;
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 11010))")
+            .bind(user_id.to_string())
+            .execute(tx.as_mut())
+            .await?;
+        let current = sqlx::query("SELECT code, user_id, display_name, created_at, expires_at FROM payments.receive_codes WHERE user_id = $1 AND expires_at > $2 ORDER BY expires_at DESC LIMIT 1")
+            .bind(user_id)
+            .bind(
+                fresh
+                    .created_at
+                    .checked_add_signed(min_left)
+                    .ok_or(StoreError::Corrupt("receive code window overflow"))?,
+            )
+            .fetch_optional(tx.as_mut())
+            .await?;
+        let row = match current {
+            Some(r) => receive_code_row(&r)?,
+            None => {
+                sqlx::query("INSERT INTO payments.receive_codes (code, user_id, display_name, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)")
+                    .bind(&fresh.code)
+                    .bind(fresh.user_id)
+                    .bind(&fresh.display_name)
+                    .bind(fresh.created_at)
+                    .bind(fresh.expires_at)
+                    .execute(tx.as_mut())
+                    .await?;
+                fresh
+            }
+        };
+        tx.commit().await?;
+        Ok(row)
+    }
+
+    /// Código personal por su valor (vigente o no: el servicio decide).
+    pub async fn receive_code(&self, code: &str) -> Result<ReceiveCodeRow, StoreError> {
+        let mut tx = self.begin(&Scope::service()).await?;
+        let row = sqlx::query("SELECT code, user_id, display_name, created_at, expires_at FROM payments.receive_codes WHERE code = $1")
+            .bind(code)
+            .fetch_optional(tx.as_mut())
+            .await?
+            .ok_or(StoreError::NotFound)?;
+        tx.commit().await?;
+        receive_code_row(&row)
     }
 
     // ── Políticas de comisión (domain-model §4.1) ───────────────────────────────────────────

@@ -2167,3 +2167,186 @@ async fn f11_6_refund_of_an_uncaptured_payment_is_rejected() {
         .unwrap_err();
     assert_eq!(reason(&err), "NOT_FOUND");
 }
+
+// ── F11.10: transferencias entre personas (R10, T4) y código personal para recibir ──────────
+
+/// Persona registrada de verdad en identity (CUSTOMER): una transferencia exige que el
+/// destinatario exista y esté activo.
+async fn registered(e: &Env, full_name: &str) -> Uuid {
+    let consent = |purpose: &str| pb::identity::ConsentGrant {
+        purpose: purpose.into(),
+        text_version: "l2-v1".into(),
+        granted: true,
+    };
+    let r = e
+        .identity
+        .clone()
+        .register(as_payments(pb::identity::RegisterRequest {
+            email: format!("l2-p2p-{}@example.com", Uuid::new_v4().simple()),
+            password: "L2-Transferencias-2026!".into(),
+            full_name: full_name.into(),
+            role: 4,
+            consents: vec![
+                consent("AGE_CONFIRMATION"),
+                consent("TERMS"),
+                consent("PRIVACY_DATA_PROCESSING"),
+            ],
+            ..Default::default()
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert!(r.success, "registro: {}", r.reason);
+    Uuid::parse_str(&r.user_id).unwrap()
+}
+
+/// Persona con todos los permisos de núcleo de wallet, incluido enviar.
+fn sender<M>(msg: M, user: Uuid) -> Request<M> {
+    with_md(
+        msg,
+        "api-gateway",
+        Some(user),
+        None,
+        "wallet:pay,wallet:read,wallet:transfer",
+    )
+}
+
+async fn my_code(e: &Env, user: Uuid) -> pb::ReceiveCode {
+    e.svc
+        .get_my_receive_code(sender(pb::GetMyReceiveCodeRequest {}, user))
+        .await
+        .unwrap()
+        .into_inner()
+}
+
+/// R10 · T4: A le envía 12.50 a B con el código personal de B. Tres confirmaciones con la misma
+/// clave dejan un solo asiento P2P_TRANSFER; A baja exactamente 12.50 y B sube 12.50, sin
+/// comisión. El código se resuelve como persona con nombre abreviado y se reutiliza mientras esté
+/// vigente.
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn r10_transfer_moves_exact_amount_once_with_t4() {
+    let e = env().await;
+    let a = registered(&e, "Andrés Sánchez").await;
+    let b = registered(&e, "Bárbara Rodríguez Pérez").await;
+    fund(&e, a, 5_000).await;
+
+    let code = my_code(&e, b).await;
+    assert_eq!(code.display_name, "Bárbara P.");
+    assert_eq!(code.link, format!("https://plentypay.app/t/{}", code.code));
+    assert_eq!(my_code(&e, b).await.code, code.code, "vigente: el mismo código");
+
+    let who = e
+        .svc
+        .resolve_terminal(sender(
+            pb::ResolveTerminalRequest {
+                public_code: code.code.clone(),
+            },
+            a,
+        ))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(
+        (who.kind.as_str(), who.merchant_name.as_str()),
+        ("PERSON", "Bárbara P.")
+    );
+
+    let intent = e
+        .svc
+        .create_payment_intent(sender(intent_req(&code.code, 1_250), a))
+        .await
+        .unwrap()
+        .into_inner();
+    let k = key();
+    let mut last = None;
+    for _ in 0..3 {
+        last = Some(
+            e.svc
+                .confirm_payment_intent(sender(
+                    pb::ConfirmPaymentIntentRequest {
+                        payment_intent_id: intent.payment_intent_id.clone(),
+                        idempotency_key: k.clone(),
+                        ..Default::default()
+                    },
+                    a,
+                ))
+                .await
+                .unwrap()
+                .into_inner(),
+        );
+    }
+    let done = last.unwrap();
+    assert_eq!(done.status, CAPTURED);
+    assert_eq!(
+        balance(&e, &a.to_string(), T::Wallet).await.available_minor,
+        3_750
+    );
+    assert_eq!(
+        balance(&e, &b.to_string(), T::Wallet).await.available_minor,
+        1_250
+    );
+    assert_eq!(ledger_txs_for(&e, &done.payment_id).await, 1, "un solo asiento T4");
+}
+
+/// R10: nadie se envía dinero a sí mismo; sin `wallet:transfer` no se envía; un código vencido
+/// ya no resuelve ni sirve para enviar.
+#[tokio::test]
+#[ignore = "L2: test/test_l2.sh"]
+async fn r10_transfer_rejects_self_missing_permission_and_expired_code() {
+    let e = env().await;
+    let a = registered(&e, "Ana López").await;
+    let b = registered(&e, "Beto Díaz").await;
+    fund(&e, a, 5_000).await;
+
+    let own = my_code(&e, a).await;
+    let err = e
+        .svc
+        .create_payment_intent(sender(intent_req(&own.code, 100), a))
+        .await
+        .unwrap_err();
+    assert_eq!(reason(&err), "SELF_TRANSFER");
+
+    let theirs = my_code(&e, b).await;
+    let err = e
+        .svc
+        .create_payment_intent(person(intent_req(&theirs.code, 100), a))
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied, "sin wallet:transfer");
+
+    // Un código de B que ya venció (emitido hace 2 días). Los códigos no se modifican: el rol
+    // del servicio solo puede leerlos e insertarlos.
+    let expired = format!("vencido{}", Uuid::new_v4().simple());
+    let mut tx = e.pool.begin().await.unwrap();
+    sqlx::query("SELECT set_config('app.actor', 'service', true)")
+        .execute(tx.as_mut())
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO payments.receive_codes (code, user_id, display_name, created_at, expires_at) VALUES ($1, $2, 'Beto D.', now() - interval '2 days', now() - interval '1 day')")
+        .bind(&expired)
+        .bind(b)
+        .execute(tx.as_mut())
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+
+    let err = e
+        .svc
+        .create_payment_intent(sender(intent_req(&expired, 100), a))
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::NotFound, "código vencido");
+    let err = e
+        .svc
+        .resolve_terminal(sender(
+            pb::ResolveTerminalRequest {
+                public_code: expired.clone(),
+            },
+            a,
+        ))
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::NotFound);
+    assert_eq!(my_code(&e, b).await.code, theirs.code, "el vigente sigue siendo el mismo");
+}
