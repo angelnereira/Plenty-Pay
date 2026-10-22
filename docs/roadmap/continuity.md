@@ -2,7 +2,7 @@
 
 Entrada para retomar el trabajo sin reconstruir el contexto. **No es un diario**: se reescribe al cerrar cada paso. Las reglas viven en [`AGENTS.md`](../../AGENTS.md); el estado con evidencia, en [`status.md`](status.md); las fichas de los pasos comerciales, en [`commerce-plan.md`](commerce-plan.md).
 
-_Última actualización: 2026-10-21, al cerrar F11.10 (transferencias y código personal) y corregir el escáner._
+_Última actualización: 2026-10-22, al cerrar F16.4 (lotes y FEFO) y F16.8 (lotes en la recepción)._
 
 ## 1. Estado verificado
 - Versión publicada: ver el último tag (`git ls-remote --tags origin | tail -1`); F17.4 salió en `v0.7.0`.
@@ -21,8 +21,12 @@ _Última actualización: 2026-10-21, al cerrar F11.10 (transferencias y código 
 - **Escáner de códigos de barras** (diálogo de caja, catálogo e inventario) que no se dibujaba: reescrito (`flutter_app/lib/core/widgets/barcode_scanner_dialog.dart`), publicado en v0.7.2.
 - Fechas largas centralizadas en `flutter_app/lib/core/format/dates.dart` («22 de octubre de 2026»); no uses patrones literales como `'d MMMM y'`.
 
+## 2.2 Cerrado el 2026-10-22
+- **F16.4 · Lotes y FEFO** y **F16.8 · Lotes en la recepción** (✅ L1, L2 inventory 22/22 y catalog 16/16, L4 por API y en el Pixel). Migraciones aplicadas: `inventory/migrations/0004_lots`, `catalog/migrations/0003_lots` (respaldo `~/plentypay-backups/inventory-catalog-before-lots-*.sql.gz`). Lógica en `inventory/internal/store/lots.go` (`resolveLots`) y `inventory/internal/domain/lots.go`.
+- Fechas de vencimiento: viajan como las 00:00 de ese día en Panamá (`lotDateWire` en la app); `domain.DateOnly` es idempotente.
+
 ## 3. Siguiente paso recomendado
-**F16.4 · Lotes y FEFO** ([ficha](commerce-plan.md#f164--lotes-y-fefo)). Predecesores: F16.2 ✅. Alternativa si se prioriza caja: **F17.9 · Devoluciones** ([ficha](commerce-plan.md#f179--devoluciones)) en su parte desbloqueada (efectivo y saldo PlentyPay; depende de F11.6).
+**F17.9 · Devoluciones** ([ficha](commerce-plan.md#f179--devoluciones)) en su parte desbloqueada (efectivo y saldo PlentyPay; depende de F11.6), o **F16.10 · Existencias bloqueadas y alertas de vencimiento** ([ficha](commerce-plan.md#f1610--existencias-no-vendibles-y-alertas-de-vencimiento)), que ya tiene sus predecesores (F16.4 ✅).
 
 Leer, en este orden:
 1. Ficha del paso en `commerce-plan.md` (25 campos).
@@ -59,4 +63,5 @@ Q-02/Q-03 (rieles y tarjetas), Q-11 (PAC en producción), Q-21 (propinas → F17
 - **Pruebas de humo en producción**: no hagas acciones que cierren o cobren si un paso previo falló. El 2026-10-21 un guion sin producto activo cerró dos sesiones de caja de la cuenta demo (ver `status.md` F17.4). Usa guiones con `set -e` y comprueba el estado antes de cada acción irreversible.
 - El catálogo de la cuenta demo no tiene productos activos: crea uno de prueba y archívalo al terminar.
 - Pixel 8 Pro (`41191FDJG002UT`): la app de producción tiene abierta la cuenta personal del dueño; para pruebas usa la app de depuración `app.plentypay.pay.debug` (`flutter build apk --debug`, `adb reverse tcp:8080 tcp:8080`), con su propia sesión. Escribe credenciales con `adb shell input text` sin volcar la pantalla mientras el campo de contraseña tenga foco; si una notificación del sistema aparece en el volcado, ciérrala (`adb shell cmd statusbar collapse`) y no registres su contenido.
-- No reiniciar el contenedor `tunnel` sin necesidad (AGENTS §3.1).
+- No reiniciar el contenedor `tunnel` sin necesidad (AGENTS §3.1). El 2026-10-22 el túnel quedó en «Tunnel not found» y el agente no tuvo permiso para reiniciarlo: lo hace el dueño (`docker compose restart tunnel` y `./scripts/publish-server-url.sh`).
+- La app de depuración usa la URL publicada en `server.json`; con el túnel caído, compílala con `--dart-define=PP_DISCOVERY_URL=http://127.0.0.1:9/none --dart-define=API_BASE_URL=http://localhost:8080`, borra sus datos (`adb shell pm clear app.plentypay.pay.debug`) y usa `adb reverse tcp:8080 tcp:8080`.
