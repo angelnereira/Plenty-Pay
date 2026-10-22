@@ -46,12 +46,13 @@ class AppConfig {
     return AppConfig._(flavor: parsed, apiBaseUrl: normalized);
   }
 
-  /// Lee los dart-define del build. Sin defines: conecta al servidor en la nube de PlentyPay.
+  /// Lee los dart-define del build. La URL del build es solo el último respaldo (ADR 0019 §2 y
+  /// §7): la vigente la da el descubrimiento. `build-release.sh` inyecta la del túnel al compilar;
+  /// sin define (desarrollo) es el gateway local, nunca una URL de túnel incrustada que caduca.
   factory AppConfig.fromEnvironment() => AppConfig.resolve(
         flavor: const String.fromEnvironment('FLAVOR', defaultValue: 'dev'),
         apiBaseUrl: const String.fromEnvironment('API_BASE_URL',
-            defaultValue:
-                'https://undo-guards-roots-lectures.trycloudflare.com'),
+            defaultValue: 'http://localhost:8080'),
       );
 
   final Flavor flavor;
