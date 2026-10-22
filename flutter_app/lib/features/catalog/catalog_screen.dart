@@ -75,6 +75,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   Future<void> _scan() async {
     final l10n = AppLocalizations.of(context);
     final code = await BarcodeScannerDialog.scan(context,
+        logger: widget.api.logger,
         title: l10n.scanBarcode, subtitle: l10n.searchProductsHint);
     if (code == null || code.isEmpty || !mounted) return;
     _search.text = code;

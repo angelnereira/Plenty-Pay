@@ -2056,5 +2056,11 @@
         "type": "int"
       }
     }
-  }
+  },
+  "scanHint": "Apunta la cámara al código de barras o QR.",
+  "scanSwitchCamera": "Cambiar cámara",
+  "scanCameraDenied": "Sin permiso de cámara. Puedes escribir el código.",
+  "scanEnableCamera": "Activar cámara",
+  "scanManualLabel": "O escribe el código",
+  "scanManualSubmit": "Usar este código"
 }

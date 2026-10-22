@@ -1400,5 +1400,11 @@
   "posParkedVoid": "Void",
   "posParkedVoidTitle": "Void the parked sale?",
   "posParkedVoided": "Sale voided.",
-  "posParkedRemoved": "{count, plural, =1{1 item is no longer for sale and was removed.} other{{count} items are no longer for sale and were removed.}}"
+  "posParkedRemoved": "{count, plural, =1{1 item is no longer for sale and was removed.} other{{count} items are no longer for sale and were removed.}}",
+  "scanHint": "Point the camera at the barcode or QR code.",
+  "scanSwitchCamera": "Switch camera",
+  "scanCameraDenied": "No camera permission. You can type the code.",
+  "scanEnableCamera": "Turn on camera",
+  "scanManualLabel": "Or type the code",
+  "scanManualSubmit": "Use this code"
 }

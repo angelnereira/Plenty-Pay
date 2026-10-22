@@ -4473,6 +4473,25 @@ class AppLocalizationsEs extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get scanHint => 'Apunta la cámara al código de barras o QR.';
+
+  @override
+  String get scanSwitchCamera => 'Cambiar cámara';
+
+  @override
+  String get scanCameraDenied =>
+      'Sin permiso de cámara. Puedes escribir el código.';
+
+  @override
+  String get scanEnableCamera => 'Activar cámara';
+
+  @override
+  String get scanManualLabel => 'O escribe el código';
+
+  @override
+  String get scanManualSubmit => 'Usar este código';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

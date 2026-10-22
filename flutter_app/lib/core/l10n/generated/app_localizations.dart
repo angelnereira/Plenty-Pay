@@ -8126,6 +8126,42 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'{count, plural, =1{1 producto ya no está a la venta y se quitó.} other{{count} productos ya no están a la venta y se quitaron.}}'**
   String posParkedRemoved(int count);
+
+  /// No description provided for @scanHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Apunta la cámara al código de barras o QR.'**
+  String get scanHint;
+
+  /// No description provided for @scanSwitchCamera.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar cámara'**
+  String get scanSwitchCamera;
+
+  /// No description provided for @scanCameraDenied.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin permiso de cámara. Puedes escribir el código.'**
+  String get scanCameraDenied;
+
+  /// No description provided for @scanEnableCamera.
+  ///
+  /// In es, this message translates to:
+  /// **'Activar cámara'**
+  String get scanEnableCamera;
+
+  /// No description provided for @scanManualLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'O escribe el código'**
+  String get scanManualLabel;
+
+  /// No description provided for @scanManualSubmit.
+  ///
+  /// In es, this message translates to:
+  /// **'Usar este código'**
+  String get scanManualSubmit;
 }
 
 class _AppLocalizationsDelegate

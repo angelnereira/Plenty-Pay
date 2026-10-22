@@ -109,6 +109,7 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
   Future<void> _scan(List<ProductItem> products) async {
     final l10n = AppLocalizations.of(context);
     final code = await BarcodeScannerDialog.scan(context,
+        logger: widget.api.logger,
         title: l10n.scanBarcode, subtitle: l10n.invProduct);
     if (code == null || !mounted) return;
     final match = products.where((p) => p.barcode == code.trim());

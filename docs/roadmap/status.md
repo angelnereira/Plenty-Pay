@@ -270,7 +270,7 @@ Regla: un módulo sin servicio desplegado muestra su estado vacío (AGENTS.md §
 | F16.8 Lotes y vencimiento en la recepción | 📋 | Paso nuevo (2026-10-21, [plan](commerce-plan.md#f168--lotes-y-vencimiento-en-la-recepción)); depende de F16.4. |
 | F16.9 Sucursal en bodegas y alcance | 📋 | Paso nuevo (2026-10-21). Auditoría D5: identity propaga `x-pp-branch-scope` pero inventory no lo aplica. |
 | F16.10 Existencias bloqueadas y alertas de vencimiento | 📋 | Paso nuevo (2026-10-21); depende de F16.4. |
-| F16.11 Escáner en inventario | 📝 | 2026-10-21: S-INV-03 ya escanea con cámara; faltan recepción, transferencia, lector HID y L4. |
+| F16.11 Escáner en inventario | 📝 | 2026-10-21: S-INV-03 ya escanea con cámara; faltan recepción, transferencia, lector HID. **Defecto corregido (2026-10-21, reportado por el dueño en el Pixel)**: el diálogo de escaneo (caja, catálogo, inventario) no se dibujaba («Incorrect use of ParentDataWidget» por un `Positioned` bajo `IgnorePointer`, y un botón de ancho infinito en una fila); además traía códigos de demostración y tragaba errores. Reescrito: visor y láser válidos, permiso reintentable, antirrebote, sin datos fijos, textos traducidos y fallos registrados. `test/core/widgets/barcode_scanner_dialog_test.dart` 4/4 (incluye 200 %); L4 en el Pixel 8 Pro: cámara en vivo sin excepciones. |
 | F16.12 Incidencias y diferencias de recepción | 📋 | Paso nuevo (2026-10-21). |
 | F16.13 Historial de compras y costo de adquisición | 📋 | Paso nuevo (2026-10-21); costo de lo vendido ⛔ Q-52. |
 

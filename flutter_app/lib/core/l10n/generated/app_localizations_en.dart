@@ -4466,4 +4466,22 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get scanHint => 'Point the camera at the barcode or QR code.';
+
+  @override
+  String get scanSwitchCamera => 'Switch camera';
+
+  @override
+  String get scanCameraDenied => 'No camera permission. You can type the code.';
+
+  @override
+  String get scanEnableCamera => 'Turn on camera';
+
+  @override
+  String get scanManualLabel => 'Or type the code';
+
+  @override
+  String get scanManualSubmit => 'Use this code';
 }

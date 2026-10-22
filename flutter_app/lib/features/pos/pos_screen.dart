@@ -331,6 +331,7 @@ class _PosSellViewState extends State<PosSellView> {
   Future<void> _scan(Map<String, ProductItem> products) async {
     final l10n = AppLocalizations.of(context);
     final code = await BarcodeScannerDialog.scan(context,
+        logger: widget.api.logger,
         title: l10n.scanBarcode, subtitle: l10n.posSearchHint);
     if (code == null || !mounted) return;
     _addByCode(products, code.trim());

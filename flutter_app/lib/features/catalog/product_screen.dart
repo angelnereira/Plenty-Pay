@@ -168,6 +168,7 @@ class _ProductScreenState extends State<ProductScreen> {
   Future<void> _scanBarcode() async {
     final l10n = AppLocalizations.of(context);
     final code = await BarcodeScannerDialog.scan(context,
+        logger: widget.api.logger,
         title: l10n.scanBarcode, subtitle: l10n.catBarcode);
     if (code != null && mounted) setState(() => _barcode.text = code.trim());
   }
