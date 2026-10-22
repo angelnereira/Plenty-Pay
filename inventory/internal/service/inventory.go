@@ -184,7 +184,9 @@ func (s *Inventory) AdjustStock(ctx context.Context, c Caller, r AdjustRequest) 
 	if err != nil {
 		return m, err
 	}
-	if err := lotFields(&m, r.LotCode, r.LotExpiresOn, p.TracksLots && r.DeltaMilli > 0); err != nil {
+	// Una devolución de caja (RETURN) reingresa sin lote: pos no sabe de qué lote salió la venta.
+	// Volver al lote original queda pendiente (F17.9).
+	if err := lotFields(&m, r.LotCode, r.LotExpiresOn, p.TracksLots && r.DeltaMilli > 0 && r.Type != domain.Return); err != nil {
 		return m, err
 	}
 	res, err := s.store.Apply(ctx, store.Batch{
