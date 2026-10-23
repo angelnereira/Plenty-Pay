@@ -97,7 +97,7 @@ La unidad se compromete y luego sale del inventario, una sola vez.
 |---|---|---|---|
 | Caja: abrir/cerrar, vender, estacionar, cobrar en efectivo y saldo PlentyPay | F17.3–F17.5 | ✅/📝 | F17.5: L4 de cobro mixto en producción; F17.3: reporte Z por medio y por tasa de ITBMS y conteo por denominación |
 | Configuración de caja (S-POS-11 hoy con datos fijos) | F17.11 | 📋 | `GetPosSettings`/`UpdatePosSettings` reales; la pantalla no muestra datos inventados |
-| Sucursal en cajas y ventas | F17.12 | 📋 | Cada venta lleva su sucursal; reportes por sucursal |
+| Sucursal en cajas y ventas | F17.12 | ✅ | Cada venta lleva su sucursal; reportes por sucursal |
 | Cambio de turno y sesiones abandonadas | F17.13 | 📋 | Supuesto de Q-51: cierre con arqueo y nueva apertura |
 | Venta sin conexión (cola local idempotente) | F17.7 | 📋 | Ventas offline se sincronizan una vez, con su `client_sale_id`, sin duplicar existencias ni dinero |
 | Pantalla del cliente | F17.8 | 📋 | El cliente ve líneas, total y QR de pago en una segunda pantalla |

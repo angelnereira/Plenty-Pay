@@ -11,7 +11,7 @@
 | 5 | [F17.3](#f173--reporte-z-y-conteo-por-denominación) Reporte Z y conteo por denominación | pos, gateway, app | L2 | — | — |
 | 6 | [F17.11](#f1711--configuración-de-caja) Configuración de caja ✅ 2026-10-23 | pos, gateway, app | L2 | — | — |
 | 7 | [F16.9](#f169--sucursal-en-bodegas-y-alcance) Sucursal en bodegas ✅ 2026-10-23 | inventory, app | L2 | — | — |
-| 8 | [F17.12](#f1712--sucursal-en-cajas-y-ventas) Sucursal en cajas y ventas | pos, app | L2 | F16.9 | — |
+| 8 | [F17.12](#f1712--sucursal-en-cajas-y-ventas) Sucursal en cajas y ventas ✅ 2026-10-23 | pos, app | L2 | F16.9 | — |
 | 9 | [F17.13](#f1713--cambio-de-turno-y-sesiones-abandonadas) Cambio de turno | pos, identity, app | L2 | F17.3 | supuesto Q-51 |
 | 10 | [F11.6](#f116--reembolsos-t7-l4) Reembolsos T7 (L4) | payments-core, app | L4 | — | — |
 | 11 | [F17.9](#f179--devoluciones-cierre) Devoluciones (cierre) | pos | L4 | F11.6 | Q-47 para efectivo cruzado; nota de crédito en ola 2 |
@@ -73,7 +73,7 @@ Ciclo M9 · Nivel L2 · Estado 📝 (R1, cierre con diferencia, entradas y salid
 - **Contrato** (`network-contracts/proto/pos.proto`, aditivo):
   - `message ZReportLine { string key = 1; plentypay.common.v1.Money amount = 2; int32 count = 3; }` (`key` = `rail:CASH`, `rail:WALLET`, `refund:CASH`, `tax:700`, `tax:0`, `cash_in`, `cash_out`, `voids`).
   - `message ZReport { repeated ZReportLine lines = 1; plentypay.common.v1.Money gross_sales = 2; plentypay.common.v1.Money refunds = 3; plentypay.common.v1.Money net_sales = 4; int32 sales_count = 5; }`.
-  - `CashSession.z_report = 13` (solo con la sesión cerrada).
+  - `CashSession.z_report = 14` (solo con la sesión cerrada; el 13 lo tomó `branch_id` en F17.12). Verifica el siguiente número libre antes de agregarlo.
   - `message CashCount { int64 denomination_minor = 1; int32 quantity = 2; }` y `CloseCashSessionRequest.counted_by_denomination = 5` (repeated). Si llega, el servidor calcula `counted_cash` = Σ denominación × cantidad y rechaza si además viene `counted_cash` distinto (`INVALID_REQUEST`).
 - **Datos**: `pos/migrations/0004_zreport.up.sql`: `ALTER TABLE cash_sessions ADD COLUMN counted_by_denomination jsonb NOT NULL DEFAULT '[]'` y usar la columna `totals jsonb` existente para el reporte (si no existe en la migración real, agregarla aquí). `down` quita la columna nueva.
 - **Código**: `pos/internal/domain` (nuevo `zreport.go`: función pura `BuildZReport(sales, refunds, movements)` con montos enteros y tasas como `tax:<bps>`; denominaciones válidas = las de USD/PAB leídas de una tabla en el dominio: 1, 5, 10, 25, 50 centavos y 1, 5, 10, 20, 50, 100 dólares —no son valores legales variables sino de la moneda—), `pos/internal/store/store.go` (al cerrar: calcular y guardar el reporte en la misma transacción del cierre), `pos/internal/server` (mapear `z_report`).
@@ -116,7 +116,8 @@ Ficha de diseño: [commerce-plan F16.9](../commerce-plan.md#f169--sucursal-en-bo
 - **Terminado cuando**: «Vectores V3/V7 aplicados a bodegas» (05).
 
 ### F17.12 · Sucursal en cajas y ventas
-Ficha de diseño: [commerce-plan F17.12](../commerce-plan.md#f1712--sucursal-en-cajas-y-ventas) · Ciclo P5 · Nivel L2 · Estado 📋.
+Ficha de diseño: [commerce-plan F17.12](../commerce-plan.md#f1712--sucursal-en-cajas-y-ventas) · Ciclo P5 · Nivel L2 · Estado ✅ 2026-10-23 (evidencia en `status.md`).
+- **Hecho**: la sucursal se elige al abrir la caja; las terminales de payments-core no la tienen (sin `Terminal.branch_id`). Contrato: `OpenCashSessionRequest.branch_id = 4`, `CashSession.branch_id = 13`, `Sale.branch_id = 27`; migración `0005_branch`. La copia de la sucursal a la venta la verifica `TestADR0018_PosBranchOutOfScope` (no hizo falta una prueba aparte).
 - **Precedencia**: F16.9 (mismo patrón de alcance; copiar el paquete de tenancy, no importarlo).
 - **Resultado observable**: cada caja y cada venta llevan su sucursal; un cajero con alcance a A no abre cajas de B; el reporte Z (F17.3) se puede filtrar por sucursal.
 - **Contrato**: `Terminal.branch_id` (payments-core es dueño de las terminales: verificar en `payments.proto` si el punto de cobro ya trae sucursal) y `Sale.branch_id` (siguiente número libre de `Sale`), `CashSession.branch_id`.
