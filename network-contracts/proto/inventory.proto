@@ -37,7 +37,9 @@ service Inventory {
   rpc GetReorderSuggestions(GetReorderSuggestionsRequest) returns (GetReorderSuggestionsResponse);
 }
 
-message Warehouse { string warehouse_id = 1; string tenant_id = 2; string name = 3; string branch_code = 4; plentypay.common.v1.Address address = 5; bool active = 6; bool is_default = 7; }
+message Warehouse { string warehouse_id = 1; string tenant_id = 2; string name = 3; string branch_code = 4; plentypay.common.v1.Address address = 5; bool active = 6; bool is_default = 7;
+  string branch_id = 8; // F16.9 (R11): sucursal de identity; vacío = Casa Matriz aún sin asignar
+}
 message UpsertWarehouseRequest { Warehouse warehouse = 1; }
 message ListWarehousesRequest {}
 message ListWarehousesResponse { repeated Warehouse warehouses = 1; }
