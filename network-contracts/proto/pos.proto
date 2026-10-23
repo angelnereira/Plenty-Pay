@@ -60,8 +60,11 @@ message CashSession {
   google.protobuf.Timestamp closed_at = 10;
   string close_notes = 11;
   string approved_by_user_id = 12;           // si la diferencia supera el umbral
+  string branch_id = 13;                     // F17.12 (R15): sucursal de la sesión; vacío = anterior a sucursales
 }
-message OpenCashSessionRequest { string terminal_label = 1; plentypay.common.v1.Money opening_float = 2; string idempotency_key = 3; }
+message OpenCashSessionRequest { string terminal_label = 1; plentypay.common.v1.Money opening_float = 2; string idempotency_key = 3;
+  string branch_id = 4; // F17.12 (R15): sucursal de identity donde se abre la caja
+}
 message CloseCashSessionRequest { string session_id = 1; plentypay.common.v1.Money counted_cash = 2; string notes = 3; 
   string idempotency_key = 4;}
 message GetCashSessionRequest { string session_id = 1; }
@@ -114,6 +117,7 @@ message Sale {
   plentypay.common.v1.Money delivery_fee = 24;
   string park_label = 25;                      // nota del cajero al estacionar (S-POS-06), ≤ 60 caracteres
   google.protobuf.Timestamp parked_at = 26;    // última vez que se estacionó
+  string branch_id = 27;                       // F17.12 (R15): copiada de la sesión de caja
 }
 message CreateSaleRequest { string session_id = 1; string client_sale_id = 2; 
   string idempotency_key = 3;}
