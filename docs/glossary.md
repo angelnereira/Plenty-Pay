@@ -148,6 +148,8 @@ Fuentes: [`standards/grpc-conventions.md`](standards/grpc-conventions.md) §1.3 
 | **Atributos de liquidación en telemetría** | `pp.batch_id` (lote de settlement) | settlement SPEC §9 |
 | **Código de soporte** | El `request_id` que el usuario ve y copia ante un error inesperado | observability-standards §13.4 |
 | **MCC** | Código de categoría del comercio, 4 dígitos (ISO 18245) | international-standards N-STD-35 |
+| **Reporte Z** (`ZReport`) | Resumen de una sesión de caja que pos calcula y guarda al cerrarla: líneas `ZReportLine` con clave (`rail:CASH`, `rail:WALLET`, `refund:CASH`, `refund:WALLET`, `discounts`, `taxable:<bps>`, `tax:<bps>`, `exempt`, `cash_in`, `cash_out`, `voids`), monto y número; más `gross_sales`, `refunds`, `net_sales`, `sales_count` | pos SPEC R16 |
+| **Conteo por denominación** (`CashCount`) | Billetes y monedas contados al cerrar: `denomination_minor` (centavos) y `quantity`; el contado es la suma | pos SPEC R16 |
 | **Código interno** | Código de barras con prefijo `02` o `20`–`29`: válido solo dentro del negocio | international-standards N-STD-24 |
 
 "dominio" = [`domain/domain-model.md`](domain/domain-model.md); "seguridad" = [`standards/security-standards.md`](standards/security-standards.md); "eventos" = [`standards/events-and-messaging.md`](standards/events-and-messaging.md).

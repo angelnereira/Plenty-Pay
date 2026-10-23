@@ -39,7 +39,7 @@ R10 en `inventory/SPEC.md` y §8.12 en `domain-model.md` (estado `CLOSED_SHORT`)
 ## 3. Siguiente paso recomendado
 **Entrada para cualquier agente**: [`lifecycles.md`](lifecycles.md) (mapa por ciclo de vida del producto y del dinero) y [`execution/README.md`](execution/README.md) (procedimiento común + una ficha por paso abierto, por olas). Toma el primer paso de la ola más baja cuyo precedente esté ✅ y que no requiera a una persona:
 
-1. **Ola 1** ([fichas](execution/ola-1-venta-cerrada.md)): ~~F17.11~~, ~~F16.9~~ y ~~F17.12~~ (✅ 2026-10-23) → F17.3 reporte Z (`z_report = 14`; por sucursal con `CashSession.branch_id`) → F17.13 cambio de turno. Las L4 de F17.5, F11.6, F17.9, F15.8, F15.9 necesitan una segunda cuenta con saldo sandbox (ver la ficha). F16.11 necesita a una persona frente al teléfono.
+1. **Ola 1** ([fichas](execution/ola-1-venta-cerrada.md)): ~~F17.11~~, ~~F16.9~~ y ~~F17.12~~ (✅ 2026-10-23) → F17.3 reporte Z (código desplegado 2026-10-23; **falta su L4** en el Pixel: abrir, vender en efectivo, cerrar por denominación, comparar con la base) → F17.13 cambio de turno. Las L4 de F17.5, F11.6, F17.9, F15.8, F15.9 necesitan una segunda cuenta con saldo sandbox (ver la ficha). F16.11 necesita a una persona frente al teléfono.
 2. **Ola 2 en paralelo** ([fichas](execution/ola-2-documento-y-aviso.md)): dar servidor a notifications (F20.1–F20.2) destraba avisos, factura por correo y el hueco 1 (invitaciones que no se entregan).
 3. F16.13 (historial de compras) queda en la ola 4; el costo de lo vendido sigue ⛔ Q-52.
 

@@ -8,7 +8,7 @@
 | 2 | [F16.7](#f167--pantallas-de-inventario-cierre) Pantallas de inventario (cierre) | flutter_app | L4 | F16.11 | — |
 | 3 | [F17.5](#f175--cobro-mixto-l4) Cobro mixto (L4) | pos, flutter_app | L4 | — | — |
 | 4 | [F17.10](#f1710--pantallas-del-pos-integration_test) Pantallas del POS (integration_test) | flutter_app | L4 | F17.5 | — |
-| 5 | [F17.3](#f173--reporte-z-y-conteo-por-denominación) Reporte Z y conteo por denominación | pos, gateway, app | L2 | — | — |
+| 5 | [F17.3](#f173--reporte-z-y-conteo-por-denominación) Reporte Z y conteo por denominación (falta L4) | pos, gateway, app | L2 | — | — |
 | 6 | [F17.11](#f1711--configuración-de-caja) Configuración de caja ✅ 2026-10-23 | pos, gateway, app | L2 | — | — |
 | 7 | [F16.9](#f169--sucursal-en-bodegas-y-alcance) Sucursal en bodegas ✅ 2026-10-23 | inventory, app | L2 | — | — |
 | 8 | [F17.12](#f1712--sucursal-en-cajas-y-ventas) Sucursal en cajas y ventas ✅ 2026-10-23 | pos, app | L2 | F16.9 | — |
@@ -66,7 +66,8 @@ Ciclo P5 · Nivel L4 · Estado 📝.
 - **Terminado cuando**: «integration_test: venta mixta efectivo+wallet» (05) pasa en el Pixel.
 
 ### F17.3 · Reporte Z y conteo por denominación
-Ciclo M9 · Nivel L2 · Estado 📝 (R1, cierre con diferencia, entradas y salidas ✅ L2).
+Ciclo M9 · Nivel L2 · Estado 📝: L1, L2 y despliegue ✅ 2026-10-23; **falta solo la L4** (ver abajo y `status.md`).
+- **Hecho (2026-10-23)**: contrato como abajo más `CashSession.counted_by_denomination = 15`; las claves de tasa son `taxable:<bps>` (base) y `tax:<bps>` (ITBMS) y lo exento es `exempt` (no `tax:0`); además `refund:WALLET` y `discounts`. Migraciones reales `0006_zreport` y `0007_refund_movement_link` (la 0004 la tomó F17.11): la salida de efectivo de una devolución queda ligada con `cash_movements.refund_id` y no se cuenta otra vez en `cash_out`. La tabla `totals` no existía: la columna es `z_report`. S-POS-09 no muestra reportes de sesiones pasadas (no hay lista de sesiones cerradas); el reporte se ve al cerrar.
 - **Precedencia**: ninguna.
 - **Leer antes**: `pos/SPEC.md` §3 (`totals jsonb` del cierre), §4 fila Open/Close/GetCashSession; fichas S-POS-09 y S-POS-10 en `docs/ux/functional-spec/` (módulo caja); N-FIS (reporte por tasa).
 - **Resultado observable**: al cerrar la caja se ve y queda guardado el reporte Z: ventas por medio (efectivo, saldo PlentyPay), devoluciones por medio, entradas/salidas, ITBMS por tasa, exento, número de ventas y anulaciones; el conteo puede hacerse por denominación.
