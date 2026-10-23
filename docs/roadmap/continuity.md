@@ -2,7 +2,7 @@
 
 Entrada para retomar el trabajo sin reconstruir el contexto. **No es un diario**: se reescribe al cerrar cada paso. Las reglas viven en [`AGENTS.md`](../../AGENTS.md); el estado con evidencia, en [`status.md`](status.md); las fichas de los pasos comerciales, en [`commerce-plan.md`](commerce-plan.md).
 
-_Última actualización: 2026-10-23, al cerrar F16.10 (existencia bloqueada y aviso de vencimiento)._
+_Última actualización: 2026-10-23, tras F16.10 (cerrado) y F16.11 (escáner; falta la prueba con cámara)._
 
 ## 1. Estado verificado
 - Versión publicada: ver el último tag (`git ls-remote --tags origin | tail -1`); F17.4 salió en `v0.7.0`.
@@ -30,16 +30,18 @@ _Última actualización: 2026-10-23, al cerrar F16.10 (existencia bloqueada y av
 - **F16.10 · Existencia bloqueada y aviso de vencimiento** (✅ L1, L2 inventory 24/24, L4 en el Pixel). Migración `inventory/migrations/0005_blocked` aplicada (respaldo `~/plentypay-backups/inventory-before-0005-*.sql.gz`). Regla R9 en `inventory/SPEC.md`; lógica en `inventory/internal/domain/stock.go` (`Level.Apply`, `MovementType.Physical`), `inventory/internal/store/lots.go` (`resolveBlock`, `Settings`) y `inventory/internal/service/inventory.go` (`FromBlocked`). App: `flutter_app/lib/features/inventory/stock_block_dialog.dart` y `expiry_alert_dialog.dart`.
 - **Incidente del 2026-10-23**: la máquina se reinició y Docker Desktop no arrancó solo (`docker-desktop.service` está *disabled*), así que producción estuvo caída hasta que el agente lo inició (`systemctl --user start docker-desktop`). El túnel cambió de URL y el temporizador la publicó. Recomendación al dueño: `systemctl --user enable docker-desktop`.
 
+## 2.4 F16.11 · Escáner en inventario (2026-10-23, 📝)
+Hecho y probado con lector simulado en el Pixel: regla C-27 (`docs/ux/functional-spec/README.md` §3), `flutter_app/lib/core/format/barcode.dart`, `flutter_app/lib/core/widgets/hid_scanner_listener.dart`, escaneo en S-INV-03/04/06 y en la caja. **Para cerrarlo**: alguien apunta la cámara del Pixel a un código impreso desde Inventario → Ajustar → icono de escaneo (y, si hay, un lector Bluetooth). Simular un lector: `adb shell input keyevent <códigos de tecla> 66` (no `input text`).
+
 ## 3. Siguiente paso recomendado
-**F16.11 · Escáner en inventario** ([ficha](commerce-plan.md#f1611--escáner-en-inventario)): S-INV-03 ya escanea; faltan recepción (S-INV-06), transferencia (S-INV-04) y lector HID.
+**F16.12 · Incidencias y diferencias de recepción** ([ficha](commerce-plan.md#f1612--incidencias-y-diferencias-de-recepción)): recibido bueno, dañado (entra bloqueado, usa R9 de F16.10) y faltante con motivo; «Cerrar con faltante» (estado aditivo `CLOSED_SHORT`).
 
 Leer, en este orden:
 1. Ficha del paso en `commerce-plan.md`.
-2. `flutter_app/lib/core/widgets/barcode_scanner_dialog.dart` y su prueba.
-3. Fichas S-INV-04 y S-INV-06 en `docs/ux/functional-spec/04-catalog-inventory.md`.
-4. Normas: N-STD-23/24 (GTIN); ADR 0020 (permiso de cámara).
+2. `inventory/SPEC.md` §4–§5 (R9) y `inventory/internal/store/purchasing.go` (`ReceiveGoods`).
+3. Fichas S-INV-05 y S-INV-06 en `docs/ux/functional-spec/04-catalog-inventory.md`.
 
-Condición de terminado: criterio 21 de la ficha (L4 en el Pixel con un código real) + AGENTS §3 pasos 5–10.
+Condición de terminado: criterio 21 de la ficha (lo dañado no queda disponible) + AGENTS §3 pasos 5–10.
 
 ## 4. Comandos
 | Para | Comando |
@@ -49,7 +51,7 @@ Condición de terminado: criterio 21 de la ficha (L4 en el Pixel con un código 
 | Contrato tras editar un `.proto` | `./scripts/sync-protos.sh` |
 | Go (L1) | `cd <c> && go vet ./... && go test -race ./...` |
 | L2 en base efímera | `./<c>/test/test_l2.sh` (inventory 24, pos 17, fiscal 12, settlement 4) |
-| Flutter | `cd flutter_app && flutter analyze && flutter test` (574 al 2026-10-23; el analizador tiene 25 notas previas, ninguna de inventario) |
+| Flutter | `cd flutter_app && flutter analyze && flutter test` (584 al 2026-10-23; el analizador tiene 18 notas previas, ninguna de inventario) |
 | Respaldo antes de migrar | `docker compose exec -T postgres-db pg_dump -U postgres -d plentypay -n <esquema> \| gzip > ~/plentypay-backups/<esquema>-before-<migr>-$(date +%Y%m%d-%H%M%S).sql.gz` |
 | Desplegar un servicio | `docker compose build <c> && docker compose run --rm --no-deps <c> migrate && docker compose up -d --no-deps <c>` |
 | Publicar la app | `./scripts/publish-release.sh <patch\|minor> <notas.md>` (después de cada push a `main`) |
