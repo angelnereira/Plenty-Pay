@@ -92,13 +92,13 @@ func (s *Store) ListSuppliers(ctx context.Context, tenantID, after string, limit
 // ── Órdenes de compra (S-INV-05) ────────────────────────────────────────────────────────
 
 const poCols = `o.id, o.tenant_id, o.supplier_id, s.name, o.warehouse_id, o.status, o.expected_at, o.total_minor,
-	o.created_at, o.version`
+	o.created_at, o.version, o.close_reason`
 
 func scanPO(row pgx.Row) (domain.PurchaseOrder, error) {
 	var o domain.PurchaseOrder
 	var status int16
 	err := row.Scan(&o.ID, &o.TenantID, &o.SupplierID, &o.SupplierName, &o.WarehouseID, &status, &o.ExpectedAt,
-		&o.TotalMinor, &o.CreatedAt, &o.Version)
+		&o.TotalMinor, &o.CreatedAt, &o.Version, &o.CloseReason)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return o, domain.ErrNotFound
 	}
@@ -110,7 +110,7 @@ func scanPO(row pgx.Row) (domain.PurchaseOrder, error) {
 }
 
 func loadLines(ctx context.Context, tx pgx.Tx, o *domain.PurchaseOrder, lock bool) error {
-	q := `SELECT product_id, ordered_milli, received_milli, unit_cost_minor FROM purchase_order_lines
+	q := `SELECT product_id, ordered_milli, received_milli, unit_cost_minor, damaged_milli FROM purchase_order_lines
 		WHERE purchase_order_id = $1 ORDER BY product_id`
 	if lock {
 		q += ` FOR UPDATE`
@@ -123,7 +123,7 @@ func loadLines(ctx context.Context, tx pgx.Tx, o *domain.PurchaseOrder, lock boo
 	o.Lines = nil
 	for rows.Next() {
 		var l domain.POLine
-		if err := rows.Scan(&l.ProductID, &l.OrderedMilli, &l.ReceivedMilli, &l.UnitCostMinor); err != nil {
+		if err := rows.Scan(&l.ProductID, &l.OrderedMilli, &l.ReceivedMilli, &l.UnitCostMinor, &l.DamagedMilli); err != nil {
 			return fmt.Errorf("scan line: %w", err)
 		}
 		o.Lines = append(o.Lines, l)
@@ -249,9 +249,21 @@ func (s *Store) ListPurchaseOrders(ctx context.Context, tenantID string, status 
 	return out, next, err
 }
 
-// UpdatePurchaseOrderStatus aplica un cambio pedido por una persona (enviar o cancelar).
-func (s *Store) UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id string, to domain.POStatus, now time.Time) (domain.PurchaseOrder, error) {
+// StatusChange es un cambio de estado pedido por una persona (enviar, cancelar o cerrar con
+// faltante). Reason solo aplica a CLOSED_SHORT; NewID genera los ids de las incidencias.
+type StatusChange struct {
+	To      domain.POStatus
+	Reason  string
+	ActorID string
+	NewID   func() string
+	Now     time.Time
+}
+
+// UpdatePurchaseOrderStatus aplica el cambio. F16.12: CLOSED_SHORT guarda el motivo y una incidencia
+// SHORT por cada línea incompleta, en la misma transacción.
+func (s *Store) UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id string, c StatusChange) (domain.PurchaseOrder, error) {
 	var out domain.PurchaseOrder
+	to, now := c.To, c.Now
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		o, err := getPO(ctx, tx, id, true)
 		if err != nil {
@@ -264,9 +276,21 @@ func (s *Store) UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id stri
 		if !o.Status.CanChangeTo(to) {
 			return domain.ErrPOTransition
 		}
-		if _, err := tx.Exec(ctx, `UPDATE purchase_orders SET status = $2, updated_at = $3, version = version + 1 WHERE id = $1`,
-			o.ID, int16(to), now); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE purchase_orders SET status = $2, updated_at = $3, version = version + 1,
+				close_reason = CASE WHEN $2 = 6 THEN $4 ELSE close_reason END WHERE id = $1`,
+			o.ID, int16(to), now, c.Reason); err != nil {
 			return fmt.Errorf("update purchase order: %w", err)
+		}
+		if to == domain.POClosedShort {
+			for _, l := range o.Lines {
+				if l.ShortMilli() <= 0 {
+					continue
+				}
+				if err := insertIssue(ctx, tx, c.NewID(), tenantID, o.ID, "", l.ProductID, issueShort,
+					l.ShortMilli(), c.Reason, c.ActorID, now); err != nil {
+					return err
+				}
+			}
 		}
 		out, err = getPO(ctx, tx, id, false)
 		return err
@@ -279,7 +303,7 @@ func (s *Store) UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id stri
 // nuevo estado. Los movimientos van a la bodega de la orden (PurchaseOrderWarehouse); si la orden
 // cambió de bodega entre la lectura y el bloqueo, la recepción se rechaza.
 func ReceiptHook(tenantID, poID, receiptID, invoice, key string, hash []byte, createdBy string, in []domain.Received,
-	now time.Time, warehouseID string) func(ctx context.Context, tx pgx.Tx) error {
+	now time.Time, warehouseID string, issueIDs []string) func(ctx context.Context, tx pgx.Tx) error {
 	return func(ctx context.Context, tx pgx.Tx) error {
 		o, err := getPO(ctx, tx, poID, true)
 		if err != nil {
@@ -292,8 +316,8 @@ func ReceiptHook(tenantID, poID, receiptID, invoice, key string, hash []byte, cr
 			return err
 		}
 		for _, l := range o.Lines {
-			if _, err := tx.Exec(ctx, `UPDATE purchase_order_lines SET received_milli = $3
-				WHERE purchase_order_id = $1 AND product_id = $2`, o.ID, l.ProductID, l.ReceivedMilli); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE purchase_order_lines SET received_milli = $3, damaged_milli = $4
+				WHERE purchase_order_id = $1 AND product_id = $2`, o.ID, l.ProductID, l.ReceivedMilli, l.DamagedMilli); err != nil {
 				return fmt.Errorf("update received: %w", err)
 			}
 		}
@@ -310,8 +334,74 @@ func ReceiptHook(tenantID, poID, receiptID, invoice, key string, hash []byte, cr
 			receiptID, tenantID, o.ID, invoice, key, hash, by, now); err != nil {
 			return fmt.Errorf("insert receipt: %w", err)
 		}
+		// F16.12: cada dañado queda como incidencia de esta recepción.
+		for i, r := range in {
+			if r.DamagedMilli <= 0 {
+				continue
+			}
+			if err := insertIssue(ctx, tx, issueIDs[i], tenantID, o.ID, receiptID, r.ProductID, issueDamaged,
+				r.DamagedMilli, DamagedReason, createdBy, now); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
+}
+
+// DamagedReason es el motivo de lo que llega dañado (BLOCK e incidencia).
+const DamagedReason = "dañado en recepción"
+
+const (
+	issueDamaged int16 = 1
+	issueShort   int16 = 2
+)
+
+// insertIssue guarda una incidencia de recepción (inmutable).
+func insertIssue(ctx context.Context, tx pgx.Tx, id, tenantID, poID, receiptID, productID string, kind int16,
+	qty int64, reason, actorID string, now time.Time) error {
+	var rid, by any
+	if receiptID != "" {
+		rid = receiptID
+	}
+	if actorID != "" {
+		by = actorID
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO purchase_receipt_issues (id, tenant_id, purchase_order_id, receipt_id,
+			product_id, kind, qty_milli, reason, created_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		id, tenantID, poID, rid, productID, kind, qty, reason, by, now); err != nil {
+		return fmt.Errorf("insert receipt issue: %w", err)
+	}
+	return nil
+}
+
+// Issue es una incidencia de recepción (lectura para pruebas y auditoría).
+type Issue struct {
+	ProductID string
+	Kind      int16
+	QtyMilli  int64
+	Reason    string
+}
+
+// ListIssues devuelve las incidencias de una orden.
+func (s *Store) ListIssues(ctx context.Context, tenantID, poID string) ([]Issue, error) {
+	var out []Issue
+	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT product_id::text, kind, qty_milli, reason FROM purchase_receipt_issues
+			WHERE purchase_order_id::text = $1 ORDER BY created_at, kind, product_id`, poID)
+		if err != nil {
+			return fmt.Errorf("list receipt issues: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var i Issue
+			if err := rows.Scan(&i.ProductID, &i.Kind, &i.QtyMilli, &i.Reason); err != nil {
+				return fmt.Errorf("scan receipt issue: %w", err)
+			}
+			out = append(out, i)
+		}
+		return rows.Err()
+	})
+	return out, err
 }
 
 // PurchaseOrderWarehouse lee la bodega de una orden (para armar los movimientos antes de aplicar).

@@ -68,3 +68,11 @@ func TestF16_10_BlockErrorsUseGlossaryNames(t *testing.T) {
 		}
 	}
 }
+
+// F16.12: cerrar con faltante sin motivo responde REASON_REQUIRED.
+func TestR10_CloseReasonRequiredUsesGlossaryName(t *testing.T) {
+	code, reason := reasonOf(t, toStatus(fmt.Errorf("close order: %w", domain.ErrCloseReasonRequired)))
+	if code != codes.InvalidArgument || reason != "REASON_REQUIRED" {
+		t.Fatalf("%v %q", code, reason)
+	}
+}

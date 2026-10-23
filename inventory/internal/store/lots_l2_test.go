@@ -178,7 +178,7 @@ func TestL2_F16_8_PurchaseReceiptWithLots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if po, err = s.UpdatePurchaseOrderStatus(ctx, tenant, po.ID, domain.POSent); err != nil {
+	if po, err = s.UpdatePurchaseOrderStatus(ctx, person(tenant), po.ID, domain.POSent, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.ReceiveGoods(ctx, c, po.ID, key(), "", []domain.Received{{ProductID: prod, ReceivedMilli: 1000}}); !errors.Is(err, domain.ErrLotRequired) {

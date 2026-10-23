@@ -240,7 +240,7 @@ SubOrder: PENDING_PAYMENT → AWAITING_ACCEPTANCE → ACCEPTED → READY → IN_
 PENDING → ASSIGNED → PICKED_UP → IN_TRANSIT → ARRIVED → DELIVERED (prueba: código del cliente, foto o firma); ARRIVED/IN_TRANSIT → FAILED (intento fallido; nuevo intento vuelve a ASSIGNED, **máximo 3 intentos**, luego FAILED terminal y devolución); PENDING/ASSIGNED → CANCELLED.
 
 ### 8.12 PurchaseOrder
-DRAFT → SENT → PARTIALLY_RECEIVED → RECEIVED; SENT → RECEIVED; DRAFT/SENT → CANCELLED. Recepción genera `StockMovement RECEIPT`.
+DRAFT → SENT → PARTIALLY_RECEIVED → RECEIVED; SENT → RECEIVED; DRAFT/SENT → CANCELLED; PARTIALLY_RECEIVED → CLOSED_SHORT (F16.12: «Cerrar con faltante», con motivo; lo que faltaba deja de estar en camino y queda como incidencia; nunca borra lo recibido). CLOSED_SHORT, RECEIVED y CANCELLED son finales. Recepción genera `StockMovement RECEIPT`; lo que llega dañado genera además `BLOCK` en la misma transacción (no queda disponible).
 
 ### 8.13 Reservation (inventario)
 ACTIVE → COMMITTED (venta/pedido pagado: genera movimiento SALE) | RELEASED | EXPIRED (TTL = expiración del intent + 5 min).

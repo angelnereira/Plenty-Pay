@@ -32,13 +32,14 @@ func poPB(o domain.PurchaseOrder) *pb.PurchaseOrder {
 	out := &pb.PurchaseOrder{PurchaseOrderId: o.ID, SupplierId: o.SupplierID, SupplierName: o.SupplierName,
 		WarehouseId: o.WarehouseID, Status: pb.PurchaseOrderStatus(o.Status),
 		Total: &pb.Money{AmountMinor: o.TotalMinor, Currency: "USD"}, CreatedAt: timestamppb.New(o.CreatedAt),
-		Version: int32(o.Version)}
+		Version: int32(o.Version), CloseReason: o.CloseReason}
 	if o.ExpectedAt != nil {
 		out.ExpectedAt = timestamppb.New(*o.ExpectedAt)
 	}
 	for _, l := range o.Lines {
 		out.Lines = append(out.Lines, &pb.PurchaseOrderLine{ProductId: l.ProductID, OrderedMilli: l.OrderedMilli,
-			ReceivedMilli: l.ReceivedMilli, UnitCost: &pb.Money{AmountMinor: l.UnitCostMinor, Currency: "USD"}})
+			ReceivedMilli: l.ReceivedMilli, UnitCost: &pb.Money{AmountMinor: l.UnitCostMinor, Currency: "USD"},
+			DamagedMilli: l.DamagedMilli})
 	}
 	return out
 }
@@ -111,7 +112,7 @@ func (s *Server) UpdatePurchaseOrderStatus(ctx context.Context, req *pb.UpdatePu
 	if err != nil {
 		return nil, err
 	}
-	out, err := s.svc.UpdatePurchaseOrderStatus(ctx, a.TenantID, req.GetPurchaseOrderId(), domain.POStatus(req.GetStatus()))
+	out, err := s.svc.UpdatePurchaseOrderStatus(ctx, caller(a), req.GetPurchaseOrderId(), domain.POStatus(req.GetStatus()), req.GetReason())
 	if err != nil {
 		return nil, toStatus(err)
 	}
@@ -129,7 +130,7 @@ func (s *Server) ReceiveGoods(ctx context.Context, req *pb.ReceiveGoodsRequest) 
 	var in []domain.Received
 	for _, l := range req.GetLines() {
 		in = append(in, domain.Received{ProductID: l.GetProductId(), ReceivedMilli: l.GetReceivedMilli(),
-			LotCode: l.GetLotCode(), LotExpiresOn: optTime(l.GetExpiresAt())})
+			LotCode: l.GetLotCode(), LotExpiresOn: optTime(l.GetExpiresAt()), DamagedMilli: l.GetDamagedMilli()})
 	}
 	out, err := s.svc.ReceiveGoods(ctx, caller(a), req.GetPurchaseOrderId(), req.GetIdempotencyKey(), req.GetSupplierInvoice(), in)
 	if err != nil {

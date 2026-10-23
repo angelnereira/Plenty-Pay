@@ -15,6 +15,8 @@ var (
 	ErrPOTransition    = errors.New("purchase order does not allow that change")
 	ErrOverReceipt     = errors.New("received more than ordered")
 	ErrNotInOrder      = errors.New("product not in the purchase order")
+	// ErrCloseReasonRequired: «Cerrar con faltante» sin motivo (F16.12).
+	ErrCloseReasonRequired = errors.New("close reason required")
 )
 
 // POStatus sigue domain-model §8.12 (mismos números que PurchaseOrderStatus del contrato).
@@ -26,6 +28,8 @@ const (
 	POPartial   POStatus = 3
 	POReceived  POStatus = 4
 	POCancelled POStatus = 5
+	// POClosedShort: cerrada con faltante (F16.12); final.
+	POClosedShort POStatus = 6
 )
 
 // CanChangeTo dice si una persona puede pedir el cambio (la recepción mueve a PARTIAL/RECEIVED).
@@ -34,6 +38,8 @@ func (s POStatus) CanChangeTo(to POStatus) bool {
 	case s == PODraft && (to == POSent || to == POCancelled):
 		return true
 	case s == POSent && to == POCancelled:
+		return true
+	case s == POPartial && to == POClosedShort:
 		return true
 	}
 	return false
@@ -104,7 +110,11 @@ type POLine struct {
 	OrderedMilli  int64
 	ReceivedMilli int64
 	UnitCostMinor int64
+	DamagedMilli  int64 // F16.12: parte de lo recibido que llegó dañada
 }
+
+// ShortMilli: lo que falta por recibir de la línea.
+func (l POLine) ShortMilli() int64 { return l.OrderedMilli - l.ReceivedMilli }
 
 // PurchaseOrder es una orden de compra a un proveedor.
 type PurchaseOrder struct {
@@ -119,6 +129,19 @@ type PurchaseOrder struct {
 	TotalMinor   int64
 	CreatedAt    time.Time
 	Version      int
+	CloseReason  string // F16.12
+}
+
+// MaxCloseReasonLength del motivo de «Cerrar con faltante».
+const MaxCloseReasonLength = 300
+
+// CloseReason normaliza y valida el motivo de «Cerrar con faltante» (1–300 caracteres).
+func CloseReason(reason string) (string, error) {
+	r := strings.TrimSpace(reason)
+	if r == "" || len([]rune(r)) > MaxCloseReasonLength {
+		return r, ErrCloseReasonRequired
+	}
+	return r, nil
 }
 
 // halfUp divide redondeando la mitad hacia arriba (domain-model §4); n y d > 0.
@@ -150,6 +173,7 @@ type Received struct {
 	ReceivedMilli int64
 	LotCode       string     // F16.8: lote del proveedor (obligatorio si el producto maneja lotes)
 	LotExpiresOn  *time.Time // vencimiento del lote
+	DamagedMilli  int64      // F16.12: parte de ReceivedMilli que llegó dañada (entra bloqueada)
 }
 
 // Receive aplica una recepción: suma a cada línea sin pasar lo pedido y devuelve el nuevo estado
@@ -170,7 +194,7 @@ func (o *PurchaseOrder) Receive(in []Received) error {
 		if !ok {
 			return ErrNotInOrder
 		}
-		if r.ReceivedMilli <= 0 {
+		if r.ReceivedMilli <= 0 || r.DamagedMilli < 0 || r.DamagedMilli > r.ReceivedMilli {
 			return ErrInvalidOrder
 		}
 		l := &o.Lines[i]
@@ -178,6 +202,7 @@ func (o *PurchaseOrder) Receive(in []Received) error {
 			return ErrOverReceipt
 		}
 		l.ReceivedMilli += r.ReceivedMilli
+		l.DamagedMilli += r.DamagedMilli
 	}
 	o.Status = POReceived
 	for _, l := range o.Lines {

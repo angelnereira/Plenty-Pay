@@ -86,8 +86,20 @@ func (s *Inventory) ListPurchaseOrders(ctx context.Context, tenantID string, sta
 }
 
 // UpdatePurchaseOrderStatus: enviar o cancelar (domain-model §8.12).
-func (s *Inventory) UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id string, to domain.POStatus) (domain.PurchaseOrder, error) {
-	return s.store.UpdatePurchaseOrderStatus(ctx, tenantID, id, to, s.now())
+// UpdatePurchaseOrderStatus aplica un cambio de estado de una persona. F16.12: CLOSED_SHORT exige
+// motivo (R10).
+func (s *Inventory) UpdatePurchaseOrderStatus(ctx context.Context, c Caller, id string, to domain.POStatus, reason string) (domain.PurchaseOrder, error) {
+	if to == domain.POClosedShort {
+		r, err := domain.CloseReason(reason)
+		if err != nil {
+			return domain.PurchaseOrder{}, err
+		}
+		reason = r
+	} else {
+		reason = ""
+	}
+	return s.store.UpdatePurchaseOrderStatus(ctx, c.TenantID, id, store.StatusChange{To: to, Reason: reason,
+		ActorID: c.UserID, NewID: s.newID, Now: s.now()})
 }
 
 // ReceiveGoods registra la recepción (S-INV-06): un movimiento RECEIPT por línea en la bodega de la
@@ -129,14 +141,27 @@ func (s *Inventory) ReceiveGoods(ctx context.Context, c Caller, poID, key, invoi
 		if err := lotFields(&m, r.LotCode, r.LotExpiresOn, tracks); err != nil {
 			return domain.PurchaseOrder{}, err
 		}
-		parts = append(parts, fmt.Sprintf("%s:%d:%s", r.ProductID, r.ReceivedMilli, lotHash(m.LotCode, m.LotExpiresOn)))
+		parts = append(parts, fmt.Sprintf("%s:%d:%d:%s", r.ProductID, r.ReceivedMilli, r.DamagedMilli, lotHash(m.LotCode, m.LotExpiresOn)))
 		moves = append(moves, m)
+		// F16.12 (R10): lo dañado entra y se aparta en la misma transacción, del mismo lote.
+		if r.DamagedMilli < 0 || r.DamagedMilli > r.ReceivedMilli {
+			return domain.PurchaseOrder{}, domain.ErrInvalidOrder
+		}
+		if r.DamagedMilli > 0 {
+			b := m
+			b.ID, b.Type, b.DeltaMilli, b.Reason, b.OnArrival = s.newID(), domain.Block, r.DamagedMilli, store.DamagedReason, true
+			moves = append(moves, b)
+		}
 	}
 	hash := requestHash(parts...)
 	now := s.now()
+	issueIDs := make([]string, len(in))
+	for i := range issueIDs {
+		issueIDs[i] = s.newID()
+	}
 	if _, err := s.store.Apply(ctx, store.Batch{
 		TenantID: c.TenantID, IdempotencyKey: key, RequestHash: hash, Movements: moves, NewWarehouseID: s.newID(), Now: now,
-		Hook: store.ReceiptHook(c.TenantID, poID, s.newID(), invoice, key, hash, c.UserID, in, now, wh),
+		Hook: store.ReceiptHook(c.TenantID, poID, s.newID(), invoice, key, hash, c.UserID, in, now, wh, issueIDs),
 	}, s.eventsFor); err != nil {
 		return domain.PurchaseOrder{}, err
 	}

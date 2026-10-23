@@ -45,7 +45,7 @@ type Store interface {
 		now time.Time) (domain.PurchaseOrder, error)
 	GetPurchaseOrder(ctx context.Context, tenantID, id string) (domain.PurchaseOrder, error)
 	ListPurchaseOrders(ctx context.Context, tenantID string, status domain.POStatus, after string, limit int) ([]domain.PurchaseOrder, string, error)
-	UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id string, to domain.POStatus, now time.Time) (domain.PurchaseOrder, error)
+	UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id string, c store.StatusChange) (domain.PurchaseOrder, error)
 	PurchaseOrderWarehouse(ctx context.Context, tenantID, id string) (string, error)
 	ReorderData(ctx context.Context, tenantID, warehouseID string, now time.Time) ([]store.ReorderRow, error)
 }

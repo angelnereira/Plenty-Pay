@@ -49,7 +49,7 @@ func TestL2_F16_5_PurchaseOrderLifecycle(t *testing.T) {
 	if _, err := s.ReceiveGoods(ctx, c, po.ID, key(), "", []domain.Received{{ProductID: a, ReceivedMilli: 1_000}}); !errors.Is(err, domain.ErrPOTransition) {
 		t.Fatalf("un borrador no recibe: %v", err)
 	}
-	if po, err = s.UpdatePurchaseOrderStatus(ctx, tenant, po.ID, domain.POSent); err != nil || po.Status != domain.POSent {
+	if po, err = s.UpdatePurchaseOrderStatus(ctx, person(tenant), po.ID, domain.POSent, ""); err != nil || po.Status != domain.POSent {
 		t.Fatalf("enviar: %v %+v", err, po)
 	}
 	rk := key()
@@ -79,7 +79,7 @@ func TestL2_F16_5_PurchaseOrderLifecycle(t *testing.T) {
 	if n := count(t, tenant, `SELECT count(*) FROM movements WHERE reference_type = 'purchase_order' AND reference_id = $1`, po.ID); n != 3 {
 		t.Fatalf("movimientos RECEIPT con la referencia de la orden: %d", n)
 	}
-	if _, err := s.UpdatePurchaseOrderStatus(ctx, tenant, po.ID, domain.POCancelled); !errors.Is(err, domain.ErrPOTransition) {
+	if _, err := s.UpdatePurchaseOrderStatus(ctx, person(tenant), po.ID, domain.POCancelled, ""); !errors.Is(err, domain.ErrPOTransition) {
 		t.Fatalf("una orden recibida no se cancela: %v", err)
 	}
 	list, _, err := s.ListPurchaseOrders(ctx, tenant, domain.POReceived, "", 10)
@@ -117,7 +117,7 @@ func TestL2_R6_ReorderSuggestions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpdatePurchaseOrderStatus(ctx, tenant, po.ID, domain.POSent); err != nil {
+	if _, err := s.UpdatePurchaseOrderStatus(ctx, person(tenant), po.ID, domain.POSent, ""); err != nil {
 		t.Fatal(err)
 	}
 	list, rows, err := s.ReorderSuggestions(ctx, tenant, "")

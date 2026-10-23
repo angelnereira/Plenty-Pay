@@ -23,11 +23,12 @@ Bodegas, existencias, movimientos inmutables, reservas con TTL, proveedores, ór
 | Proveedores, órdenes de compra y recepción (F16.5): RUC+DV, correo y teléfono validados; total = Σ half_up(cantidad × costo / 1000); recepción parcial/total por línea que nunca pasa lo pedido; cada recepción genera RECEIPT idempotente en la misma transacción | ✅ L2 | `TestL2_F16_5_PurchaseOrderLifecycle`; reasons `INVALID_SUPPLIER`, `RECEIPT_EXCEEDS_ORDERED`, `UNKNOWN_ORDER_LINE`, `INVALID_STATE_TRANSITION` (`TestReasons_PurchasingErrorsUseGlossaryNames`) |
 | R6 reorden (F16.6): velocidad EWMA α=0.3 sobre 28 días completos (America/Panama) en enteros, cobertura, cantidad sugerida, clase ABC, en tránsito y proveedor habitual | ✅ L1 · ✅ L2 | `internal/domain/reorder_test.go` (cálculo de referencia), `TestL2_R6_ReorderSuggestions` |
 | Lotes FEFO (R5) | ✅ L2 | F16.4/F16.8: `TestL2_R5_*`, `TestL2_F16_8_PurchaseReceiptWithLots` |
+| Incidencias de recepción (F16.12, R10): dañado entra bloqueado; «Cerrar con faltante» | ✅ L2 · ✅ L4 | `TestL2_R10_*`; migración `0006_receipt_issues` en producción (2026-10-23) |
 | Existencia bloqueada y aviso de vencimiento (F16.10, R9) | ✅ L2 · ✅ L4 | `TestL2_F16_10_*`; migración `0005_blocked` en producción (2026-10-23); L4 en el Pixel 8 Pro |
 | Observabilidad | ◐ | interceptor, métricas `pp_rpc_*`, `pp_outbox_*` y `pp_inventory_blocked_levels` (F16.10) |
 | Despliegue en producción | ⏳ | `~/plentypay-backups/commerce-reset.sh` |
 
-24 pruebas L2 en verde (`./inventory/test/test_l2.sh`, 2026-10-23). Antes: 19 (2026-10-21). Desplegado en producción 2026-10-21 con la migración `0003_purchasing` (respaldo previo con `pg_dump`); humo de lectura de compras OK.
+26 pruebas L2 en verde (`./inventory/test/test_l2.sh`, 2026-10-23). Antes: 24 (F16.10) y 19 (2026-10-21). Desplegado en producción 2026-10-21 con la migración `0003_purchasing` (respaldo previo con `pg_dump`); humo de lectura de compras OK.
 
 ## Arranque
 ```bash

@@ -70,6 +70,9 @@ type Movement struct {
 	LotCode      string
 	LotExpiresOn *time.Time
 	RequireLot   bool
+
+	// OnArrival (F16.12): BLOCK de lo que llega dañado en una recepción; no compite con reservas.
+	OnArrival bool
 }
 
 // ServiceTypes solo los generan pos y orders al vender o devolver (SPEC §4 AdjustStock).
@@ -147,7 +150,9 @@ func (l Level) Available() int64 { return l.OnHandMilli - l.ReservedMilli - l.Bl
 func (l *Level) Apply(m Movement) error {
 	switch m.Type {
 	case Block:
-		if l.Available() < m.DeltaMilli {
+		// F16.12: lo que llega dañado en una recepción se aparta aunque haya reservas: son unidades
+		// que acaban de entrar, nunca estuvieron disponibles.
+		if !m.OnArrival && l.Available() < m.DeltaMilli {
 			return ErrOutOfStock
 		}
 		l.BlockedMilli += m.DeltaMilli

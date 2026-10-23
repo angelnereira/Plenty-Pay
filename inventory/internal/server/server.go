@@ -52,6 +52,8 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "código de lote inválido")
 	case errors.Is(err, domain.ErrOutOfStock):
 		return ErrorInfo(codes.FailedPrecondition, "OUT_OF_STOCK", "no hay existencia suficiente")
+	case errors.Is(err, domain.ErrCloseReasonRequired):
+		return ErrorInfo(codes.InvalidArgument, "REASON_REQUIRED", "indica el motivo del cierre con faltante")
 	case errors.Is(err, domain.ErrExceedsBlocked):
 		return ErrorInfo(codes.FailedPrecondition, "EXCEEDS_BLOCKED", "no hay tanta existencia bloqueada")
 	case errors.Is(err, domain.ErrInvalidSettings):
