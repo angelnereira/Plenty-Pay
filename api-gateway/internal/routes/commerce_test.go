@@ -148,3 +148,29 @@ func TestF16_10_BlockAndExpiringLotsDecode(t *testing.T) {
 		t.Fatalf("PUT settings: %q", r.Permission)
 	}
 }
+
+// F16.12: el motivo del cierre con faltante y lo dañado de cada línea llegan al contrato.
+func TestF16_12_CloseShortReasonAndDamagedDecode(t *testing.T) {
+	r := route(t, "POST", "/v1/inventory/purchase-orders/"+pid+"/status")
+	req := httptest.NewRequest("POST", "/v1/inventory/purchase-orders/"+pid+"/status",
+		strings.NewReader(`{"status":"PURCHASE_ORDER_STATUS_CLOSED_SHORT","reason":"el proveedor no tiene más"}`))
+	req.Header.Set("Idempotency-Key", "k-0123456789abcdef")
+	msg, err := r.DecodeRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := msg.(*pb.UpdatePurchaseOrderStatusRequest); u.GetPurchaseOrderId() != pid || u.GetReason() != "el proveedor no tiene más" ||
+		u.GetStatus() != pb.PurchaseOrderStatus_PURCHASE_ORDER_STATUS_CLOSED_SHORT {
+		t.Fatalf("status = %v", u)
+	}
+	r = route(t, "POST", "/v1/inventory/purchase-orders/"+pid+"/receive")
+	req = httptest.NewRequest("POST", "/v1/inventory/purchase-orders/"+pid+"/receive",
+		strings.NewReader(`{"lines":[{"product_id":"`+pid+`","received_milli":"5000","damaged_milli":"2000"}]}`))
+	req.Header.Set("Idempotency-Key", "k-0123456789abcdef")
+	if msg, err = r.DecodeRequest(req); err != nil {
+		t.Fatal(err)
+	}
+	if l := msg.(*pb.ReceiveGoodsRequest).GetLines()[0]; l.GetDamagedMilli() != 2000 {
+		t.Fatalf("línea = %v", l)
+	}
+}
