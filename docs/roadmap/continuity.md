@@ -39,7 +39,7 @@ R10 en `inventory/SPEC.md` y §8.12 en `domain-model.md` (estado `CLOSED_SHORT`)
 ## 3. Siguiente paso recomendado
 **Entrada para cualquier agente**: [`lifecycles.md`](lifecycles.md) (mapa por ciclo de vida del producto y del dinero) y [`execution/README.md`](execution/README.md) (procedimiento común + una ficha por paso abierto, por olas). Toma el primer paso de la ola más baja cuyo precedente esté ✅ y que no requiera a una persona:
 
-1. **Ola 1** ([fichas](execution/ola-1-venta-cerrada.md)): ~~F17.11~~ (✅ 2026-10-23) → F16.9 sucursal en bodegas → F17.12 sucursal en cajas → F17.3 reporte Z → F17.13 cambio de turno. Las L4 de F17.5, F11.6, F17.9, F15.8, F15.9 necesitan una segunda cuenta con saldo sandbox (ver la ficha). F16.11 necesita a una persona frente al teléfono.
+1. **Ola 1** ([fichas](execution/ola-1-venta-cerrada.md)): ~~F17.11~~ y ~~F16.9~~ (✅ 2026-10-23) → F17.12 sucursal en cajas (copia el patrón de `inventory/internal/service/scope.go` y `server.ScopeInterceptor`) → F17.3 reporte Z → F17.13 cambio de turno. Las L4 de F17.5, F11.6, F17.9, F15.8, F15.9 necesitan una segunda cuenta con saldo sandbox (ver la ficha). F16.11 necesita a una persona frente al teléfono.
 2. **Ola 2 en paralelo** ([fichas](execution/ola-2-documento-y-aviso.md)): dar servidor a notifications (F20.1–F20.2) destraba avisos, factura por correo y el hueco 1 (invitaciones que no se entregan).
 3. F16.13 (historial de compras) queda en la ola 4; el costo de lo vendido sigue ⛔ Q-52.
 
@@ -52,8 +52,8 @@ Decisión abierta nueva: Q-56 (remesa del ITBMS de la plataforma; el dueño indi
 | Checks transversales | `./scripts/check-isolation.sh && ./scripts/check-docs.sh && ./scripts/sync-protos.sh --check` |
 | Contrato tras editar un `.proto` | `./scripts/sync-protos.sh` |
 | Go (L1) | `cd <c> && go vet ./... && go test -race ./...` |
-| L2 en base efímera | `./<c>/test/test_l2.sh` (inventory 26, pos 20, fiscal 12, settlement 4) |
-| Flutter | `cd flutter_app && flutter analyze && flutter test` (600 al 2026-10-23; el analizador tiene 18 notas previas, ninguna de inventario) |
+| L2 en base efímera | `./<c>/test/test_l2.sh` (inventory 28, pos 20, fiscal 12, settlement 4) |
+| Flutter | `cd flutter_app && flutter analyze && flutter test` (603 al 2026-10-23; el analizador tiene 18 notas previas, ninguna de inventario) |
 | Respaldo antes de migrar | `docker compose exec -T postgres-db pg_dump -U postgres -d plentypay -n <esquema> \| gzip > ~/plentypay-backups/<esquema>-before-<migr>-$(date +%Y%m%d-%H%M%S).sql.gz` |
 | Desplegar un servicio | `docker compose build <c> && docker compose run --rm --no-deps <c> migrate && docker compose up -d --no-deps <c>` |
 | Publicar la app | `./scripts/publish-release.sh <patch\|minor> <notas.md>` (después de cada push a `main`) |

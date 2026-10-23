@@ -9,8 +9,8 @@
 | 3 | [F17.5](#f175--cobro-mixto-l4) Cobro mixto (L4) | pos, flutter_app | L4 | — | — |
 | 4 | [F17.10](#f1710--pantallas-del-pos-integration_test) Pantallas del POS (integration_test) | flutter_app | L4 | F17.5 | — |
 | 5 | [F17.3](#f173--reporte-z-y-conteo-por-denominación) Reporte Z y conteo por denominación | pos, gateway, app | L2 | — | — |
-| 6 | [F17.11](#f1711--configuración-de-caja) Configuración de caja | pos, gateway, app | L2 | — | — |
-| 7 | [F16.9](#f169--sucursal-en-bodegas-y-alcance) Sucursal en bodegas | inventory, app | L2 | — | — |
+| 6 | [F17.11](#f1711--configuración-de-caja) Configuración de caja ✅ 2026-10-23 | pos, gateway, app | L2 | — | — |
+| 7 | [F16.9](#f169--sucursal-en-bodegas-y-alcance) Sucursal en bodegas ✅ 2026-10-23 | inventory, app | L2 | — | — |
 | 8 | [F17.12](#f1712--sucursal-en-cajas-y-ventas) Sucursal en cajas y ventas | pos, app | L2 | F16.9 | — |
 | 9 | [F17.13](#f1713--cambio-de-turno-y-sesiones-abandonadas) Cambio de turno | pos, identity, app | L2 | F17.3 | supuesto Q-51 |
 | 10 | [F11.6](#f116--reembolsos-t7-l4) Reembolsos T7 (L4) | payments-core, app | L4 | — | — |
@@ -106,9 +106,7 @@ Ficha de diseño: [commerce-plan F16.9](../commerce-plan.md#f169--sucursal-en-bo
 - **Leer antes**: ADR 0018; `docs/domain/business-profiles-and-access.md` §8 (vectores V3, V7); `docs/standards/grpc-conventions.md` (fila `x-pp-branch-scope`: si falta, **ninguna** sucursal); cómo lo lee identity: `identity/internal/auth/access.go`; cómo lo propaga el gateway: `api-gateway/internal/metadata/metadata.go`.
 - **Resultado observable**: un gerente con alcance a la sucursal A no puede ajustar, transferir ni recibir en bodegas de B (`BRANCH_OUT_OF_SCOPE`), y solo ve las de A.
 - **Contrato**: `Warehouse.branch_id` (siguiente número libre del mensaje `Warehouse` en `inventory.proto`).
-- **Datos** (dos migraciones, la ficha de diseño dice «0005» pero ese número ya lo usó F16.10: usar las siguientes libres, **0007 y 0008** al 2026-10-23):
-  - `0007_warehouse_branch`: `ALTER TABLE warehouses ADD COLUMN branch_id uuid;` relleno con la sucursal matriz del tenant. inventory no tiene las sucursales: el relleno lo hace un comando `inventory backfill-branches` que pide a identity `ListBranches` por tenant (rol `SYSTEM`) o, si no hay sucursal, deja la marca de matriz `00000000-0000-0000-0000-000000000000` documentada como «matriz».
-  - `0008_warehouse_branch_required`: `ALTER TABLE warehouses ALTER COLUMN branch_id SET NOT NULL` (se aplica en un despliegue posterior, tras verificar que no quedan nulos).
+- **Datos** (hecho el 2026-10-23): una sola migración, `0007_warehouse_branch` (`warehouses.branch_id uuid` nulo + índice). La sucursal nula significa «Casa Matriz aún sin asignar» (R11), así que no hace falta una segunda migración `NOT NULL`: inventory asigna la Casa Matriz la primera vez que alguien con alcance `*` lista las bodegas, preguntando a identity con la identidad de esa persona (inventory no lee el esquema de identity).
 - **Código**: `inventory/internal/tenancy` (leer `x-pp-branch-scope` → `Scope{All bool; Branches map[string]bool}`; ausente = ninguna), `internal/server` (pasar el alcance al servicio), `internal/service` (validar en `AdjustStock`, `TransferStock` —origen **y** destino—, `ReceiveGoods`, `UpsertWarehouse`, `ReserveStock` no: las reservas las hace orders como servicio), `internal/store` (filtrar `ListWarehouses`, `ListStock`, `ListMovements`, `ListLots` por bodegas en alcance). Error `ErrBranchOutOfScope` → `PERMISSION_DENIED` `BRANCH_OUT_OF_SCOPE`.
 - **Gateway / app**: S-INV-09 muestra y permite elegir la sucursal de la bodega (actualizar la ficha); el selector de bodega de S-INV-01 solo lista las de su alcance (lo da el servidor).
 - **Pruebas**: L1 `TestADR0018_ScopeParsing` (`*`, lista, ausente); L2 `TestADR0018_BranchOutOfScope` (V3: ajuste en otra sucursal rechazado; V7: transferencia con destino fuera de alcance rechazada; lectura filtrada); `TestF16_9_ServicesAreNotScoped` (pos/orders como servicio no se filtran); server `toStatus`.
