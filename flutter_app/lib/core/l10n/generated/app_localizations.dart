@@ -8684,6 +8684,132 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No puede ser más que lo recibido ahora.'**
   String get poDamagedTooMuch;
+
+  /// No description provided for @posSettingsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Configuración de caja'**
+  String get posSettingsTitle;
+
+  /// No description provided for @posMenuSettings.
+  ///
+  /// In es, this message translates to:
+  /// **'Configuración de caja'**
+  String get posMenuSettings;
+
+  /// No description provided for @posSettingsDocuments.
+  ///
+  /// In es, this message translates to:
+  /// **'Documentos'**
+  String get posSettingsDocuments;
+
+  /// No description provided for @posPrefAlwaysFiscal.
+  ///
+  /// In es, this message translates to:
+  /// **'Siempre factura'**
+  String get posPrefAlwaysFiscal;
+
+  /// No description provided for @posPrefInternalOnly.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo recibo interno'**
+  String get posPrefInternalOnly;
+
+  /// No description provided for @posPrefAsk.
+  ///
+  /// In es, this message translates to:
+  /// **'Preguntar'**
+  String get posPrefAsk;
+
+  /// No description provided for @posPrefAuto.
+  ///
+  /// In es, this message translates to:
+  /// **'Automático desde un monto'**
+  String get posPrefAuto;
+
+  /// No description provided for @posPrefLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Preferencia'**
+  String get posPrefLabel;
+
+  /// No description provided for @posPrefThreshold.
+  ///
+  /// In es, this message translates to:
+  /// **'Factura desde'**
+  String get posPrefThreshold;
+
+  /// No description provided for @posPrefThresholdInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Indica un monto mayor que 0.'**
+  String get posPrefThresholdInvalid;
+
+  /// No description provided for @posInternalReceiptWarning.
+  ///
+  /// In es, this message translates to:
+  /// **'Un recibo interno no sustituye la factura. Consulta tus obligaciones con la DGI.'**
+  String get posInternalReceiptWarning;
+
+  /// No description provided for @posInvoicePending.
+  ///
+  /// In es, this message translates to:
+  /// **'Por ahora la caja emite recibo interno. La factura desde la venta llegará pronto.'**
+  String get posInvoicePending;
+
+  /// No description provided for @posSettingsPayments.
+  ///
+  /// In es, this message translates to:
+  /// **'Medios de pago'**
+  String get posSettingsPayments;
+
+  /// No description provided for @posSettingsPaymentsInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Deja al menos un medio de pago activo.'**
+  String get posSettingsPaymentsInvalid;
+
+  /// No description provided for @posSettingsDiscounts.
+  ///
+  /// In es, this message translates to:
+  /// **'Descuentos'**
+  String get posSettingsDiscounts;
+
+  /// No description provided for @posMaxDiscount.
+  ///
+  /// In es, this message translates to:
+  /// **'Máximo sin supervisor (%)'**
+  String get posMaxDiscount;
+
+  /// No description provided for @posMaxDiscountInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Indica un porcentaje de 0 a 100.'**
+  String get posMaxDiscountInvalid;
+
+  /// No description provided for @posSettingsReceipt.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibo'**
+  String get posSettingsReceipt;
+
+  /// No description provided for @posReceiptFooter.
+  ///
+  /// In es, this message translates to:
+  /// **'Pie del recibo'**
+  String get posReceiptFooter;
+
+  /// No description provided for @posSettingsSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Configuración guardada.'**
+  String get posSettingsSaved;
+
+  /// No description provided for @posSettingsConflict.
+  ///
+  /// In es, this message translates to:
+  /// **'Alguien más cambió la configuración. Vuelve a cargarla.'**
+  String get posSettingsConflict;
 }
 
 class _AppLocalizationsDelegate

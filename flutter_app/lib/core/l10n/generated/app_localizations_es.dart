@@ -4802,6 +4802,73 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get poDamagedTooMuch => 'No puede ser más que lo recibido ahora.';
+
+  @override
+  String get posSettingsTitle => 'Configuración de caja';
+
+  @override
+  String get posMenuSettings => 'Configuración de caja';
+
+  @override
+  String get posSettingsDocuments => 'Documentos';
+
+  @override
+  String get posPrefAlwaysFiscal => 'Siempre factura';
+
+  @override
+  String get posPrefInternalOnly => 'Solo recibo interno';
+
+  @override
+  String get posPrefAsk => 'Preguntar';
+
+  @override
+  String get posPrefAuto => 'Automático desde un monto';
+
+  @override
+  String get posPrefLabel => 'Preferencia';
+
+  @override
+  String get posPrefThreshold => 'Factura desde';
+
+  @override
+  String get posPrefThresholdInvalid => 'Indica un monto mayor que 0.';
+
+  @override
+  String get posInternalReceiptWarning =>
+      'Un recibo interno no sustituye la factura. Consulta tus obligaciones con la DGI.';
+
+  @override
+  String get posInvoicePending =>
+      'Por ahora la caja emite recibo interno. La factura desde la venta llegará pronto.';
+
+  @override
+  String get posSettingsPayments => 'Medios de pago';
+
+  @override
+  String get posSettingsPaymentsInvalid =>
+      'Deja al menos un medio de pago activo.';
+
+  @override
+  String get posSettingsDiscounts => 'Descuentos';
+
+  @override
+  String get posMaxDiscount => 'Máximo sin supervisor (%)';
+
+  @override
+  String get posMaxDiscountInvalid => 'Indica un porcentaje de 0 a 100.';
+
+  @override
+  String get posSettingsReceipt => 'Recibo';
+
+  @override
+  String get posReceiptFooter => 'Pie del recibo';
+
+  @override
+  String get posSettingsSaved => 'Configuración guardada.';
+
+  @override
+  String get posSettingsConflict =>
+      'Alguien más cambió la configuración. Vuelve a cargarla.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

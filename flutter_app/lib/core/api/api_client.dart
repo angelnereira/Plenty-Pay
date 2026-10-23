@@ -764,6 +764,14 @@ class ApiClient {
 
   // ── Inventario (F16, S-INV-01/02/03/04/09) ──────────────────────────────────────────────
 
+  /// F17.11: configuración de caja (S-POS-11).
+  Future<Map<String, dynamic>> getPosSettings() => _get('/v1/pos/settings');
+
+  Future<Map<String, dynamic>> updatePosSettings(Map<String, Object?> settings,
+          {required String idempotencyKey}) =>
+      _put('/v1/pos/settings',
+          data: {'settings': settings}, idempotencyKey: idempotencyKey);
+
   Future<Map<String, dynamic>> listWarehouses() =>
       _get('/v1/inventory/warehouses');
 

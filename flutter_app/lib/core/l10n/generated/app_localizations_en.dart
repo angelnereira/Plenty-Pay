@@ -4794,4 +4794,71 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get poDamagedTooMuch => 'It cannot be more than received now.';
+
+  @override
+  String get posSettingsTitle => 'Register settings';
+
+  @override
+  String get posMenuSettings => 'Register settings';
+
+  @override
+  String get posSettingsDocuments => 'Documents';
+
+  @override
+  String get posPrefAlwaysFiscal => 'Always invoice';
+
+  @override
+  String get posPrefInternalOnly => 'Internal receipt only';
+
+  @override
+  String get posPrefAsk => 'Ask every time';
+
+  @override
+  String get posPrefAuto => 'Automatic from an amount';
+
+  @override
+  String get posPrefLabel => 'Preference';
+
+  @override
+  String get posPrefThreshold => 'Invoice from';
+
+  @override
+  String get posPrefThresholdInvalid => 'Enter an amount greater than 0.';
+
+  @override
+  String get posInternalReceiptWarning =>
+      'An internal receipt does not replace the invoice. Check your obligations with the DGI.';
+
+  @override
+  String get posInvoicePending =>
+      'For now the register issues internal receipts. Invoices from the sale are coming soon.';
+
+  @override
+  String get posSettingsPayments => 'Payment methods';
+
+  @override
+  String get posSettingsPaymentsInvalid =>
+      'Keep at least one payment method on.';
+
+  @override
+  String get posSettingsDiscounts => 'Discounts';
+
+  @override
+  String get posMaxDiscount => 'Maximum without a supervisor (%)';
+
+  @override
+  String get posMaxDiscountInvalid => 'Enter a percentage from 0 to 100.';
+
+  @override
+  String get posSettingsReceipt => 'Receipt';
+
+  @override
+  String get posReceiptFooter => 'Receipt footer';
+
+  @override
+  String get posSettingsSaved => 'Settings saved.';
+
+  @override
+  String get posSettingsConflict =>
+      'Someone else changed the settings. Reload them.';
 }

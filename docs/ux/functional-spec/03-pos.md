@@ -128,6 +128,8 @@ El recibo (S-POS-05) abierto desde S-POS-07 muestra "Devolver" (secundario) solo
 ### S-POS-11 · `/pos/settings` · Configuración de caja
 `pos:settings:manage`
 
+Implementado en F17.11 (2026-10-23): **Documentos**, **Medios de pago** (efectivo y saldo PlentyPay; propina no), **Descuentos** (solo «Máximo sin supervisor (%)») y **Recibo** (pie). El resto de las secciones aparece cuando su paso exista (Precios: el ITBMS incluido es regla de dominio §10.4, no una opción; Unidades y Etiquetas de balanza: F24.3; Sin conexión: F17.7; Equipos y Pantalla del cliente: F17.8/F24; Pedidos: F15.13; Lealtad: F17.15). Solo la ve quien tiene `pos:settings:manage`; se entra desde el menú de la caja. Guardar con otro cambio de por medio: «Alguien más cambió la configuración. Vuelve a cargarla.»
+
 | Sección | Opciones |
 |---|---|
 | Precios | Los precios incluyen ITBMS (activo por defecto) |
@@ -136,12 +138,13 @@ El recibo (S-POS-05) abierto desde S-POS-07 muestra "Devolver" (secundario) solo
 | Unidades | Mostrar equivalencia en libras y galones |
 | Etiquetas de balanza | Estructura del código de 13 dígitos: prefijo (`20`–`29`) · dígitos del artículo · el valor es peso o precio · número de decimales. Botón "Probar con una etiqueta" que muestra artículo y cantidad leídos (N-STD-25) |
 | Documentos | Preferencia: Siempre factura / Solo recibo interno / Preguntar / Automático desde {monto} |
+| Recibo | Pie del recibo (texto libre, hasta 200 caracteres; se imprime al final del recibo) |
 | Sin conexión | Permitir ventas sin conexión · Máximo {200} ventas o {24} horas |
 | Equipos | Impresora (sistema o red: IP y puerto) · Cajón · Lector · Pantalla del cliente (emparejar) |
 | Pedidos | Sonido y aviso de pedido nuevo |
 | Lealtad | Puntos por cada $1 · valor de cada punto |
 
-Con "Solo recibo interno" aparece el aviso fijo: "Un recibo interno no sustituye la factura. Consulta tus obligaciones con la DGI."
+Con "Solo recibo interno" aparece el aviso fijo: "Un recibo interno no sustituye la factura. Consulta tus obligaciones con la DGI." Hasta que exista la factura desde la venta (F13.5), bajo la preferencia aparece siempre: "Por ahora la caja emite recibo interno. La factura desde la venta llegará pronto." Medios de pago: al menos uno activo ("Deja al menos un medio de pago activo."); un medio apagado no aparece en el cobro (S-POS-03). Descuentos: porcentaje de 0 a 100 con hasta dos decimales ("Indica un porcentaje de 0 a 100."). El pie del recibo aparece al final de S-POS-05.
 
 ### S-POS-12 · `/display/:pairing` · Pantalla del cliente
 Dispositivo emparejado · Pasos F17.10, F24.4 · WebSocket `customer_display`. Pantalla completa, tema oscuro forzado, sin navegación. Estados: reposo (logo del comercio); venta (líneas, descuentos y total gigante); cobro (QR de pago, "Escanea para pagar {total}"); resultado ("¡Gracias!" o "Confirmando tu pago…"). Nunca muestra datos del cliente ni del cajero.

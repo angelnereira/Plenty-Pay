@@ -19,6 +19,7 @@ import 'pos_close_session_screen.dart';
 import 'pos_data.dart';
 import 'pos_parked_screen.dart';
 import 'pos_sales_history_screen.dart';
+import 'pos_settings_screen.dart';
 
 /// Estado de entrada a la caja: sesión abierta (o null) y los puntos de cobro del negocio.
 class _PosEntry {
@@ -240,6 +241,21 @@ class _PosSellViewState extends State<PosSellView> {
   final List<TicketLine> _lines = [];
   bool _charging = false;
 
+  /// F17.11: «Configuración de caja» solo para quien tiene `pos:settings:manage` (el servidor
+  /// vuelve a verificarlo).
+  bool _canConfigure = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.api.permissions().then((p) {
+      if (mounted) setState(() => _canConfigure = p.can('pos:settings:manage'));
+    }, onError: (Object e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'pos.permissions', e is ApiException ? e.reason : 'network');
+    });
+  }
+
   /// Una venta por ticket: el reintento usa el mismo `client_sale_id` y no crea otra (R7).
   String _clientSaleId = newRequestId();
 
@@ -457,6 +473,7 @@ class _PosSellViewState extends State<PosSellView> {
   Future<void> _menu(String action) async {
     if (action == 'parked') return _openParked();
     final screen = switch (action) {
+      'settings' => PosSettingsScreen(api: widget.api) as Widget,
       'sales' => PosSalesHistoryScreen(
           api: widget.api,
           session: widget.session,
@@ -660,6 +677,9 @@ class _PosSellViewState extends State<PosSellView> {
               PopupMenuItem(value: 'sales', child: Text(l10n.posMenuSales)),
               PopupMenuItem(value: 'cash', child: Text(l10n.posMenuCash)),
               PopupMenuItem(value: 'close', child: Text(l10n.posMenuClose)),
+              if (_canConfigure)
+                PopupMenuItem(
+                    value: 'settings', child: Text(l10n.posMenuSettings)),
             ],
           ),
         ],

@@ -338,3 +338,89 @@ RefundPreview refundPreview(SaleItem sale, Map<String, int> qtyByLine) {
   }
   return RefundPreview(total, byRail);
 }
+
+/// Configuración de caja del comercio (`pos.PosSettings`, F17.11, R14). Los porcentajes van en
+/// puntos básicos enteros (1 % = 100) y los montos en centavos.
+class PosSettingsItem {
+  const PosSettingsItem({
+    required this.preference,
+    required this.autoThresholdMinor,
+    required this.cashEnabled,
+    required this.walletEnabled,
+    required this.receiptFooter,
+    required this.maxDiscountBps,
+    required this.version,
+  });
+
+  /// Lo que rige si el servidor no responde: lo mismo que los valores por defecto de pos (R14).
+  static const defaults = PosSettingsItem(
+      preference: 'INTERNAL_ONLY',
+      autoThresholdMinor: 0,
+      cashEnabled: true,
+      walletEnabled: true,
+      receiptFooter: '',
+      maxDiscountBps: 0,
+      version: 0);
+
+  factory PosSettingsItem.fromJson(Map<String, dynamic> j) => PosSettingsItem(
+        preference: (j['checkout_preference'] as String? ??
+                'CHECKOUT_PREFERENCE_INTERNAL_ONLY')
+            .replaceFirst('CHECKOUT_PREFERENCE_', ''),
+        autoThresholdMinor: _int(j['auto_threshold_minor']),
+        cashEnabled: j['cash_enabled'] as bool? ?? false,
+        walletEnabled: (j['enabled_rails'] as List<dynamic>? ?? const [])
+            .contains('PAYMENT_RAIL_WALLET'),
+        receiptFooter: j['receipt_footer'] as String? ?? '',
+        maxDiscountBps: _int(j['max_discount_bps']),
+        version: _int(j['version']),
+      );
+
+  final String
+      preference; // ALWAYS_FISCAL | INTERNAL_ONLY | ASK_ALWAYS | AUTO_THRESHOLD
+  final int autoThresholdMinor;
+  final bool cashEnabled;
+  final bool walletEnabled;
+  final String receiptFooter;
+  final int maxDiscountBps;
+  final int version;
+
+  Map<String, Object?> toJson() => {
+        'checkout_preference': 'CHECKOUT_PREFERENCE_$preference',
+        if (preference == 'AUTO_THRESHOLD')
+          'auto_threshold_minor': '$autoThresholdMinor',
+        'cash_enabled': cashEnabled,
+        'enabled_rails': [if (walletEnabled) 'PAYMENT_RAIL_WALLET'],
+        'receipt_footer': receiptFooter,
+        'max_discount_bps': maxDiscountBps,
+        'version': version,
+      };
+}
+
+Future<PosSettingsItem> loadPosSettings(ApiClient api) async =>
+    PosSettingsItem.fromJson(await api.getPosSettings());
+
+/// «12.5» → 1250 puntos básicos; null si no es un porcentaje de 0 a 100 con hasta 2 decimales.
+int? parsePercentBps(String text) {
+  final m = RegExp(r'^(\d{1,3})(?:[.,](\d{1,2}))?$').firstMatch(text.trim());
+  if (m == null) return null;
+  final whole = int.parse(m.group(1)!);
+  final frac = (m.group(2) ?? '').padRight(2, '0');
+  final bps = whole * 100 + int.parse(frac);
+  return bps > 10000 ? null : bps;
+}
+
+/// 1250 → «12.5»; 1500 → «15».
+String formatPercentBps(int bps) {
+  final whole = bps ~/ 100, frac = bps % 100;
+  if (frac == 0) return '$whole';
+  return frac % 10 == 0
+      ? '$whole.${frac ~/ 10}'
+      : '$whole.${frac.toString().padLeft(2, '0')}';
+}
+
+int _int(Object? v) => switch (v) {
+      final int i => i,
+      final String s => int.tryParse(s) ?? 0,
+      final num n => n.toInt(),
+      _ => 0,
+    };

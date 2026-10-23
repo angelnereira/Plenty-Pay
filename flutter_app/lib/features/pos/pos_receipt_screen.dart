@@ -45,6 +45,20 @@ class PosReceiptScreen extends StatefulWidget {
 class _PosReceiptScreenState extends State<PosReceiptScreen> {
   late SaleItem sale = widget.sale;
 
+  /// F17.11: pie del recibo de la configuración de caja (vacío si no hay o no responde).
+  String _footer = '';
+
+  @override
+  void initState() {
+    super.initState();
+    loadPosSettings(widget.api).then((s) {
+      if (mounted) setState(() => _footer = s.receiptFooter);
+    }, onError: (Object e) {
+      widget.api.logger.breadcrumb('ui', 'pos.settings',
+          e is ApiException ? e.reason : 'network');
+    });
+  }
+
   @override
   void didUpdateWidget(PosReceiptScreen old) {
     super.didUpdateWidget(old);
@@ -165,6 +179,12 @@ class _PosReceiptScreenState extends State<PosReceiptScreen> {
                         Text(l10n.posNotFiscal,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodySmall),
+                        if (_footer.isNotEmpty) ...[
+                          const SizedBox(height: AppTokens.spacingSm),
+                          Text(_footer,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium),
+                        ],
                       ]),
                 ),
               ),

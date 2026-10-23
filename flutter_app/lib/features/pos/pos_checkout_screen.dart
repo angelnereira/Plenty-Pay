@@ -47,6 +47,29 @@ class _PosCheckoutScreenState extends State<PosCheckoutScreen> {
   SaleItem? _waiting;
   Timer? _poll;
 
+  /// F17.11 (R14): medios activos de la caja. Mientras carga (o si no responde) se ofrecen los dos
+  /// y el servidor decide: un medio apagado responde RAIL_NOT_SUPPORTED.
+  PosSettingsItem _settings = PosSettingsItem.defaults;
+
+  @override
+  void initState() {
+    super.initState();
+    loadPosSettings(widget.api).then((s) {
+      if (!mounted) return;
+      setState(() {
+        _settings = s;
+        // Sin efectivo, todo el cobro va por saldo PlentyPay.
+        if (!s.cashEnabled && s.walletEnabled) {
+          _useWallet = true;
+          _cash.text = '0.00';
+        }
+      });
+    }, onError: (Object e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'pos.settings', e is ApiException ? e.reason : 'network');
+    });
+  }
+
   int get _total => widget.sale.totalMinor;
   int get _cashMinor =>
       _useWallet ? (MoneyText.parse(_cash.text) ?? 0) : _total;
@@ -198,26 +221,27 @@ class _PosCheckoutScreenState extends State<PosCheckoutScreen> {
                 label: l10n.posLeaveWaiting,
                 onPressed: () => Navigator.of(context).pop(true)),
           ] else ...[
-            SegmentedButton<bool>(
-              segments: [
-                ButtonSegment(
-                    value: false,
-                    label: Text(l10n.posMethodCash),
-                    icon: const Icon(Icons.payments_outlined)),
-                ButtonSegment(
-                    value: true,
-                    label: Text(l10n.posMethodWallet),
-                    icon: const Icon(Icons.qr_code_2)),
-              ],
-              selected: {_useWallet},
-              onSelectionChanged: (s) => setState(() {
-                _useWallet = s.first;
-                _cash.text = _useWallet ? '0.00' : '';
-                _error = null;
-              }),
-            ),
+            if (_settings.cashEnabled && _settings.walletEnabled)
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(
+                      value: false,
+                      label: Text(l10n.posMethodCash),
+                      icon: const Icon(Icons.payments_outlined)),
+                  ButtonSegment(
+                      value: true,
+                      label: Text(l10n.posMethodWallet),
+                      icon: const Icon(Icons.qr_code_2)),
+                ],
+                selected: {_useWallet},
+                onSelectionChanged: (s) => setState(() {
+                  _useWallet = s.first;
+                  _cash.text = _useWallet ? '0.00' : '';
+                  _error = null;
+                }),
+              ),
             const SizedBox(height: AppTokens.spacingMd),
-            if (_useWallet) ...[
+            if (_useWallet && _settings.cashEnabled) ...[
               TextField(
                 controller: _cash,
                 keyboardType:

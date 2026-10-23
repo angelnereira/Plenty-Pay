@@ -23,6 +23,7 @@ import 'package:plentypay/features/pos/pos_parked_screen.dart';
 import 'package:plentypay/features/pos/pos_receipt_screen.dart';
 import 'package:plentypay/features/pos/pos_refund_screen.dart';
 import 'package:plentypay/features/pos/pos_screen.dart';
+import 'package:plentypay/features/pos/pos_settings_screen.dart';
 
 import '../support/commerce_fixtures.dart';
 import '../support/fake_gateway.dart';
@@ -97,6 +98,11 @@ void main() {
         }),
     'GET /v1/catalog/storefront': (_) => json({...storefrontBody(storeA, 'Panadería y Repostería Artesanal Sol'), 'published': false}),
     'GET /v1/pos/sessions/current': (_) => json(session()),
+    'GET /v1/pos/settings': (_) => json({
+          'checkout_preference': 'CHECKOUT_PREFERENCE_AUTO_THRESHOLD', 'auto_threshold_minor': '123456789',
+          'cash_enabled': true, 'enabled_rails': ['PAYMENT_RAIL_WALLET'], 'max_discount_bps': 1250, 'version': 4,
+          'receipt_footer': 'Gracias por preferir la Panadería y Repostería Artesanal Sol, vuelva pronto a visitarnos en Boquete',
+        }),
     'GET /v1/terminals': (_) => json(terminalsBody),
     'GET /v1/pos/sessions/$sessionId': (_) => json(session()),
     'GET /v1/pos/sales': (_) => json({
@@ -160,6 +166,7 @@ void main() {
     'caja · recibo': () => PosReceiptScreen(api: fakeApi(routes), sale: paid, terminalLabel: 'Caja principal de la sucursal'),
     'caja · devolución': () => PosRefundScreen(api: fakeApi(routes), sale: paid),
     'caja · cierre': () => PosCloseSessionScreen(api: fakeApi(routes), sessionId: sessionId),
+    'caja · configuración': () => PosSettingsScreen(api: fakeApi(routes)),
     'caja · estacionadas': () => PosParkedScreen(api: fakeApi(routes), sessionId: sessionId, canResume: false),
   };
 

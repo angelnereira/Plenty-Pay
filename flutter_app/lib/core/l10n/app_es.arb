@@ -2280,5 +2280,26 @@
       }
     }
   },
-  "poDamagedTooMuch": "No puede ser más que lo recibido ahora."
+  "poDamagedTooMuch": "No puede ser más que lo recibido ahora.",
+  "posSettingsTitle": "Configuración de caja",
+  "posMenuSettings": "Configuración de caja",
+  "posSettingsDocuments": "Documentos",
+  "posPrefAlwaysFiscal": "Siempre factura",
+  "posPrefInternalOnly": "Solo recibo interno",
+  "posPrefAsk": "Preguntar",
+  "posPrefAuto": "Automático desde un monto",
+  "posPrefLabel": "Preferencia",
+  "posPrefThreshold": "Factura desde",
+  "posPrefThresholdInvalid": "Indica un monto mayor que 0.",
+  "posInternalReceiptWarning": "Un recibo interno no sustituye la factura. Consulta tus obligaciones con la DGI.",
+  "posInvoicePending": "Por ahora la caja emite recibo interno. La factura desde la venta llegará pronto.",
+  "posSettingsPayments": "Medios de pago",
+  "posSettingsPaymentsInvalid": "Deja al menos un medio de pago activo.",
+  "posSettingsDiscounts": "Descuentos",
+  "posMaxDiscount": "Máximo sin supervisor (%)",
+  "posMaxDiscountInvalid": "Indica un porcentaje de 0 a 100.",
+  "posSettingsReceipt": "Recibo",
+  "posReceiptFooter": "Pie del recibo",
+  "posSettingsSaved": "Configuración guardada.",
+  "posSettingsConflict": "Alguien más cambió la configuración. Vuelve a cargarla."
 }
