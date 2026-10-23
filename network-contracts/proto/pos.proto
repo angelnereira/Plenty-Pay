@@ -61,12 +61,28 @@ message CashSession {
   string close_notes = 11;
   string approved_by_user_id = 12;           // si la diferencia supera el umbral
   string branch_id = 13;                     // F17.12 (R15): sucursal de la sesión; vacío = anterior a sucursales
+  ZReport z_report = 14;                     // F17.3 (R16): solo con la sesión cerrada; se calcula y guarda al cerrar
+  repeated CashCount counted_by_denomination = 15; // F17.3 (R16): conteo del arqueo, si se hizo por denominación
 }
+// F17.3 (R16): una línea del reporte Z. key: "rail:CASH", "rail:WALLET", "refund:CASH", "refund:WALLET",
+// "discounts", "taxable:<bps>", "tax:<bps>", "exempt", "cash_in", "cash_out", "voids".
+message ZReportLine { string key = 1; plentypay.common.v1.Money amount = 2; int32 count = 3; }
+message ZReport {
+  repeated ZReportLine lines = 1;
+  plentypay.common.v1.Money gross_sales = 2; // Σ totales de las ventas pagadas en la sesión
+  plentypay.common.v1.Money refunds = 3;     // Σ devoluciones hechas desde esta caja
+  plentypay.common.v1.Money net_sales = 4;   // gross_sales − refunds
+  int32 sales_count = 5;
+}
+// F17.3 (R16): billetes o monedas de una denominación contados al cerrar.
+message CashCount { int64 denomination_minor = 1; int32 quantity = 2; }
 message OpenCashSessionRequest { string terminal_label = 1; plentypay.common.v1.Money opening_float = 2; string idempotency_key = 3;
   string branch_id = 4; // F17.12 (R15): sucursal de identity donde se abre la caja
 }
 message CloseCashSessionRequest { string session_id = 1; plentypay.common.v1.Money counted_cash = 2; string notes = 3; 
-  string idempotency_key = 4;}
+  string idempotency_key = 4;
+  repeated CashCount counted_by_denomination = 5; // F17.3 (R16): si llega, el contado es Σ denominación × cantidad
+}
 message GetCashSessionRequest { string session_id = 1; }
 message RecordCashMovementRequest { string session_id = 1; plentypay.common.v1.Money amount = 2; string direction = 3; string reason = 4; string idempotency_key = 5; } // direction: "IN" | "OUT"
 
