@@ -2,7 +2,7 @@
 
 Entrada para retomar el trabajo sin reconstruir el contexto. **No es un diario**: se reescribe al cerrar cada paso. Las reglas viven en [`AGENTS.md`](../../AGENTS.md); el estado con evidencia, en [`status.md`](status.md); las fichas de los pasos comerciales, en [`commerce-plan.md`](commerce-plan.md).
 
-_Última actualización: 2026-10-23, tras F16.10 (cerrado) y F16.11 (escáner; falta la prueba con cámara)._
+_Última actualización: 2026-10-23, tras F16.10 y F16.12 (cerrados) y F16.11 (escáner; falta la prueba con cámara)._
 
 ## 1. Estado verificado
 - Versión publicada: ver el último tag (`git ls-remote --tags origin | tail -1`); F17.4 salió en `v0.7.0`.
@@ -33,15 +33,11 @@ _Última actualización: 2026-10-23, tras F16.10 (cerrado) y F16.11 (escáner; f
 ## 2.4 F16.11 · Escáner en inventario (2026-10-23, 📝)
 Hecho y probado con lector simulado en el Pixel: regla C-27 (`docs/ux/functional-spec/README.md` §3), `flutter_app/lib/core/format/barcode.dart`, `flutter_app/lib/core/widgets/hid_scanner_listener.dart`, escaneo en S-INV-03/04/06 y en la caja. **Para cerrarlo**: alguien apunta la cámara del Pixel a un código impreso desde Inventario → Ajustar → icono de escaneo (y, si hay, un lector Bluetooth). Simular un lector: `adb shell input keyevent <códigos de tecla> 66` (no `input text`).
 
+## 2.5 Cerrado el 2026-10-23: F16.12 · Incidencias de recepción
+R10 en `inventory/SPEC.md` y §8.12 en `domain-model.md` (estado `CLOSED_SHORT`). Migración `inventory/migrations/0006_receipt_issues` aplicada (respaldo `~/plentypay-backups/inventory-before-0006-*.sql.gz`). Lógica en `inventory/internal/domain/purchasing.go` (`Receive`, `CloseReason`), `inventory/internal/store/purchasing.go` (`ReceiptHook`, `UpdatePurchaseOrderStatus` con `StatusChange`, `insertIssue`) y `inventory/internal/service/purchasing.go` (BLOCK `OnArrival`). App: `purchase_receive_screen.dart` (Dañado) y `purchase_orders_screen.dart` (`_CloseShortDialog`).
+
 ## 3. Siguiente paso recomendado
-**F16.12 · Incidencias y diferencias de recepción** ([ficha](commerce-plan.md#f1612--incidencias-y-diferencias-de-recepción)): recibido bueno, dañado (entra bloqueado, usa R9 de F16.10) y faltante con motivo; «Cerrar con faltante» (estado aditivo `CLOSED_SHORT`).
-
-Leer, en este orden:
-1. Ficha del paso en `commerce-plan.md`.
-2. `inventory/SPEC.md` §4–§5 (R9) y `inventory/internal/store/purchasing.go` (`ReceiveGoods`).
-3. Fichas S-INV-05 y S-INV-06 en `docs/ux/functional-spec/04-catalog-inventory.md`.
-
-Condición de terminado: criterio 21 de la ficha (lo dañado no queda disponible) + AGENTS §3 pasos 5–10.
+**F16.13 · Historial de compras y costo de adquisición** ([ficha](commerce-plan.md#f1613--historial-de-compras-y-costo-de-adquisición)). Ojo: el costo de lo vendido está ⛔ por Q-52; implementa solo lo que la ficha permite sin esa respuesta y deja el resto citado. Si prefieres otra rama, en caja quedan F17.11 (configuración de caja) y F17.12 (sucursal en cajas y ventas), sin bloqueos.
 
 ## 4. Comandos
 | Para | Comando |
@@ -50,8 +46,8 @@ Condición de terminado: criterio 21 de la ficha (lo dañado no queda disponible
 | Checks transversales | `./scripts/check-isolation.sh && ./scripts/check-docs.sh && ./scripts/sync-protos.sh --check` |
 | Contrato tras editar un `.proto` | `./scripts/sync-protos.sh` |
 | Go (L1) | `cd <c> && go vet ./... && go test -race ./...` |
-| L2 en base efímera | `./<c>/test/test_l2.sh` (inventory 24, pos 17, fiscal 12, settlement 4) |
-| Flutter | `cd flutter_app && flutter analyze && flutter test` (584 al 2026-10-23; el analizador tiene 18 notas previas, ninguna de inventario) |
+| L2 en base efímera | `./<c>/test/test_l2.sh` (inventory 26, pos 17, fiscal 12, settlement 4) |
+| Flutter | `cd flutter_app && flutter analyze && flutter test` (590 al 2026-10-23; el analizador tiene 18 notas previas, ninguna de inventario) |
 | Respaldo antes de migrar | `docker compose exec -T postgres-db pg_dump -U postgres -d plentypay -n <esquema> \| gzip > ~/plentypay-backups/<esquema>-before-<migr>-$(date +%Y%m%d-%H%M%S).sql.gz` |
 | Desplegar un servicio | `docker compose build <c> && docker compose run --rm --no-deps <c> migrate && docker compose up -d --no-deps <c>` |
 | Publicar la app | `./scripts/publish-release.sh <patch\|minor> <notas.md>` (después de cada push a `main`) |
