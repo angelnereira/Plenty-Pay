@@ -24,6 +24,7 @@ func TestF15_F17_CommerceMutationsCarryIdempotencyKey(t *testing.T) {
 		{"POST", "/v1/catalog/products/" + pid + "/archive", func(m proto.Message) string { return m.(*pb.ArchiveProductRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/inventory/adjustments", func(m proto.Message) string { return m.(*pb.AdjustStockRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/inventory/transfers", func(m proto.Message) string { return m.(*pb.TransferStockRequest).GetIdempotencyKey() }},
+		{"PUT", "/v1/inventory/settings", func(m proto.Message) string { return m.(*pb.UpdateInventorySettingsRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/pos/sessions", func(m proto.Message) string { return m.(*pb.OpenCashSessionRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/pos/sessions/" + pid + "/close", func(m proto.Message) string { return m.(*pb.CloseCashSessionRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/pos/sales", func(m proto.Message) string { return m.(*pb.CreateSaleRequest).GetIdempotencyKey() }},
@@ -116,5 +117,34 @@ func TestF15_F17_CommerceRoutesRequireAuth(t *testing.T) {
 				t.Errorf("%s %s: RequireAuth=%v Permission=%q", r.Method, r.Path, r.RequireAuth, r.Permission)
 			}
 		}
+	}
+}
+
+// F16.10: el bloqueo y la baja de lo bloqueado viajan en el cuerpo; los lotes por vencer, en la consulta.
+func TestF16_10_BlockAndExpiringLotsDecode(t *testing.T) {
+	r := route(t, "POST", "/v1/inventory/adjustments")
+	req := httptest.NewRequest("POST", "/v1/inventory/adjustments", strings.NewReader(
+		`{"product_id":"`+pid+`","delta_milli":"-1000","type":"MOVEMENT_TYPE_WRITE_OFF","reason":"dañado","from_blocked":true}`))
+	req.Header.Set("Idempotency-Key", "k-0123456789abcdef")
+	msg, err := r.DecodeRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a := msg.(*pb.AdjustStockRequest); !a.GetFromBlocked() || a.GetType() != pb.MovementType_MOVEMENT_TYPE_WRITE_OFF {
+		t.Fatalf("adjust = %v", a)
+	}
+	r = route(t, "GET", "/v1/inventory/lots")
+	msg, err = r.DecodeRequest(httptest.NewRequest("GET", "/v1/inventory/lots?only_expiring=true", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !msg.(*pb.ListLotsRequest).GetOnlyExpiring() {
+		t.Fatal("only_expiring no llegó")
+	}
+	if r := route(t, "GET", "/v1/inventory/settings"); r.Permission != "inventory:read" {
+		t.Fatalf("GET settings: %q", r.Permission)
+	}
+	if r := route(t, "PUT", "/v1/inventory/settings"); r.Permission != "inventory:adjust" {
+		t.Fatalf("PUT settings: %q", r.Permission)
 	}
 }

@@ -224,9 +224,22 @@ var commerceRoutes = []Route{
 		Method: "GET", Path: "/v1/inventory/lots", RPC: "/plentypay.inventory.v1.Inventory/ListLots",
 		Backend: BackendInventory, RequireAuth: true, Permission: "inventory:read",
 		QueryParams: map[string]string{"product_id": "product_id", "warehouse_id": "warehouse_id",
-			"include_empty": "include_empty"},
+			"include_empty": "include_empty", "only_expiring": "only_expiring"},
 		NewRequest:  func() proto.Message { return &pb.ListLotsRequest{} },
 		NewResponse: func() proto.Message { return &pb.ListLotsResponse{} },
+	},
+	{
+		// F16.10: días de anticipación del aviso de vencimiento del comercio.
+		Method: "GET", Path: "/v1/inventory/settings", RPC: "/plentypay.inventory.v1.Inventory/GetInventorySettings",
+		Backend: BackendInventory, RequireAuth: true, Permission: "inventory:read",
+		NewRequest:  func() proto.Message { return &pb.GetInventorySettingsRequest{} },
+		NewResponse: func() proto.Message { return &pb.InventorySettings{} },
+	},
+	{
+		Method: "PUT", Path: "/v1/inventory/settings", RPC: "/plentypay.inventory.v1.Inventory/UpdateInventorySettings",
+		Backend: BackendInventory, RequireAuth: true, Idempotency: true, Permission: "inventory:adjust",
+		NewRequest:  func() proto.Message { return &pb.UpdateInventorySettingsRequest{} },
+		NewResponse: func() proto.Message { return &pb.InventorySettings{} },
 	},
 
 	// ── pos ───────────────────────────────────────────────────────────────────────────────

@@ -140,7 +140,8 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 | GET `/v1/inventory/stock` · `/v1/inventory/stock/{variant_id}` | ListStock · GetStock | `inventory:read` |
 | POST `/v1/inventory/adjustments` · `/v1/inventory/transfers` | AdjustStock · TransferStock | `inventory:adjust` |
 | GET `/v1/inventory/movements` | ListMovements | `inventory:read` |
-| GET `/v1/inventory/lots?product_id=&warehouse_id=&include_empty=` | inventory.ListLots (F16.4) | `inventory:read` |
+| GET `/v1/inventory/lots?product_id=&warehouse_id=&include_empty=&only_expiring=` | inventory.ListLots (F16.4; `only_expiring` F16.10) | `inventory:read` |
+| GET/PUT `/v1/inventory/settings` | inventory.Get/UpdateInventorySettings (F16.10) | `inventory:read` / `inventory:adjust` |
 | GET/PUT `/v1/inventory/suppliers` | ListSuppliers · UpsertSupplier | `inventory:purchase:manage` o `inventory:read` / `inventory:purchase:manage` |
 | GET/POST `/v1/inventory/purchase-orders?status=` | ListPurchaseOrders · CreatePurchaseOrder | `inventory:purchase:manage` o `inventory:receive` / `inventory:purchase:manage` |
 | POST `/v1/inventory/purchase-orders/{id}/status` · `/receive` | UpdatePurchaseOrderStatus · ReceiveGoods | `inventory:purchase:manage` · `inventory:receive` |
