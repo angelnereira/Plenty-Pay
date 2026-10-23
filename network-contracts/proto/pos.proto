@@ -164,6 +164,8 @@ message PosSettings {
   string printer_profile = 7;               // "ESC_POS_80MM" | "ESC_POS_58MM" | "NONE"
   int64 cash_difference_threshold_minor = 8; // diferencia de cierre que exige aprobación
   bool allow_offline_card_pending = 9;      // registrar ventas electrónicas offline como "pendientes de cobro"
+  int32 max_discount_bps = 10;               // F17.11 (R3): descuento por línea sin supervisor, sobre el importe bruto (0–10000)
+  int32 version = 11;                        // F17.11: concurrencia optimista de UpdatePosSettings
 }
 message GetPosSettingsRequest {}
 message UpdatePosSettingsRequest { PosSettings settings = 1; 
