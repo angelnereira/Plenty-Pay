@@ -63,6 +63,10 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.FailedPrecondition, "HAS_CAPTURED_PAYMENTS", "la venta ya tiene cobros; haz una devolución")
 	case errors.Is(err, domain.ErrReasonRequired):
 		return ErrorInfo(codes.InvalidArgument, "REASON_REQUIRED", "indica el motivo")
+	case errors.Is(err, domain.ErrInvalidSettings):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "revisa la configuración de caja")
+	case errors.Is(err, domain.ErrSettingsConflict):
+		return ErrorInfo(codes.Aborted, "VERSION_CONFLICT", "la configuración cambió; vuelve a cargarla")
 	case errors.Is(err, domain.ErrVersionConflict):
 		return ErrorInfo(codes.Aborted, "VERSION_CONFLICT", "la venta cambió; vuelve a cargarla")
 	case errors.Is(err, domain.ErrProductInactive), errors.Is(err, client.ErrProductNotFound):
@@ -398,4 +402,54 @@ func (s *Server) ListSales(ctx context.Context, req *pb.ListSalesRequest) (*pb.L
 		out.Sales = append(out.Sales, salePB(sale, ""))
 	}
 	return out, nil
+}
+
+// ── Configuración de caja (F17.11, R14) ────────────────────────────────────────────────────
+
+func settingsPB(st domain.Settings) *pb.PosSettings {
+	out := &pb.PosSettings{CheckoutPreference: pb.CheckoutPreference(st.CheckoutPreference),
+		AutoThresholdMinor: st.AutoThresholdMinor, CashEnabled: st.CashEnabled, ReceiptFooter: st.ReceiptFooter,
+		MaxDiscountBps: st.MaxDiscountBps, Version: st.Version}
+	for _, r := range st.EnabledRails {
+		out.EnabledRails = append(out.EnabledRails, pb.PaymentRail(r))
+	}
+	return out
+}
+
+// GetPosSettings: la configuración vigente (o la de por defecto). La lee quien vende.
+func (s *Server) GetPosSettings(ctx context.Context, _ *pb.GetPosSettingsRequest) (*pb.PosSettings, error) {
+	a, err := authorize(ctx, "pos:sell", "pos:settings:manage")
+	if err != nil {
+		return nil, err
+	}
+	st, err := s.svc.Settings(ctx, a)
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return settingsPB(st), nil
+}
+
+// UpdatePosSettings reemplaza la configuración con la versión leída (R14). Los campos fuera de
+// alcance del contrato (impresora, ventas sin conexión, existencias negativas, umbral de
+// diferencia) se ignoran hasta que exista su paso.
+func (s *Server) UpdatePosSettings(ctx context.Context, req *pb.UpdatePosSettingsRequest) (*pb.PosSettings, error) {
+	a, err := authorize(ctx, "pos:settings:manage")
+	if err != nil {
+		return nil, err
+	}
+	in := req.GetSettings()
+	if in == nil {
+		return nil, toStatus(domain.ErrInvalidSettings)
+	}
+	st := domain.Settings{CheckoutPreference: int32(in.GetCheckoutPreference()), AutoThresholdMinor: in.GetAutoThresholdMinor(),
+		CashEnabled: in.GetCashEnabled(), ReceiptFooter: in.GetReceiptFooter(), MaxDiscountBps: in.GetMaxDiscountBps(),
+		Version: in.GetVersion()}
+	for _, r := range in.GetEnabledRails() {
+		st.EnabledRails = append(st.EnabledRails, int16(r))
+	}
+	out, err := s.svc.UpdateSettings(ctx, a, st)
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return settingsPB(out), nil
 }

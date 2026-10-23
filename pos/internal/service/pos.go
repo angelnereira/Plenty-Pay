@@ -36,6 +36,9 @@ type Store interface {
 	ClaimStockTasks(ctx context.Context, limit int, now time.Time) ([]store.StockTask, error)
 	FinishStockTask(ctx context.Context, t store.StockTask, failed bool, cause string, now time.Time) error
 	RetryStockTask(ctx context.Context, t store.StockTask, cause string, next time.Time) error
+	// F17.11 (R14): configuración de caja.
+	Settings(ctx context.Context, tenantID string) (domain.Settings, error)
+	SaveSettings(ctx context.Context, tenantID string, st domain.Settings, actorID string, now time.Time) (domain.Settings, error)
 }
 
 // Catalog da el precio vigente de un producto.
@@ -153,9 +156,15 @@ func (p *Pos) UpdateSale(ctx context.Context, a Actor, saleID string, expectedVe
 	}
 	lines := make([]domain.Line, 0, len(inputs))
 	currency := ""
+	// R3 + R14: el tope de descuento sin supervisor sale de la configuración de caja.
+	var settings *domain.Settings
 	for _, in := range inputs {
-		if in.DiscountMinor > 0 && !a.Permissions["pos:discount:apply"] {
-			return domain.Sale{}, ErrDiscountNotAllowed
+		if in.DiscountMinor > 0 && !a.Permissions["pos:discount:apply"] && settings == nil {
+			st, err := p.store.Settings(ctx, a.TenantID)
+			if err != nil {
+				return domain.Sale{}, err
+			}
+			settings = &st
 		}
 		if _, err := uuid.Parse(in.ProductID); err != nil {
 			return domain.Sale{}, client.ErrProductNotFound
@@ -178,6 +187,15 @@ func (p *Pos) UpdateSale(ctx context.Context, a Actor, saleID string, expectedVe
 		if err := l.Price(); err != nil {
 			return domain.Sale{}, err
 		}
+		if settings != nil && !a.Permissions["pos:discount:apply"] {
+			ok, err := settings.DiscountWithinLimit(l)
+			if err != nil {
+				return domain.Sale{}, err
+			}
+			if !ok {
+				return domain.Sale{}, ErrDiscountNotAllowed
+			}
+		}
 		lines = append(lines, l)
 	}
 	return p.store.MutateSale(ctx, a.TenantID, saleID, expectedVersion, func(s *domain.Sale) error {
@@ -195,13 +213,22 @@ func (p *Pos) UpdateSale(ctx context.Context, a Actor, saleID string, expectedVe
 	}, p.onPaid, p.now())
 }
 
-// ErrDiscountNotAllowed: el cajero no tiene `pos:discount:apply` (SPEC R3).
+// ErrDiscountNotAllowed: el descuento pasa el tope de la caja y el cajero no tiene
+// `pos:discount:apply` (SPEC R3, R14).
 var ErrDiscountNotAllowed = errors.New("discount requires pos:discount:apply")
 
 // Checkout cobra la venta (R4). El efectivo queda cobrado al instante; la billetera queda
 // PENDIENTE hasta que payments-core publique el cobro con `reference = {sale, id}`.
 func (p *Pos) Checkout(ctx context.Context, a Actor, saleID string, tenders []domain.Tender) (domain.Sale, error) {
+	// R14: un medio desactivado en la configuración de caja no se acepta (rige en la venta siguiente).
+	st, err := p.store.Settings(ctx, a.TenantID)
+	if err != nil {
+		return domain.Sale{}, err
+	}
 	for i := range tenders {
+		if !st.RailEnabled(tenders[i].Rail) && (tenders[i].Rail == domain.RailCash || tenders[i].Rail == domain.RailWallet) {
+			return domain.Sale{}, domain.ErrRailNotSupported
+		}
 		tenders[i].ID = p.newID()
 	}
 	return p.store.MutateSale(ctx, a.TenantID, saleID, 0, func(s *domain.Sale) error {
@@ -331,4 +358,20 @@ func (p *Pos) DeliverStock(ctx context.Context, limit int, report func(store.Sto
 		}
 	}
 	return out, nil
+}
+
+// ── Configuración de caja (F17.11, R14) ────────────────────────────────────────────────────
+
+// Settings devuelve la configuración vigente del comercio (o la de por defecto).
+func (p *Pos) Settings(ctx context.Context, a Actor) (domain.Settings, error) {
+	return p.store.Settings(ctx, a.TenantID)
+}
+
+// UpdateSettings valida y guarda con la versión que el cliente leyó.
+func (p *Pos) UpdateSettings(ctx context.Context, a Actor, st domain.Settings) (domain.Settings, error) {
+	st = st.Normalize()
+	if err := st.Validate(); err != nil {
+		return st, err
+	}
+	return p.store.SaveSettings(ctx, a.TenantID, st, a.UserID, p.now())
 }

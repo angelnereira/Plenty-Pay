@@ -45,3 +45,27 @@ func TestReasons_ParkAndResumeUseGlossaryNames(t *testing.T) {
 		}
 	}
 }
+
+// F17.11 · R14: la configuración inválida es INVALID_REQUEST y un guardado concurrente,
+// VERSION_CONFLICT.
+func TestR14_SettingsErrorsUseGlossaryNames(t *testing.T) {
+	for _, c := range []struct {
+		err    error
+		code   codes.Code
+		reason string
+	}{
+		{domain.ErrInvalidSettings, codes.InvalidArgument, "INVALID_REQUEST"},
+		{domain.ErrSettingsConflict, codes.Aborted, "VERSION_CONFLICT"},
+	} {
+		st, _ := status.FromError(toStatus(fmt.Errorf("update settings: %w", c.err)))
+		reason := ""
+		for _, d := range st.Details() {
+			if info, ok := d.(*errdetails.ErrorInfo); ok {
+				reason = info.Reason
+			}
+		}
+		if st.Code() != c.code || reason != c.reason {
+			t.Errorf("%v → %v %q", c.err, st.Code(), reason)
+		}
+	}
+}

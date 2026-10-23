@@ -19,9 +19,10 @@ Caja de mostrador: sesiones con fondo y arqueo, ventas con precio de catálogo, 
 | Descuento de existencias en inventory con clave `sale:<venta>:<línea>`; inventory caído → diferido con backoff; rechazo → venta para revisión | ✅ L2 | `TestStockWorker_InventoryDownIsDeferredNotLost` |
 | Estacionar y retomar (F17.4): OPEN ↔ PARKED solo con la caja abierta (sesión bloqueada `FOR SHARE`), reintento sin cambios, estacionadas bloquean el cierre (`SALES_PENDING`) y no se cobran; no tocan inventario | ✅ L1 · ✅ L2 · ✅ L4 (humo + Pixel 8 Pro) | `TestR13_ParkAndResumeTransitions`, `TestL2_R13_*` (incluye 10 retomas concurrentes → una transición), `TestReasons_ParkAndResumeUseGlossaryNames` |
 | Devoluciones (F17.9, R9): por líneas y cantidades, efectivo y saldo PlentyPay, reingreso opcional, confirmación fuerte atada al monto (ADR 0023), `SaleRefunded` por outbox | ✅ L1 · ✅ L2 · ✅ L4 en efectivo (humo por API y Pixel 8 Pro, 2026-10-22); saldo PlentyPay solo L2 | `TestR9_*` (dominio), `TestL2_R9_CashRefundIsAtomicAndIdempotent`, `TestL2_R9_WalletRefundIsDeliveredOnce`, `TestL2_R9_ConcurrentRefundsNeverExceedSold`. Falta la nota de crédito (F13.5) |
-| Crédito de la casa, puntos, ventas offline, pantalla del cliente, configuración | 📋 | responden `UNIMPLEMENTED` |
+| Configuración de caja (F17.11, R14): documento, medios activos, tope de descuento (R3), pie del recibo; `version` optimista | ✅ L2 · ✅ L4 | `TestR14_*`, `TestR3_DiscountWithinLimit`, `TestL2_F17_11_*` (20/20 con las demás); migración `0004_settings` (2026-10-23) |
+| Crédito de la casa, puntos, ventas offline, pantalla del cliente | 📋 | responden `UNIMPLEMENTED` |
 | Observabilidad | ◐ | `pp_pos_refund_tasks_total{result}`, `pp_pos_stock_tasks_total{result}`, `pp_pos_stock_tasks_pending`, `pp_pos_stock_task_oldest_seconds`, `pp_pos_payment_events_total`. **Faltan** `pp_pos_checkout_duration_seconds` y el histograma de diferencias de caja |
-| Despliegue en producción | ✅ | 2026-10-20 (0001); 2026-10-21 migración `0002_park` con respaldo previo (`pos-before-0002-*.sql.gz`); 2026-10-22 migración `0003_refunds` (`pos-before-0003-*.sql.gz`) |
+| Despliegue en producción | ✅ | 2026-10-20 (0001); 2026-10-21 migración `0002_park` con respaldo previo (`pos-before-0002-*.sql.gz`); 2026-10-22 migración `0003_refunds` (`pos-before-0003-*.sql.gz`); 2026-10-23 migración `0004_settings` con respaldo previo (`pos-before-0004-*.sql.gz`) |
 
 17 pruebas L2 en verde (`./pos/test/test_l2.sh`, 2026-10-22).
 
