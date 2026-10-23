@@ -18,6 +18,9 @@ service Inventory {
   rpc ListMovements(ListMovementsRequest) returns (ListMovementsResponse);
   // F16.4 (R5): lotes de un producto con su vencimiento y su existencia.
   rpc ListLots(ListLotsRequest) returns (ListLotsResponse);
+  // F16.10: parámetros del comercio (días de anticipación del aviso de vencimiento).
+  rpc GetInventorySettings(GetInventorySettingsRequest) returns (InventorySettings);
+  rpc UpdateInventorySettings(UpdateInventorySettingsRequest) returns (InventorySettings);
 
   // Reservas: protegen el stock entre "agregar al carrito" y "pago confirmado"
   rpc ReserveStock(ReserveStockRequest) returns (Reservation);      // todo o nada, idempotente
@@ -44,9 +47,10 @@ message StockLevel {
   string warehouse_id = 2;
   int64 on_hand_milli = 3;
   int64 reserved_milli = 4;
-  int64 available_milli = 5;    // on_hand - reserved
+  int64 available_milli = 5;    // on_hand - reserved - blocked (F16.10)
   int64 reorder_point_milli = 6;
   string lot_id = 7;
+  int64 blocked_milli = 8;      // F16.10: físico que no se vende (dañado, en revisión, retirado)
 }
 message GetStockRequest { string product_id = 1; string warehouse_id = 2; }
 message ListStockRequest { string warehouse_id = 1; bool only_low = 2; plentypay.common.v1.PageRequest page = 3; }
@@ -61,6 +65,8 @@ enum MovementType {
   MOVEMENT_TYPE_TRANSFER_IN = 5;
   MOVEMENT_TYPE_RETURN = 6;
   MOVEMENT_TYPE_WRITE_OFF = 7;
+  MOVEMENT_TYPE_BLOCK = 8;     // F16.10: aparta existencia física como no vendible (+ bloqueado; on_hand no cambia)
+  MOVEMENT_TYPE_UNBLOCK = 9;   // F16.10: la libera (− bloqueado; on_hand no cambia)
 }
 message StockMovement {
   string movement_id = 1;
@@ -87,6 +93,7 @@ message AdjustStockRequest {
   plentypay.common.v1.Reference reference = 8; // qué lo causó (p. ej. {sale, <id>}); lo fijan pos/orders
   string lot_code = 9;                          // F16.4: entrada → lote (se crea si no existe); salida → ese lote; vacío en salida = FEFO
   google.protobuf.Timestamp lot_expires_at = 10; // vencimiento al crear el lote en una entrada
+  bool from_blocked = 11;                        // F16.10: solo WRITE_OFF; da de baja lo bloqueado (UNBLOCK + WRITE_OFF en una transacción)
 }
 message TransferStockRequest { string idempotency_key = 1; string product_id = 2; string from_warehouse_id = 3; string to_warehouse_id = 4; int64 quantity_milli = 5; string reason = 6;
   string lot_code = 7; // F16.4: vacío = FEFO; el destino recibe los mismos lotes
@@ -104,8 +111,19 @@ message Lot {
   google.protobuf.Timestamp expires_at = 5;  // vacío = sin vencimiento
   int64 on_hand_milli = 6;
   bool expired = 7;                          // vence antes de hoy (America/Panama)
+  int64 blocked_milli = 8;                   // F16.10: parte bloqueada del lote (FEFO no la toma)
+  bool expires_soon = 9;                     // F16.10: no vencido y vence dentro de los días de aviso del comercio
 }
-message ListLotsRequest { string product_id = 1; string warehouse_id = 2; bool include_empty = 3; }
+message ListLotsRequest { string product_id = 1; string warehouse_id = 2; bool include_empty = 3;
+  bool only_expiring = 4; // F16.10: lotes con existencia vencidos o por vencer de todos los productos (product_id opcional)
+}
+
+// F16.10: parámetros de inventario del comercio.
+message InventorySettings {
+  int32 expiry_alert_days = 1;  // días de anticipación del aviso «Vence pronto» (1–365; por defecto 30)
+}
+message GetInventorySettingsRequest {}
+message UpdateInventorySettingsRequest { InventorySettings settings = 1; string idempotency_key = 2; }
 message ListLotsResponse { repeated Lot lots = 1; }
 
 message ReservationLine { string product_id = 1; int64 quantity_milli = 2; }
