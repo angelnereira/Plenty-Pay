@@ -2,7 +2,7 @@
 
 Entrada para retomar el trabajo sin reconstruir el contexto. **No es un diario**: se reescribe al cerrar cada paso. Las reglas viven en [`AGENTS.md`](../../AGENTS.md); el estado con evidencia, en [`status.md`](status.md); las fichas de los pasos comerciales, en [`commerce-plan.md`](commerce-plan.md).
 
-_Última actualización: 2026-10-22, al cerrar F16.4 (lotes y FEFO) y F16.8 (lotes en la recepción)._
+_Última actualización: 2026-10-23, al cerrar F16.10 (existencia bloqueada y aviso de vencimiento)._
 
 ## 1. Estado verificado
 - Versión publicada: ver el último tag (`git ls-remote --tags origin | tail -1`); F17.4 salió en `v0.7.0`.
@@ -26,17 +26,20 @@ _Última actualización: 2026-10-22, al cerrar F16.4 (lotes y FEFO) y F16.8 (lot
 - Fechas de vencimiento: viajan como las 00:00 de ese día en Panamá (`lotDateWire` en la app); `domain.DateOnly` es idempotente.
 - **F17.9 · Devoluciones en caja** (efectivo y saldo PlentyPay; L2 pos 17/17, L4 de humo en efectivo). Migración `pos/migrations/0003_refunds` aplicada (respaldo `~/plentypay-backups/pos-before-0003-*.sql.gz`). ADR 0023: pos consume la confirmación fuerte en identity. Lógica en `pos/internal/domain/refund.go` (R9), `pos/internal/store/refunds.go` y `pos/internal/service/refunds.go`; app en `flutter_app/lib/features/pos/pos_refund_screen.dart` (S-POS-08). Probado en el Pixel. Pendiente: reintegro al saldo en vivo, nota de crédito (F13.5) y Q-47.
 
+## 2.3 Cerrado el 2026-10-23
+- **F16.10 · Existencia bloqueada y aviso de vencimiento** (✅ L1, L2 inventory 24/24, L4 en el Pixel). Migración `inventory/migrations/0005_blocked` aplicada (respaldo `~/plentypay-backups/inventory-before-0005-*.sql.gz`). Regla R9 en `inventory/SPEC.md`; lógica en `inventory/internal/domain/stock.go` (`Level.Apply`, `MovementType.Physical`), `inventory/internal/store/lots.go` (`resolveBlock`, `Settings`) y `inventory/internal/service/inventory.go` (`FromBlocked`). App: `flutter_app/lib/features/inventory/stock_block_dialog.dart` y `expiry_alert_dialog.dart`.
+- **Incidente del 2026-10-23**: la máquina se reinició y Docker Desktop no arrancó solo (`docker-desktop.service` está *disabled*), así que producción estuvo caída hasta que el agente lo inició (`systemctl --user start docker-desktop`). El túnel cambió de URL y el temporizador la publicó. Recomendación al dueño: `systemctl --user enable docker-desktop`.
+
 ## 3. Siguiente paso recomendado
-**F16.10 · Existencias bloqueadas y alertas de vencimiento** ([ficha](commerce-plan.md#f1610--existencias-no-vendibles-y-alertas-de-vencimiento)), que ya tiene sus predecesores (F16.4 ✅).
+**F16.11 · Escáner en inventario** ([ficha](commerce-plan.md#f1611--escáner-en-inventario)): S-INV-03 ya escanea; faltan recepción (S-INV-06), transferencia (S-INV-04) y lector HID.
 
 Leer, en este orden:
-1. Ficha del paso en `commerce-plan.md` (25 campos).
-2. `inventory/SPEC.md` §3–§5 (R5) · `docs/domain/domain-model.md` §8 · `docs/glossary.md` §5 (reasons de inventory: `LOT_REQUIRED`, `LOT_EXPIRED` ya existen).
-3. Código: `inventory/internal/domain/stock.go`, `inventory/internal/store/store.go` (movimientos y `Batch.Hook`), `inventory/internal/store/purchasing.go` (recepción, para F16.8), `inventory/migrations/0001–0003`.
-4. Pantallas: fichas S-INV-02 y S-INV-03 en `docs/ux/functional-spec/04-catalog-inventory.md`; código en `flutter_app/lib/features/inventory/`.
-5. Normas: N-LOG-07; pregunta abierta Q-50 (supuesto: vencido se bloquea).
+1. Ficha del paso en `commerce-plan.md`.
+2. `flutter_app/lib/core/widgets/barcode_scanner_dialog.dart` y su prueba.
+3. Fichas S-INV-04 y S-INV-06 en `docs/ux/functional-spec/04-catalog-inventory.md`.
+4. Normas: N-STD-23/24 (GTIN); ADR 0020 (permiso de cámara).
 
-Condición de terminado: criterios de aceptación 21 de la ficha + AGENTS §3 pasos 5–10 (pruebas con el id de la regla, instrumentación, docs, checks, commit por contenedor, release).
+Condición de terminado: criterio 21 de la ficha (L4 en el Pixel con un código real) + AGENTS §3 pasos 5–10.
 
 ## 4. Comandos
 | Para | Comando |
@@ -45,8 +48,8 @@ Condición de terminado: criterios de aceptación 21 de la ficha + AGENTS §3 pa
 | Checks transversales | `./scripts/check-isolation.sh && ./scripts/check-docs.sh && ./scripts/sync-protos.sh --check` |
 | Contrato tras editar un `.proto` | `./scripts/sync-protos.sh` |
 | Go (L1) | `cd <c> && go vet ./... && go test -race ./...` |
-| L2 en base efímera | `./<c>/test/test_l2.sh` (inventory 19, pos 14, fiscal 12, settlement 4) |
-| Flutter | `cd flutter_app && flutter analyze && flutter test` (527 al 2026-10-21; el analizador tiene 18 notas previas) |
+| L2 en base efímera | `./<c>/test/test_l2.sh` (inventory 24, pos 17, fiscal 12, settlement 4) |
+| Flutter | `cd flutter_app && flutter analyze && flutter test` (574 al 2026-10-23; el analizador tiene 25 notas previas, ninguna de inventario) |
 | Respaldo antes de migrar | `docker compose exec -T postgres-db pg_dump -U postgres -d plentypay -n <esquema> \| gzip > ~/plentypay-backups/<esquema>-before-<migr>-$(date +%Y%m%d-%H%M%S).sql.gz` |
 | Desplegar un servicio | `docker compose build <c> && docker compose run --rm --no-deps <c> migrate && docker compose up -d --no-deps <c>` |
 | Publicar la app | `./scripts/publish-release.sh <patch\|minor> <notas.md>` (después de cada push a `main`) |

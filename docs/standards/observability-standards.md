@@ -48,6 +48,7 @@ Prefijo `pp_`. Unidades en el nombre (`_seconds`, `_bytes`, `_total`).
 - api-gateway: `pp_http_requests_total{route,status}`, `pp_http_duration_seconds{route}`, `pp_ws_connections_current`, `pp_rate_limited_total{route}`
 - notifications: `pp_notifications_total{channel,status}`
 - pos: `pp_pos_offline_sales_pending{tenant_bucket}` (sin tenant_id como etiqueta)
+- inventory: `pp_inventory_blocked_levels` (existencias con algo bloqueado, F16.10)
 
 ### 2.3 Reglas de cardinalidad
 **Nunca** usar como etiqueta: `user_id`, `tenant_id`, `payment_id`, `request_id`, correos, montos. Si hace falta por tenant → logs/trazas o analytics-bi. Máximo ~1 000 series por métrica por servicio.
