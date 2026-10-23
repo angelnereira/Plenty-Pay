@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"google.golang.org/grpc/metadata"
 	"testing"
 
 	errdetails "google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -67,5 +69,44 @@ func TestR14_SettingsErrorsUseGlossaryNames(t *testing.T) {
 		if st.Code() != c.code || reason != c.reason {
 			t.Errorf("%v → %v %q", c.err, st.Code(), reason)
 		}
+	}
+}
+
+// F17.12 · R15: fuera de alcance es BRANCH_OUT_OF_SCOPE; sin sucursal al abrir, INVALID_REQUEST;
+// sin identity, DEPENDENCY_UNAVAILABLE.
+func TestR15_BranchErrorsUseGlossaryNames(t *testing.T) {
+	for _, c := range []struct {
+		err    error
+		code   codes.Code
+		reason string
+	}{
+		{domain.ErrBranchOutOfScope, codes.PermissionDenied, "BRANCH_OUT_OF_SCOPE"},
+		{domain.ErrBranchRequired, codes.InvalidArgument, "INVALID_REQUEST"},
+		{service.ErrBranchesUnavailable, codes.Unavailable, "DEPENDENCY_UNAVAILABLE"},
+	} {
+		st, _ := status.FromError(toStatus(fmt.Errorf("open session: %w", c.err)))
+		reason := ""
+		for _, d := range st.Details() {
+			if info, ok := d.(*errdetails.ErrorInfo); ok {
+				reason = info.Reason
+			}
+		}
+		if st.Code() != c.code || reason != c.reason {
+			t.Errorf("%v → %v %q", c.err, st.Code(), reason)
+		}
+	}
+}
+
+// R15: toda persona opera con su alcance; sin cabecera, ninguna sucursal.
+func TestR15_AuthorizeSetsScope(t *testing.T) {
+	md := metadata.Pairs("x-pp-tenant-id", "018f0000-0000-7000-8000-0000000000a1", "x-pp-user-id", "018f0000-0000-7000-8000-0000000000b2",
+		"x-pp-permissions", "pos:sell", "x-pp-actor-service", "api-gateway")
+	a, err := authorize(metadata.NewIncomingContext(context.Background(), md), "pos:sell")
+	if err != nil || a.Scope == nil || a.Scope.All || len(a.Scope.Branches) != 0 {
+		t.Fatalf("sin cabecera = ninguna sucursal: %+v %v", a.Scope, err)
+	}
+	md.Set("x-pp-branch-scope", "*")
+	if a, err := authorize(metadata.NewIncomingContext(context.Background(), md), "pos:sell"); err != nil || !a.Scope.All {
+		t.Fatalf("*: %+v %v", a.Scope, err)
 	}
 }

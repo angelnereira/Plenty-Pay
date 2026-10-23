@@ -63,6 +63,12 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.FailedPrecondition, "HAS_CAPTURED_PAYMENTS", "la venta ya tiene cobros; haz una devolución")
 	case errors.Is(err, domain.ErrReasonRequired):
 		return ErrorInfo(codes.InvalidArgument, "REASON_REQUIRED", "indica el motivo")
+	case errors.Is(err, domain.ErrBranchOutOfScope):
+		return ErrorInfo(codes.PermissionDenied, "BRANCH_OUT_OF_SCOPE", "esa caja es de una sucursal fuera de tu alcance")
+	case errors.Is(err, domain.ErrBranchRequired):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "elige la sucursal de la caja")
+	case errors.Is(err, service.ErrBranchesUnavailable):
+		return ErrorInfo(codes.Unavailable, "DEPENDENCY_UNAVAILABLE", "servicio temporalmente no disponible")
 	case errors.Is(err, domain.ErrInvalidSettings):
 		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "revisa la configuración de caja")
 	case errors.Is(err, domain.ErrSettingsConflict):
@@ -108,6 +114,9 @@ func New(svc *service.Pos) *Server { return &Server{svc: svc} }
 func authorize(ctx context.Context, perms ...string) (service.Actor, error) {
 	a := tenancy.FromContext(ctx)
 	act := service.Actor{TenantID: a.TenantID, UserID: a.UserID, RequestID: a.RequestID, Permissions: a.Permissions}
+	// F17.12 (R15): toda persona opera con su alcance por sucursal (sin cabecera = ninguna).
+	sc := domain.ParseBranchScope(a.BranchScope)
+	act.Scope = &sc
 	if a.TenantID == "" || a.UserID == "" {
 		return act, ErrorInfo(codes.PermissionDenied, "TENANT_REQUIRED", "necesitas un negocio activo")
 	}
@@ -131,7 +140,7 @@ func ts(t time.Time) *timestamppb.Timestamp {
 func sessionPB(s domain.Session) *pb.CashSession {
 	out := &pb.CashSession{SessionId: s.ID, TerminalLabel: s.TerminalLabel, CashierUserId: s.CashierID, Status: s.Status,
 		OpeningFloat: money(s.OpeningFloat, s.Currency), ExpectedCash: money(s.ExpectedCash, s.Currency),
-		OpenedAt: ts(s.OpenedAt), ClosedAt: ts(s.ClosedAt), CloseNotes: s.CloseNotes}
+		OpenedAt: ts(s.OpenedAt), ClosedAt: ts(s.ClosedAt), CloseNotes: s.CloseNotes, BranchId: s.BranchID}
 	if s.Status == "CLOSED" {
 		out.CountedCash, out.Difference = money(s.CountedCash, s.Currency), money(s.DifferenceMinor, s.Currency)
 	}
@@ -144,7 +153,8 @@ func salePB(s domain.Sale, terminal string) *pb.Sale {
 		Subtotal: money(s.SubtotalMinor, s.Currency), Tax: money(s.TaxMinor, s.Currency), Total: money(s.TotalMinor, s.Currency),
 		ChangeDue: money(s.ChangeMinor, s.Currency), ClientSaleId: s.ClientSaleID, CreatedAt: ts(s.CreatedAt),
 		PaidAt: ts(s.PaidAt), Version: s.Version, DocumentType: pb.DocumentType_DOCUMENT_TYPE_INTERNAL_RECEIPT,
-		ParkLabel: s.ParkLabel, ParkedAt: ts(s.ParkedAt), Refunded: money(s.RefundedMinor(), s.Currency)}
+		ParkLabel: s.ParkLabel, ParkedAt: ts(s.ParkedAt), Refunded: money(s.RefundedMinor(), s.Currency),
+		BranchId: s.BranchID}
 	if s.ReceiptNumber > 0 {
 		out.ReceiptNumber = fmt.Sprintf("%08d", s.ReceiptNumber)
 	}
@@ -184,7 +194,8 @@ func (s *Server) OpenCashSession(ctx context.Context, req *pb.OpenCashSessionReq
 	if err != nil {
 		return nil, err
 	}
-	ss, err := s.svc.OpenSession(ctx, a, req.GetTerminalLabel(), req.GetOpeningFloat().GetAmountMinor(), req.GetOpeningFloat().GetCurrency())
+	ss, err := s.svc.OpenSession(ctx, a, req.GetTerminalLabel(), req.GetOpeningFloat().GetAmountMinor(), req.GetOpeningFloat().GetCurrency(),
+		req.GetBranchId())
 	if err != nil {
 		return nil, toStatus(err)
 	}

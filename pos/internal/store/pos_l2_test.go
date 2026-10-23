@@ -102,7 +102,7 @@ func openSale(t *testing.T, w *world, a service.Actor, terminal string, lines ..
 	ctx := context.Background()
 	ss, err := w.svc.GetSession(ctx, a, "")
 	if errors.Is(err, domain.ErrNotFound) {
-		ss, err = w.svc.OpenSession(ctx, a, terminal, 5000, "USD")
+		ss, err = w.svc.OpenSession(ctx, a, terminal, 5000, "USD", "")
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -277,11 +277,11 @@ func TestStockWorker_InventoryDownIsDeferredNotLost(t *testing.T) {
 func TestR1_OneOpenSessionPerTerminalAndOwnerOnly(t *testing.T) {
 	ctx, w, tenant := context.Background(), newWorld(t), id()
 	a, b := cashier(tenant), cashier(tenant)
-	ss, err := w.svc.OpenSession(ctx, a, "CAJA-05", 0, "USD")
+	ss, err := w.svc.OpenSession(ctx, a, "CAJA-05", 0, "USD", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := w.svc.OpenSession(ctx, b, "caja-05", 0, "USD"); !errors.Is(err, domain.ErrSessionOpen) {
+	if _, err := w.svc.OpenSession(ctx, b, "caja-05", 0, "USD", ""); !errors.Is(err, domain.ErrSessionOpen) {
 		t.Fatalf("segunda sesión en la misma caja: %v", err)
 	}
 	if _, err := w.svc.CreateSale(ctx, b, ss.ID, ""); !errors.Is(err, domain.ErrNotYourSession) {
@@ -375,7 +375,7 @@ func TestR3_DiscountRequiresPermissionAndUnknownProductsFail(t *testing.T) {
 func TestClientSaleIDIsIdempotent(t *testing.T) {
 	ctx, w, tenant := context.Background(), newWorld(t), id()
 	a := cashier(tenant)
-	ss, err := w.svc.OpenSession(ctx, a, "CAJA-10", 0, "USD")
+	ss, err := w.svc.OpenSession(ctx, a, "CAJA-10", 0, "USD", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,7 +456,7 @@ func TestL2_R13_ParkResumeAndCloseBlocked(t *testing.T) {
 func TestL2_R13_EmptyVoidAndClosedSession(t *testing.T) {
 	ctx, w, tenant := context.Background(), newWorld(t), id()
 	a := cashier(tenant)
-	ss, err := w.svc.OpenSession(ctx, a, "CAJA-18", 5000, "USD")
+	ss, err := w.svc.OpenSession(ctx, a, "CAJA-18", 5000, "USD", "")
 	if err != nil {
 		t.Fatal(err)
 	}

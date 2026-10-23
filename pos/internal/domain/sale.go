@@ -134,6 +134,7 @@ type Tender struct {
 type Sale struct {
 	ID            string
 	TenantID      string
+	BranchID      string // F17.12 (R15): copiada de la sesión
 	SessionID     string
 	CashierID     string
 	Status        Status
@@ -306,6 +307,7 @@ func (s Sale) CashInSale() int64 {
 type Session struct {
 	ID              string
 	TenantID        string
+	BranchID        string // F17.12 (R15): vacío = anterior a sucursales
 	TerminalLabel   string
 	CashierID       string
 	Status          string // OPEN | CLOSED

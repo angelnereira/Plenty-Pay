@@ -109,12 +109,13 @@ func isUnique(err error, constraint string) bool {
 
 const sessionCols = `id, tenant_id, terminal_label, cashier_id, status, opening_float, expected_cash,
 	coalesce(counted_cash, 0), coalesce(difference_minor, 0), close_notes, currency, opened_at,
-	coalesce(closed_at, 'epoch'::timestamptz)`
+	coalesce(closed_at, 'epoch'::timestamptz), coalesce(branch_id::text, '')`
 
 func scanSession(row pgx.Row) (domain.Session, error) {
 	var ss domain.Session
 	err := row.Scan(&ss.ID, &ss.TenantID, &ss.TerminalLabel, &ss.CashierID, &ss.Status, &ss.OpeningFloat,
-		&ss.ExpectedCash, &ss.CountedCash, &ss.DifferenceMinor, &ss.CloseNotes, &ss.Currency, &ss.OpenedAt, &ss.ClosedAt)
+		&ss.ExpectedCash, &ss.CountedCash, &ss.DifferenceMinor, &ss.CloseNotes, &ss.Currency, &ss.OpenedAt, &ss.ClosedAt,
+		&ss.BranchID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ss, domain.ErrNotFound
 	}
@@ -129,8 +130,8 @@ func scanSession(row pgx.Row) (domain.Session, error) {
 func (s *Store) OpenSession(ctx context.Context, ss domain.Session) error {
 	err := s.inTenant(ctx, ss.TenantID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `INSERT INTO cash_sessions (id, tenant_id, terminal_label, cashier_id, status,
-			opening_float, expected_cash, currency, opened_at) VALUES ($1,$2,$3,$4,'OPEN',$5,$5,$6,$7)`,
-			ss.ID, ss.TenantID, ss.TerminalLabel, ss.CashierID, ss.OpeningFloat, ss.Currency, ss.OpenedAt)
+			opening_float, expected_cash, currency, opened_at, branch_id) VALUES ($1,$2,$3,$4,'OPEN',$5,$5,$6,$7,nullif($8,'')::uuid)`,
+			ss.ID, ss.TenantID, ss.TerminalLabel, ss.CashierID, ss.OpeningFloat, ss.Currency, ss.OpenedAt, ss.BranchID)
 		return err
 	})
 	if isUnique(err, "one_open_session_per_terminal") {
@@ -226,14 +227,16 @@ func (s *Store) AddCashMovement(ctx context.Context, tenantID string, m domain.C
 
 const saleCols = `id, tenant_id, session_id, cashier_id, status, lines, tenders, subtotal_minor, tax_minor,
 	total_minor, change_minor, currency, coalesce(receipt_number, 0), client_sale_id, needs_review, created_at,
-	updated_at, coalesce(paid_at, 'epoch'::timestamptz), version, park_label, coalesce(parked_at, 'epoch'::timestamptz), void_reason`
+	updated_at, coalesce(paid_at, 'epoch'::timestamptz), version, park_label, coalesce(parked_at, 'epoch'::timestamptz), void_reason,
+	coalesce(branch_id::text, '')`
 
 func scanSale(row pgx.Row) (domain.Sale, error) {
 	var sl domain.Sale
 	var lines, tenders []byte
 	err := row.Scan(&sl.ID, &sl.TenantID, &sl.SessionID, &sl.CashierID, &sl.Status, &lines, &tenders,
 		&sl.SubtotalMinor, &sl.TaxMinor, &sl.TotalMinor, &sl.ChangeMinor, &sl.Currency, &sl.ReceiptNumber,
-		&sl.ClientSaleID, &sl.NeedsReview, &sl.CreatedAt, &sl.UpdatedAt, &sl.PaidAt, &sl.Version, &sl.ParkLabel, &sl.ParkedAt, &sl.VoidReason)
+		&sl.ClientSaleID, &sl.NeedsReview, &sl.CreatedAt, &sl.UpdatedAt, &sl.PaidAt, &sl.Version, &sl.ParkLabel, &sl.ParkedAt, &sl.VoidReason,
+		&sl.BranchID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return sl, domain.ErrNotFound
 	}
@@ -252,7 +255,7 @@ func scanSale(row pgx.Row) (domain.Sale, error) {
 
 // CreateSale abre una venta dentro de una sesión abierta del cajero (R1). Un `client_sale_id`
 // repetido devuelve la venta existente (reintento del dispositivo).
-func (s *Store) CreateSale(ctx context.Context, sl domain.Sale) (domain.Sale, error) {
+func (s *Store) CreateSale(ctx context.Context, sl domain.Sale, checkBranch func(string) error) (domain.Sale, error) {
 	var out domain.Sale
 	err := s.inTenant(ctx, sl.TenantID, func(tx pgx.Tx) error {
 		if sl.ClientSaleID != "" {
@@ -275,10 +278,16 @@ func (s *Store) CreateSale(ctx context.Context, sl domain.Sale) (domain.Sale, er
 		if ss.CashierID != sl.CashierID {
 			return domain.ErrNotYourSession
 		}
+		if checkBranch != nil {
+			if err := checkBranch(ss.BranchID); err != nil {
+				return err
+			}
+		}
 		sl.Currency = ss.Currency
+		// R15: la venta copia la sucursal de su sesión.
 		out, err = scanSale(tx.QueryRow(ctx, `INSERT INTO sales (id, tenant_id, session_id, cashier_id, status, currency,
-			client_sale_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8) RETURNING `+saleCols,
-			sl.ID, sl.TenantID, sl.SessionID, sl.CashierID, domain.Open, sl.Currency, sl.ClientSaleID, sl.CreatedAt))
+			client_sale_id, created_at, updated_at, branch_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,nullif($9,'')::uuid) RETURNING `+saleCols,
+			sl.ID, sl.TenantID, sl.SessionID, sl.CashierID, domain.Open, sl.Currency, sl.ClientSaleID, sl.CreatedAt, ss.BranchID))
 		return err
 	})
 	return out, err
@@ -484,6 +493,7 @@ type SaleCursor struct {
 // SaleFilter filtra el historial.
 type SaleFilter struct {
 	SessionID string
+	Branches  []string // F17.12 (R15): nil = todas; vacío = ninguna
 	Status    domain.Status
 	From, To  time.Time
 	After     *SaleCursor
@@ -503,8 +513,9 @@ func (s *Store) ListSales(ctx context.Context, tenantID string, f SaleFilter) ([
 			WHERE ($1 = '' OR session_id::text = $1) AND ($2 = 0 OR status = $2)
 			  AND created_at >= $3 AND created_at < $4
 			  AND ($5::timestamptz IS NULL OR (created_at, id::text) < ($5::timestamptz, $6))
+			  AND ($8::uuid[] IS NULL OR branch_id = ANY($8::uuid[]))
 			ORDER BY created_at DESC, id DESC LIMIT $7`,
-			f.SessionID, int16(f.Status), f.From, f.To, afterAt, afterID, f.Limit+1)
+			f.SessionID, int16(f.Status), f.From, f.To, afterAt, afterID, f.Limit+1, branchesArg(f.Branches))
 		if err != nil {
 			return fmt.Errorf("list sales: %w", err)
 		}
@@ -656,4 +667,12 @@ func (s *Store) OutboxBacklog(ctx context.Context) (int64, error) {
 		return tx.QueryRow(ctx, `SELECT count(*) FROM outbox WHERE published_at IS NULL`).Scan(&n)
 	})
 	return n, err
+}
+
+// branchesArg: NULL para «todas» (nil) o el arreglo de sucursales (vacío = ninguna).
+func branchesArg(b []string) any {
+	if b == nil {
+		return nil
+	}
+	return b
 }

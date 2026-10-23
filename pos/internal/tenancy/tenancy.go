@@ -21,6 +21,8 @@ type Actor struct {
 	// "api-gateway" y descarta las cabeceras x-pp-* del cliente, así que "pos" u "orders" solo
 	// llegan desde la red interna de servicios.
 	Service string
+	// BranchScope es `x-pp-branch-scope` tal como llegó (ADR 0018, F17.12): `*`, lista o vacío.
+	BranchScope string
 }
 
 func first(md metadata.MD, key string) string {
@@ -50,6 +52,7 @@ func FromContext(ctx context.Context) Actor {
 		Capabilities: set(first(md, "x-pp-capabilities")),
 		RequestID:    first(md, "x-pp-request-id"),
 		Service:      first(md, "x-pp-actor-service"),
+		BranchScope:  first(md, "x-pp-branch-scope"),
 	}
 	if _, err := uuid.Parse(a.TenantID); err != nil {
 		a.TenantID = ""

@@ -25,7 +25,7 @@ type Store interface {
 	CurrentSession(ctx context.Context, tenantID, cashierID string) (domain.Session, error)
 	CloseSession(ctx context.Context, tenantID, id, closedBy string, counted int64, notes string, at time.Time) (domain.Session, error)
 	AddCashMovement(ctx context.Context, tenantID string, m domain.CashMovement) (domain.Session, error)
-	CreateSale(ctx context.Context, sl domain.Sale) (domain.Sale, error)
+	CreateSale(ctx context.Context, sl domain.Sale, checkBranch func(string) error) (domain.Sale, error)
 	GetSale(ctx context.Context, tenantID, id string) (domain.Sale, error)
 	MutateSale(ctx context.Context, tenantID, id string, expectedVersion int32, mutate func(*domain.Sale) error,
 		onPaid store.OnPaid, now time.Time) (domain.Sale, error)
@@ -62,7 +62,20 @@ type Pos struct {
 	refunds  RefundStore
 	stepUp   StepUp
 	refunder Refunder
+	// F17.12: sucursales de identity para validar la apertura con alcance `*` (UseBranches).
+	branches Branches
 }
+
+// Branches lista las sucursales que la persona ve (identity.ListBranches con su identidad, R15).
+type Branches interface {
+	ListBranches(ctx context.Context, w client.Who) ([]domain.Branch, error)
+}
+
+// UseBranches conecta identity (F17.12).
+func (p *Pos) UseBranches(b Branches) { p.branches = b }
+
+// ErrBranchesUnavailable: identity no está conectado (R15).
+var ErrBranchesUnavailable = errors.New("branches unavailable")
 
 // New arma el servicio.
 func New(st Store, cat Catalog, inv Inventory, now func() time.Time, newID func() string) *Pos {
@@ -78,6 +91,27 @@ type Actor struct {
 	UserID      string
 	RequestID   string
 	Permissions map[string]bool
+	// Scope es el alcance por sucursal de una persona (F17.12, R15). nil = sin filtro (sistema o
+	// pruebas); el servidor lo llena siempre para quien llega por el gateway.
+	Scope *domain.BranchScope
+}
+
+// allows: la sucursal está en el alcance (sin alcance = sin filtro).
+func (a Actor) allows(branchID string) bool { return a.Scope == nil || a.Scope.Allows(branchID) }
+
+func (a Actor) checkBranch(branchID string) error {
+	if !a.allows(branchID) {
+		return domain.ErrBranchOutOfScope
+	}
+	return nil
+}
+
+// branchFilter para listados: nil = todas.
+func (a Actor) branchFilter() []string {
+	if a.Scope == nil {
+		return nil
+	}
+	return a.Scope.List()
 }
 
 func (a Actor) who() client.Who {
@@ -87,7 +121,10 @@ func (a Actor) who() client.Who {
 // ── Sesiones ───────────────────────────────────────────────────────────────────────────────
 
 // OpenSession abre la caja con su fondo inicial (R1).
-func (p *Pos) OpenSession(ctx context.Context, a Actor, label string, float int64, currency string) (domain.Session, error) {
+func (p *Pos) OpenSession(ctx context.Context, a Actor, label string, float int64, currency, branchID string) (domain.Session, error) {
+	if err := p.checkOpenBranch(ctx, a, branchID); err != nil {
+		return domain.Session{}, err
+	}
 	label = strings.TrimSpace(label)
 	if label == "" || len(label) > 40 {
 		return domain.Session{}, domain.ErrInvalidAmount
@@ -102,7 +139,7 @@ func (p *Pos) OpenSession(ctx context.Context, a Actor, label string, float int6
 		return domain.Session{}, domain.ErrInvalidAmount
 	}
 	ss := domain.Session{ID: p.newID(), TenantID: a.TenantID, TerminalLabel: label, CashierID: a.UserID, Status: "OPEN",
-		OpeningFloat: float, ExpectedCash: float, Currency: currency, OpenedAt: p.now()}
+		OpeningFloat: float, ExpectedCash: float, Currency: currency, OpenedAt: p.now(), BranchID: branchID}
 	if err := p.store.OpenSession(ctx, ss); err != nil {
 		return ss, err
 	}
@@ -111,14 +148,51 @@ func (p *Pos) OpenSession(ctx context.Context, a Actor, label string, float int6
 
 // GetSession lee una sesión; sin id, la sesión abierta del cajero.
 func (p *Pos) GetSession(ctx context.Context, a Actor, id string) (domain.Session, error) {
+	var ss domain.Session
+	var err error
 	if id == "" {
-		return p.store.CurrentSession(ctx, a.TenantID, a.UserID)
+		ss, err = p.store.CurrentSession(ctx, a.TenantID, a.UserID)
+	} else {
+		ss, err = p.store.GetSession(ctx, a.TenantID, id)
 	}
-	return p.store.GetSession(ctx, a.TenantID, id)
+	if err != nil {
+		return ss, err
+	}
+	return ss, a.checkBranch(ss.BranchID) // R15
+}
+
+// checkOpenBranch (R15): una persona abre la caja en una sucursal de su alcance; con alcance `*`
+// la sucursal debe existir y estar activa en identity.
+func (p *Pos) checkOpenBranch(ctx context.Context, a Actor, branchID string) error {
+	if a.Scope == nil {
+		return nil
+	}
+	if branchID == "" {
+		return domain.ErrBranchRequired
+	}
+	if !a.Scope.All {
+		return a.checkBranch(branchID)
+	}
+	if p.branches == nil {
+		return ErrBranchesUnavailable
+	}
+	list, err := p.branches.ListBranches(ctx, a.who())
+	if err != nil {
+		return err
+	}
+	for _, b := range list {
+		if b.ID == branchID && b.Active {
+			return nil
+		}
+	}
+	return domain.ErrBranchOutOfScope
 }
 
 // CloseSession arquea la caja: diferencia = contado − esperado (reporte Z).
 func (p *Pos) CloseSession(ctx context.Context, a Actor, id string, counted int64, notes string) (domain.Session, error) {
+	if _, err := p.GetSession(ctx, a, id); err != nil { // R15
+		return domain.Session{}, err
+	}
 	return p.store.CloseSession(ctx, a.TenantID, id, a.UserID, counted, notes, p.now())
 }
 
@@ -127,6 +201,9 @@ func (p *Pos) RecordCashMovement(ctx context.Context, a Actor, sessionID, direct
 	m := domain.CashMovement{ID: p.newID(), SessionID: sessionID, Direction: strings.ToUpper(direction), AmountMinor: amount,
 		Reason: reason, CreatedBy: a.UserID, CreatedAt: p.now()}
 	if err := m.Validate(); err != nil {
+		return domain.Session{}, err
+	}
+	if _, err := p.GetSession(ctx, a, sessionID); err != nil { // R15
 		return domain.Session{}, err
 	}
 	return p.store.AddCashMovement(ctx, a.TenantID, m)
@@ -138,7 +215,7 @@ func (p *Pos) RecordCashMovement(ctx context.Context, a Actor, sessionID, direct
 func (p *Pos) CreateSale(ctx context.Context, a Actor, sessionID, clientSaleID string) (domain.Sale, error) {
 	now := p.now()
 	return p.store.CreateSale(ctx, domain.Sale{ID: p.newID(), TenantID: a.TenantID, SessionID: sessionID, CashierID: a.UserID,
-		ClientSaleID: strings.TrimSpace(clientSaleID), CreatedAt: now, UpdatedAt: now})
+		ClientSaleID: strings.TrimSpace(clientSaleID), CreatedAt: now, UpdatedAt: now}, a.checkBranch)
 }
 
 // LineInput es lo que el cajero agrega: producto, cantidad y descuento.
@@ -199,6 +276,9 @@ func (p *Pos) UpdateSale(ctx context.Context, a Actor, saleID string, expectedVe
 		lines = append(lines, l)
 	}
 	return p.store.MutateSale(ctx, a.TenantID, saleID, expectedVersion, func(s *domain.Sale) error {
+		if err := a.checkBranch(s.BranchID); err != nil { // R15
+			return err
+		}
 		if s.CashierID != a.UserID {
 			return domain.ErrNotYourSession
 		}
@@ -232,6 +312,9 @@ func (p *Pos) Checkout(ctx context.Context, a Actor, saleID string, tenders []do
 		tenders[i].ID = p.newID()
 	}
 	return p.store.MutateSale(ctx, a.TenantID, saleID, 0, func(s *domain.Sale) error {
+		if err := a.checkBranch(s.BranchID); err != nil { // R15
+			return err
+		}
 		if s.CashierID != a.UserID {
 			return domain.ErrNotYourSession
 		}
@@ -242,6 +325,9 @@ func (p *Pos) Checkout(ctx context.Context, a Actor, saleID string, tenders []do
 // VoidSale anula una venta sin cobros electrónicos (R8).
 func (p *Pos) VoidSale(ctx context.Context, a Actor, saleID, reason string) (domain.Sale, error) {
 	return p.store.MutateSale(ctx, a.TenantID, saleID, 0, func(s *domain.Sale) error {
+		if err := a.checkBranch(s.BranchID); err != nil { // R15
+			return err
+		}
 		return s.Void(reason)
 	}, p.onPaid, p.now())
 }
@@ -251,6 +337,9 @@ func (p *Pos) VoidSale(ctx context.Context, a Actor, saleID, reason string) (dom
 func (p *Pos) ParkSale(ctx context.Context, a Actor, saleID, label string) (domain.Sale, error) {
 	now := p.now()
 	return p.store.MutateSaleInOpenSession(ctx, a.TenantID, saleID, func(s *domain.Sale) error {
+		if err := a.checkBranch(s.BranchID); err != nil { // R15
+			return err
+		}
 		if s.CashierID != a.UserID {
 			return domain.ErrNotYourSession
 		}
@@ -261,6 +350,9 @@ func (p *Pos) ParkSale(ctx context.Context, a Actor, saleID, label string) (doma
 // ResumeSale retoma una venta estacionada de la sesión del cajero (F17.4).
 func (p *Pos) ResumeSale(ctx context.Context, a Actor, saleID string) (domain.Sale, error) {
 	return p.store.MutateSaleInOpenSession(ctx, a.TenantID, saleID, func(s *domain.Sale) error {
+		if err := a.checkBranch(s.BranchID); err != nil { // R15
+			return err
+		}
 		if s.CashierID != a.UserID {
 			return domain.ErrNotYourSession
 		}
@@ -270,7 +362,11 @@ func (p *Pos) ResumeSale(ctx context.Context, a Actor, saleID string) (domain.Sa
 
 // GetSale lee una venta.
 func (p *Pos) GetSale(ctx context.Context, a Actor, id string) (domain.Sale, error) {
-	return p.store.GetSale(ctx, a.TenantID, id)
+	sl, err := p.store.GetSale(ctx, a.TenantID, id)
+	if err != nil {
+		return sl, err
+	}
+	return sl, a.checkBranch(sl.BranchID) // R15
 }
 
 // ListSales es el historial; sin rango, los últimos 30 días.
@@ -281,6 +377,7 @@ func (p *Pos) ListSales(ctx context.Context, a Actor, f store.SaleFilter) ([]dom
 	if f.From.IsZero() {
 		f.From = f.To.AddDate(0, 0, -30)
 	}
+	f.Branches = a.branchFilter() // R15
 	return p.store.ListSales(ctx, a.TenantID, f)
 }
 

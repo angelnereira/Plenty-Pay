@@ -64,7 +64,7 @@ Toda arista no listada está **prohibida** (NetworkPolicy + validación del SAN 
 | payments-core | ledger, identity, security, infra-management | asientos y holds; estado del tenant; secretos de rieles; flags/límites |
 | settlement | ledger, payments-core, identity, security | saldos y asientos de liquidación; pagos del periodo; destino de pago (cifrado) |
 | orders | catalog, inventory, payments-core, logistics, fiscal-invoicing, identity | precios/instantáneas, reservas, cobro, entrega, factura, datos del comprador |
-| pos | catalog, inventory, payments-core, logistics, fiscal-invoicing, identity (solo `ConsumeStepUp`, ADR 0023) | precios, descuento de stock, cobro y reembolso, entrega a domicilio, factura, confirmación fuerte de devoluciones |
+| pos | catalog, inventory, payments-core, logistics, fiscal-invoicing, identity (`ConsumeStepUp`, ADR 0023; `ListBranches` con la identidad del cajero, R15) | precios, descuento de stock, cobro y reembolso, entrega a domicilio, factura, confirmación fuerte de devoluciones |
 | logistics | geolocation, identity | ubicaciones/ETA/geocercas; datos del repartidor |
 | payroll | payments-core, security, geolocation, identity | pago de nómina; cifrado de datos sensibles; validar marcaje en geocerca |
 | notifications | identity | contactos y preferencias del destinatario |

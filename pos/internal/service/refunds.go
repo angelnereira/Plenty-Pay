@@ -93,6 +93,9 @@ func (p *Pos) RefundSale(ctx context.Context, a Actor, r RefundRequest) (domain.
 	if err != nil {
 		return domain.Sale{}, store.RefundRow{}, err
 	}
+	if err := a.checkBranch(current.BranchID); err != nil { // R15
+		return domain.Sale{}, store.RefundRow{}, err
+	}
 	probe := current
 	probe.Lines = append([]domain.Line(nil), current.Lines...)
 	probe.Tenders = append([]domain.Tender(nil), current.Tenders...)

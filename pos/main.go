@@ -124,6 +124,7 @@ func main() {
 		}
 	}()
 	svc.UseRefunds(st, ids, pay)
+	svc.UseBranches(ids) // F17.12 (R15): sucursales para abrir la caja
 
 	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
 	if err != nil {

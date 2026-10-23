@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"plentypay/pos/internal/domain"
 	"plentypay/pos/internal/pb"
 )
 
@@ -52,6 +53,26 @@ func (c *Identity) ConsumeStepUp(ctx context.Context, w Who, token, operation st
 		return "", nil
 	}
 	return r.GetReason(), nil
+}
+
+// ListBranches devuelve las sucursales que la persona ve (F17.12, R15): identity aplica su alcance
+// con la identidad reenviada.
+func (c *Identity) ListBranches(ctx context.Context, w Who) ([]domain.Branch, error) {
+	md := metadata.Pairs("x-pp-actor-service", "pos", "x-pp-tenant-id", w.TenantID, "x-pp-user-id", w.UserID)
+	if w.RequestID != "" {
+		md.Set("x-pp-request-id", w.RequestID)
+	}
+	ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(ctx, md), c.timeout)
+	defer cancel()
+	r, err := c.api.ListBranches(ctx, &pb.ListBranchesRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("%w: identity ListBranches: %v", ErrUnavailable, err)
+	}
+	out := make([]domain.Branch, 0, len(r.GetBranches()))
+	for _, b := range r.GetBranches() {
+		out = append(out, domain.Branch{ID: b.GetBranchId(), Code: b.GetCode(), Active: b.GetActive()})
+	}
+	return out, nil
 }
 
 // ── payments-core: reintegro de la parte en saldo PlentyPay (F17.9) ─────────────────────────
