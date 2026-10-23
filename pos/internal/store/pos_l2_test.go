@@ -73,6 +73,9 @@ func open(t *testing.T) *store.Store {
 
 func id() string { return uuid.Must(uuid.NewV7()).String() }
 
+// amt: monto contado al cerrar (puntero: el contrato distingue «no vino» de cero).
+func amt(v int64) *int64 { return &v }
+
 type world struct {
 	svc      *service.Pos
 	inv      *fakeInventory
@@ -296,7 +299,7 @@ func TestSessionClose_PendingSalesBlockAndDifferenceIsRecorded(t *testing.T) {
 	if _, err := w.svc.Checkout(ctx, a, sale.ID, []domain.Tender{{Rail: domain.RailWallet, AmountMinor: 425}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := w.svc.CloseSession(ctx, a, sale.SessionID, 5000, ""); !errors.Is(err, domain.ErrSalesPending) {
+	if _, err := w.svc.CloseSession(ctx, a, sale.SessionID, amt(5000), nil, ""); !errors.Is(err, domain.ErrSalesPending) {
 		t.Fatalf("cerrar con un cobro pendiente: %v", err)
 	}
 	if _, err := w.svc.HandlePayment(ctx, store.PaymentEvent{EventID: id(), TenantID: tenant, SaleID: sale.ID, Amount: 425, Captured: true}); err != nil {
@@ -305,7 +308,7 @@ func TestSessionClose_PendingSalesBlockAndDifferenceIsRecorded(t *testing.T) {
 	if _, err := w.svc.RecordCashMovement(ctx, a, sale.SessionID, "OUT", 1000, "retiro a caja fuerte"); err != nil {
 		t.Fatal(err)
 	}
-	closed, err := w.svc.CloseSession(ctx, a, sale.SessionID, 3900, "faltan 1.00")
+	closed, err := w.svc.CloseSession(ctx, a, sale.SessionID, amt(3900), nil, "faltan 1.00")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,7 +432,7 @@ func TestL2_R13_ParkResumeAndCloseBlocked(t *testing.T) {
 	if _, err := w.svc.UpdateSale(ctx, a, sale.ID, parked.Version, []service.LineInput{{ProductID: w.pan, QtyMilli: 1000}}); !errors.Is(err, domain.ErrInvalidTransition) {
 		t.Fatalf("editar una estacionada: %v", err)
 	}
-	if _, err := w.svc.CloseSession(ctx, a, sale.SessionID, 5000, ""); !errors.Is(err, domain.ErrSalesPending) {
+	if _, err := w.svc.CloseSession(ctx, a, sale.SessionID, amt(5000), nil, ""); !errors.Is(err, domain.ErrSalesPending) {
 		t.Fatalf("cerrar con una estacionada: %v", err)
 	}
 	if _, err := w.svc.ResumeSale(ctx, cashier(tenant), sale.ID); !errors.Is(err, domain.ErrNotYourSession) {
@@ -446,7 +449,7 @@ func TestL2_R13_ParkResumeAndCloseBlocked(t *testing.T) {
 	if err != nil || paid.Status != domain.Paid {
 		t.Fatalf("%v %+v", err, paid.Status)
 	}
-	if _, err := w.svc.CloseSession(ctx, a, sale.SessionID, 8700, ""); err != nil {
+	if _, err := w.svc.CloseSession(ctx, a, sale.SessionID, amt(8700), nil, ""); err != nil {
 		t.Fatalf("cerrar sin estacionadas: %v", err)
 	}
 }
@@ -481,7 +484,7 @@ func TestL2_R13_EmptyVoidAndClosedSession(t *testing.T) {
 	if _, err := w.svc.VoidSale(ctx, a, other.ID, "prueba"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := w.svc.CloseSession(ctx, a, ss.ID, 5000, ""); err != nil {
+	if _, err := w.svc.CloseSession(ctx, a, ss.ID, amt(5000), nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := w.svc.ParkSale(ctx, a, other.ID, ""); !errors.Is(err, domain.ErrSessionClosed) {

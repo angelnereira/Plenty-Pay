@@ -160,10 +160,11 @@ func (s *Store) Refund(ctx context.Context, in RefundInput) (RefundRow, domain.S
 			if sl.ReceiptNumber > 0 {
 				receipt = fmt.Sprintf(" %08d", sl.ReceiptNumber)
 			}
+			// refund_id (R16): el reporte Z cuenta esta salida como devolución, no como salida de caja.
 			if _, err := tx.Exec(ctx, `INSERT INTO cash_movements (id, tenant_id, session_id, direction, amount_minor,
-					reason, created_by, created_at) VALUES ($1,$2,$3,'OUT',$4,$5,$6,$7)`,
+					reason, created_by, created_at, refund_id) VALUES ($1,$2,$3,'OUT',$4,$5,$6,$7,$8)`,
 				in.NewID(), in.TenantID, sessionID, out.CashMinor, strings.TrimSpace("Devolución de la venta"+receipt),
-				in.CashierID, in.Now); err != nil {
+				in.CashierID, in.Now, out.ID); err != nil {
 				return fmt.Errorf("insert refund cash out: %w", err)
 			}
 			if _, err := tx.Exec(ctx, `UPDATE cash_sessions SET expected_cash = expected_cash - $2 WHERE id = $1`,

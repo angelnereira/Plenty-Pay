@@ -65,6 +65,8 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.InvalidArgument, "REASON_REQUIRED", "indica el motivo")
 	case errors.Is(err, domain.ErrBranchOutOfScope):
 		return ErrorInfo(codes.PermissionDenied, "BRANCH_OUT_OF_SCOPE", "esa caja es de una sucursal fuera de tu alcance")
+	case errors.Is(err, domain.ErrInvalidCount):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "el conteo por billetes y monedas no es válido o no cuadra con el monto")
 	case errors.Is(err, domain.ErrBranchRequired):
 		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "elige la sucursal de la caja")
 	case errors.Is(err, service.ErrBranchesUnavailable):
@@ -144,6 +146,16 @@ func sessionPB(s domain.Session) *pb.CashSession {
 	if s.Status == "CLOSED" {
 		out.CountedCash, out.Difference = money(s.CountedCash, s.Currency), money(s.DifferenceMinor, s.Currency)
 	}
+	if z := s.ZReport; z != nil && s.Status == "CLOSED" { // R16
+		out.ZReport = &pb.ZReport{GrossSales: money(z.GrossSalesMinor, s.Currency), Refunds: money(z.RefundsMinor, s.Currency),
+			NetSales: money(z.NetSalesMinor, s.Currency), SalesCount: z.SalesCount}
+		for _, l := range z.Lines {
+			out.ZReport.Lines = append(out.ZReport.Lines, &pb.ZReportLine{Key: l.Key, Amount: money(l.AmountMinor, s.Currency), Count: l.Count})
+		}
+	}
+	for _, c := range s.CountedByDenom {
+		out.CountedByDenomination = append(out.CountedByDenomination, &pb.CashCount{DenominationMinor: c.DenominationMinor, Quantity: c.Quantity})
+	}
 	return out
 }
 
@@ -219,7 +231,16 @@ func (s *Server) CloseCashSession(ctx context.Context, req *pb.CloseCashSessionR
 	if err != nil {
 		return nil, err
 	}
-	ss, err := s.svc.CloseSession(ctx, a, req.GetSessionId(), req.GetCountedCash().GetAmountMinor(), req.GetNotes())
+	var counted *int64
+	if req.GetCountedCash() != nil {
+		v := req.GetCountedCash().GetAmountMinor()
+		counted = &v
+	}
+	var counts []domain.CashCount
+	for _, c := range req.GetCountedByDenomination() {
+		counts = append(counts, domain.CashCount{DenominationMinor: c.GetDenominationMinor(), Quantity: c.GetQuantity()})
+	}
+	ss, err := s.svc.CloseSession(ctx, a, req.GetSessionId(), counted, counts, req.GetNotes())
 	if err != nil {
 		return nil, toStatus(err)
 	}

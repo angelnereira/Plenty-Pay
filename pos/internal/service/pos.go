@@ -23,7 +23,7 @@ type Store interface {
 	OpenSession(ctx context.Context, ss domain.Session) error
 	GetSession(ctx context.Context, tenantID, id string) (domain.Session, error)
 	CurrentSession(ctx context.Context, tenantID, cashierID string) (domain.Session, error)
-	CloseSession(ctx context.Context, tenantID, id, closedBy string, counted int64, notes string, at time.Time) (domain.Session, error)
+	CloseSession(ctx context.Context, tenantID, id, closedBy string, counted int64, counts []domain.CashCount, notes string, at time.Time) (domain.Session, error)
 	AddCashMovement(ctx context.Context, tenantID string, m domain.CashMovement) (domain.Session, error)
 	CreateSale(ctx context.Context, sl domain.Sale, checkBranch func(string) error) (domain.Sale, error)
 	GetSale(ctx context.Context, tenantID, id string) (domain.Sale, error)
@@ -188,12 +188,22 @@ func (p *Pos) checkOpenBranch(ctx context.Context, a Actor, branchID string) err
 	return domain.ErrBranchOutOfScope
 }
 
-// CloseSession arquea la caja: diferencia = contado − esperado (reporte Z).
-func (p *Pos) CloseSession(ctx context.Context, a Actor, id string, counted int64, notes string) (domain.Session, error) {
-	if _, err := p.GetSession(ctx, a, id); err != nil { // R15
+// CloseSession arquea la caja: diferencia = contado − esperado, y guarda el reporte Z (R16). El
+// contado llega como monto (counted, nil si no vino) o por denominación (counts).
+func (p *Pos) CloseSession(ctx context.Context, a Actor, id string, counted *int64, counts []domain.CashCount, notes string) (domain.Session, error) {
+	ss, err := p.GetSession(ctx, a, id) // R15
+	if err != nil {
 		return domain.Session{}, err
 	}
-	return p.store.CloseSession(ctx, a.TenantID, id, a.UserID, counted, notes, p.now())
+	var amount int64
+	if counted != nil {
+		amount = *counted
+	}
+	total, kept, err := domain.ResolveCounted(amount, counted != nil, counts, ss.Currency)
+	if err != nil {
+		return domain.Session{}, err
+	}
+	return p.store.CloseSession(ctx, a.TenantID, id, a.UserID, total, kept, notes, p.now())
 }
 
 // RecordCashMovement registra una entrada o salida de efectivo con motivo.

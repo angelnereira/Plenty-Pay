@@ -319,6 +319,8 @@ type Session struct {
 	Currency        string
 	OpenedAt        time.Time
 	ClosedAt        time.Time
+	ZReport         *ZReport    // F17.3 (R16): calculado y guardado al cerrar; nil si abierta o anterior a F17.3
+	CountedByDenom  []CashCount // F17.3 (R16): conteo del arqueo por denominación, si se hizo así
 }
 
 // Close calcula la diferencia del arqueo: contado − esperado (con signo).

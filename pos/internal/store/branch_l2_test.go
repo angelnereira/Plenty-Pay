@@ -18,7 +18,9 @@ type fakeBranches struct {
 	err  error
 }
 
-func (f *fakeBranches) ListBranches(context.Context, client.Who) ([]domain.Branch, error) { return f.list, f.err }
+func (f *fakeBranches) ListBranches(context.Context, client.Who) ([]domain.Branch, error) {
+	return f.list, f.err
+}
 
 func withScope(a service.Actor, raw string) service.Actor {
 	sc := domain.ParseBranchScope(raw)
@@ -80,7 +82,7 @@ func TestADR0018_PosBranchOutOfScope(t *testing.T) {
 	if _, err := w.svc.RecordCashMovement(ctx, cashierA, ssB.ID, "OUT", 100, "retiro"); !errors.Is(err, domain.ErrBranchOutOfScope) {
 		t.Fatalf("mover efectivo de B: %v", err)
 	}
-	if _, err := w.svc.CloseSession(ctx, cashierA, ssB.ID, 0, ""); !errors.Is(err, domain.ErrBranchOutOfScope) {
+	if _, err := w.svc.CloseSession(ctx, cashierA, ssB.ID, amt(0), nil, ""); !errors.Is(err, domain.ErrBranchOutOfScope) {
 		t.Fatalf("cerrar la caja de B: %v", err)
 	}
 	list, _, err := w.svc.ListSales(ctx, cashierA, store.SaleFilter{Limit: 50})

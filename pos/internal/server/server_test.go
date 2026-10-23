@@ -110,3 +110,31 @@ func TestR15_AuthorizeSetsScope(t *testing.T) {
 		t.Fatalf("*: %+v %v", a.Scope, err)
 	}
 }
+
+// R16: un conteo por denominación inválido es INVALID_REQUEST; la sesión cerrada lleva su reporte Z
+// y su conteo; una abierta no muestra reporte.
+func TestF17_3_ZReportAndCountMapping(t *testing.T) {
+	st, _ := status.FromError(toStatus(fmt.Errorf("close session: %w", domain.ErrInvalidCount)))
+	reason := ""
+	for _, d := range st.Details() {
+		if info, ok := d.(*errdetails.ErrorInfo); ok {
+			reason = info.Reason
+		}
+	}
+	if st.Code() != codes.InvalidArgument || reason != "INVALID_REQUEST" {
+		t.Fatalf("conteo inválido → %v %q", st.Code(), reason)
+	}
+	zr := &domain.ZReport{Lines: []domain.ZReportLine{{Key: "rail:CASH", AmountMinor: 214, Count: 2}},
+		GrossSalesMinor: 214, NetSalesMinor: 214, SalesCount: 2}
+	closed := sessionPB(domain.Session{Status: "CLOSED", Currency: "USD", ZReport: zr,
+		CountedByDenom: []domain.CashCount{{DenominationMinor: 100, Quantity: 2}}})
+	z := closed.GetZReport()
+	if z.GetSalesCount() != 2 || z.GetGrossSales().GetAmountMinor() != 214 || len(z.GetLines()) != 1 ||
+		z.GetLines()[0].GetKey() != "rail:CASH" || z.GetLines()[0].GetAmount().GetAmountMinor() != 214 ||
+		closed.GetCountedByDenomination()[0].GetDenominationMinor() != 100 {
+		t.Fatalf("sesión cerrada: %+v", closed)
+	}
+	if open := sessionPB(domain.Session{Status: "OPEN", Currency: "USD", ZReport: zr}); open.GetZReport() != nil {
+		t.Fatal("una sesión abierta no lleva reporte Z")
+	}
+}

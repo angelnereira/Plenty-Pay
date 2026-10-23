@@ -109,13 +109,14 @@ func isUnique(err error, constraint string) bool {
 
 const sessionCols = `id, tenant_id, terminal_label, cashier_id, status, opening_float, expected_cash,
 	coalesce(counted_cash, 0), coalesce(difference_minor, 0), close_notes, currency, opened_at,
-	coalesce(closed_at, 'epoch'::timestamptz), coalesce(branch_id::text, '')`
+	coalesce(closed_at, 'epoch'::timestamptz), coalesce(branch_id::text, ''), z_report, counted_by_denomination`
 
 func scanSession(row pgx.Row) (domain.Session, error) {
 	var ss domain.Session
+	var zr, counts []byte
 	err := row.Scan(&ss.ID, &ss.TenantID, &ss.TerminalLabel, &ss.CashierID, &ss.Status, &ss.OpeningFloat,
 		&ss.ExpectedCash, &ss.CountedCash, &ss.DifferenceMinor, &ss.CloseNotes, &ss.Currency, &ss.OpenedAt, &ss.ClosedAt,
-		&ss.BranchID)
+		&ss.BranchID, &zr, &counts)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ss, domain.ErrNotFound
 	}
@@ -123,6 +124,15 @@ func scanSession(row pgx.Row) (domain.Session, error) {
 		return ss, fmt.Errorf("scan session: %w", err)
 	}
 	ss.Currency = strings.TrimSpace(ss.Currency)
+	if len(zr) > 0 {
+		ss.ZReport = &domain.ZReport{}
+		if err := json.Unmarshal(zr, ss.ZReport); err != nil {
+			return ss, fmt.Errorf("decode z report: %w", err)
+		}
+	}
+	if err := json.Unmarshal(counts, &ss.CountedByDenom); err != nil {
+		return ss, fmt.Errorf("decode cash count: %w", err)
+	}
 	return ss, nil
 }
 
@@ -167,7 +177,11 @@ func (s *Store) CurrentSession(ctx context.Context, tenantID, cashierID string) 
 }
 
 // CloseSession cierra con el conteo. SALES_PENDING si hay ventas esperando un cobro electrónico.
-func (s *Store) CloseSession(ctx context.Context, tenantID, id, closedBy string, counted int64, notes string, at time.Time) (domain.Session, error) {
+//
+// R16: en la misma transacción calcula y guarda el reporte Z con las ventas, devoluciones y
+// movimientos de la sesión, y el conteo por denominación (counts, ya validado).
+func (s *Store) CloseSession(ctx context.Context, tenantID, id, closedBy string, counted int64, counts []domain.CashCount,
+	notes string, at time.Time) (domain.Session, error) {
 	var ss domain.Session
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		var err error
@@ -187,14 +201,94 @@ func (s *Store) CloseSession(ctx context.Context, tenantID, id, closedBy string,
 		if err := ss.Close(counted, notes, at); err != nil {
 			return err
 		}
+		zr, err := buildZReport(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		ss.ZReport, ss.CountedByDenom = &zr, counts
+		zjson, err := json.Marshal(zr)
+		if err != nil {
+			return fmt.Errorf("encode z report: %w", err)
+		}
+		if counts == nil {
+			counts = []domain.CashCount{}
+		}
+		cjson, err := json.Marshal(counts)
+		if err != nil {
+			return fmt.Errorf("encode cash count: %w", err)
+		}
 		if _, err := tx.Exec(ctx, `UPDATE cash_sessions SET status = 'CLOSED', counted_cash = $2, difference_minor = $3,
-			close_notes = $4, closed_at = $5, closed_by = $6 WHERE id = $1`,
-			id, ss.CountedCash, ss.DifferenceMinor, ss.CloseNotes, at, closedBy); err != nil {
+			close_notes = $4, closed_at = $5, closed_by = $6, z_report = $7, counted_by_denomination = $8 WHERE id = $1`,
+			id, ss.CountedCash, ss.DifferenceMinor, ss.CloseNotes, at, closedBy, string(zjson), string(cjson)); err != nil {
 			return fmt.Errorf("close session: %w", err)
 		}
 		return nil
 	})
 	return ss, err
+}
+
+// buildZReport lee lo ocurrido en la sesión (con la sesión bloqueada FOR UPDATE) y arma el reporte Z.
+func buildZReport(ctx context.Context, tx pgx.Tx, sessionID string) (domain.ZReport, error) {
+	rows, err := tx.Query(ctx, `SELECT `+saleCols+` FROM sales WHERE session_id = $1 AND status IN ($2, $3, $4, $5)`,
+		sessionID, domain.Paid, domain.Voided, domain.PartiallyRefunded, domain.Refunded)
+	if err != nil {
+		return domain.ZReport{}, fmt.Errorf("z report sales: %w", err)
+	}
+	var sales []domain.Sale
+	for rows.Next() {
+		sl, err := scanSale(rows)
+		if err != nil {
+			rows.Close()
+			return domain.ZReport{}, err
+		}
+		sales = append(sales, sl)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return domain.ZReport{}, fmt.Errorf("z report sales: %w", err)
+	}
+
+	var refunds []domain.ZRefund
+	rrows, err := tx.Query(ctx, `SELECT cash_minor, wallet_minor, status = 'FAILED' FROM refunds WHERE session_id = $1`, sessionID)
+	if err != nil {
+		return domain.ZReport{}, fmt.Errorf("z report refunds: %w", err)
+	}
+	for rrows.Next() {
+		var f domain.ZRefund
+		if err := rrows.Scan(&f.CashMinor, &f.WalletMinor, &f.Failed); err != nil {
+			rrows.Close()
+			return domain.ZReport{}, fmt.Errorf("scan z refund: %w", err)
+		}
+		refunds = append(refunds, f)
+	}
+	rrows.Close()
+	if err := rrows.Err(); err != nil {
+		return domain.ZReport{}, fmt.Errorf("z report refunds: %w", err)
+	}
+
+	var moves []domain.CashMovement
+	mrows, err := tx.Query(ctx, `SELECT direction, amount_minor FROM cash_movements WHERE session_id = $1 AND refund_id IS NULL`, sessionID)
+	if err != nil {
+		return domain.ZReport{}, fmt.Errorf("z report movements: %w", err)
+	}
+	for mrows.Next() {
+		var m domain.CashMovement
+		if err := mrows.Scan(&m.Direction, &m.AmountMinor); err != nil {
+			mrows.Close()
+			return domain.ZReport{}, fmt.Errorf("scan z movement: %w", err)
+		}
+		moves = append(moves, m)
+	}
+	mrows.Close()
+	if err := mrows.Err(); err != nil {
+		return domain.ZReport{}, fmt.Errorf("z report movements: %w", err)
+	}
+
+	zr, err := domain.BuildZReport(sales, refunds, moves)
+	if err != nil {
+		return domain.ZReport{}, fmt.Errorf("build z report: %w", err)
+	}
+	return zr, nil
 }
 
 // AddCashMovement registra una entrada/salida y ajusta el esperado (R6).
