@@ -7,7 +7,9 @@ import '../../core/layout/window_class.dart';
 import '../../core/observability/app_logger.dart' show newRequestId;
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
+import '../../core/format/barcode.dart';
 import '../../core/widgets/barcode_scanner_dialog.dart';
+import '../../core/widgets/hid_scanner_listener.dart';
 import '../../core/widgets/pp_button.dart';
 import '../catalog/catalog_data.dart';
 import '../catalog/catalog_errors.dart';
@@ -69,6 +71,10 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
   List<LotItem> _lots = const [];
   AdjustReason? _reason;
   String _key = newRequestId();
+
+  /// F16.11: productos que se pueden escanear y antirrebote de lecturas.
+  List<ProductItem> _scannable = const [];
+  final _debounce = ScanDebouncer();
   bool _saving = false;
   bool _submitted = false;
   String? _error;
@@ -83,6 +89,7 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
     final tracked = products.values.where((p) => p.tracksInventory).toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     if (_product != null) await _loadSystem();
+    _scannable = tracked;
     return _AdjustRefs(warehouses.where((w) => w.active).toList(), tracked);
   }
 
@@ -127,12 +134,21 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
         title: l10n.scanBarcode,
         subtitle: l10n.invProduct);
     if (code == null || !mounted) return;
-    final match = products.where((p) => p.barcode == code.trim());
-    if (match.isEmpty) {
-      setState(() => _error = l10n.posNotFound);
+    await _onCode(code, products);
+  }
+
+  /// C-27: un código de la cámara o del lector elige el producto; desconocido no hace nada más
+  /// que avisar.
+  Future<void> _onCode(String code, List<ProductItem> products) async {
+    if (!_debounce.accept(code)) return;
+    final match = productByCode(products, code);
+    if (match == null) {
+      widget.api.logger
+          .breadcrumb('ui', 'scan_unknown_code', 'len=${code.trim().length}');
+      setState(() => _error = AppLocalizations.of(context).posNotFound);
       return;
     }
-    await _pick(match.first);
+    await _pick(match);
   }
 
   @override
@@ -223,198 +239,206 @@ class _StockAdjustScreenState extends State<StockAdjustScreen> {
     const gap = SizedBox(height: AppTokens.spacingMd);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.invAdjustTitle)),
-      body: FutureBuilder<_AdjustRefs>(
-        future: _refs,
-        builder: (context, snap) => ListView(
-          padding: EdgeInsets.fromLTRB(
-              margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
-          children: [
-            AsyncView<_AdjustRefs>(
-              snapshot: snap,
-              errorMessage: snap.hasError
-                  ? catalogErrorMessage(l10n, snap.error!)
-                  : l10n.errorNoConnection,
-              retryLabel: l10n.actionRetry,
-              onRetry: () => Navigator.of(context).pushReplacement(
-                  MaterialPageRoute<bool>(
-                      builder: (_) => StockAdjustScreen(
-                          api: widget.api, product: widget.product))),
-              emptyView: const SizedBox.shrink(),
-              builder: (context, refs) {
-                final unit = _product?.unitType ?? 'UNIT';
-                final delta = _delta;
-                return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        initialValue:
-                            refs.warehouses.any((w) => w.id == _warehouse)
-                                ? _warehouse
-                                : null,
-                        isExpanded: true,
-                        decoration:
-                            InputDecoration(labelText: l10n.invWarehouse),
-                        items: [
-                          for (final w in refs.warehouses)
-                            DropdownMenuItem(value: w.id, child: Text(w.name))
-                        ],
-                        onChanged: (id) {
-                          _warehouse = id ?? '';
-                          _pick(_product);
-                        },
-                      ),
-                      gap,
-                      Row(children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue:
-                                refs.products.any((p) => p.id == _product?.id)
-                                    ? _product!.id
-                                    : null,
-                            isExpanded: true,
-                            decoration: InputDecoration(
-                                labelText: l10n.invProduct,
-                                errorText: _submitted && _product == null
-                                    ? l10n.invSelectProduct
-                                    : null),
-                            items: [
-                              for (final p in refs.products)
-                                DropdownMenuItem(
-                                    value: p.id, child: Text(p.name))
-                            ],
-                            onChanged: (id) => _pick(
-                                refs.products.firstWhere((p) => p.id == id)),
-                          ),
+      body: HidScannerListener(
+        onScan: (code) => _onCode(code, _scannable),
+        child: FutureBuilder<_AdjustRefs>(
+          future: _refs,
+          builder: (context, snap) => ListView(
+            padding: EdgeInsets.fromLTRB(
+                margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
+            children: [
+              AsyncView<_AdjustRefs>(
+                snapshot: snap,
+                errorMessage: snap.hasError
+                    ? catalogErrorMessage(l10n, snap.error!)
+                    : l10n.errorNoConnection,
+                retryLabel: l10n.actionRetry,
+                onRetry: () => Navigator.of(context).pushReplacement(
+                    MaterialPageRoute<bool>(
+                        builder: (_) => StockAdjustScreen(
+                            api: widget.api, product: widget.product))),
+                emptyView: const SizedBox.shrink(),
+                builder: (context, refs) {
+                  final unit = _product?.unitType ?? 'UNIT';
+                  final delta = _delta;
+                  return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          initialValue:
+                              refs.warehouses.any((w) => w.id == _warehouse)
+                                  ? _warehouse
+                                  : null,
+                          isExpanded: true,
+                          decoration:
+                              InputDecoration(labelText: l10n.invWarehouse),
+                          items: [
+                            for (final w in refs.warehouses)
+                              DropdownMenuItem(value: w.id, child: Text(w.name))
+                          ],
+                          onChanged: (id) {
+                            _warehouse = id ?? '';
+                            _pick(_product);
+                          },
                         ),
-                        IconButton(
-                          tooltip: l10n.scanBarcode,
-                          icon: const Icon(Icons.qr_code_scanner),
-                          onPressed: () => _scan(refs.products),
-                        ),
-                      ]),
-                      if (_product != null && _systemMilli != null) ...[
                         gap,
-                        Text(l10n.invSystemQty(formatQty(_systemMilli!, unit)),
-                            style: theme.textTheme.titleMedium),
-                        gap,
-                        TextField(
-                          controller: _counted,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            labelText: l10n.invCounted,
-                            errorText: _submitted &&
-                                    parseQtyMilli(_counted.text) == null
-                                ? l10n.invQtyError
-                                : null,
-                          ),
-                        ),
-                        if (delta != null) ...[
-                          const SizedBox(height: AppTokens.spacingSm),
-                          Semantics(
-                            liveRegion: true,
-                            child: Text(
-                              l10n.invDifferenceQty(
-                                  '${delta > 0 ? '+' : ''}${formatQty(delta, unit)}'),
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                  color: delta < 0
-                                      ? theme.colorScheme.error
-                                      : theme.colorScheme.primary),
+                        Row(children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              // La clave refleja una selección hecha por escaneo.
+                              key: ValueKey('adjust-product-${_product?.id}'),
+                              initialValue:
+                                  refs.products.any((p) => p.id == _product?.id)
+                                      ? _product!.id
+                                      : null,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                  labelText: l10n.invProduct,
+                                  errorText: _submitted && _product == null
+                                      ? l10n.invSelectProduct
+                                      : null),
+                              items: [
+                                for (final p in refs.products)
+                                  DropdownMenuItem(
+                                      value: p.id, child: Text(p.name))
+                              ],
+                              onChanged: (id) => _pick(
+                                  refs.products.firstWhere((p) => p.id == id)),
                             ),
                           ),
-                        ],
-                        if (_product!.tracksLots &&
-                            delta != null &&
-                            delta > 0) ...[
+                          IconButton(
+                            tooltip: l10n.scanBarcode,
+                            icon: const Icon(Icons.qr_code_scanner),
+                            onPressed: () => _scan(refs.products),
+                          ),
+                        ]),
+                        if (_product != null && _systemMilli != null) ...[
+                          gap,
+                          Text(
+                              l10n.invSystemQty(formatQty(_systemMilli!, unit)),
+                              style: theme.textTheme.titleMedium),
                           gap,
                           TextField(
-                            controller: _lotCode,
+                            controller: _counted,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
                             onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
-                              labelText: l10n.invLotCode,
+                              labelText: l10n.invCounted,
+                              errorText: _submitted &&
+                                      parseQtyMilli(_counted.text) == null
+                                  ? l10n.invQtyError
+                                  : null,
+                            ),
+                          ),
+                          if (delta != null) ...[
+                            const SizedBox(height: AppTokens.spacingSm),
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                l10n.invDifferenceQty(
+                                    '${delta > 0 ? '+' : ''}${formatQty(delta, unit)}'),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                    color: delta < 0
+                                        ? theme.colorScheme.error
+                                        : theme.colorScheme.primary),
+                              ),
+                            ),
+                          ],
+                          if (_product!.tracksLots &&
+                              delta != null &&
+                              delta > 0) ...[
+                            gap,
+                            TextField(
+                              controller: _lotCode,
+                              onChanged: (_) => setState(() {}),
+                              decoration: InputDecoration(
+                                labelText: l10n.invLotCode,
+                                errorText:
+                                    _submitted && _lotCode.text.trim().isEmpty
+                                        ? l10n.error_LOT_REQUIRED
+                                        : null,
+                              ),
+                            ),
+                            LotExpiryField(
+                                value: _lotExpiry,
+                                onChanged: (d) =>
+                                    setState(() => _lotExpiry = d)),
+                          ],
+                          if (_product!.tracksLots &&
+                              delta != null &&
+                              delta < 0 &&
+                              _lots.isNotEmpty) ...[
+                            gap,
+                            DropdownButtonFormField<String>(
+                              initialValue: _outLot,
+                              isExpanded: true,
+                              decoration:
+                                  InputDecoration(labelText: l10n.invLotOut),
+                              items: [
+                                DropdownMenuItem(
+                                    value: '', child: Text(l10n.invLotAuto)),
+                                for (final lot in _lots)
+                                  DropdownMenuItem(
+                                      value: lot.code,
+                                      child: Text(l10n.invLotOption(lot.code,
+                                          formatQty(lot.onHandMilli, unit)))),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _outLot = v ?? ''),
+                            ),
+                          ],
+                        ],
+                        gap,
+                        DropdownButtonFormField<AdjustReason>(
+                          initialValue: _reason,
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                              labelText: l10n.invReason,
+                              errorText: _submitted && _reason == null
+                                  ? l10n.error_MOVEMENT_REASON_REQUIRED
+                                  : null),
+                          items: [
+                            for (final r in AdjustReason.values)
+                              DropdownMenuItem(
+                                  value: r,
+                                  child: Text(adjustReasonLabel(l10n, r))),
+                          ],
+                          onChanged: (r) => setState(() => _reason = r),
+                        ),
+                        if (_reason == AdjustReason.other) ...[
+                          const SizedBox(height: AppTokens.spacingSm),
+                          TextField(
+                            controller: _otherReason,
+                            maxLength: 300,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              labelText: l10n.invReasonOtherHint,
                               errorText:
-                                  _submitted && _lotCode.text.trim().isEmpty
-                                      ? l10n.error_LOT_REQUIRED
+                                  _submitted && _otherReason.text.trim().isEmpty
+                                      ? l10n.error_MOVEMENT_REASON_REQUIRED
                                       : null,
                             ),
                           ),
-                          LotExpiryField(
-                              value: _lotExpiry,
-                              onChanged: (d) => setState(() => _lotExpiry = d)),
                         ],
-                        if (_product!.tracksLots &&
-                            delta != null &&
-                            delta < 0 &&
-                            _lots.isNotEmpty) ...[
+                        if (_error != null) ...[
                           gap,
-                          DropdownButtonFormField<String>(
-                            initialValue: _outLot,
-                            isExpanded: true,
-                            decoration:
-                                InputDecoration(labelText: l10n.invLotOut),
-                            items: [
-                              DropdownMenuItem(
-                                  value: '', child: Text(l10n.invLotAuto)),
-                              for (final lot in _lots)
-                                DropdownMenuItem(
-                                    value: lot.code,
-                                    child: Text(l10n.invLotOption(lot.code,
-                                        formatQty(lot.onHandMilli, unit)))),
-                            ],
-                            onChanged: (v) => setState(() => _outLot = v ?? ''),
-                          ),
+                          Semantics(
+                              liveRegion: true,
+                              child: Text(_error!,
+                                  style: TextStyle(
+                                      color: theme.colorScheme.error))),
                         ],
-                      ],
-                      gap,
-                      DropdownButtonFormField<AdjustReason>(
-                        initialValue: _reason,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                            labelText: l10n.invReason,
-                            errorText: _submitted && _reason == null
-                                ? l10n.error_MOVEMENT_REASON_REQUIRED
-                                : null),
-                        items: [
-                          for (final r in AdjustReason.values)
-                            DropdownMenuItem(
-                                value: r,
-                                child: Text(adjustReasonLabel(l10n, r))),
-                        ],
-                        onChanged: (r) => setState(() => _reason = r),
-                      ),
-                      if (_reason == AdjustReason.other) ...[
-                        const SizedBox(height: AppTokens.spacingSm),
-                        TextField(
-                          controller: _otherReason,
-                          maxLength: 300,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            labelText: l10n.invReasonOtherHint,
-                            errorText:
-                                _submitted && _otherReason.text.trim().isEmpty
-                                    ? l10n.error_MOVEMENT_REASON_REQUIRED
-                                    : null,
-                          ),
-                        ),
-                      ],
-                      if (_error != null) ...[
-                        gap,
-                        Semantics(
-                            liveRegion: true,
-                            child: Text(_error!,
-                                style:
-                                    TextStyle(color: theme.colorScheme.error))),
-                      ],
-                      const SizedBox(height: AppTokens.spacingLg),
-                      PPButton.primary(
-                          label: l10n.invApplyAdjust,
-                          loading: _saving,
-                          onPressed: _apply),
-                    ]);
-              },
-            ),
-          ],
+                        const SizedBox(height: AppTokens.spacingLg),
+                        PPButton.primary(
+                            label: l10n.invApplyAdjust,
+                            loading: _saving,
+                            onPressed: _apply),
+                      ]);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

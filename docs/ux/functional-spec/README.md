@@ -66,6 +66,7 @@ Estas reglas no se repiten en cada ficha.
 | **C-24** | Los campos de contraseña y de códigos permiten pegar y autocompletar (N-STD-39) |
 | **C-25** | Todo error no esperado se registra con pantalla, widget, traza de pila y las últimas acciones, y el usuario ve solo el mensaje y el código de soporte (`observability-standards.md` §13). Un widget que falla se reemplaza por `ErrorState` de su sección sin tumbar la pantalla |
 | **C-26** | Cantidades con unidad: número, espacio y símbolo SI exacto (`2.5 kg`, `750 mL`); nunca plural ni punto (N-STD-21) |
+| **C-27** | Escanear (F16.11): por cámara (permiso solo al tocar «Escanear», ADR 0020) o por lector que actúa como teclado mientras ningún campo de texto tiene el foco (Enter termina el código). El código se compara normalizado a GTIN-14 (N-STD-23) o, si no es GTIN, contra el SKU exacto. El mismo código en menos de 800 ms cuenta una vez. Un código desconocido muestra «No encontramos un producto con ese código.» y no crea nada; ningún escaneo registra un movimiento ni un cobro por sí solo. El diálogo siempre ofrece entrada manual |
 
 ## 4. Mensajes comunes por `reason`
 

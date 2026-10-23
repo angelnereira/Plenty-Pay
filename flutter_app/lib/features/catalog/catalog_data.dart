@@ -1,4 +1,8 @@
 import '../../core/api/api_client.dart';
+import '../../core/format/barcode.dart';
+
+// N-STD-23: la validación GTIN vive en core (la usan catálogo, inventario y caja).
+export '../../core/format/barcode.dart' show validGtin;
 import '../wallet/wallet_data.dart' show minorUnits;
 
 /// Un producto del catálogo (`catalog.Product` vía `/v1/catalog/products`). Precio en centavos
@@ -162,19 +166,6 @@ Future<List<TaxRateItem>> loadTaxRates(ApiClient api) async {
   ];
 }
 
-/// GTIN-8, UPC-A (12), EAN-13 y GTIN-14 con dígito de control (N-STD-23). Misma regla que catalog.
-bool validGtin(String code) {
-  if (!RegExp(r'^\d+$').hasMatch(code)) return false;
-  if (![8, 12, 13, 14].contains(code.length)) return false;
-  var sum = 0;
-  for (var i = code.length - 2; i >= 0; i--) {
-    var d = code.codeUnitAt(i) - 48;
-    if ((code.length - 2 - i).isEven) d *= 3;
-    sum += d;
-  }
-  return (10 - sum % 10) % 10 == code.codeUnitAt(code.length - 1) - 48;
-}
-
 /// Código de uso interno de tienda (prefijo 02 o 20–29, N-STD-24).
 bool isInternalCode(String code) =>
     code.length == 13 &&
@@ -227,4 +218,18 @@ int? parseQtyMilli(String text) {
   final whole = int.parse(m.group(1)!);
   final frac = int.parse((m.group(2) ?? '').padRight(3, '0'));
   return whole * 1000 + frac;
+}
+
+/// F16.11 (C-27): producto de un código leído. Primero por código de barras normalizado a
+/// GTIN-14 (N-STD-23); si ninguno coincide, por SKU exacto. null si no hay producto.
+ProductItem? productByCode(Iterable<ProductItem> products, String code) {
+  final c = code.trim();
+  if (c.isEmpty) return null;
+  for (final p in products) {
+    if (p.barcode.isNotEmpty && sameBarcode(p.barcode, c)) return p;
+  }
+  for (final p in products) {
+    if (p.sku.isNotEmpty && p.sku == c) return p;
+  }
+  return null;
 }

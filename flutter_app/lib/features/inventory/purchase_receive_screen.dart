@@ -4,7 +4,10 @@ import '../../core/api/api_client.dart';
 import '../../core/l10n/generated/app_localizations.dart';
 import '../../core/layout/window_class.dart';
 import '../../core/observability/app_logger.dart' show newRequestId;
+import '../../core/format/barcode.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/widgets/barcode_scanner_dialog.dart';
+import '../../core/widgets/hid_scanner_listener.dart';
 import '../../core/widgets/pp_button.dart';
 import '../../core/widgets/pp_text_field.dart';
 import '../catalog/catalog_data.dart';
@@ -16,7 +19,8 @@ import 'stock_adjust_screen.dart' show LotExpiryField;
 /// e1 «Orden {número} · {proveedor}», e2 por línea «Pedido · Recibido antes · Recibido ahora»
 /// (propone lo pendiente; no se recibe más de lo pedido, `RECEIPT_EXCEEDS_ORDERED`), e4 factura del
 /// proveedor opcional, e5 «Registrar recepción». e3 (F16.8): lote y vencimiento por línea si el
-/// producto maneja lotes. El escáner llega con F16.11.
+/// producto maneja lotes. F16.11 (C-27): «Escanear código» y lector; la primera lectura de una
+/// línea reemplaza la cantidad propuesta por 1 y las siguientes suman 1.
 class PurchaseReceiveScreen extends StatefulWidget {
   const PurchaseReceiveScreen(
       {super.key,
@@ -48,10 +52,49 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
         l.productId: TextEditingController(),
   };
   final Map<String, DateTime?> _expiry = {};
+
+  /// F16.11: líneas cuya cantidad ya fijó la persona o un escaneo (la propuesta no cuenta).
+  final Set<String> _touched = {};
+  final _debounce = ScanDebouncer();
   bool _submitted = false;
   final String _key = newRequestId();
   bool _saving = false;
   String? _error;
+
+  Future<void> _scan() async {
+    final l10n = AppLocalizations.of(context);
+    final code = await BarcodeScannerDialog.scan(context,
+        logger: widget.api.logger,
+        title: l10n.scanBarcode,
+        subtitle: l10n.poReceiveNow);
+    if (code == null || !mounted) return;
+    _onCode(code);
+  }
+
+  /// C-27: suma 1 a la línea del producto leído. Nunca registra nada por sí solo.
+  void _onCode(String code) {
+    if (!_debounce.accept(code)) return;
+    final l10n = AppLocalizations.of(context);
+    final product = productByCode(widget.products.values, code);
+    if (product == null) {
+      widget.api.logger
+          .breadcrumb('ui', 'scan_unknown_code', 'len=${code.trim().length}');
+      setState(() => _error = l10n.posNotFound);
+      return;
+    }
+    final c = _now[product.id];
+    if (c == null) {
+      setState(() => _error = l10n.error_UNKNOWN_ORDER_LINE);
+      return;
+    }
+    final current =
+        _touched.contains(product.id) ? (parseQtyMilli(c.text) ?? 0) : 0;
+    c.text = formatQty(current + 1000, 'UNIT');
+    setState(() {
+      _touched.add(product.id);
+      _error = null;
+    });
+  }
 
   @override
   void dispose() {
@@ -120,89 +163,99 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
     final o = widget.order;
     final lines = _received;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.poReceiveTitle)),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(
-            margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
-        children: [
-          Semantics(
-            header: true,
-            child: Text(l10n.poNumber(o.shortId, o.supplierName),
-                style: theme.textTheme.titleLarge),
-          ),
-          const SizedBox(height: AppTokens.spacingMd),
-          for (final l in o.lines)
-            Card(
-              margin: const EdgeInsets.only(bottom: AppTokens.spacingSm),
-              elevation: 0,
-              color: theme.colorScheme.surfaceContainerLow,
-              child: Padding(
-                padding: const EdgeInsets.all(AppTokens.spacingMd),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                          widget.products[l.productId]?.name ??
-                              l10n.invUnknownProduct,
-                          style: theme.textTheme.titleMedium),
-                      const SizedBox(height: AppTokens.spacingXs),
-                      Text(l10n.poReceiveLine(
-                        formatQty(l.orderedMilli, _unit(l.productId)),
-                        formatQty(l.receivedMilli, _unit(l.productId)),
-                      )),
-                      if (_now[l.productId] case final c?) ...[
-                        const SizedBox(height: AppTokens.spacingSm),
-                        PPTextField(
-                          controller: c,
-                          labelText: l10n.poReceiveNow,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          onChanged: (_) => setState(() {}),
-                          error: _lineError(l10n, l, c),
-                        ),
-                      ],
-                      if (_lot[l.productId] case final lc?) ...[
-                        const SizedBox(height: AppTokens.spacingSm),
-                        PPTextField(
-                          controller: lc,
-                          labelText: l10n.invLotCode,
-                          onChanged: (_) => setState(() {}),
-                          error: _submitted && lc.text.trim().isEmpty
-                              ? l10n.error_LOT_REQUIRED
-                              : null,
-                        ),
-                        LotExpiryField(
-                            value: _expiry[l.productId],
-                            onChanged: (d) =>
-                                setState(() => _expiry[l.productId] = d)),
-                      ],
-                    ]),
-              ),
+      appBar: AppBar(title: Text(l10n.poReceiveTitle), actions: [
+        IconButton(
+          tooltip: l10n.scanBarcode,
+          icon: const Icon(Icons.qr_code_scanner),
+          onPressed: _scan,
+        ),
+      ]),
+      body: HidScannerListener(
+        onScan: _onCode,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+              margin, AppTokens.spacingMd, margin, AppTokens.spacingXl),
+          children: [
+            Semantics(
+              header: true,
+              child: Text(l10n.poNumber(o.shortId, o.supplierName),
+                  style: theme.textTheme.titleLarge),
             ),
-          const SizedBox(height: AppTokens.spacingSm),
-          PPTextField(
-            controller: _invoice,
-            labelText: l10n.poSupplierInvoice,
-            onChanged: (_) => setState(() {}),
-            error: _invoice.text.trim().length > 60
-                ? l10n.poSupplierInvoiceTooLong
-                : null,
-          ),
-          if (_error != null) ...[
+            const SizedBox(height: AppTokens.spacingMd),
+            for (final l in o.lines)
+              Card(
+                margin: const EdgeInsets.only(bottom: AppTokens.spacingSm),
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainerLow,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppTokens.spacingMd),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                            widget.products[l.productId]?.name ??
+                                l10n.invUnknownProduct,
+                            style: theme.textTheme.titleMedium),
+                        const SizedBox(height: AppTokens.spacingXs),
+                        Text(l10n.poReceiveLine(
+                          formatQty(l.orderedMilli, _unit(l.productId)),
+                          formatQty(l.receivedMilli, _unit(l.productId)),
+                        )),
+                        if (_now[l.productId] case final c?) ...[
+                          const SizedBox(height: AppTokens.spacingSm),
+                          PPTextField(
+                            controller: c,
+                            labelText: l10n.poReceiveNow,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            onChanged: (_) =>
+                                setState(() => _touched.add(l.productId)),
+                            error: _lineError(l10n, l, c),
+                          ),
+                        ],
+                        if (_lot[l.productId] case final lc?) ...[
+                          const SizedBox(height: AppTokens.spacingSm),
+                          PPTextField(
+                            controller: lc,
+                            labelText: l10n.invLotCode,
+                            onChanged: (_) => setState(() {}),
+                            error: _submitted && lc.text.trim().isEmpty
+                                ? l10n.error_LOT_REQUIRED
+                                : null,
+                          ),
+                          LotExpiryField(
+                              value: _expiry[l.productId],
+                              onChanged: (d) =>
+                                  setState(() => _expiry[l.productId] = d)),
+                        ],
+                      ]),
+                ),
+              ),
             const SizedBox(height: AppTokens.spacingSm),
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+            PPTextField(
+              controller: _invoice,
+              labelText: l10n.poSupplierInvoice,
+              onChanged: (_) => setState(() {}),
+              error: _invoice.text.trim().length > 60
+                  ? l10n.poSupplierInvoiceTooLong
+                  : null,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: AppTokens.spacingSm),
+              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+            ],
+            const SizedBox(height: AppTokens.spacingLg),
+            PPButton.primary(
+              label: l10n.poReceiveSubmit,
+              onPressed: _saving ||
+                      lines == null ||
+                      lines.isEmpty ||
+                      _invoice.text.trim().length > 60
+                  ? null
+                  : _submit,
+            ),
           ],
-          const SizedBox(height: AppTokens.spacingLg),
-          PPButton.primary(
-            label: l10n.poReceiveSubmit,
-            onPressed: _saving ||
-                    lines == null ||
-                    lines.isEmpty ||
-                    _invoice.text.trim().length > 60
-                ? null
-                : _submit,
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -340,14 +340,14 @@ class _PosSellViewState extends State<PosSellView> {
 
   void _addByCode(Map<String, ProductItem> products, String code) {
     final l10n = AppLocalizations.of(context);
-    final match =
-        products.values.where((p) => p.barcode == code || p.sku == code);
-    if (match.isEmpty) {
+    // C-27: código de barras normalizado a GTIN-14 (N-STD-23) o SKU exacto.
+    final match = productByCode(products.values, code);
+    if (match == null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.posNotFound)));
       return;
     }
-    _tap(match.first);
+    _tap(match);
     _search.clear();
     setState(() {});
   }
