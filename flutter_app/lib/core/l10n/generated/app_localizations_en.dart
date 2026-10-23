@@ -4861,4 +4861,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get posSettingsConflict =>
       'Someone else changed the settings. Reload them.';
+
+  @override
+  String get invBranch => 'Branch';
+
+  @override
+  String get invBranchRequired => 'Choose the warehouse branch.';
 }

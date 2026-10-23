@@ -8810,6 +8810,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Alguien más cambió la configuración. Vuelve a cargarla.'**
   String get posSettingsConflict;
+
+  /// No description provided for @invBranch.
+  ///
+  /// In es, this message translates to:
+  /// **'Sucursal'**
+  String get invBranch;
+
+  /// No description provided for @invBranchRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige la sucursal de la bodega.'**
+  String get invBranchRequired;
 }
 
 class _AppLocalizationsDelegate

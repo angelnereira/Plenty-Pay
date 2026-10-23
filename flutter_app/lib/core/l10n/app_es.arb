@@ -2301,5 +2301,7 @@
   "posSettingsReceipt": "Recibo",
   "posReceiptFooter": "Pie del recibo",
   "posSettingsSaved": "Configuración guardada.",
-  "posSettingsConflict": "Alguien más cambió la configuración. Vuelve a cargarla."
+  "posSettingsConflict": "Alguien más cambió la configuración. Vuelve a cargarla.",
+  "invBranch": "Sucursal",
+  "invBranchRequired": "Elige la sucursal de la bodega."
 }

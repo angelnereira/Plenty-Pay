@@ -90,19 +90,47 @@ class WarehouseItem {
       {required this.id,
       required this.name,
       required this.active,
-      required this.isDefault});
+      required this.isDefault,
+      this.branchId = ''});
 
   factory WarehouseItem.fromJson(Map<String, dynamic> j) => WarehouseItem(
         id: j['warehouse_id'] as String? ?? '',
         name: j['name'] as String? ?? '',
         active: j['active'] as bool? ?? false,
         isDefault: j['is_default'] as bool? ?? false,
+        branchId: j['branch_id'] as String? ?? '',
       );
 
   final String id;
   final String name;
   final bool active;
   final bool isDefault;
+
+  /// F16.9: sucursal de identity; vacío = Casa Matriz aún sin asignar.
+  final String branchId;
+}
+
+/// Una sucursal visible para la persona (`identity.ListBranches`, F16.9).
+class BranchOption {
+  const BranchOption(
+      {required this.id, required this.name, required this.code});
+  final String id;
+  final String name;
+  final String code;
+}
+
+/// Sucursales activas que la persona alcanza (identity aplica su alcance).
+Future<List<BranchOption>> loadBranchOptions(ApiClient api) async {
+  final body = await api.listBranches();
+  return [
+    for (final b in (body['branches'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>())
+      if (b['active'] as bool? ?? true)
+        BranchOption(
+            id: b['branch_id'] as String? ?? '',
+            name: b['name'] as String? ?? '',
+            code: b['code'] as String? ?? ''),
+  ];
 }
 
 Future<List<WarehouseItem>> loadWarehouses(ApiClient api) async {

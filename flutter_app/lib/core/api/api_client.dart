@@ -776,13 +776,18 @@ class ApiClient {
       _get('/v1/inventory/warehouses');
 
   Future<Map<String, dynamic>> upsertWarehouse(
-          {String id = '', required String name, bool active = true}) =>
+          {String id = '',
+          required String name,
+          bool active = true,
+          String branchId = ''}) =>
       _post('/v1/inventory/warehouses',
           data: {
             'warehouse': {
               if (id.isNotEmpty) 'warehouse_id': id,
               'name': name,
               'active': active,
+              // F16.9: sucursal de identity (obligatoria al crear).
+              if (branchId.isNotEmpty) 'branch_id': branchId,
             }
           },
           skipIdempotency: true);
