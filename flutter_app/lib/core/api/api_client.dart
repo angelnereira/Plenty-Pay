@@ -902,10 +902,13 @@ class ApiClient {
   Future<Map<String, dynamic>> openCashSession(
           {required String terminalCode,
           required int openingFloatMinor,
+          String branchId = '',
           required String idempotencyKey}) =>
       _post('/v1/pos/sessions',
           data: {
             'terminal_label': terminalCode,
+            // F17.12: sucursal donde se abre la caja (R15 de pos).
+            if (branchId.isNotEmpty) 'branch_id': branchId,
             'opening_float': {
               'amount_minor': '$openingFloatMinor',
               'currency': 'USD'

@@ -1516,5 +1516,6 @@
   "posSettingsSaved": "Settings saved.",
   "posSettingsConflict": "Someone else changed the settings. Reload them.",
   "invBranch": "Branch",
-  "invBranchRequired": "Choose the warehouse branch."
+  "invBranchRequired": "Choose the warehouse branch.",
+  "posBranchRequired": "Choose the till branch."
 }

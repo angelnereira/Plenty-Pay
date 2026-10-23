@@ -2303,5 +2303,6 @@
   "posSettingsSaved": "Configuración guardada.",
   "posSettingsConflict": "Alguien más cambió la configuración. Vuelve a cargarla.",
   "invBranch": "Sucursal",
-  "invBranchRequired": "Elige la sucursal de la bodega."
+  "invBranchRequired": "Elige la sucursal de la bodega.",
+  "posBranchRequired": "Elige la sucursal de la caja."
 }

@@ -161,6 +161,16 @@ void main() {
     'nueva orden': () => PurchaseOrderEditorScreen(api: fakeApi(routes), supplierId: 's-1', lines: const [PurchaseLineDraft(productId: cafeId, quantityMilli: 1234000)]),
     'recepción': () => PurchaseReceiveScreen(api: fakeApi(routes), order: po, products: {cafeId: ProductItem.fromJson(product(cafeId, 'Café de altura de Boquete tostado medio 250 g', 1850))}),
     'sugerencias de reorden': () => ReorderSuggestionsScreen(api: fakeApi(routes), canManage: true),
+    'caja · apertura': () => PosScreen(
+        api: fakeApi({
+          ...routes,
+          'GET /v1/pos/sessions/current': notFound,
+          'GET /v1/business/branches': (_) => json({
+                'branches': [
+                  {'branch_id': 'b-1', 'name': 'Sucursal Boquete Centro frente al parque principal', 'code': '0001', 'active': true},
+                ]
+              }),
+        })),
     'caja · venta': () => PosScreen(api: fakeApi(routes)),
     'caja · cobro': () => PosCheckoutScreen(api: fakeApi(routes), sale: SaleItem.fromJson(sale('OPEN')), terminalLabel: 'Caja principal'),
     'caja · recibo': () => PosReceiptScreen(api: fakeApi(routes), sale: paid, terminalLabel: 'Caja principal de la sucursal'),

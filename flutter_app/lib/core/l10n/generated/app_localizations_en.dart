@@ -4867,4 +4867,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get invBranchRequired => 'Choose the warehouse branch.';
+
+  @override
+  String get posBranchRequired => 'Choose the till branch.';
 }

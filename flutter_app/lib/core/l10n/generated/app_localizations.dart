@@ -8822,6 +8822,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Elige la sucursal de la bodega.'**
   String get invBranchRequired;
+
+  /// No description provided for @posBranchRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige la sucursal de la caja.'**
+  String get posBranchRequired;
 }
 
 class _AppLocalizationsDelegate

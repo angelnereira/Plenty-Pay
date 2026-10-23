@@ -13,6 +13,7 @@ import '../catalog/catalog_data.dart';
 import '../catalog/catalog_errors.dart';
 import '../catalog/product_image.dart';
 import '../finance/terminals_screen.dart' show TerminalItem;
+import '../inventory/inventory_data.dart' show BranchOption, loadBranchOptions;
 import 'pos_cash_movements_screen.dart';
 import 'pos_checkout_screen.dart';
 import 'pos_close_session_screen.dart';
@@ -98,8 +99,9 @@ class _PosScreenState extends State<PosScreen> {
 /// S-POS-01 · `/pos` · Abrir caja. `pos:session:manage` · `POST /v1/pos/sessions`.
 ///
 /// e1 caja = uno de los puntos de cobro activos del negocio (S-FIN-04): por él cobra la billetera.
-/// e2 fondo inicial ≥ $0.00. e4 "Abrir caja"; `SESSION_ALREADY_OPEN` lo dice. El conteo por
-/// denominación (e3) y el selector de sucursal llegan con F17.3b.
+/// e2 fondo inicial ≥ $0.00. e4 "Abrir caja"; `SESSION_ALREADY_OPEN` lo dice. F17.12: «Sucursal»
+/// obligatoria (las activas del alcance; con una sola se propone). El conteo por denominación (e3)
+/// llega con F17.3.
 class PosOpenView extends StatefulWidget {
   const PosOpenView(
       {super.key,
@@ -120,7 +122,22 @@ class _PosOpenViewState extends State<PosOpenView> {
   final _float = TextEditingController(text: '0.00');
   final _key = newRequestId();
   bool _saving = false;
+  bool _submitted = false;
   String? _error;
+
+  /// F17.12: sucursales del alcance (identity). Sin respuesta, la lista queda vacía y no se abre.
+  late final Future<List<BranchOption>> _branches;
+  String? _branchId;
+
+  @override
+  void initState() {
+    super.initState();
+    _branches = loadBranchOptions(widget.api).catchError((Object e) {
+      widget.api.logger.breadcrumb(
+          'ui', 'pos.branches', e is ApiException ? e.reason : 'network');
+      return const <BranchOption>[];
+    });
+  }
 
   @override
   void dispose() {
@@ -131,6 +148,8 @@ class _PosOpenViewState extends State<PosOpenView> {
   Future<void> _open() async {
     final l10n = AppLocalizations.of(context);
     final float = MoneyText.parse(_float.text);
+    setState(() => _submitted = true);
+    if (_branchId == null) return;
     if (_terminal == null || float == null || float < 0) {
       setState(() => _error = l10n.posAmountError);
       return;
@@ -143,6 +162,7 @@ class _PosOpenViewState extends State<PosOpenView> {
       await widget.api.openCashSession(
           terminalCode: _terminal!,
           openingFloatMinor: float,
+          branchId: _branchId!,
           idempotencyKey: _key);
       widget.onOpened();
     } on Object catch (e) {
@@ -174,6 +194,32 @@ class _PosOpenViewState extends State<PosOpenView> {
                   style: theme.textTheme.bodyLarge),
             )
           else ...[
+            FutureBuilder<List<BranchOption>>(
+              future: _branches,
+              builder: (context, snap) {
+                final branches = snap.data ?? const <BranchOption>[];
+                if (_branchId == null && branches.length == 1) {
+                  _branchId = branches.single.id;
+                }
+                return DropdownButtonFormField<String>(
+                  key: ValueKey('pos-branch-${branches.length}'),
+                  initialValue: _branchId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: l10n.invBranch,
+                    errorText: _submitted && _branchId == null
+                        ? l10n.posBranchRequired
+                        : null,
+                  ),
+                  items: [
+                    for (final b in branches)
+                      DropdownMenuItem(value: b.id, child: Text(b.name)),
+                  ],
+                  onChanged: (v) => setState(() => _branchId = v),
+                );
+              },
+            ),
+            const SizedBox(height: AppTokens.spacingMd),
             DropdownButtonFormField<String>(
               initialValue: _terminal,
               isExpanded: true,

@@ -14,6 +14,8 @@ import '../../support/fake_gateway.dart';
 Map<String, dynamic> bodyOf(List<http.Request> calls, String method, String path) =>
     jsonDecode(calls.lastWhere((r) => r.method == method && r.url.path == path).body) as Map<String, dynamic>;
 
+const branchCentro = '018f0000-0000-7000-8000-0000000000c1';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -23,6 +25,11 @@ void main() {
     final api = fakeApi({
       'GET /v1/pos/sessions/current': (r) => opened ? json(session()) : notFound(r),
       'GET /v1/terminals': (_) => json(terminalsBody),
+      'GET /v1/business/branches': (_) => json({
+            'branches': [
+              {'branch_id': branchCentro, 'name': 'Sucursal Centro', 'code': '0001', 'active': true},
+            ]
+          }),
       'POST /v1/pos/sessions': (_) {
         opened = true;
         return json(session());
@@ -33,16 +40,51 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Caja principal'), findsOneWidget);
+    // F17.12: con una sola sucursal en el alcance, queda propuesta.
+    expect(find.text('Sucursal Centro'), findsOneWidget);
     await tester.enterText(find.byType(TextField), '50');
     await tester.tap(find.widgetWithText(FilledButton, 'Abrir caja'));
     await tester.pumpAndSettle();
 
     final b = bodyOf(calls, 'POST', '/v1/pos/sessions');
     expect(b['terminal_label'], terminalCode);
+    expect(b['branch_id'], branchCentro);
     expect((b['opening_float'] as Map)['amount_minor'], '5000');
     expect(calls.firstWhere((r) => r.url.path == '/v1/pos/sessions').headers['idempotency-key'], isNotEmpty);
     // Con la sesión abierta entra a la venta (S-POS-02).
     expect(find.text('Café 250 g'), findsOneWidget);
+  });
+
+  testWidgets('R15 S-POS-01: con varias sucursales hay que elegir una antes de abrir', (tester) async {
+    final calls = <http.Request>[];
+    final api = fakeApi({
+      'GET /v1/pos/sessions/current': notFound,
+      'GET /v1/terminals': (_) => json(terminalsBody),
+      'GET /v1/business/branches': (_) => json({
+            'branches': [
+              {'branch_id': branchCentro, 'name': 'Sucursal Centro', 'code': '0001', 'active': true},
+              {'branch_id': '018f0000-0000-7000-8000-0000000000d4', 'name': 'Sucursal David', 'code': '0002', 'active': true},
+            ]
+          }),
+      'POST /v1/pos/sessions': (_) => json(session()),
+      'GET /v1/catalog/products': (_) => json(productsBody),
+    }, calls: calls);
+    await tester.pumpWidget(harness(PosScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '10');
+    await tester.tap(find.widgetWithText(FilledButton, 'Abrir caja'));
+    await tester.pumpAndSettle();
+    expect(calls.where((r) => r.method == 'POST'), isEmpty);
+    expect(find.text('Elige la sucursal de la caja.'), findsOneWidget);
+
+    await tester.tap(find.text('Sucursal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sucursal David').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Abrir caja'));
+    await tester.pumpAndSettle();
+    expect(bodyOf(calls, 'POST', '/v1/pos/sessions')['branch_id'], '018f0000-0000-7000-8000-0000000000d4');
   });
 
   testWidgets('S-POS-02: el ticket suma con ITBMS por tasa y Exento; el precio lo fija el servidor', (tester) async {

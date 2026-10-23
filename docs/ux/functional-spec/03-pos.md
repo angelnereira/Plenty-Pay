@@ -7,7 +7,7 @@ Módulo `pos`. Paso F17.10 salvo indicación. Convenciones: [`README.md`](README
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
-| e1 | Selector | Sucursal · Caja | Cajas con sesión abierta por otra persona aparecen "En uso por {nombre}" y no se eligen |
+| e1 | Selector | Sucursal · Caja | Cajas con sesión abierta por otra persona aparecen "En uso por {nombre}" y no se eligen. F17.12: «Sucursal» obligatoria, solo las activas del alcance de la persona; con una sola se propone sola; fuera de alcance: «Esa sucursal está fuera de tu alcance.» |
 | e2 | `MoneyInput` | Fondo inicial en efectivo | ≥ $0.00 |
 | e3 | Conteo opcional | Billetes y monedas | Tabla por denominación (1¢, 5¢, 10¢, 25¢, 50¢, B/.1, $1, $5, $10, $20, $50, $100) que suma en e2 |
 | e4 | `PPButton.primary` | Abrir caja | `SESSION_ALREADY_OPEN`: "Esta caja ya tiene una sesión abierta." con "Continuar esa sesión" |

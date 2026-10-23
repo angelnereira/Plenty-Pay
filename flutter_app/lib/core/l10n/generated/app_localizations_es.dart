@@ -4875,6 +4875,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get invBranchRequired => 'Elige la sucursal de la bodega.';
+
+  @override
+  String get posBranchRequired => 'Elige la sucursal de la caja.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).
