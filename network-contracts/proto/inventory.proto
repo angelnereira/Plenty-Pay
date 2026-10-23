@@ -170,8 +170,11 @@ enum PurchaseOrderStatus {
   PURCHASE_ORDER_STATUS_PARTIALLY_RECEIVED = 3;
   PURCHASE_ORDER_STATUS_RECEIVED = 4;
   PURCHASE_ORDER_STATUS_CANCELLED = 5;
+  PURCHASE_ORDER_STATUS_CLOSED_SHORT = 6;  // F16.12: cerrada con faltante (desde PARTIALLY_RECEIVED, con motivo)
 }
-message PurchaseOrderLine { string product_id = 1; int64 ordered_milli = 2; int64 received_milli = 3; plentypay.common.v1.Money unit_cost = 4; }
+message PurchaseOrderLine { string product_id = 1; int64 ordered_milli = 2; int64 received_milli = 3; plentypay.common.v1.Money unit_cost = 4;
+  int64 damaged_milli = 5;  // F16.12: parte de lo recibido que llegó dañada (entró bloqueada)
+}
 message PurchaseOrder {
   string purchase_order_id = 1;
   string supplier_id = 2;
@@ -183,11 +186,16 @@ message PurchaseOrder {
   google.protobuf.Timestamp created_at = 8;
   string supplier_name = 9;                       // solo lectura
   int32 version = 10;
+  string close_reason = 11;                       // F16.12: motivo de «Cerrar con faltante»
 }
 message CreatePurchaseOrderRequest { PurchaseOrder order = 1; string idempotency_key = 2; }
 message UpdatePurchaseOrderStatusRequest { string purchase_order_id = 1; PurchaseOrderStatus status = 2; 
-  string idempotency_key = 3;}
-message ReceivedLine { string product_id = 1; int64 received_milli = 2; string lot_code = 3; google.protobuf.Timestamp expires_at = 4; }
+  string idempotency_key = 3;
+  string reason = 4; // F16.12: obligatorio para CLOSED_SHORT (1–300 caracteres)
+}
+message ReceivedLine { string product_id = 1; int64 received_milli = 2; string lot_code = 3; google.protobuf.Timestamp expires_at = 4;
+  int64 damaged_milli = 5; // F16.12: parte de received_milli que llegó dañada; entra bloqueada (BLOCK en la misma transacción)
+}
 message ReceiveGoodsRequest { string purchase_order_id = 1; string idempotency_key = 2; repeated ReceivedLine lines = 3;
   string supplier_invoice = 4; // número de la factura del proveedor (S-INV-06 e4)
 }
