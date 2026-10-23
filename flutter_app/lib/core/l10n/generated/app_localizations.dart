@@ -8828,6 +8828,126 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Elige la sucursal de la caja.'**
   String get posBranchRequired;
+
+  /// No description provided for @posCountByDenomination.
+  ///
+  /// In es, this message translates to:
+  /// **'Contar por billetes y monedas'**
+  String get posCountByDenomination;
+
+  /// No description provided for @posDenominationCents.
+  ///
+  /// In es, this message translates to:
+  /// **'{value} ¢'**
+  String posDenominationCents(String value);
+
+  /// No description provided for @posDenominationDollars.
+  ///
+  /// In es, this message translates to:
+  /// **'\${value}'**
+  String posDenominationDollars(String value);
+
+  /// No description provided for @posDenominationQty.
+  ///
+  /// In es, this message translates to:
+  /// **'Cantidad de {denomination}'**
+  String posDenominationQty(String denomination);
+
+  /// No description provided for @posZReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Reporte Z'**
+  String get posZReport;
+
+  /// No description provided for @posZRailCash.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas en efectivo'**
+  String get posZRailCash;
+
+  /// No description provided for @posZRailWallet.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas con saldo PlentyPay'**
+  String get posZRailWallet;
+
+  /// No description provided for @posZRailOther.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas con otro medio'**
+  String get posZRailOther;
+
+  /// No description provided for @posZRefundCash.
+  ///
+  /// In es, this message translates to:
+  /// **'Devoluciones en efectivo'**
+  String get posZRefundCash;
+
+  /// No description provided for @posZRefundWallet.
+  ///
+  /// In es, this message translates to:
+  /// **'Devoluciones al saldo PlentyPay'**
+  String get posZRefundWallet;
+
+  /// No description provided for @posZDiscounts.
+  ///
+  /// In es, this message translates to:
+  /// **'Descuentos'**
+  String get posZDiscounts;
+
+  /// No description provided for @posZTaxable.
+  ///
+  /// In es, this message translates to:
+  /// **'Base gravable {percent}'**
+  String posZTaxable(String percent);
+
+  /// No description provided for @posZCashIn.
+  ///
+  /// In es, this message translates to:
+  /// **'Entradas de efectivo'**
+  String get posZCashIn;
+
+  /// No description provided for @posZCashOut.
+  ///
+  /// In es, this message translates to:
+  /// **'Salidas de efectivo'**
+  String get posZCashOut;
+
+  /// No description provided for @posZVoids.
+  ///
+  /// In es, this message translates to:
+  /// **'Anulaciones'**
+  String get posZVoids;
+
+  /// No description provided for @posZGross.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas brutas'**
+  String get posZGross;
+
+  /// No description provided for @posZRefunds.
+  ///
+  /// In es, this message translates to:
+  /// **'Devoluciones'**
+  String get posZRefunds;
+
+  /// No description provided for @posZNet.
+  ///
+  /// In es, this message translates to:
+  /// **'Ventas netas'**
+  String get posZNet;
+
+  /// No description provided for @posZRowCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{label} ({count})'**
+  String posZRowCount(String label, int count);
+
+  /// No description provided for @posZSalesCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 venta} other{{count} ventas}}'**
+  String posZSalesCount(int count);
 }
 
 class _AppLocalizationsDelegate

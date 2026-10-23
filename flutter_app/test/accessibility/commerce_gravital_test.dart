@@ -191,4 +191,44 @@ void main() {
       }
     }
   }
+
+  // F17.3: el conteo por billetes y monedas y el reporte Z (filas largas) al 200 % en 360 dp.
+  for (final brightness in Brightness.values) {
+    testWidgets('caja · conteo por denominación y reporte Z al 200 % en 360 dp, ${brightness.name}, sin desbordes', (tester) async {
+      Map<String, Object> m(int minor) => {'amount_minor': '$minor', 'currency': 'USD'};
+      final api = fakeApi({
+        ...routes,
+        'GET /v1/pos/sessions/$sessionId': (_) => json(session(expected: 0)),
+        'POST /v1/pos/sessions/$sessionId/close': (_) => json({
+              ...session(),
+              'status': 'CLOSED',
+              'z_report': {
+                'lines': [
+                  for (final k in ['rail:CASH', 'rail:WALLET', 'refund:CASH', 'refund:WALLET', 'discounts', 'taxable:1500',
+                    'tax:1500', 'exempt', 'cash_in', 'cash_out', 'voids'])
+                    {'key': k, 'amount': m(123456789), 'count': 1234},
+                ],
+                'gross_sales': m(123456789), 'refunds': m(123456789), 'net_sales': m(0), 'sales_count': 1234,
+              },
+            }),
+      });
+      await pumpAt(tester, PosCloseSessionScreen(api: api, sessionId: sessionId), brightness: brightness);
+      await tester.tap(find.text('Contar por billetes y monedas'));
+      await tester.pumpAndSettle();
+      final list = find.byType(Scrollable).first;
+      for (final label in [r'$100', 'Confirmar conteo']) {
+        await tester.scrollUntilVisible(find.text(label), 200, scrollable: list);
+      }
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Confirmar conteo'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Cerrar caja'), 200, scrollable: list);
+      await tester.tap(find.text('Cerrar caja'));
+      await tester.pumpAndSettle();
+      for (final label in ['Reporte Z', 'Ventas netas', 'Listo']) {
+        await tester.scrollUntilVisible(find.text(label), 200, scrollable: list);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

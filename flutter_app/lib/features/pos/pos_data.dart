@@ -63,12 +63,15 @@ class SessionItem {
     required this.expectedCashMinor,
     required this.countedCashMinor,
     required this.differenceMinor,
+    this.zReport,
   });
 
   factory SessionItem.fromJson(Map<String, dynamic> j) {
     int money(String k) =>
         minorUnits((j[k] as Map<String, dynamic>?)?['amount_minor']);
+    final z = j['z_report'] as Map<String, dynamic>?;
     return SessionItem(
+      zReport: z == null ? null : ZReportItem.fromJson(z),
       id: j['session_id'] as String? ?? '',
       terminalCode: j['terminal_label'] as String? ?? '',
       status: j['status'] as String? ?? '',
@@ -87,7 +90,77 @@ class SessionItem {
   final int countedCashMinor;
   final int differenceMinor;
 
+  /// F17.3 (R16 de pos): solo en una sesión cerrada.
+  final ZReportItem? zReport;
+
   bool get isOpen => status == 'OPEN';
+}
+
+/// Billetes y monedas que se cuentan al cerrar (S-POS-10 e1), en centavos de menor a mayor. Son de
+/// la moneda (USD/PAB), no valores legales; el servidor valida la misma tabla (R16 de pos).
+const cashDenominationsMinor = [
+  1,
+  5,
+  10,
+  25,
+  50,
+  100,
+  500,
+  1000,
+  2000,
+  5000,
+  10000
+];
+
+/// Una línea del reporte Z (`pos.ZReportLine`): `key` como `rail:CASH`, `tax:700`, `voids`.
+class ZReportLineItem {
+  const ZReportLineItem(
+      {required this.key, required this.amountMinor, required this.count});
+  final String key;
+  final int amountMinor;
+  final int count;
+
+  /// Tasa en puntos básicos de las claves `taxable:<bps>` y `tax:<bps>`; null en las demás.
+  int? get rateBps {
+    final i = key.indexOf(':');
+    if (!key.startsWith('tax')) return null;
+    return int.tryParse(key.substring(i + 1));
+  }
+}
+
+/// Reporte Z de una sesión cerrada (`pos.ZReport`).
+class ZReportItem {
+  const ZReportItem(
+      {required this.lines,
+      required this.grossSalesMinor,
+      required this.refundsMinor,
+      required this.netSalesMinor,
+      required this.salesCount});
+
+  factory ZReportItem.fromJson(Map<String, dynamic> j) {
+    int money(Object? m) =>
+        minorUnits((m as Map<String, dynamic>?)?['amount_minor']);
+    return ZReportItem(
+      lines: [
+        for (final l
+            in (j['lines'] as List? ?? const []).cast<Map<String, dynamic>>())
+          ZReportLineItem(
+              key: l['key'] as String? ?? '',
+              amountMinor: money(l['amount']),
+              count: _int(l['count'])),
+      ],
+      grossSalesMinor: money(j['gross_sales']),
+      refundsMinor: money(j['refunds']),
+      netSalesMinor: money(j['net_sales']),
+      salesCount: _int(j['sales_count']),
+    );
+  }
+
+  final List<ZReportLineItem> lines;
+  final int grossSalesMinor;
+  final int refundsMinor;
+  final int netSalesMinor;
+  final int salesCount;
 }
 
 /// Línea guardada de una venta (instantánea del servidor).

@@ -916,8 +916,11 @@ class ApiClient {
           },
           idempotencyKey: idempotencyKey);
 
+  /// `countedByDenomination` (F17.3): centavos de la denominación → cantidad; el servidor
+  /// comprueba que la suma sea `countedMinor`.
   Future<Map<String, dynamic>> closeCashSession(String sessionId,
           {required int countedMinor,
+          Map<int, int> countedByDenomination = const {},
           String notes = '',
           required String idempotencyKey}) =>
       _post('/v1/pos/sessions/${Uri.encodeComponent(sessionId)}/close',
@@ -926,6 +929,12 @@ class ApiClient {
               'amount_minor': '$countedMinor',
               'currency': 'USD'
             },
+            if (countedByDenomination.isNotEmpty)
+              'counted_by_denomination': [
+                for (final e in countedByDenomination.entries)
+                  if (e.value > 0)
+                    {'denomination_minor': '${e.key}', 'quantity': e.value},
+              ],
             if (notes.isNotEmpty) 'notes': notes,
           },
           idempotencyKey: idempotencyKey);

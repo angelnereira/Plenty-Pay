@@ -226,4 +226,69 @@ void main() {
     expect(halfUp(1850, 10000, 10700), 1729);
     expect(halfUp(399, 1500, 1000), 599, reason: '1.5 kg × 3.99 = 5.985 → 5.99');
   });
+
+  testWidgets('F17.3 S-POS-10: conteo por denominación suma y envía; al cerrar muestra el reporte Z', (tester) async {
+    final calls = <http.Request>[];
+    Map<String, Object> m(int minor) => {'amount_minor': '$minor', 'currency': 'USD'};
+    final api = fakeApi({
+      'GET /v1/pos/sessions/$sessionId': (_) => json(session(expected: 4525)),
+      'POST /v1/pos/sessions/$sessionId/close': (_) => json({
+            ...session(expected: 4525),
+            'status': 'CLOSED',
+            'z_report': {
+              'lines': [
+                {'key': 'rail:CASH', 'amount': m(214), 'count': 2},
+                {'key': 'refund:CASH', 'amount': m(107), 'count': 1},
+                {'key': 'taxable:700', 'amount': m(200), 'count': 2},
+                {'key': 'tax:700', 'amount': m(14), 'count': 2},
+                {'key': 'exempt', 'amount': m(200), 'count': 1},
+              ],
+              'gross_sales': m(414),
+              'refunds': m(107),
+              'net_sales': m(307),
+              'sales_count': 3,
+            },
+          }),
+    }, calls: calls);
+    await tester.pumpWidget(harness(PosCloseSessionScreen(api: api, sessionId: sessionId)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Contar por billetes y monedas'));
+    await tester.pumpAndSettle();
+    Finder qty(String label) => find.descendant(
+        of: find.ancestor(of: find.text(label), matching: find.byType(Row)).first, matching: find.byType(TextField));
+    await tester.enterText(qty(r'$20'), '2');
+    await tester.enterText(qty(r'$5'), '1');
+    await tester.ensureVisible(qty('25 ¢'));
+    await tester.tap(find.descendant(
+        of: find.ancestor(of: find.text('25 ¢'), matching: find.byType(Row)).first, matching: find.byIcon(Icons.add)));
+    await tester.pumpAndSettle();
+    expect(find.text(r'Contado $45.25'), findsOneWidget);
+    expect(find.textContaining('Esperado'), findsNothing);
+
+    final list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Confirmar conteo'), 200, scrollable: list);
+    await tester.tap(find.text('Confirmar conteo'));
+    await tester.pumpAndSettle();
+    expect(find.text(r'Diferencia $0.00'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Cerrar caja'), 200, scrollable: list);
+    await tester.tap(find.text('Cerrar caja'));
+    await tester.pumpAndSettle();
+
+    final b = bodyOf(calls, 'POST', '/v1/pos/sessions/$sessionId/close');
+    expect((b['counted_cash'] as Map)['amount_minor'], '4525');
+    expect(b['counted_by_denomination'], [
+      {'denomination_minor': '25', 'quantity': 1},
+      {'denomination_minor': '500', 'quantity': 1},
+      {'denomination_minor': '2000', 'quantity': 2},
+    ]);
+    await tester.scrollUntilVisible(find.text('Reporte Z'), 200, scrollable: list);
+    expect(find.text('3 ventas'), findsOneWidget);
+    expect(find.text('Ventas en efectivo (2)'), findsOneWidget);
+    expect(find.text('Base gravable 7 % (2)'), findsOneWidget);
+    expect(find.text('ITBMS 7 % (2)'), findsOneWidget);
+    expect(find.text('Exento (1)'), findsOneWidget);
+    expect(find.text(r'$3.07'), findsOneWidget, reason: 'ventas netas');
+    await tester.scrollUntilVisible(find.text('Listo'), 200, scrollable: list);
+  });
 }

@@ -4878,6 +4878,84 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get posBranchRequired => 'Elige la sucursal de la caja.';
+
+  @override
+  String get posCountByDenomination => 'Contar por billetes y monedas';
+
+  @override
+  String posDenominationCents(String value) {
+    return '$value ¢';
+  }
+
+  @override
+  String posDenominationDollars(String value) {
+    return '\$$value';
+  }
+
+  @override
+  String posDenominationQty(String denomination) {
+    return 'Cantidad de $denomination';
+  }
+
+  @override
+  String get posZReport => 'Reporte Z';
+
+  @override
+  String get posZRailCash => 'Ventas en efectivo';
+
+  @override
+  String get posZRailWallet => 'Ventas con saldo PlentyPay';
+
+  @override
+  String get posZRailOther => 'Ventas con otro medio';
+
+  @override
+  String get posZRefundCash => 'Devoluciones en efectivo';
+
+  @override
+  String get posZRefundWallet => 'Devoluciones al saldo PlentyPay';
+
+  @override
+  String get posZDiscounts => 'Descuentos';
+
+  @override
+  String posZTaxable(String percent) {
+    return 'Base gravable $percent';
+  }
+
+  @override
+  String get posZCashIn => 'Entradas de efectivo';
+
+  @override
+  String get posZCashOut => 'Salidas de efectivo';
+
+  @override
+  String get posZVoids => 'Anulaciones';
+
+  @override
+  String get posZGross => 'Ventas brutas';
+
+  @override
+  String get posZRefunds => 'Devoluciones';
+
+  @override
+  String get posZNet => 'Ventas netas';
+
+  @override
+  String posZRowCount(String label, int count) {
+    return '$label ($count)';
+  }
+
+  @override
+  String posZSalesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ventas',
+      one: '1 venta',
+    );
+    return '$_temp0';
+  }
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

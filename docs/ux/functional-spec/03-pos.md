@@ -119,11 +119,11 @@ El recibo (S-POS-05) abierto desde S-POS-07 muestra "Devolver" (secundario) solo
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
-| e1 | Conteo | Efectivo contado | Por denominación, como S-POS-01 e3. El esperado **no** se muestra hasta confirmar el conteo |
+| e1 | Conteo | Efectivo contado · interruptor "Contar por billetes y monedas" | Monto, o con el interruptor una fila por denominación ("{denominación}" − {cantidad} +, con campo numérico): 1, 5, 10, 25 y 50 ¢; $1, $5, $10, $20, $50 y $100. El contado es la suma y se ve mientras se cuenta. El esperado **no** se muestra hasta confirmar el conteo; confirmado, el conteo queda de solo lectura |
 | e2 | Resultado | Esperado {x} · Contado {y} · Diferencia {z} | Diferencia ≠ 0 en `error` o `warning` con signo; exige nota |
-| e3 | Resumen (reporte Z) | Ventas por medio · Devoluciones · Descuentos · Descuentos de ley · ITBMS por tasa · Exento · Propinas · Número de documentos fiscales y rango de numeración · Entradas y salidas | Solo lectura |
-| e4 | `PPButton.primary` | Cerrar caja | `SALES_PENDING`: "Tienes ventas estacionadas o por confirmar." con enlace |
-| e5 | Acciones tras cerrar | Imprimir reporte Z · Enviar por correo | — |
+| e3 | Resumen (reporte Z) | "Reporte Z" · Ventas en efectivo · Ventas con saldo PlentyPay · Devoluciones en efectivo · Devoluciones al saldo PlentyPay · Descuentos · Base gravable {tasa} · ITBMS {tasa} · Exento · Entradas de efectivo · Salidas de efectivo · Anulaciones · Ventas brutas · Devoluciones · Ventas netas · "{n} ventas" | Solo lectura. Se muestra **al cerrar** (lo calcula y guarda el servidor, R16 de pos); cada fila con su monto y, entre paréntesis, su número de documentos o movimientos; solo las filas con movimiento. Pendientes: descuentos de ley, propinas (F17.19), documentos fiscales y su rango (F13) |
+| e4 | `PPButton.primary` | Cerrar caja · tras cerrar: "Listo" | `SALES_PENDING`: "Tienes ventas estacionadas o por confirmar." con enlace. "Listo" vuelve a la caja (S-POS-01) |
+| e5 | Acciones tras cerrar | Imprimir reporte Z · Enviar por correo | Pendientes: impresión con F24.1, correo con la ola 2; no se muestran hasta entonces |
 
 ### S-POS-11 · `/pos/settings` · Configuración de caja
 `pos:settings:manage`

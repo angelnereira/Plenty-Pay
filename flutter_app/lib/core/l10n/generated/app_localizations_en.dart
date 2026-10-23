@@ -4870,4 +4870,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get posBranchRequired => 'Choose the till branch.';
+
+  @override
+  String get posCountByDenomination => 'Count by bills and coins';
+
+  @override
+  String posDenominationCents(String value) {
+    return '$value ¢';
+  }
+
+  @override
+  String posDenominationDollars(String value) {
+    return '\$$value';
+  }
+
+  @override
+  String posDenominationQty(String denomination) {
+    return 'Quantity of $denomination';
+  }
+
+  @override
+  String get posZReport => 'Z report';
+
+  @override
+  String get posZRailCash => 'Cash sales';
+
+  @override
+  String get posZRailWallet => 'PlentyPay balance sales';
+
+  @override
+  String get posZRailOther => 'Sales with another method';
+
+  @override
+  String get posZRefundCash => 'Cash refunds';
+
+  @override
+  String get posZRefundWallet => 'Refunds to PlentyPay balance';
+
+  @override
+  String get posZDiscounts => 'Discounts';
+
+  @override
+  String posZTaxable(String percent) {
+    return 'Taxable base $percent';
+  }
+
+  @override
+  String get posZCashIn => 'Cash in';
+
+  @override
+  String get posZCashOut => 'Cash out';
+
+  @override
+  String get posZVoids => 'Voids';
+
+  @override
+  String get posZGross => 'Gross sales';
+
+  @override
+  String get posZRefunds => 'Refunds';
+
+  @override
+  String get posZNet => 'Net sales';
+
+  @override
+  String posZRowCount(String label, int count) {
+    return '$label ($count)';
+  }
+
+  @override
+  String posZSalesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sales',
+      one: '1 sale',
+    );
+    return '$_temp0';
+  }
 }
