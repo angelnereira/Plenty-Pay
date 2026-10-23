@@ -149,6 +149,7 @@ services:
       PP_DB_DSN: "${INVENTORY_DB_DSN:-postgres://inventory_svc:inventory_svc_dev_secret_32_chars!@pgbouncer:6432/plentypay?sslmode=disable}"
       PP_MIGRATE_DSN: "${INVENTORY_MIGRATE_DSN:-postgres://migrator_inventory:inventory_svc_dev_secret_32_chars!_mig@postgres-db:5432/plentypay?sslmode=disable}"
       PP_CATALOG_ADDR: "catalog:50065"
+      PP_IDENTITY_ADDR: "identity:50060" # F16.9: sucursales de las bodegas (R11)
       PP_NATS_URL: "${INVENTORY_NATS_URL:-nats://event-bus:4222}"
       PP_NATS_USER: "${INVENTORY_NATS_USER:-inventory_svc}"
       PP_NATS_PASS: "${INVENTORY_NATS_PASS:-inventory_nats_secret}"

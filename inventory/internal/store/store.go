@@ -88,11 +88,11 @@ func insertOutbox(ctx context.Context, tx pgx.Tx, e OutboxEvent) error {
 
 // ── Bodegas ────────────────────────────────────────────────────────────────────────────────
 
-const warehouseCols = `id, tenant_id, name, branch_code, active, is_default, created_at, updated_at`
+const warehouseCols = `id, tenant_id, name, branch_code, active, is_default, created_at, updated_at, coalesce(branch_id::text, '')`
 
 func scanWarehouse(row pgx.Row) (domain.Warehouse, error) {
 	var w domain.Warehouse
-	err := row.Scan(&w.ID, &w.TenantID, &w.Name, &w.BranchCode, &w.Active, &w.IsDefault, &w.CreatedAt, &w.UpdatedAt)
+	err := row.Scan(&w.ID, &w.TenantID, &w.Name, &w.BranchCode, &w.Active, &w.IsDefault, &w.CreatedAt, &w.UpdatedAt, &w.BranchID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return w, domain.ErrNotFound
 	}
@@ -148,14 +148,15 @@ func (s *Store) UpsertWarehouse(ctx context.Context, w domain.Warehouse, create 
 		var err error
 		if create {
 			out, err = scanWarehouse(tx.QueryRow(ctx, `
-				INSERT INTO warehouses (id, tenant_id, name, branch_code, active, is_default, created_at, updated_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING `+warehouseCols,
-				w.ID, w.TenantID, strings.TrimSpace(w.Name), w.BranchCode, w.Active, w.IsDefault, w.UpdatedAt))
+				INSERT INTO warehouses (id, tenant_id, name, branch_code, active, is_default, created_at, updated_at, branch_id)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $7, nullif($8, '')::uuid) RETURNING `+warehouseCols,
+				w.ID, w.TenantID, strings.TrimSpace(w.Name), w.BranchCode, w.Active, w.IsDefault, w.UpdatedAt, w.BranchID))
 		} else {
 			out, err = scanWarehouse(tx.QueryRow(ctx, `
-				UPDATE warehouses SET name = $2, branch_code = $3, active = $4, is_default = $5, updated_at = $6
+				UPDATE warehouses SET name = $2, branch_code = $3, active = $4, is_default = $5, updated_at = $6,
+				  branch_id = coalesce(nullif($7, '')::uuid, branch_id)
 				WHERE id = $1 RETURNING `+warehouseCols,
-				w.ID, strings.TrimSpace(w.Name), w.BranchCode, w.Active, w.IsDefault, w.UpdatedAt))
+				w.ID, strings.TrimSpace(w.Name), w.BranchCode, w.Active, w.IsDefault, w.UpdatedAt, w.BranchID))
 		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -188,6 +189,56 @@ func (s *Store) ListWarehouses(ctx context.Context, tenantID, newID string, now 
 		return rows.Err()
 	})
 	return out, err
+}
+
+// GetWarehouse lee una bodega del tenant.
+func (s *Store) GetWarehouse(ctx context.Context, tenantID, id string) (domain.Warehouse, error) {
+	var w domain.Warehouse
+	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		var err error
+		w, err = scanWarehouse(tx.QueryRow(ctx, `SELECT `+warehouseCols+` FROM warehouses WHERE id::text = $1`, id))
+		return err
+	})
+	return w, err
+}
+
+// AssignMainBranch pone la Casa Matriz a las bodegas que aún no tienen sucursal (F16.9, R11).
+// Devuelve cuántas cambió; repetirlo no hace nada.
+func (s *Store) AssignMainBranch(ctx context.Context, tenantID, branchID string, now time.Time) (int64, error) {
+	var n int64
+	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE warehouses SET branch_id = $1::uuid, updated_at = $2 WHERE branch_id IS NULL`, branchID, now)
+		if err != nil {
+			return fmt.Errorf("assign main branch: %w", err)
+		}
+		n = tag.RowsAffected()
+		return nil
+	})
+	return n, err
+}
+
+// WarehouseSet limita una lectura a esas bodegas (F16.9, R11); nil = todas.
+type WarehouseSet []string
+
+// Contains: la bodega está en el conjunto (nil = todas).
+func (ws WarehouseSet) Contains(id string) bool {
+	if ws == nil {
+		return true
+	}
+	for _, w := range ws {
+		if w == id {
+			return true
+		}
+	}
+	return false
+}
+
+// arg: NULL para «todas» (nil) o el arreglo de bodegas (vacío = ninguna).
+func (ws WarehouseSet) arg() any {
+	if ws == nil {
+		return nil
+	}
+	return []string(ws)
 }
 
 // ── Movimientos ────────────────────────────────────────────────────────────────────────────
@@ -480,7 +531,7 @@ func scanLevel(row pgx.Row) (domain.Level, error) {
 }
 
 // GetStock lee la existencia de un producto; sin bodega suma todas.
-func (s *Store) GetStock(ctx context.Context, tenantID, productID, warehouseID string) (domain.Level, error) {
+func (s *Store) GetStock(ctx context.Context, tenantID, productID, warehouseID string, ws WarehouseSet) (domain.Level, error) {
 	var l domain.Level
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		var err error
@@ -491,7 +542,8 @@ func (s *Store) GetStock(ctx context.Context, tenantID, productID, warehouseID s
 				SELECT $1::uuid, '00000000-0000-0000-0000-000000000000'::uuid, product_id, sum(on_hand_milli)::bigint,
 				       sum(reserved_milli)::bigint, max(reorder_point_milli)::bigint, max(version)::bigint,
 				       sum(blocked_milli)::bigint
-				FROM stock_levels WHERE product_id = $2 GROUP BY product_id`, tenantID, productID))
+				FROM stock_levels WHERE product_id = $2 AND ($3::uuid[] IS NULL OR warehouse_id = ANY($3::uuid[]))
+				GROUP BY product_id`, tenantID, productID, ws.arg()))
 		}
 		return err
 	})
@@ -519,7 +571,7 @@ func (s *Store) SetReorderPoint(ctx context.Context, tenantID, warehouseID, prod
 
 // ListStock pagina por (product_id, warehouse_id); `after` es "producto/bodega" de la última fila.
 // `onlyLow` filtra available ≤ punto de reorden o negativo (available descuenta lo bloqueado).
-func (s *Store) ListStock(ctx context.Context, tenantID, warehouseID string, onlyLow bool, after string, limit int) ([]domain.Level, string, error) {
+func (s *Store) ListStock(ctx context.Context, tenantID, warehouseID string, onlyLow bool, after string, limit int, ws WarehouseSet) ([]domain.Level, string, error) {
 	var out []domain.Level
 	afterProduct, afterWarehouse, _ := strings.Cut(after, "/")
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
@@ -529,7 +581,8 @@ func (s *Store) ListStock(ctx context.Context, tenantID, warehouseID string, onl
 			  AND (NOT $2 OR on_hand_milli - reserved_milli - blocked_milli < 0
 			       OR (reorder_point_milli > 0 AND on_hand_milli - reserved_milli - blocked_milli <= reorder_point_milli))
 			  AND ($3 = '' OR (product_id::text, warehouse_id::text) > ($3, $4))
-			ORDER BY product_id::text, warehouse_id::text LIMIT $5`, warehouseID, onlyLow, afterProduct, afterWarehouse, limit+1)
+			  AND ($6::uuid[] IS NULL OR warehouse_id = ANY($6::uuid[]))
+			ORDER BY product_id::text, warehouse_id::text LIMIT $5`, warehouseID, onlyLow, afterProduct, afterWarehouse, limit+1, ws.arg())
 		if err != nil {
 			return fmt.Errorf("list stock: %w", err)
 		}
@@ -562,7 +615,7 @@ type MovementCursor struct {
 
 // ListMovements devuelve el historial (R1) más reciente primero.
 func (s *Store) ListMovements(ctx context.Context, tenantID, productID, warehouseID string, from, to time.Time,
-	after *MovementCursor, limit int) ([]domain.Movement, *MovementCursor, error) {
+	after *MovementCursor, limit int, ws WarehouseSet) ([]domain.Movement, *MovementCursor, error) {
 	var out []domain.Movement
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		var afterAt any
@@ -575,7 +628,8 @@ func (s *Store) ListMovements(ctx context.Context, tenantID, productID, warehous
 			WHERE ($1 = '' OR product_id::text = $1) AND ($2 = '' OR warehouse_id::text = $2)
 			  AND created_at >= $3 AND created_at < $4
 			  AND ($5::timestamptz IS NULL OR (created_at, id::text) < ($5::timestamptz, $6))
-			ORDER BY created_at DESC, id DESC LIMIT $7`, productID, warehouseID, from, to, afterAt, afterID, limit+1)
+			  AND ($8::uuid[] IS NULL OR warehouse_id = ANY($8::uuid[]))
+			ORDER BY created_at DESC, id DESC LIMIT $7`, productID, warehouseID, from, to, afterAt, afterID, limit+1, ws.arg())
 		if err != nil {
 			return fmt.Errorf("list movements: %w", err)
 		}

@@ -54,6 +54,9 @@ func (s *Inventory) CreatePurchaseOrder(ctx context.Context, c Caller, o domain.
 		}
 		o.WarehouseID = w.ID
 	}
+	if _, err := s.requireWarehouse(ctx, c.TenantID, o.WarehouseID); err != nil { // R11
+		return o, err
+	}
 	if err := o.Prepare(); err != nil {
 		return o, err
 	}
@@ -72,9 +75,25 @@ func (s *Inventory) CreatePurchaseOrder(ctx context.Context, c Caller, o domain.
 	return s.store.CreatePurchaseOrder(ctx, o, key, requestHash(parts...), c.UserID, s.now())
 }
 
-// GetPurchaseOrder del negocio.
+// GetPurchaseOrder del negocio (R11: solo si su bodega está en el alcance).
 func (s *Inventory) GetPurchaseOrder(ctx context.Context, tenantID, id string) (domain.PurchaseOrder, error) {
+	if err := s.requireOrderInScope(ctx, tenantID, id); err != nil {
+		return domain.PurchaseOrder{}, err
+	}
 	return s.store.GetPurchaseOrder(ctx, tenantID, id)
+}
+
+// requireOrderInScope: la bodega de la orden está en el alcance de la persona (R11).
+func (s *Inventory) requireOrderInScope(ctx context.Context, tenantID, id string) error {
+	if _, ok := scopeFrom(ctx); !ok {
+		return nil
+	}
+	wh, err := s.store.PurchaseOrderWarehouse(ctx, tenantID, id)
+	if err != nil {
+		return err
+	}
+	_, err = s.requireWarehouse(ctx, tenantID, wh)
+	return err
 }
 
 // ListPurchaseOrders del negocio, opcionalmente por estado.
@@ -82,7 +101,11 @@ func (s *Inventory) ListPurchaseOrders(ctx context.Context, tenantID string, sta
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	return s.store.ListPurchaseOrders(ctx, tenantID, status, after, limit)
+	ws, err := s.readScope(ctx, tenantID, "")
+	if err != nil {
+		return nil, "", err
+	}
+	return s.store.ListPurchaseOrders(ctx, tenantID, status, after, limit, ws)
 }
 
 // UpdatePurchaseOrderStatus: enviar o cancelar (domain-model §8.12).
@@ -98,6 +121,9 @@ func (s *Inventory) UpdatePurchaseOrderStatus(ctx context.Context, c Caller, id 
 	} else {
 		reason = ""
 	}
+	if err := s.requireOrderInScope(ctx, c.TenantID, id); err != nil { // R11
+		return domain.PurchaseOrder{}, err
+	}
 	return s.store.UpdatePurchaseOrderStatus(ctx, c.TenantID, id, store.StatusChange{To: to, Reason: reason,
 		ActorID: c.UserID, NewID: s.newID, Now: s.now()})
 }
@@ -111,6 +137,9 @@ func (s *Inventory) ReceiveGoods(ctx context.Context, c Caller, poID, key, invoi
 	}
 	wh, err := s.store.PurchaseOrderWarehouse(ctx, c.TenantID, poID)
 	if err != nil {
+		return domain.PurchaseOrder{}, err
+	}
+	if _, err := s.requireWarehouse(ctx, c.TenantID, wh); err != nil { // R11
 		return domain.PurchaseOrder{}, err
 	}
 	parts := []string{"receipt", poID, invoice}
@@ -171,7 +200,11 @@ func (s *Inventory) ReceiveGoods(ctx context.Context, c Caller, poID, key, invoi
 // ReorderSuggestions aplica R6 a las existencias del negocio (o de una bodega): solo productos con
 // algo que pedir, de la menor a la mayor cobertura.
 func (s *Inventory) ReorderSuggestions(ctx context.Context, tenantID, warehouseID string) ([]domain.Suggestion, map[string]store.ReorderRow, error) {
-	rows, err := s.store.ReorderData(ctx, tenantID, warehouseID, s.now())
+	ws, err := s.readScope(ctx, tenantID, warehouseID)
+	if err != nil {
+		return nil, nil, err
+	}
+	rows, err := s.store.ReorderData(ctx, tenantID, warehouseID, s.now(), ws)
 	if err != nil {
 		return nil, nil, err
 	}

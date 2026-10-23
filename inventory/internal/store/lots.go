@@ -232,6 +232,7 @@ type LotFilter struct {
 	IncludeEmpty bool
 	OnlyExpiring bool
 	Until        time.Time
+	Warehouses   WarehouseSet // F16.9 (R11): nil = todas
 }
 
 // ListLots devuelve los lotes (de una bodega o de todas), primero los que vencen.
@@ -245,8 +246,9 @@ func (s *Store) ListLots(ctx context.Context, tenantID string, f LotFilter) ([]d
 		rows, err := tx.Query(ctx, `SELECT `+lotCols+` FROM lots
 			WHERE ($1 = '' OR product_id::text = $1) AND ($2 = '' OR warehouse_id::text = $2) AND ($3 OR on_hand_milli > 0)
 			  AND ($4::date IS NULL OR (expires_on IS NOT NULL AND expires_on <= $4::date AND on_hand_milli > 0))
+			  AND ($5::uuid[] IS NULL OR warehouse_id = ANY($5::uuid[]))
 			ORDER BY expires_on NULLS LAST, code, warehouse_id LIMIT 500`,
-			f.ProductID, f.WarehouseID, f.IncludeEmpty, until)
+			f.ProductID, f.WarehouseID, f.IncludeEmpty, until, f.Warehouses.arg())
 		if err != nil {
 			return fmt.Errorf("list lots: %w", err)
 		}

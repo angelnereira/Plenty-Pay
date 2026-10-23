@@ -28,11 +28,13 @@ type Store interface {
 	DefaultWarehouse(ctx context.Context, tenantID, newID string, now time.Time) (domain.Warehouse, error)
 	UpsertWarehouse(ctx context.Context, w domain.Warehouse, create bool) (domain.Warehouse, error)
 	ListWarehouses(ctx context.Context, tenantID, newID string, now time.Time) ([]domain.Warehouse, error)
-	GetStock(ctx context.Context, tenantID, productID, warehouseID string) (domain.Level, error)
+	GetStock(ctx context.Context, tenantID, productID, warehouseID string, ws store.WarehouseSet) (domain.Level, error)
+	GetWarehouse(ctx context.Context, tenantID, id string) (domain.Warehouse, error)
+	AssignMainBranch(ctx context.Context, tenantID, branchID string, now time.Time) (int64, error)
 	SetReorderPoint(ctx context.Context, tenantID, warehouseID, productID string, milli int64, now time.Time) error
-	ListStock(ctx context.Context, tenantID, warehouseID string, onlyLow bool, after string, limit int) ([]domain.Level, string, error)
+	ListStock(ctx context.Context, tenantID, warehouseID string, onlyLow bool, after string, limit int, ws store.WarehouseSet) ([]domain.Level, string, error)
 	ListMovements(ctx context.Context, tenantID, productID, warehouseID string, from, to time.Time,
-		after *store.MovementCursor, limit int) ([]domain.Movement, *store.MovementCursor, error)
+		after *store.MovementCursor, limit int, ws store.WarehouseSet) ([]domain.Movement, *store.MovementCursor, error)
 	Reserve(ctx context.Context, r domain.Reservation, hash []byte, allowNegative bool, newWarehouseID string,
 		now time.Time, events store.EventsFor) (domain.Reservation, error)
 	Finish(ctx context.Context, tenantID, id string, to domain.ReservationStatus, actorService string,
@@ -44,10 +46,10 @@ type Store interface {
 	CreatePurchaseOrder(ctx context.Context, o domain.PurchaseOrder, key string, hash []byte, createdBy string,
 		now time.Time) (domain.PurchaseOrder, error)
 	GetPurchaseOrder(ctx context.Context, tenantID, id string) (domain.PurchaseOrder, error)
-	ListPurchaseOrders(ctx context.Context, tenantID string, status domain.POStatus, after string, limit int) ([]domain.PurchaseOrder, string, error)
+	ListPurchaseOrders(ctx context.Context, tenantID string, status domain.POStatus, after string, limit int, ws store.WarehouseSet) ([]domain.PurchaseOrder, string, error)
 	UpdatePurchaseOrderStatus(ctx context.Context, tenantID, id string, c store.StatusChange) (domain.PurchaseOrder, error)
 	PurchaseOrderWarehouse(ctx context.Context, tenantID, id string) (string, error)
-	ReorderData(ctx context.Context, tenantID, warehouseID string, now time.Time) ([]store.ReorderRow, error)
+	ReorderData(ctx context.Context, tenantID, warehouseID string, now time.Time, ws store.WarehouseSet) ([]store.ReorderRow, error)
 }
 
 // Products valida productos contra catalog.
@@ -61,7 +63,11 @@ type Inventory struct {
 	products Products
 	now      func() time.Time
 	newID    func() string
+	branches Branches // F16.9: identity (UseBranches)
 }
+
+// ErrBranchesUnavailable: identity no está conectado o no respondió (R11).
+var ErrBranchesUnavailable = errors.New("branches unavailable")
 
 // New arma el servicio.
 func New(st Store, products Products, now func() time.Time, newID func() string) *Inventory {
@@ -186,6 +192,10 @@ func (s *Inventory) AdjustStock(ctx context.Context, c Caller, r AdjustRequest) 
 	if r.FromBlocked && r.Type != domain.WriteOff {
 		return m, domain.ErrInvalidMovementType
 	}
+	// R11: la bodega del movimiento (o la por defecto) debe estar en el alcance de la persona.
+	if _, err := s.requireWarehouse(ctx, c.TenantID, r.WarehouseID); err != nil {
+		return m, err
+	}
 	p, err := s.trackedProduct(ctx, r.ProductID, r.Type)
 	if err != nil {
 		return m, err
@@ -237,6 +247,12 @@ func (s *Inventory) TransferStock(ctx context.Context, c Caller, key, productID,
 	if err := s.validateProduct(ctx, productID, domain.TransferOut); err != nil {
 		return domain.Movement{}, domain.Movement{}, err
 	}
+	// R11: alcance sobre el origen y el destino.
+	for _, w := range []string{from, to} {
+		if _, err := s.requireWarehouse(ctx, c.TenantID, w); err != nil {
+			return domain.Movement{}, domain.Movement{}, err
+		}
+	}
 	out := domain.Movement{ID: s.newID(), WarehouseID: from, ProductID: productID, Type: domain.TransferOut,
 		DeltaMilli: -qty, Reason: reason, ReferenceType: "transfer", ActorUserID: c.UserID, ActorService: c.Service}
 	// F16.4: la salida toma ese lote (o FEFO) y la entrada replica en el destino lo que salió.
@@ -268,6 +284,22 @@ func (s *Inventory) UpsertWarehouse(ctx context.Context, tenantID string, w doma
 		return w, err
 	}
 	create := w.ID == ""
+	// R11: editar exige alcance sobre la bodega actual; crear o mover, sobre la sucursal pedida.
+	if !create {
+		if _, err := s.requireWarehouse(ctx, tenantID, w.ID); err != nil {
+			return w, err
+		}
+		if w.BranchID == "" {
+			cur, err := s.store.GetWarehouse(ctx, tenantID, w.ID)
+			if err != nil {
+				return w, err
+			}
+			w.BranchID = cur.BranchID
+		}
+	}
+	if err := s.checkBranchForWarehouse(ctx, w.BranchID); err != nil {
+		return w, err
+	}
 	if create {
 		w.ID, w.CreatedAt = s.newID(), s.now()
 		w.Active = true
@@ -278,8 +310,38 @@ func (s *Inventory) UpsertWarehouse(ctx context.Context, tenantID string, w doma
 
 // ListWarehouses lista (y crea la bodega por defecto si no hay).
 func (s *Inventory) ListWarehouses(ctx context.Context, tenantID string) ([]domain.Warehouse, error) {
-	return s.store.ListWarehouses(ctx, tenantID, s.newID(), s.now())
+	ws, err := s.store.ListWarehouses(ctx, tenantID, s.newID(), s.now())
+	if err != nil {
+		return nil, err
+	}
+	sc, scoped := scopeFrom(ctx)
+	if !scoped {
+		return ws, nil
+	}
+	if sc.All {
+		// R11: con alcance `*` se completa la Casa Matriz de las bodegas sin sucursal. Si identity
+		// no responde, se devuelve la lista igual y el error queda para el registro del borde.
+		out, aerr := s.assignMainBranch(ctx, tenantID, ws)
+		if aerr != nil {
+			return out, &PartialError{Err: aerr}
+		}
+		return out, nil
+	}
+	out := ws[:0]
+	for _, w := range ws {
+		if sc.Allows(w.BranchID) {
+			out = append(out, w)
+		}
+	}
+	return out, nil
 }
+
+// PartialError: la operación devolvió un resultado válido pero una tarea secundaria falló (se
+// registra en el borde sin cambiar la respuesta).
+type PartialError struct{ Err error }
+
+func (e *PartialError) Error() string { return "partial: " + e.Err.Error() }
+func (e *PartialError) Unwrap() error { return e.Err }
 
 // DefaultWarehouse devuelve la bodega por defecto.
 func (s *Inventory) DefaultWarehouse(ctx context.Context, tenantID string) (domain.Warehouse, error) {
@@ -288,12 +350,20 @@ func (s *Inventory) DefaultWarehouse(ctx context.Context, tenantID string) (doma
 
 // GetStock lee la existencia.
 func (s *Inventory) GetStock(ctx context.Context, tenantID, productID, warehouseID string) (domain.Level, error) {
-	return s.store.GetStock(ctx, tenantID, productID, warehouseID)
+	ws, err := s.readScope(ctx, tenantID, warehouseID)
+	if err != nil {
+		return domain.Level{}, err
+	}
+	return s.store.GetStock(ctx, tenantID, productID, warehouseID, ws)
 }
 
 // ListStock lista existencias.
 func (s *Inventory) ListStock(ctx context.Context, tenantID, warehouseID string, onlyLow bool, after string, limit int) ([]domain.Level, string, error) {
-	return s.store.ListStock(ctx, tenantID, warehouseID, onlyLow, after, limit)
+	ws, err := s.readScope(ctx, tenantID, warehouseID)
+	if err != nil {
+		return nil, "", err
+	}
+	return s.store.ListStock(ctx, tenantID, warehouseID, onlyLow, after, limit, ws)
 }
 
 // ListMovements lista el historial; sin rango, los últimos 90 días.
@@ -305,7 +375,11 @@ func (s *Inventory) ListMovements(ctx context.Context, tenantID, productID, ware
 	if from.IsZero() {
 		from = to.AddDate(0, 0, -90)
 	}
-	return s.store.ListMovements(ctx, tenantID, productID, warehouseID, from, to, after, limit)
+	ws, err := s.readScope(ctx, tenantID, warehouseID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.store.ListMovements(ctx, tenantID, productID, warehouseID, from, to, after, limit, ws)
 }
 
 // ── Reservas (F16.3) ────────────────────────────────────────────────────────────────────────
@@ -400,8 +474,12 @@ func (s *Inventory) ListLots(ctx context.Context, tenantID string, r LotsRequest
 		return nil, 0, err
 	}
 	until := domain.Today(s.now()).AddDate(0, 0, st.ExpiryAlertDays)
+	ws, err := s.readScope(ctx, tenantID, r.WarehouseID)
+	if err != nil {
+		return nil, 0, err
+	}
 	lots, err := s.store.ListLots(ctx, tenantID, store.LotFilter{ProductID: r.ProductID, WarehouseID: r.WarehouseID,
-		IncludeEmpty: r.IncludeEmpty, OnlyExpiring: r.OnlyExpiring, Until: until})
+		IncludeEmpty: r.IncludeEmpty, OnlyExpiring: r.OnlyExpiring, Until: until, Warehouses: ws})
 	return lots, st.ExpiryAlertDays, err
 }
 

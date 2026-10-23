@@ -18,6 +18,7 @@ type Config struct {
 	NATSPass       string
 	CatalogAddr    string
 	CatalogTimeout time.Duration
+	IdentityAddr   string // F16.9: sucursales de las bodegas (R11)
 }
 
 func env(key, def string) string {
@@ -30,14 +31,15 @@ func env(key, def string) string {
 // Load lee PP_* y falla si falta lo obligatorio.
 func Load() (Config, error) {
 	c := Config{
-		Port:        env("PORT", "50066"),
-		AdminPort:   env("ADMIN_PORT", "9100"),
-		DBDSN:       os.Getenv("PP_DB_DSN"),
-		MigrateDSN:  os.Getenv("PP_MIGRATE_DSN"),
-		NATSUrl:     os.Getenv("PP_NATS_URL"),
-		NATSUser:    os.Getenv("PP_NATS_USER"),
-		NATSPass:    os.Getenv("PP_NATS_PASS"),
-		CatalogAddr: env("PP_CATALOG_ADDR", "catalog:50065"),
+		Port:         env("PORT", "50066"),
+		AdminPort:    env("ADMIN_PORT", "9100"),
+		DBDSN:        os.Getenv("PP_DB_DSN"),
+		MigrateDSN:   os.Getenv("PP_MIGRATE_DSN"),
+		NATSUrl:      os.Getenv("PP_NATS_URL"),
+		NATSUser:     os.Getenv("PP_NATS_USER"),
+		NATSPass:     os.Getenv("PP_NATS_PASS"),
+		CatalogAddr:  env("PP_CATALOG_ADDR", "catalog:50065"),
+		IdentityAddr: env("PP_IDENTITY_ADDR", "identity:50060"),
 	}
 	d, err := time.ParseDuration(env("PP_CATALOG_TIMEOUT", "500ms"))
 	if err != nil {

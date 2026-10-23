@@ -129,7 +129,7 @@ func TestL2_R10_CloseShortRecordsShortagesOnce(t *testing.T) {
 		t.Fatal("cerrar nunca borra lo recibido")
 	}
 	// Lo que faltaba deja de contar como en camino (R6).
-	rows, err := open(t).ReorderData(ctx, tenant, "", time.Now().UTC())
+	rows, err := open(t).ReorderData(ctx, tenant, "", time.Now().UTC(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

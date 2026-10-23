@@ -94,6 +94,17 @@ func main() {
 		}
 	}()
 	svc := service.New(st, products, func() time.Time { return time.Now().UTC() }, service.NewUUIDv7)
+	// F16.9 (R11): identity da las sucursales de las bodegas (lectura, mismo plazo que catalog).
+	branches, err := client.NewIdentity(cfg.IdentityAddr, cfg.CatalogTimeout)
+	if err != nil {
+		fatal("identity client failed", err)
+	}
+	defer func() {
+		if err := branches.Close(); err != nil {
+			reporter.Dependency(ctx, "close identity client failed", "identity", err)
+		}
+	}()
+	svc.UseBranches(branches)
 
 	shutdownTracing, err := observability.SetupTracing(ctx, serviceName, version, os.Stdout)
 	if err != nil {
@@ -116,8 +127,11 @@ func main() {
 	// transacción que el cambio de existencia.
 	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		observability.UnaryServerInterceptor(logger, reporter, metrics),
+		server.ScopeInterceptor(),
 	))
-	pb.RegisterInventoryServer(grpcServer, server.New(svc))
+	srv := server.New(svc)
+	srv.UseReporter(reporter)
+	pb.RegisterInventoryServer(grpcServer, srv)
 	healthSrv := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthSrv)
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)

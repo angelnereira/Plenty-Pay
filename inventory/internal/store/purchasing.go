@@ -212,13 +212,14 @@ func (s *Store) GetPurchaseOrder(ctx context.Context, tenantID, id string) (doma
 }
 
 // ListPurchaseOrders de la más nueva a la más vieja (cursor = id de la última).
-func (s *Store) ListPurchaseOrders(ctx context.Context, tenantID string, status domain.POStatus, after string, limit int) ([]domain.PurchaseOrder, string, error) {
+func (s *Store) ListPurchaseOrders(ctx context.Context, tenantID string, status domain.POStatus, after string, limit int, ws WarehouseSet) ([]domain.PurchaseOrder, string, error) {
 	var out []domain.PurchaseOrder
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT `+poCols+` FROM purchase_orders o JOIN suppliers s ON s.id = o.supplier_id
 			WHERE ($1 = 0 OR o.status = $1)
 			  AND ($2 = '' OR (o.created_at, o.id) < (SELECT created_at, id FROM purchase_orders WHERE id::text = $2))
-			ORDER BY o.created_at DESC, o.id DESC LIMIT $3`, int16(status), after, limit+1)
+			  AND ($4::uuid[] IS NULL OR o.warehouse_id = ANY($4::uuid[]))
+			ORDER BY o.created_at DESC, o.id DESC LIMIT $3`, int16(status), after, limit+1, ws.arg())
 		if err != nil {
 			return fmt.Errorf("list purchase orders: %w", err)
 		}
@@ -435,7 +436,7 @@ type ReorderRow struct {
 // ReorderData junta existencias, lo que viene en camino, el proveedor habitual (el de la última
 // orden con el producto) y las ventas diarias de los 28 días completos anteriores a hoy, en hora de
 // Panamá (hoy va a medias: contarlo bajaría la velocidad).
-func (s *Store) ReorderData(ctx context.Context, tenantID, warehouseID string, now time.Time) ([]ReorderRow, error) {
+func (s *Store) ReorderData(ctx context.Context, tenantID, warehouseID string, now time.Time, ws WarehouseSet) ([]ReorderRow, error) {
 	var out []ReorderRow
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
@@ -449,8 +450,8 @@ func (s *Store) ReorderData(ctx context.Context, tenantID, warehouseID string, n
 			  SELECT s.id::text AS supplier_id, s.name, s.lead_time_days FROM purchase_order_lines pl
 			  JOIN purchase_orders po ON po.id = pl.purchase_order_id JOIN suppliers s ON s.id = po.supplier_id
 			  WHERE pl.product_id = l.product_id AND po.status <> 5 ORDER BY po.created_at DESC LIMIT 1) last ON true
-			WHERE ($1 = '' OR l.warehouse_id::text = $1)
-			ORDER BY l.product_id, l.warehouse_id`, warehouseID, domain.DefaultLeadTimeDays)
+			WHERE ($1 = '' OR l.warehouse_id::text = $1) AND ($3::uuid[] IS NULL OR l.warehouse_id = ANY($3::uuid[]))
+			ORDER BY l.product_id, l.warehouse_id`, warehouseID, domain.DefaultLeadTimeDays, ws.arg())
 		if err != nil {
 			return fmt.Errorf("reorder data: %w", err)
 		}

@@ -192,6 +192,7 @@ type Warehouse struct {
 	TenantID   string
 	Name       string
 	BranchCode string
+	BranchID   string // F16.9 (R11): sucursal de identity; vacío = Casa Matriz aún sin asignar
 	Active     bool
 	IsDefault  bool
 	CreatedAt  time.Time

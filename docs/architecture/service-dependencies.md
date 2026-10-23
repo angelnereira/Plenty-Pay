@@ -70,7 +70,7 @@ Toda arista no listada está **prohibida** (NetworkPolicy + validación del SAN 
 | notifications | identity | contactos y preferencias del destinatario |
 | fiscal-invoicing | security, identity, infra-management | credenciales del PAC por tenant; firma · razón social, RUC y DV del negocio (`GetTenant`) y consumo del step-up · tasas `legal.pa.itbms.*` vigentes |
 | catalog | inventory, identity, infra-management | disponibilidad para listados (`in_stock`) — lectura; estado del negocio para publicar (R4, respaldo de la proyección de `TenantStatusChanged`); tasas `legal.pa.itbms.*` |
-| inventory | catalog | validar SKU/variante — lectura |
+| inventory | catalog, identity | validar SKU/variante — lectura; sucursales de las bodegas (`ListBranches` con la identidad del usuario, R11) — lectura |
 | analytics-bi | — (solo consume eventos y lee réplicas propias) | |
 | identity, ledger, security, infra-management, geolocation, web | — (hojas) | |
 

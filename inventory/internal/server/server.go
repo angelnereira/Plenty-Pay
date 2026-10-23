@@ -10,6 +10,7 @@ import (
 	"time"
 
 	errdetails "google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -54,6 +55,10 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.FailedPrecondition, "OUT_OF_STOCK", "no hay existencia suficiente")
 	case errors.Is(err, domain.ErrCloseReasonRequired):
 		return ErrorInfo(codes.InvalidArgument, "REASON_REQUIRED", "indica el motivo del cierre con faltante")
+	case errors.Is(err, domain.ErrBranchOutOfScope):
+		return ErrorInfo(codes.PermissionDenied, "BRANCH_OUT_OF_SCOPE", "esa bodega es de una sucursal fuera de tu alcance")
+	case errors.Is(err, service.ErrBranchesUnavailable), errors.Is(err, client.ErrIdentityUnavailable):
+		return ErrorInfo(codes.Unavailable, "DEPENDENCY_UNAVAILABLE", "servicio temporalmente no disponible")
 	case errors.Is(err, domain.ErrExceedsBlocked):
 		return ErrorInfo(codes.FailedPrecondition, "EXCEEDS_BLOCKED", "no hay tanta existencia bloqueada")
 	case errors.Is(err, domain.ErrInvalidSettings):
@@ -93,7 +98,23 @@ func toStatus(err error) error {
 // Server implementa pb.InventoryServer.
 type Server struct {
 	pb.UnimplementedInventoryServer
-	svc *service.Inventory
+	svc      *service.Inventory
+	reporter *observability.Reporter // F16.9: fallas secundarias que no cambian la respuesta
+}
+
+// UseReporter registra las fallas secundarias (p. ej. identity caído al asignar la Casa Matriz).
+func (s *Server) UseReporter(r *observability.Reporter) { s.reporter = r }
+
+// ScopeInterceptor (F16.9, R11) pone en el contexto el alcance por sucursal de cada petición de
+// una persona; las llamadas de servicio (pos, orders) no se filtran.
+func ScopeInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		a := tenancy.FromContext(ctx)
+		if !domain.SellingServices[a.Service] {
+			ctx = service.WithBranchScope(ctx, domain.ParseBranchScope(a.BranchScope))
+		}
+		return handler(ctx, req)
+	}
 }
 
 // New arma el adaptador.
@@ -221,7 +242,7 @@ func levelPB(l domain.Level) *pb.StockLevel {
 
 func warehousePB(w domain.Warehouse) *pb.Warehouse {
 	return &pb.Warehouse{WarehouseId: w.ID, TenantId: w.TenantID, Name: w.Name, BranchCode: w.BranchCode,
-		Active: w.Active, IsDefault: w.IsDefault}
+		Active: w.Active, IsDefault: w.IsDefault, BranchId: w.BranchID}
 }
 
 func (s *Server) AdjustStock(ctx context.Context, req *pb.AdjustStockRequest) (*pb.StockMovement, error) {
@@ -351,7 +372,8 @@ func (s *Server) UpsertWarehouse(ctx context.Context, req *pb.UpsertWarehouseReq
 	}
 	w := req.GetWarehouse()
 	got, err := s.svc.UpsertWarehouse(ctx, a.TenantID, domain.Warehouse{ID: w.GetWarehouseId(), Name: w.GetName(),
-		BranchCode: w.GetBranchCode(), Active: w.GetActive() || w.GetWarehouseId() == "", IsDefault: w.GetIsDefault()})
+		BranchCode: w.GetBranchCode(), Active: w.GetActive() || w.GetWarehouseId() == "", IsDefault: w.GetIsDefault(),
+		BranchID: w.GetBranchId()})
 	if err != nil {
 		return nil, toStatus(err)
 	}
@@ -364,6 +386,14 @@ func (s *Server) ListWarehouses(ctx context.Context, _ *pb.ListWarehousesRequest
 		return nil, err
 	}
 	items, err := s.svc.ListWarehouses(ctx, a.TenantID)
+	var partial *service.PartialError
+	if errors.As(err, &partial) {
+		// R11: la lista es válida; la Casa Matriz se asignará la próxima vez.
+		if s.reporter != nil {
+			s.reporter.Dependency(ctx, "main branch assignment failed", "identity", observability.Wrap(partial.Err, "assign main branch"))
+		}
+		err = nil
+	}
 	if err != nil {
 		return nil, toStatus(err)
 	}

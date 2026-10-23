@@ -48,7 +48,7 @@ func TestL2_F16_10_AvailableFormulaAndBlockedIsNeverTaken(t *testing.T) {
 		}
 	}
 	vectors := []struct {
-		step                              string
+		step                             string
 		onHand, reserved, blocked, avail int64
 	}{{"tras bloquear", 10_000, 3000, 4000, 3000}}
 	check := func(i int) {
@@ -108,7 +108,7 @@ func TestL2_F16_10_AvailableFormulaAndBlockedIsNeverTaken(t *testing.T) {
 		t.Fatalf("la baja de lo bloqueado son 2 movimientos (UNBLOCK + WRITE_OFF): %d", n)
 	}
 	vectors = append(vectors, struct {
-		step                              string
+		step                             string
 		onHand, reserved, blocked, avail int64
 	}{"tras la baja de lo bloqueado", 9000, 3000, 3000, 3000})
 	check(1)
@@ -117,7 +117,7 @@ func TestL2_F16_10_AvailableFormulaAndBlockedIsNeverTaken(t *testing.T) {
 		t.Fatal(err)
 	}
 	vectors = append(vectors, struct {
-		step                              string
+		step                             string
 		onHand, reserved, blocked, avail int64
 	}{"tras desbloquear", 9000, 3000, 1000, 5000})
 	check(2)
@@ -128,7 +128,7 @@ func TestL2_F16_10_AvailableFormulaAndBlockedIsNeverTaken(t *testing.T) {
 		t.Fatal(err)
 	}
 	vectors = append(vectors, struct {
-		step                              string
+		step                             string
 		onHand, reserved, blocked, avail int64
 	}{"tras la venta física", 3000, 3000, 1000, -1000})
 	check(3)

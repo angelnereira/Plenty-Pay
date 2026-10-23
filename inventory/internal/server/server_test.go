@@ -1,7 +1,11 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"plentypay/inventory/internal/service"
 	"testing"
 
 	errdetails "google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -74,5 +78,50 @@ func TestR10_CloseReasonRequiredUsesGlossaryName(t *testing.T) {
 	code, reason := reasonOf(t, toStatus(fmt.Errorf("close order: %w", domain.ErrCloseReasonRequired)))
 	if code != codes.InvalidArgument || reason != "REASON_REQUIRED" {
 		t.Fatalf("%v %q", code, reason)
+	}
+}
+
+// R11 · F16.9: fuera de alcance es BRANCH_OUT_OF_SCOPE; identity caído, DEPENDENCY_UNAVAILABLE.
+func TestADR0018_BranchErrorsUseGlossaryNames(t *testing.T) {
+	for _, c := range []struct {
+		err    error
+		code   codes.Code
+		reason string
+	}{
+		{domain.ErrBranchOutOfScope, codes.PermissionDenied, "BRANCH_OUT_OF_SCOPE"},
+		{service.ErrBranchesUnavailable, codes.Unavailable, "DEPENDENCY_UNAVAILABLE"},
+	} {
+		code, reason := reasonOf(t, toStatus(fmt.Errorf("adjust stock: %w", c.err)))
+		if code != c.code || reason != c.reason {
+			t.Errorf("%v → %v %q", c.err, code, reason)
+		}
+	}
+}
+
+// R11: el interceptor pone el alcance a una persona (sin cabecera = ninguna sucursal) y no a pos.
+func TestADR0018_ScopeInterceptorOnlyForPeople(t *testing.T) {
+	icpt := ScopeInterceptor()
+	run := func(md metadata.MD) (domain.BranchScope, bool) {
+		var got domain.BranchScope
+		var ok bool
+		_, err := icpt(metadata.NewIncomingContext(context.Background(), md), nil, &grpc.UnaryServerInfo{},
+			func(ctx context.Context, _ any) (any, error) {
+				got, ok = service.BranchScopeFrom(ctx)
+				return nil, nil
+			})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got, ok
+	}
+	sc, ok := run(metadata.Pairs("x-pp-actor-service", "api-gateway"))
+	if !ok || sc.All || len(sc.Branches) != 0 {
+		t.Fatalf("persona sin cabecera = ninguna sucursal: %+v %v", sc, ok)
+	}
+	if sc, ok := run(metadata.Pairs("x-pp-actor-service", "api-gateway", "x-pp-branch-scope", "*")); !ok || !sc.All {
+		t.Fatalf("alcance *: %+v", sc)
+	}
+	if _, ok := run(metadata.Pairs("x-pp-actor-service", "pos")); ok {
+		t.Fatal("pos no se filtra")
 	}
 }
