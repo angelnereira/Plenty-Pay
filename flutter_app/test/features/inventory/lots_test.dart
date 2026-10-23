@@ -157,7 +157,7 @@ void main() {
         api: api, order: order, products: {cafeId: ProductItem.fromJson(drug)})));
     await tester.pumpAndSettle();
     expect(find.text('Lote del proveedor'), findsOneWidget);
-    await tester.ensureVisible(find.text('Registrar recepción'));
+    await tester.scrollUntilVisible(find.text('Registrar recepción'), 200, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Registrar recepción'));
     await tester.pumpAndSettle();
@@ -166,7 +166,7 @@ void main() {
 
     await tester.enterText(inputOf('Lote del proveedor'), 'AMX-2611');
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Registrar recepción'));
+    await tester.scrollUntilVisible(find.text('Registrar recepción'), 200, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Registrar recepción'));
     await tester.pumpAndSettle();

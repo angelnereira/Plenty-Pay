@@ -113,7 +113,7 @@ Un ajuste no se edita ni se borra: se corrige con otro ajuste.
 `inventory:adjust`. Origen, destino (distinto), producto (se puede escanear, C-27), líneas con cantidad ≤ disponible en origen, lote si aplica (se propone el de vencimiento más próximo). Estados: En tránsito → Recibida. La bodega destino confirma la recepción con cantidades; una diferencia genera un ajuste con motivo "Diferencia de transferencia".
 
 ### S-INV-05 · `/inventory/purchases` · Órdenes de compra
-`inventory:purchase:manage` (listar también con `inventory:receive`). Lista con `StatusChip` (Borrador, Enviada, Recibida parcial, Recibida, Cancelada) y filtro por estado. Editor: proveedor, bodega de destino, fecha esperada, líneas (producto, cantidad, costo unitario), total calculado por el servidor. Acciones: "Guardar borrador", "Marcar como enviada", "Cancelar" (solo Borrador o Enviada, C-05), "Recibir" (Enviada o Recibida parcial → S-INV-06). *Pendiente*: ITBMS por línea y el envío al proveedor por correo con PDF (notifications, F20).
+`inventory:purchase:manage` (listar también con `inventory:receive`). Lista con `StatusChip` (Borrador, Enviada, Recibida parcial, Recibida, Cancelada, Cerrada con faltante) y filtro por estado. Editor: proveedor, bodega de destino, fecha esperada, líneas (producto, cantidad, costo unitario), total calculado por el servidor. Acciones: "Guardar borrador", "Marcar como enviada", "Cancelar" (solo Borrador o Enviada, C-05), "Recibir" (Enviada o Recibida parcial → S-INV-06), "Cerrar con faltante" (F16.12, solo Recibida parcial, `inventory:purchase:manage`: diálogo con «Motivo» obligatorio y confirmación C-05 «Lo que falta deja de esperarse. Lo recibido no cambia.»; sin motivo: `REASON_REQUIRED` «Indica el motivo.»). El detalle muestra por línea «Dañado {n}» si hubo y, en una orden cerrada con faltante, «Faltante {n}» y el motivo del cierre. *Pendiente*: ITBMS por línea y el envío al proveedor por correo con PDF (notifications, F20).
 
 ### S-INV-06 · `/inventory/receive/:po` · Recepción
 `inventory:receive`
@@ -122,6 +122,7 @@ Un ajuste no se edita ni se borra: se corrige con otro ajuste.
 |---|---|---|---|
 | e1 | Cabecera | Orden {número} · {proveedor} | — |
 | e2 | Líneas | Producto · Pedido {n} · Recibido antes {m} · Recibido ahora | No se recibe más de lo pedido: `RECEIPT_EXCEEDS_ORDERED` "Estás recibiendo más de lo pedido." F16.11: botón «Escanear código» en la barra y lector (C-27); la primera lectura de una línea reemplaza la cantidad propuesta por 1 y las siguientes suman 1; un producto que no está en la orden: «Ese producto no está en la orden.» |
+| e2b | Por línea (F16.12) | Dañado | Opcional: cuánto de «Recibido ahora» llegó dañado; no puede pasar lo recibido ahora («No puede ser más que lo recibido ahora.»). Entra bloqueado: no se vende ni se reserva |
 | e3 | Por línea | Lote del proveedor · Vencimiento | F16.8: obligatorio si el producto controla lotes (`LOT_REQUIRED`); vencimiento pasado bloqueado (`LOT_EXPIRED`). Un mismo producto puede recibirse en varios lotes (una línea por lote vía API; en la app, un lote por recepción) |
 | e4 | Campo | Factura del proveedor (número) | Opcional, hasta 60 caracteres |
 | e5 | `PPButton.primary` | Registrar recepción | Genera los movimientos y actualiza el estado de la orden |

@@ -63,7 +63,8 @@ class PurchaseLineItem {
       {required this.productId,
       required this.orderedMilli,
       this.receivedMilli = 0,
-      required this.unitCostMinor});
+      required this.unitCostMinor,
+      this.damagedMilli = 0});
 
   factory PurchaseLineItem.fromJson(Map<String, dynamic> j) =>
       PurchaseLineItem(
@@ -71,12 +72,16 @@ class PurchaseLineItem {
         orderedMilli: _int(j['ordered_milli']),
         receivedMilli: _int(j['received_milli']),
         unitCostMinor: _money(j['unit_cost']),
+        damagedMilli: _int(j['damaged_milli']),
       );
 
   final String productId;
   final int orderedMilli;
   final int receivedMilli;
   final int unitCostMinor;
+
+  /// F16.12: parte de lo recibido que llegó dañada (entró bloqueada).
+  final int damagedMilli;
 
   int get pendingMilli => orderedMilli - receivedMilli;
 
@@ -99,6 +104,7 @@ class PurchaseOrderItem {
     required this.totalMinor,
     this.expectedAt,
     this.createdAt,
+    this.closeReason = '',
   });
 
   factory PurchaseOrderItem.fromJson(Map<String, dynamic> j) =>
@@ -116,13 +122,15 @@ class PurchaseOrderItem {
         totalMinor: _money(j['total']),
         expectedAt: DateTime.tryParse('${j['expected_at'] ?? ''}')?.toLocal(),
         createdAt: DateTime.tryParse('${j['created_at'] ?? ''}')?.toLocal(),
+        closeReason: j['close_reason'] as String? ?? '',
       );
 
   final String id;
   final String supplierId;
   final String supplierName;
   final String warehouseId;
-  final String status; // DRAFT | SENT | PARTIALLY_RECEIVED | RECEIVED | CANCELLED
+  final String
+      status; // DRAFT | SENT | PARTIALLY_RECEIVED | RECEIVED | CANCELLED | CLOSED_SHORT
   final List<PurchaseLineItem> lines;
   final int totalMinor;
   final DateTime? expectedAt;
@@ -131,6 +139,11 @@ class PurchaseOrderItem {
   String get shortId => id.length > 8 ? id.substring(0, 8).toUpperCase() : id;
   bool get receivable => status == 'SENT' || status == 'PARTIALLY_RECEIVED';
   bool get cancellable => status == 'DRAFT' || status == 'SENT';
+
+  /// F16.12: motivo de «Cerrar con faltante».
+  final String closeReason;
+  bool get closableShort => status == 'PARTIALLY_RECEIVED';
+  bool get closedShort => status == 'CLOSED_SHORT';
 }
 
 /// Sugerencia de reorden (inventory.ReorderSuggestion, R6).
@@ -185,12 +198,14 @@ String poStatusLabel(AppLocalizations l10n, String s) => switch (s) {
       'SENT' => l10n.poStatusSent,
       'PARTIALLY_RECEIVED' => l10n.poStatusPartial,
       'RECEIVED' => l10n.poStatusReceived,
+      'CLOSED_SHORT' => l10n.poStatusClosedShort,
       _ => l10n.poStatusCancelled,
     };
 
 StatusTone poStatusTone(String s) => switch (s) {
       'RECEIVED' => StatusTone.success,
       'PARTIALLY_RECEIVED' => StatusTone.warning,
+      'CLOSED_SHORT' => StatusTone.warning,
       'SENT' => StatusTone.info,
       'CANCELLED' => StatusTone.error,
       _ => StatusTone.neutral,

@@ -250,6 +250,80 @@ void main() {
     expect(result?.status, 'PARTIALLY_RECEIVED');
   });
 
+  testWidgets('R10 S-INV-06 e2b: lo dañado no pasa lo recibido ahora y viaja como damaged_milli', (tester) async {
+    final calls = <http.Request>[];
+    final api = fakeApi({
+      'POST /v1/inventory/purchase-orders/$poId/receive': (_) =>
+          json(order(status: 'PURCHASE_ORDER_STATUS_PARTIALLY_RECEIVED', received: 3000)),
+    }, calls: calls);
+    await tester.pumpWidget(harness(PurchaseReceiveScreen(
+        api: api,
+        order: PurchaseOrderItem.fromJson(order()),
+        products: {cafeId: ProductItem.fromJson(product(cafeId, 'Café 250 g', 1850))})));
+    await tester.pumpAndSettle();
+    await tester.enterText(inputOf('Recibido ahora'), '3');
+    await tester.enterText(inputOf('Dañado'), '4');
+    await tester.pumpAndSettle();
+    expect(find.text('No puede ser más que lo recibido ahora.'), findsOneWidget);
+    await tester.ensureVisible(find.text('Registrar recepción'));
+    await tester.tap(find.text('Registrar recepción'));
+    await tester.pumpAndSettle();
+    expect(calls, isEmpty, reason: 'no se envía con dañado mayor que lo recibido');
+
+    await tester.enterText(inputOf('Dañado'), '1');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Registrar recepción'));
+    await tester.tap(find.text('Registrar recepción'));
+    await tester.pumpAndSettle();
+    expect(body(calls.single)['lines'], [
+      {'product_id': cafeId, 'received_milli': '3000', 'damaged_milli': '1000'}
+    ]);
+  });
+
+  testWidgets('R10 S-INV-05: «Cerrar con faltante» pide motivo, lo envía y muestra faltante, dañado y motivo',
+      (tester) async {
+    final calls = <http.Request>[];
+    Map<String, Object> closed() => {
+          ...order(status: 'PURCHASE_ORDER_STATUS_CLOSED_SHORT', received: 7000),
+          'close_reason': 'El proveedor no tiene más',
+          'lines': [
+            {'product_id': cafeId, 'ordered_milli': '10000', 'received_milli': '7000', 'damaged_milli': '1000', 'unit_cost': money(925)},
+          ],
+        };
+    final api = fakeApi({
+      'GET /v1/catalog/products': (_) => json(productsBody),
+      'POST /v1/inventory/purchase-orders/$poId/status': (_) => json(closed()),
+    }, calls: calls);
+    await tester.pumpWidget(harness(PurchaseOrderDetailScreen(
+        api: api,
+        order: PurchaseOrderItem.fromJson(order(status: 'PURCHASE_ORDER_STATUS_PARTIALLY_RECEIVED', received: 7000)),
+        canManage: true,
+        canReceive: true)));
+    await tester.pumpAndSettle();
+    expect(find.text('Cancelar la orden'), findsNothing, reason: 'recibida en parte ya no se cancela');
+    await tester.ensureVisible(find.text('Cerrar con faltante'));
+    await tester.tap(find.text('Cerrar con faltante'));
+    await tester.pumpAndSettle();
+    expect(find.text('Lo que falta deja de esperarse. Lo recibido no cambia.'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Cerrar con faltante').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Indica el motivo.'), findsOneWidget);
+    expect(calls.where((r) => r.method == 'POST'), isEmpty);
+
+    await tester.enterText(find.widgetWithText(TextField, 'Motivo'), 'El proveedor no tiene más');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Cerrar con faltante').last);
+    await tester.pumpAndSettle();
+    final b = body(calls.singleWhere((r) => r.method == 'POST'));
+    expect(b['status'], 'PURCHASE_ORDER_STATUS_CLOSED_SHORT');
+    expect(b['reason'], 'El proveedor no tiene más');
+    expect(find.text('Cerrada con faltante'), findsOneWidget);
+    expect(find.textContaining('Dañado 1'), findsOneWidget);
+    expect(find.textContaining('Faltante 3'), findsOneWidget);
+    expect(find.text('Motivo del cierre: El proveedor no tiene más'), findsOneWidget);
+    expect(find.text('Cerrar con faltante'), findsNothing, reason: 'una orden cerrada es final');
+  });
+
   testWidgets('S-INV-08: sugerencias reales; seleccionar abre la orden con el proveedor habitual',
       (tester) async {
     final calls = <http.Request>[];

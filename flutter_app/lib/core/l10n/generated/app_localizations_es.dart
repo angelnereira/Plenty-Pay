@@ -4768,6 +4768,40 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get error_EXCEEDS_BLOCKED => 'No hay tanta existencia bloqueada.';
+
+  @override
+  String get poStatusClosedShort => 'Cerrada con faltante';
+
+  @override
+  String get poCloseShort => 'Cerrar con faltante';
+
+  @override
+  String get poCloseShortTitle => '¿Cerrar con faltante?';
+
+  @override
+  String get poCloseShortBody =>
+      'Lo que falta deja de esperarse. Lo recibido no cambia.';
+
+  @override
+  String get poDamaged => 'Dañado';
+
+  @override
+  String poDamagedLine(String qty) {
+    return 'Dañado $qty';
+  }
+
+  @override
+  String poShortLine(String qty) {
+    return 'Faltante $qty';
+  }
+
+  @override
+  String poCloseReasonLine(String reason) {
+    return 'Motivo del cierre: $reason';
+  }
+
+  @override
+  String get poDamagedTooMuch => 'No puede ser más que lo recibido ahora.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

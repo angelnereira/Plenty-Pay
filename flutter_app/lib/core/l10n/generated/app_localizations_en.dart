@@ -4760,4 +4760,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get error_EXCEEDS_BLOCKED => 'There isn\'t that much blocked stock.';
+
+  @override
+  String get poStatusClosedShort => 'Closed short';
+
+  @override
+  String get poCloseShort => 'Close with shortage';
+
+  @override
+  String get poCloseShortTitle => 'Close with shortage?';
+
+  @override
+  String get poCloseShortBody =>
+      'What is missing is no longer expected. What was received does not change.';
+
+  @override
+  String get poDamaged => 'Damaged';
+
+  @override
+  String poDamagedLine(String qty) {
+    return 'Damaged $qty';
+  }
+
+  @override
+  String poShortLine(String qty) {
+    return 'Short $qty';
+  }
+
+  @override
+  String poCloseReasonLine(String reason) {
+    return 'Closing reason: $reason';
+  }
+
+  @override
+  String get poDamagedTooMuch => 'It cannot be more than received now.';
 }

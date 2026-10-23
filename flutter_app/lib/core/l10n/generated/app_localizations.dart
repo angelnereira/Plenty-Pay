@@ -8630,6 +8630,60 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No hay tanta existencia bloqueada.'**
   String get error_EXCEEDS_BLOCKED;
+
+  /// No description provided for @poStatusClosedShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrada con faltante'**
+  String get poStatusClosedShort;
+
+  /// No description provided for @poCloseShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar con faltante'**
+  String get poCloseShort;
+
+  /// No description provided for @poCloseShortTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cerrar con faltante?'**
+  String get poCloseShortTitle;
+
+  /// No description provided for @poCloseShortBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Lo que falta deja de esperarse. Lo recibido no cambia.'**
+  String get poCloseShortBody;
+
+  /// No description provided for @poDamaged.
+  ///
+  /// In es, this message translates to:
+  /// **'Dañado'**
+  String get poDamaged;
+
+  /// No description provided for @poDamagedLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Dañado {qty}'**
+  String poDamagedLine(String qty);
+
+  /// No description provided for @poShortLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Faltante {qty}'**
+  String poShortLine(String qty);
+
+  /// No description provided for @poCloseReasonLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo del cierre: {reason}'**
+  String poCloseReasonLine(String reason);
+
+  /// No description provided for @poDamagedTooMuch.
+  ///
+  /// In es, this message translates to:
+  /// **'No puede ser más que lo recibido ahora.'**
+  String get poDamagedTooMuch;
 }
 
 class _AppLocalizationsDelegate

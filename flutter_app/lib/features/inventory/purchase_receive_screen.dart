@@ -19,7 +19,8 @@ import 'stock_adjust_screen.dart' show LotExpiryField;
 /// e1 «Orden {número} · {proveedor}», e2 por línea «Pedido · Recibido antes · Recibido ahora»
 /// (propone lo pendiente; no se recibe más de lo pedido, `RECEIPT_EXCEEDS_ORDERED`), e4 factura del
 /// proveedor opcional, e5 «Registrar recepción». e3 (F16.8): lote y vencimiento por línea si el
-/// producto maneja lotes. F16.11 (C-27): «Escanear código» y lector; la primera lectura de una
+/// producto maneja lotes. e2b (F16.12): «Dañado» por línea, parte de lo recibido ahora que entra
+/// bloqueada. F16.11 (C-27): «Escanear código» y lector; la primera lectura de una
 /// línea reemplaza la cantidad propuesta por 1 y las siguientes suman 1.
 class PurchaseReceiveScreen extends StatefulWidget {
   const PurchaseReceiveScreen(
@@ -43,6 +44,12 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
             TextEditingController(text: formatQty(l.pendingMilli, 'UNIT')),
   };
   final _invoice = TextEditingController();
+
+  /// F16.12 (e2b): cuánto de lo recibido ahora llegó dañado (entra bloqueado).
+  late final Map<String, TextEditingController> _damaged = {
+    for (final l in widget.order.lines)
+      if (l.pendingMilli > 0) l.productId: TextEditingController(),
+  };
 
   /// F16.8: lote y vencimiento por línea de un producto que maneja lotes.
   late final Map<String, TextEditingController> _lot = {
@@ -98,7 +105,7 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
 
   @override
   void dispose() {
-    for (final c in [..._now.values, ..._lot.values]) {
+    for (final c in [..._now.values, ..._lot.values, ..._damaged.values]) {
       c.dispose();
     }
     _invoice.dispose();
@@ -113,12 +120,16 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
       if (c == null || c.text.trim().isEmpty) continue;
       final q = parseQtyMilli(c.text);
       if (q == null || q > l.pendingMilli) return null;
+      final dt = _damaged[l.productId]?.text.trim() ?? '';
+      final damaged = dt.isEmpty ? 0 : parseQtyMilli(dt);
+      if (damaged == null || damaged < 0 || damaged > q) return null;
       if (q > 0) {
         final lot = _lot[l.productId]?.text.trim() ?? '';
         final exp = _expiry[l.productId];
         out.add({
           'product_id': l.productId,
           'received_milli': '$q',
+          if (damaged > 0) 'damaged_milli': '$damaged',
           if (lot.isNotEmpty) 'lot_code': lot,
           if (exp != null) 'expires_at': lotDateWire(exp),
         });
@@ -213,6 +224,17 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
                             error: _lineError(l10n, l, c),
                           ),
                         ],
+                        if (_damaged[l.productId] case final dc?) ...[
+                          const SizedBox(height: AppTokens.spacingSm),
+                          PPTextField(
+                            controller: dc,
+                            labelText: l10n.poDamaged,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            onChanged: (_) => setState(() {}),
+                            error: _damagedError(l10n, l.productId),
+                          ),
+                        ],
                         if (_lot[l.productId] case final lc?) ...[
                           const SizedBox(height: AppTokens.spacingSm),
                           PPTextField(
@@ -262,6 +284,16 @@ class _PurchaseReceiveScreenState extends State<PurchaseReceiveScreen> {
 
   String _unit(String productId) =>
       widget.products[productId]?.unitType ?? 'UNIT';
+
+  /// F16.12: lo dañado no puede pasar lo recibido ahora.
+  String? _damagedError(AppLocalizations l10n, String productId) {
+    final t = _damaged[productId]?.text.trim() ?? '';
+    if (t.isEmpty) return null;
+    final d = parseQtyMilli(t);
+    if (d == null) return l10n.poInvalidQuantity;
+    final now = parseQtyMilli(_now[productId]?.text ?? '') ?? 0;
+    return d > now ? l10n.poDamagedTooMuch : null;
+  }
 
   String? _lineError(
       AppLocalizations l10n, PurchaseLineItem l, TextEditingController c) {

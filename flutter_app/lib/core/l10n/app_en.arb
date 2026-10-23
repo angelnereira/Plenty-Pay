@@ -1484,5 +1484,14 @@
   "invDays": "Days",
   "invExpiryAlertInvalid": "Enter 1 to 365 days.",
   "invExpiryAlertSaved": "Expiry alert saved.",
-  "error_EXCEEDS_BLOCKED": "There isn't that much blocked stock."
+  "error_EXCEEDS_BLOCKED": "There isn't that much blocked stock.",
+  "poStatusClosedShort": "Closed short",
+  "poCloseShort": "Close with shortage",
+  "poCloseShortTitle": "Close with shortage?",
+  "poCloseShortBody": "What is missing is no longer expected. What was received does not change.",
+  "poDamaged": "Damaged",
+  "poDamagedLine": "Damaged {qty}",
+  "poShortLine": "Short {qty}",
+  "poCloseReasonLine": "Closing reason: {reason}",
+  "poDamagedTooMuch": "It cannot be more than received now."
 }

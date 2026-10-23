@@ -140,6 +140,18 @@ void main() {
     'proveedores': () => SuppliersScreen(api: fakeApi(routes)),
     'órdenes de compra': () => PurchaseOrdersScreen(api: fakeApi(routes), canManage: true, canReceive: true),
     'detalle de orden': () => PurchaseOrderDetailScreen(api: fakeApi(routes), order: po, canManage: true, canReceive: true),
+    'orden cerrada con faltante': () => PurchaseOrderDetailScreen(
+        api: fakeApi(routes),
+        order: PurchaseOrderItem.fromJson({
+          ...purchaseOrder,
+          'status': 'PURCHASE_ORDER_STATUS_CLOSED_SHORT',
+          'close_reason': 'El proveedor confirmó que no tiene más existencias de este producto hasta el próximo año',
+          'lines': [
+            {'product_id': cafeId, 'ordered_milli': '1234000', 'received_milli': '1000', 'damaged_milli': '1000', 'unit_cost': {'amount_minor': '123456789', 'currency': 'USD'}},
+          ],
+        }),
+        canManage: true,
+        canReceive: true),
     'nueva orden': () => PurchaseOrderEditorScreen(api: fakeApi(routes), supplierId: 's-1', lines: const [PurchaseLineDraft(productId: cafeId, quantityMilli: 1234000)]),
     'recepción': () => PurchaseReceiveScreen(api: fakeApi(routes), order: po, products: {cafeId: ProductItem.fromJson(product(cafeId, 'Café de altura de Boquete tostado medio 250 g', 1850))}),
     'sugerencias de reorden': () => ReorderSuggestionsScreen(api: fakeApi(routes), canManage: true),

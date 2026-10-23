@@ -2250,5 +2250,35 @@
   "invDays": "Días",
   "invExpiryAlertInvalid": "Indica de 1 a 365 días.",
   "invExpiryAlertSaved": "Aviso de vencimiento guardado.",
-  "error_EXCEEDS_BLOCKED": "No hay tanta existencia bloqueada."
+  "error_EXCEEDS_BLOCKED": "No hay tanta existencia bloqueada.",
+  "poStatusClosedShort": "Cerrada con faltante",
+  "poCloseShort": "Cerrar con faltante",
+  "poCloseShortTitle": "¿Cerrar con faltante?",
+  "poCloseShortBody": "Lo que falta deja de esperarse. Lo recibido no cambia.",
+  "poDamaged": "Dañado",
+  "poDamagedLine": "Dañado {qty}",
+  "@poDamagedLine": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "poShortLine": "Faltante {qty}",
+  "@poShortLine": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "poCloseReasonLine": "Motivo del cierre: {reason}",
+  "@poCloseReasonLine": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "poDamagedTooMuch": "No puede ser más que lo recibido ahora."
 }

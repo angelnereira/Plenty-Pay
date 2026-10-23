@@ -37,7 +37,7 @@ class PurchaseOrdersScreen extends StatefulWidget {
   State<PurchaseOrdersScreen> createState() => _PurchaseOrdersScreenState();
 }
 
-const _statuses = ['DRAFT', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED'];
+const _statuses = ['DRAFT', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED', 'CLOSED_SHORT'];
 
 class _PurchaseOrdersScreenState extends State<PurchaseOrdersScreen> {
   String _status = '';
@@ -194,6 +194,31 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
     }
   }
 
+  /// F16.12: «Cerrar con faltante» con motivo obligatorio y confirmación (C-05).
+  Future<void> _closeShort() async {
+    final l10n = AppLocalizations.of(context);
+    final reason = await showDialog<String>(context: context, builder: (_) => const _CloseShortDialog());
+    if (reason == null || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final j = await widget.api.setPurchaseOrderStatus(_order.id, 'PURCHASE_ORDER_STATUS_CLOSED_SHORT',
+          reason: reason, idempotencyKey: newRequestId());
+      if (!mounted) return;
+      setState(() {
+        _order = PurchaseOrderItem.fromJson(j);
+        _changed = true;
+      });
+    } on Object catch (e) {
+      widget.api.logger.breadcrumb('ui', 'purchase.close_short', e is ApiException ? e.reason : 'network');
+      if (mounted) setState(() => _error = purchasingErrorMessage(l10n, e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _receive(Map<String, ProductItem> products) async {
     final updated = await Navigator.of(context).push<PurchaseOrderItem>(MaterialPageRoute(
         builder: (_) => PurchaseReceiveScreen(api: widget.api, order: _order, products: products)));
@@ -234,6 +259,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                 const SizedBox(height: AppTokens.spacingSm),
                 if (o.createdAt != null) Text(l10n.poCreatedOn(purchaseDate(o.createdAt!, locale))),
                 if (o.expectedAt != null) Text(l10n.poExpectedOn(purchaseDate(o.expectedAt!, locale))),
+                if (o.closedShort && o.closeReason.isNotEmpty) Text(l10n.poCloseReasonLine(o.closeReason)),
                 const SizedBox(height: AppTokens.spacingMd),
                 Card(
                   margin: EdgeInsets.zero,
@@ -243,11 +269,18 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                     for (final l in o.lines)
                       ListTile(
                         title: Text(products[l.productId]?.name ?? l10n.invUnknownProduct),
-                        subtitle: Text(l10n.poLineSummary(
-                          formatQty(l.orderedMilli, products[l.productId]?.unitType ?? 'UNIT'),
-                          formatQty(l.receivedMilli, products[l.productId]?.unitType ?? 'UNIT'),
-                          MoneyText.format(l.unitCostMinor),
-                        )),
+                        subtitle: Text([
+                          l10n.poLineSummary(
+                            formatQty(l.orderedMilli, products[l.productId]?.unitType ?? 'UNIT'),
+                            formatQty(l.receivedMilli, products[l.productId]?.unitType ?? 'UNIT'),
+                            MoneyText.format(l.unitCostMinor),
+                          ),
+                          // F16.12: dañado (entró bloqueado) y faltante al cerrar.
+                          if (l.damagedMilli > 0)
+                            l10n.poDamagedLine(formatQty(l.damagedMilli, products[l.productId]?.unitType ?? 'UNIT')),
+                          if (o.closedShort && l.pendingMilli > 0)
+                            l10n.poShortLine(formatQty(l.pendingMilli, products[l.productId]?.unitType ?? 'UNIT')),
+                        ].join(' · ')),
                       ),
                   ]),
                 ),
@@ -270,6 +303,10 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                 if (widget.canManage && o.cancellable) ...[
                   const SizedBox(height: AppTokens.spacingSm),
                   PPButton.text(label: l10n.poCancel, onPressed: _busy ? null : () => _setStatus('CANCELLED')),
+                ],
+                if (widget.canManage && o.closableShort) ...[
+                  const SizedBox(height: AppTokens.spacingSm),
+                  PPButton.text(label: l10n.poCloseShort, onPressed: _busy ? null : _closeShort),
                 ],
               ],
             );
@@ -558,6 +595,58 @@ class _LineCard extends StatelessWidget {
             ),
         ]),
       ),
+    );
+  }
+}
+
+/// F16.12 · «Cerrar con faltante»: motivo obligatorio y confirmación; devuelve el motivo o null.
+class _CloseShortDialog extends StatefulWidget {
+  const _CloseShortDialog();
+
+  @override
+  State<_CloseShortDialog> createState() => _CloseShortDialogState();
+}
+
+class _CloseShortDialogState extends State<_CloseShortDialog> {
+  final _reason = TextEditingController();
+  bool _submitted = false;
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final missing = _reason.text.trim().isEmpty;
+    return AlertDialog(
+      title: Text(l10n.poCloseShortTitle),
+      scrollable: true,
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text(l10n.poCloseShortBody),
+        const SizedBox(height: AppTokens.spacingMd),
+        TextField(
+          controller: _reason,
+          maxLength: 300,
+          decoration: InputDecoration(
+            labelText: l10n.invReason,
+            errorText: _submitted && missing ? l10n.error_REASON_REQUIRED : null,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.poKeep)),
+        TextButton(
+          onPressed: () {
+            setState(() => _submitted = true);
+            if (!missing) Navigator.pop(context, _reason.text.trim());
+          },
+          child: Text(l10n.poCloseShort),
+        ),
+      ],
     );
   }
 }

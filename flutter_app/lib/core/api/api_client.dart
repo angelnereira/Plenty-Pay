@@ -514,11 +514,12 @@ class ApiClient {
       _post('/v1/inventory/purchase-orders',
           data: {'order': order}, idempotencyKey: idempotencyKey);
 
-  /// `status`: PURCHASE_ORDER_STATUS_SENT o PURCHASE_ORDER_STATUS_CANCELLED.
+  /// `status`: PURCHASE_ORDER_STATUS_SENT, _CANCELLED o _CLOSED_SHORT (F16.12, con [reason]).
   Future<Map<String, dynamic>> setPurchaseOrderStatus(String id, String status,
-          {required String idempotencyKey}) =>
+          {String reason = '', required String idempotencyKey}) =>
       _post('/v1/inventory/purchase-orders/${Uri.encodeComponent(id)}/status',
-          data: {'status': status}, idempotencyKey: idempotencyKey);
+          data: {'status': status, if (reason.isNotEmpty) 'reason': reason},
+          idempotencyKey: idempotencyKey);
 
   Future<Map<String, dynamic>> receivePurchaseOrder(
           String id, List<Map<String, Object?>> lines,
