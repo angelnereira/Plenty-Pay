@@ -422,10 +422,11 @@ func lockLevels(ctx context.Context, tx pgx.Tx, tenantID string, keys map[string
 		var l domain.Level
 		var low *time.Time
 		if err := tx.QueryRow(ctx, `
-			SELECT tenant_id, warehouse_id, product_id, on_hand_milli, reserved_milli, reorder_point_milli,
+			SELECT tenant_id, warehouse_id, product_id, on_hand_milli, reserved_milli, blocked_milli, reorder_point_milli,
 			       low_notified_on::timestamptz, version
 			FROM stock_levels WHERE warehouse_id = $1 AND product_id = $2 FOR UPDATE`, wh, prod).
-			Scan(&l.TenantID, &l.WarehouseID, &l.ProductID, &l.OnHandMilli, &l.ReservedMilli, &l.ReorderPointMilli, &low, &l.Version); err != nil {
+			Scan(&l.TenantID, &l.WarehouseID, &l.ProductID, &l.OnHandMilli, &l.ReservedMilli, &l.BlockedMilli,
+				&l.ReorderPointMilli, &low, &l.Version); err != nil {
 			return nil, nil, fmt.Errorf("lock stock level: %w", err)
 		}
 		if low != nil {
@@ -450,9 +451,9 @@ func saveLevels(ctx context.Context, tx pgx.Tx, levels map[string]*domain.Level,
 		}
 		if _, err := tx.Exec(ctx, `
 			UPDATE stock_levels SET on_hand_milli = $3, reserved_milli = $4, version = $5, updated_at = $6,
-				low_notified_on = coalesce($7::date, low_notified_on)
+				low_notified_on = coalesce($7::date, low_notified_on), blocked_milli = $8
 			WHERE warehouse_id = $1 AND product_id = $2`, l.WarehouseID, l.ProductID, l.OnHandMilli, l.ReservedMilli,
-			l.Version, now, lowArg); err != nil {
+			l.Version, now, lowArg, l.BlockedMilli); err != nil {
 			return nil, nil, fmt.Errorf("update stock level: %w", err)
 		}
 		out = append(out, *l)
@@ -463,11 +464,12 @@ func saveLevels(ctx context.Context, tx pgx.Tx, levels map[string]*domain.Level,
 // ── Lecturas ───────────────────────────────────────────────────────────────────────────────
 
 // LevelCols es la proyección de una existencia.
-const levelCols = `tenant_id, warehouse_id, product_id, on_hand_milli, reserved_milli, reorder_point_milli, version`
+const levelCols = `tenant_id, warehouse_id, product_id, on_hand_milli, reserved_milli, reorder_point_milli, version, blocked_milli`
 
 func scanLevel(row pgx.Row) (domain.Level, error) {
 	var l domain.Level
-	err := row.Scan(&l.TenantID, &l.WarehouseID, &l.ProductID, &l.OnHandMilli, &l.ReservedMilli, &l.ReorderPointMilli, &l.Version)
+	err := row.Scan(&l.TenantID, &l.WarehouseID, &l.ProductID, &l.OnHandMilli, &l.ReservedMilli, &l.ReorderPointMilli,
+		&l.Version, &l.BlockedMilli)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return l, domain.ErrNotFound
 	}
@@ -487,7 +489,8 @@ func (s *Store) GetStock(ctx context.Context, tenantID, productID, warehouseID s
 		} else {
 			l, err = scanLevel(tx.QueryRow(ctx, `
 				SELECT $1::uuid, '00000000-0000-0000-0000-000000000000'::uuid, product_id, sum(on_hand_milli)::bigint,
-				       sum(reserved_milli)::bigint, max(reorder_point_milli)::bigint, max(version)::bigint
+				       sum(reserved_milli)::bigint, max(reorder_point_milli)::bigint, max(version)::bigint,
+				       sum(blocked_milli)::bigint
 				FROM stock_levels WHERE product_id = $2 GROUP BY product_id`, tenantID, productID))
 		}
 		return err
@@ -515,7 +518,7 @@ func (s *Store) SetReorderPoint(ctx context.Context, tenantID, warehouseID, prod
 }
 
 // ListStock pagina por (product_id, warehouse_id); `after` es "producto/bodega" de la última fila.
-// `onlyLow` filtra available ≤ punto de reorden o negativo.
+// `onlyLow` filtra available ≤ punto de reorden o negativo (available descuenta lo bloqueado).
 func (s *Store) ListStock(ctx context.Context, tenantID, warehouseID string, onlyLow bool, after string, limit int) ([]domain.Level, string, error) {
 	var out []domain.Level
 	afterProduct, afterWarehouse, _ := strings.Cut(after, "/")
@@ -523,8 +526,8 @@ func (s *Store) ListStock(ctx context.Context, tenantID, warehouseID string, onl
 		rows, err := tx.Query(ctx, `
 			SELECT `+levelCols+` FROM stock_levels
 			WHERE ($1 = '' OR warehouse_id::text = $1)
-			  AND (NOT $2 OR on_hand_milli - reserved_milli < 0
-			       OR (reorder_point_milli > 0 AND on_hand_milli - reserved_milli <= reorder_point_milli))
+			  AND (NOT $2 OR on_hand_milli - reserved_milli - blocked_milli < 0
+			       OR (reorder_point_milli > 0 AND on_hand_milli - reserved_milli - blocked_milli <= reorder_point_milli))
 			  AND ($3 = '' OR (product_id::text, warehouse_id::text) > ($3, $4))
 			ORDER BY product_id::text, warehouse_id::text LIMIT $5`, warehouseID, onlyLow, afterProduct, afterWarehouse, limit+1)
 		if err != nil {
@@ -597,12 +600,32 @@ func (s *Store) ListMovements(ctx context.Context, tenantID, productID, warehous
 	return out, nil, nil
 }
 
-// SumOfMovements recalcula on_hand desde los movimientos (R1: verificación).
+// SumOfMovements recalcula on_hand desde los movimientos físicos (R1: verificación); BLOCK y
+// UNBLOCK (F16.10) no cambian on_hand.
 func (s *Store) SumOfMovements(ctx context.Context, tenantID, warehouseID, productID string) (int64, error) {
 	var n int64
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT coalesce(sum(delta_milli), 0)::bigint FROM movements
-			WHERE warehouse_id = $1 AND product_id = $2`, warehouseID, productID).Scan(&n)
+			WHERE warehouse_id = $1 AND product_id = $2 AND type NOT IN (8, 9)`, warehouseID, productID).Scan(&n)
+	})
+	return n, err
+}
+
+// SumOfBlocks recalcula lo bloqueado desde BLOCK y UNBLOCK (F16.10, R1).
+func (s *Store) SumOfBlocks(ctx context.Context, tenantID, warehouseID, productID string) (int64, error) {
+	var n int64
+	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT coalesce(sum(delta_milli), 0)::bigint FROM movements
+			WHERE warehouse_id = $1 AND product_id = $2 AND type IN (8, 9)`, warehouseID, productID).Scan(&n)
+	})
+	return n, err
+}
+
+// BlockedLevels cuenta las existencias con algo bloqueado (métrica `pp_inventory_blocked_levels`).
+func (s *Store) BlockedLevels(ctx context.Context) (int64, error) {
+	var n int64
+	err := s.asSystem(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM stock_levels WHERE blocked_milli > 0`).Scan(&n)
 	})
 	return n, err
 }

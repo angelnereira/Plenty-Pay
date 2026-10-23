@@ -195,6 +195,11 @@ func backlogGauge(ctx context.Context, st *store.Store, metrics *observability.M
 				continue
 			}
 			metrics.Set("pp_outbox_pending", float64(n))
+			if b, err := st.BlockedLevels(ctx); err == nil {
+				metrics.Set("pp_inventory_blocked_levels", float64(b))
+			} else {
+				reporter.Dependency(ctx, "blocked levels query failed", "postgres-db", observability.Wrap(err, "blocked levels"))
+			}
 		}
 	}
 }

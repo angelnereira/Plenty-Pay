@@ -39,8 +39,8 @@ CREATE TABLE inventory.sales_velocity (tenant_id uuid, variant_id uuid, warehous
 | RPC | Permiso | Comportamiento clave | Errores (`reason`) |
 |---|---|---|---|
 | UpsertWarehouse / ListWarehouses | `inventory:adjust` / `inventory:read` | | `NOT_FOUND` |
-| GetStock / ListStock | `inventory:read` | `available = on_hand − reserved` por bodega/lote | `NOT_FOUND` |
-| AdjustStock | `inventory:adjust` (servicios pos/orders para SALE/RETURN) | movimiento con motivo obligatorio para ADJUSTMENT/WRITE_OFF | `VARIANT_NOT_FOUND`, `INVALID_MOVEMENT_TYPE`, `MOVEMENT_REASON_REQUIRED`, `LOT_REQUIRED`, `LOT_EXPIRED`, `OUT_OF_STOCK`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
+| GetStock / ListStock | `inventory:read` | `available = on_hand − reserved − blocked` por bodega/lote (R9) | `NOT_FOUND` |
+| AdjustStock | `inventory:adjust` (servicios pos/orders para SALE/RETURN) | movimiento con motivo obligatorio para ADJUSTMENT/WRITE_OFF/BLOCK/UNBLOCK; `from_blocked` (solo WRITE_OFF) da de baja lo bloqueado (R9) | `VARIANT_NOT_FOUND`, `INVALID_MOVEMENT_TYPE`, `MOVEMENT_REASON_REQUIRED`, `LOT_REQUIRED`, `LOT_EXPIRED`, `OUT_OF_STOCK`, `EXCEEDS_BLOCKED`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
 | TransferStock | `inventory:adjust` | TRANSFER_OUT + TRANSFER_IN en la misma transacción | `SAME_WAREHOUSE`, `VARIANT_NOT_FOUND`, `LOT_REQUIRED`, `OUT_OF_STOCK`, `NOT_FOUND`, `IDEMPOTENCY_KEY_REUSED` |
 | ListMovements | `inventory:read` | keyset por fecha | — |
 | ReserveStock / CommitReservation / ReleaseReservation | orders (servicio) | reserva todo-o-nada por pedido; commit genera SALE; TTL | `VARIANT_NOT_FOUND`, `OUT_OF_STOCK`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
@@ -48,7 +48,8 @@ CREATE TABLE inventory.sales_velocity (tenant_id uuid, variant_id uuid, warehous
 | CreatePurchaseOrder / UpdatePurchaseOrderStatus / ListPurchaseOrders | `inventory:purchase:manage` (listar también `inventory:receive`) | §8.12 domain-model; nace en DRAFT; DRAFT→SENT, DRAFT/SENT→CANCELLED; total = Σ half_up(cantidad × costo / 1000) | `VARIANT_NOT_FOUND`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
 | ReceiveGoods | `inventory:receive` | recepción parcial/total por línea (SENT o PARTIALLY_RECEIVED); RECEIPT con costo en la misma transacción; factura del proveedor opcional (≤ 60). Lotes con F16.4 | `UNKNOWN_ORDER_LINE`, `RECEIPT_EXCEEDS_ORDERED`, `LOT_REQUIRED`, `NOT_FOUND`, `INVALID_STATE_TRANSITION`, `IDEMPOTENCY_KEY_REUSED` |
 | GetReorderSuggestions | `inventory:read` | §5 R6 | — |
-| ListLots | `inventory:read` | lotes de un producto (de una bodega o todas), primero los que vencen antes; `expired` según la fecha de Panamá | `INVALID_REQUEST` |
+| ListLots | `inventory:read` | lotes de un producto (de una bodega o todas), primero los que vencen antes; `expired` según la fecha de Panamá; `blocked_milli` y `expires_soon` (R9); con `only_expiring`, los lotes con existencia vencidos o por vencer de todos los productos (hasta 500) | `INVALID_REQUEST` |
+| GetInventorySettings / UpdateInventorySettings | `inventory:read` / `inventory:adjust` | días de aviso de vencimiento del comercio, 1–365 (sin fijar: 30). Reemplazo: repetirlo deja lo mismo | `INVALID_REQUEST` |
 
 ## 5. Reglas
 - **Cumplimiento normativo** (`docs/compliance/regulatory-framework.md`): este contenedor implementa N-LOG-01 y N-LOG-07. Los valores legales se leen de los parámetros `legal.pa.*` de infra-management vigentes en la fecha del hecho, nunca de constantes en código.
@@ -60,6 +61,7 @@ CREATE TABLE inventory.sales_velocity (tenant_id uuid, variant_id uuid, warehous
 - **R6** Sugerencia de reorden: velocidad = media ponderada exponencial de ventas diarias (α=0.3, 28 días); días de cobertura = available / velocidad; sugerir si cobertura < lead_time + 7; cantidad = velocidad × (lead_time + 14) − available − en tránsito.
 - **R7** `StockLow` cuando cobertura < lead_time o available ≤ reorder_point (máx. 1 evento/día/variante).
 - **R8** `StockChanged` agregado (debounce 5 s por variante) para la proyección de catalog.
+- **R9** Existencia no vendible (F16.10, 2026-10-23): `available = on_hand − reserved − blocked`. BLOCK (+) aparta físico dañado, en revisión o retirado y UNBLOCK (−) lo libera; ambos con motivo, inmutables y sin cambiar `on_hand` (R1: `on_hand` = Σ movimientos físicos; `blocked` = Σ BLOCK/UNBLOCK). BLOCK solo toma lo disponible (`OUT_OF_STOCK`) y UNBLOCK no libera más de lo bloqueado (`EXCEEDS_BLOCKED`). Ninguna reserva, ajuste, baja, transferencia ni venta de un lote toma lo bloqueado; FEFO reparte solo lo libre de cada lote. Una venta física sin lote sigue pudiendo dejar `available` negativo (R2). En un producto con lotes, bloquear exige el lote (`lots.blocked_milli ≤ on_hand_milli`). La baja de lo bloqueado (`WRITE_OFF` con `from_blocked`) escribe UNBLOCK + WRITE_OFF con la misma clave en una transacción. «Vence pronto» = no vencido y vence dentro de `expiry_alert_days` días (parámetro del comercio). Los lotes vencidos no se cuentan como bloqueados: las ventas ya no los toman (R5, supuesto de Q-50); el comercio los da de baja. Métrica `pp_inventory_blocked_levels`.
 
 ## 6. Eventos
 Publica `StockLow`, `StockChanged`. Consume: `ProductChanged` (variantes nuevas/archivadas).
@@ -71,7 +73,7 @@ catalog (validar variante, 500 ms, lectura). Llamado por gateway, pos, orders, c
 100 reservas concurrentes sobre 50 unidades → exactamente 50 confirmadas; transferencia atómica; sugerencia de reorden con datos sintéticos coincide con cálculo de referencia.
 
 ## 12. Plan
-F16.1 bodegas/stock → F16.2 movimientos/ajustes → F16.3 reservas → F16.4 transferencias y lotes → F16.5 proveedores/OC/recepción → F16.6 velocidad, StockLow y reorden → F16.7 pantallas Flutter de inventario.
+F16.1 bodegas/stock → F16.2 movimientos/ajustes → F16.3 reservas → F16.4 transferencias y lotes → F16.5 proveedores/OC/recepción → F16.6 velocidad, StockLow y reorden → F16.7 pantallas Flutter de inventario → F16.10 existencia bloqueada y aviso de vencimiento (R9).
 
 ## 13. Estado de implementación (2026-10-20)
 - **Implementado**: UpsertWarehouse, ListWarehouses (crea la bodega por defecto «Bodega principal» si no hay), GetStock (sin bodega suma todas; sin movimientos = 0), ListStock (keyset producto/bodega, `only_low`), AdjustStock, TransferStock, ListMovements. Reservas, proveedores, compras, recepción y reorden responden `UNIMPLEMENTED`.

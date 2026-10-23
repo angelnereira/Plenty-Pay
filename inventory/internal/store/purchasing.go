@@ -349,7 +349,7 @@ func (s *Store) ReorderData(ctx context.Context, tenantID, warehouseID string, n
 	var out []ReorderRow
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT l.product_id::text, l.warehouse_id::text, l.on_hand_milli - l.reserved_milli, l.reorder_point_milli,
+			SELECT l.product_id::text, l.warehouse_id::text, l.on_hand_milli - l.reserved_milli - l.blocked_milli, l.reorder_point_milli,
 			  coalesce((SELECT sum(pl.ordered_milli - pl.received_milli) FROM purchase_order_lines pl
 			            JOIN purchase_orders po ON po.id = pl.purchase_order_id
 			            WHERE pl.product_id = l.product_id AND po.warehouse_id = l.warehouse_id AND po.status IN (2, 3)), 0)::bigint,

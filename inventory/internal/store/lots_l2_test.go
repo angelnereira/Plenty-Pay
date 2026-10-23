@@ -29,7 +29,7 @@ func lotIn(t *testing.T, s *service.Inventory, tenant, product, code string, mil
 
 func lotsByCode(t *testing.T, s *service.Inventory, tenant, product string) map[string]int64 {
 	t.Helper()
-	lots, err := s.ListLots(context.Background(), tenant, product, "", true)
+	lots, _, err := s.ListLots(context.Background(), tenant, service.LotsRequest{ProductID: product, IncludeEmpty: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestL2_R5_TransferMirrorsLotsAndReservationsSellFEFO(t *testing.T) {
 	if _, _, err := s.TransferStock(ctx, person(tenant), key(), product, a.ID, b.ID, 3000, "reposición", ""); err != nil {
 		t.Fatal(err)
 	}
-	inB, err := s.ListLots(ctx, tenant, product, b.ID, false)
+	inB, _, err := s.ListLots(ctx, tenant, service.LotsRequest{ProductID: product, WarehouseID: b.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestL2_R5_TransferMirrorsLotsAndReservationsSellFEFO(t *testing.T) {
 	if _, err := s.CommitReservation(ctx, orders(tenant), r.ID); err != nil {
 		t.Fatal(err)
 	}
-	inA, err := s.ListLots(ctx, tenant, product, a.ID, true)
+	inA, _, err := s.ListLots(ctx, tenant, service.LotsRequest{ProductID: product, WarehouseID: a.ID, IncludeEmpty: true})
 	if err != nil {
 		t.Fatal(err)
 	}

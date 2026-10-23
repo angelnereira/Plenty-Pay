@@ -23,6 +23,7 @@ var (
 	ErrKeyReused           = errors.New("idempotency key reused")
 	ErrServiceOnly         = errors.New("movement type reserved to services")
 	ErrInvalidTransition   = errors.New("invalid state transition")
+	ErrExceedsBlocked      = errors.New("exceeds blocked stock")
 )
 
 // MovementType (inventory.proto MovementType).
@@ -36,7 +37,13 @@ const (
 	TransferIn  MovementType = 5
 	Return      MovementType = 6
 	WriteOff    MovementType = 7
+	Block       MovementType = 8 // F16.10: aparta existencia física como no vendible
+	Unblock     MovementType = 9 // F16.10: la libera
 )
+
+// Physical: el tipo cambia la existencia física (on_hand). BLOCK y UNBLOCK solo cambian lo
+// bloqueado (R1: on_hand = Σ movimientos físicos; bloqueado = Σ BLOCK/UNBLOCK).
+func (t MovementType) Physical() bool { return t != Block && t != Unblock }
 
 // MaxReasonLength del motivo de un ajuste.
 const MaxReasonLength = 300
@@ -72,7 +79,8 @@ var ServiceTypes = map[MovementType]bool{Sale: true, Return: true}
 var SellingServices = map[string]bool{"pos": true, "orders": true}
 
 // Validate aplica el signo de cada tipo y el motivo obligatorio (SPEC §4): RECEIPT y RETURN
-// entran (+), SALE y WRITE_OFF salen (−), ADJUSTMENT va en cualquier sentido con motivo.
+// entran (+), SALE y WRITE_OFF salen (−), ADJUSTMENT va en cualquier sentido con motivo. F16.10:
+// BLOCK suma a lo bloqueado (+) y UNBLOCK resta (−), ambos con motivo.
 func (m Movement) Validate() error {
 	if m.DeltaMilli == 0 {
 		return ErrInvalidQty
@@ -82,8 +90,12 @@ func (m Movement) Validate() error {
 		if m.DeltaMilli < 0 {
 			return ErrInvalidQty
 		}
-	case Sale, WriteOff, TransferOut:
+	case Sale, WriteOff, TransferOut, Unblock:
 		if m.DeltaMilli > 0 {
+			return ErrInvalidQty
+		}
+	case Block:
+		if m.DeltaMilli < 0 {
 			return ErrInvalidQty
 		}
 	case Adjustment:
@@ -91,7 +103,7 @@ func (m Movement) Validate() error {
 		return ErrInvalidMovementType
 	}
 	reason := strings.TrimSpace(m.Reason)
-	if (m.Type == Adjustment || m.Type == WriteOff) && reason == "" {
+	if (m.Type == Adjustment || m.Type == WriteOff || !m.Type.Physical()) && reason == "" {
 		return ErrReasonRequired
 	}
 	if utf8.RuneCountInString(reason) > MaxReasonLength {
@@ -119,22 +131,37 @@ type Level struct {
 	ProductID         string
 	OnHandMilli       int64
 	ReservedMilli     int64
+	BlockedMilli      int64 // F16.10: físico no vendible
 	ReorderPointMilli int64
 	LowNotifiedOn     time.Time // R7: a lo sumo un StockLow por día y producto
 	Version           int64
 }
 
-// Available = on_hand − reserved.
-func (l Level) Available() int64 { return l.OnHandMilli - l.ReservedMilli }
+// Available = on_hand − reserved − blocked (F16.10): ni reservas ni ventas toman lo bloqueado.
+func (l Level) Available() int64 { return l.OnHandMilli - l.ReservedMilli - l.BlockedMilli }
 
 // Apply suma el movimiento. R2: por defecto `available` no puede quedar < 0; una venta física
 // (SALE) sí puede dejarlo negativo: ya ocurrió y se marca para revisión con StockLow.
+// F16.10: BLOCK solo toma lo disponible y UNBLOCK no libera más de lo bloqueado; ninguno cambia
+// on_hand.
 func (l *Level) Apply(m Movement) error {
-	next := l.OnHandMilli + m.DeltaMilli
-	if m.DeltaMilli < 0 && m.Type != Sale && next-l.ReservedMilli < 0 {
-		return ErrOutOfStock
+	switch m.Type {
+	case Block:
+		if l.Available() < m.DeltaMilli {
+			return ErrOutOfStock
+		}
+		l.BlockedMilli += m.DeltaMilli
+	case Unblock:
+		if l.BlockedMilli < -m.DeltaMilli {
+			return ErrExceedsBlocked
+		}
+		l.BlockedMilli += m.DeltaMilli
+	default:
+		if m.DeltaMilli < 0 && m.Type != Sale && l.Available()+m.DeltaMilli < 0 {
+			return ErrOutOfStock
+		}
+		l.OnHandMilli += m.DeltaMilli
 	}
-	l.OnHandMilli = next
 	l.Version++
 	return nil
 }

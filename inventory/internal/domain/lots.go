@@ -55,13 +55,42 @@ func DateOnly(t time.Time) time.Time {
 
 // Lot es un lote de un producto en una bodega.
 type Lot struct {
-	ID          string
-	TenantID    string
-	WarehouseID string
-	ProductID   string
-	Code        string
-	ExpiresOn   *time.Time // fecha pura; nil = no vence
-	OnHandMilli int64
+	ID           string
+	TenantID     string
+	WarehouseID  string
+	ProductID    string
+	Code         string
+	ExpiresOn    *time.Time // fecha pura; nil = no vence
+	OnHandMilli  int64
+	BlockedMilli int64 // F16.10: parte bloqueada; FEFO y las salidas no la toman
+}
+
+// Free: lo que se puede vender, reservar o mover del lote.
+func (l Lot) Free() int64 { return l.OnHandMilli - l.BlockedMilli }
+
+// ExpiresSoon: no vencido y vence dentro de `days` días desde hoy (F16.10, aviso del comercio).
+func (l Lot) ExpiresSoon(today time.Time, days int) bool {
+	return l.ExpiresOn != nil && !l.Expired(today) && l.ExpiresOn.Before(today.AddDate(0, 0, days+1))
+}
+
+// Settings son los parámetros de inventario del comercio (F16.10).
+type Settings struct {
+	TenantID        string
+	ExpiryAlertDays int
+}
+
+// DefaultExpiryAlertDays: anticipación del aviso «Vence pronto» si el comercio no la fijó.
+const DefaultExpiryAlertDays = 30
+
+// ErrInvalidSettings: días de aviso fuera de 1–365.
+var ErrInvalidSettings = errors.New("invalid inventory settings")
+
+// Validate: 1–365 días.
+func (s Settings) Validate() error {
+	if s.ExpiryAlertDays < 1 || s.ExpiryAlertDays > 365 {
+		return ErrInvalidSettings
+	}
+	return nil
 }
 
 // Expired: vence antes de hoy. Un lote que vence hoy aún se vende hoy.
@@ -80,7 +109,7 @@ type Allocation struct {
 func AllocateFEFO(lots []Lot, qtyMilli int64, today time.Time, includeExpired bool) ([]Allocation, int64) {
 	candidates := make([]Lot, 0, len(lots))
 	for _, l := range lots {
-		if l.OnHandMilli <= 0 || (!includeExpired && l.Expired(today)) {
+		if l.Free() <= 0 || (!includeExpired && l.Expired(today)) {
 			continue
 		}
 		candidates = append(candidates, l)
@@ -105,7 +134,7 @@ func AllocateFEFO(lots []Lot, qtyMilli int64, today time.Time, includeExpired bo
 		if remaining <= 0 {
 			break
 		}
-		take := min(l.OnHandMilli, remaining)
+		take := min(l.Free(), remaining)
 		out = append(out, Allocation{Lot: l, Milli: take})
 		remaining -= take
 	}

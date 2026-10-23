@@ -22,7 +22,9 @@ import (
 // Store es lo que el servicio usa de la persistencia.
 type Store interface {
 	Apply(ctx context.Context, b store.Batch, events store.EventsFor) (store.Applied, error)
-	ListLots(ctx context.Context, tenantID, productID, warehouseID string, includeEmpty bool) ([]domain.Lot, error)
+	ListLots(ctx context.Context, tenantID string, f store.LotFilter) ([]domain.Lot, error)
+	Settings(ctx context.Context, tenantID string) (domain.Settings, error)
+	SaveSettings(ctx context.Context, st domain.Settings, actorID string, now time.Time) (domain.Settings, error)
 	DefaultWarehouse(ctx context.Context, tenantID, newID string, now time.Time) (domain.Warehouse, error)
 	UpsertWarehouse(ctx context.Context, w domain.Warehouse, create bool) (domain.Warehouse, error)
 	ListWarehouses(ctx context.Context, tenantID, newID string, now time.Time) ([]domain.Warehouse, error)
@@ -167,6 +169,7 @@ type AdjustRequest struct {
 	ReferenceID    string
 	LotCode        string     // F16.4
 	LotExpiresOn   *time.Time // F16.4: al crear el lote en una entrada
+	FromBlocked    bool       // F16.10: WRITE_OFF de lo bloqueado (UNBLOCK + WRITE_OFF juntos)
 }
 
 // AdjustStock registra un movimiento (SPEC §4). Idempotente por clave dentro del tenant.
@@ -180,23 +183,41 @@ func (s *Inventory) AdjustStock(ctx context.Context, c Caller, r AdjustRequest) 
 	if err := m.AllowedFor(c.Service); err != nil {
 		return m, err
 	}
+	if r.FromBlocked && r.Type != domain.WriteOff {
+		return m, domain.ErrInvalidMovementType
+	}
 	p, err := s.trackedProduct(ctx, r.ProductID, r.Type)
 	if err != nil {
 		return m, err
 	}
 	// Una devolución de caja (RETURN) reingresa sin lote: pos no sabe de qué lote salió la venta.
-	// Volver al lote original queda pendiente (F17.9).
-	if err := lotFields(&m, r.LotCode, r.LotExpiresOn, p.TracksLots && r.DeltaMilli > 0 && r.Type != domain.Return); err != nil {
+	// Volver al lote original queda pendiente (F17.9). F16.10: bloquear o desbloquear un producto
+	// con lotes exige el lote.
+	requireLot := p.TracksLots && ((r.DeltaMilli > 0 && r.Type != domain.Return && r.Type.Physical()) ||
+		!r.Type.Physical() || r.FromBlocked)
+	if err := lotFields(&m, r.LotCode, r.LotExpiresOn, requireLot); err != nil {
 		return m, err
+	}
+	moves := []domain.Movement{m}
+	if r.FromBlocked {
+		// F16.10: primero se libera lo bloqueado y la baja lo toma, en la misma transacción.
+		un := m
+		un.ID, un.Type = s.newID(), domain.Unblock
+		moves = []domain.Movement{un, m}
 	}
 	res, err := s.store.Apply(ctx, store.Batch{
 		TenantID: c.TenantID, IdempotencyKey: r.IdempotencyKey, NewWarehouseID: s.newID(), Now: s.now(),
 		RequestHash: requestHash("adjust", r.ProductID, r.WarehouseID, fmt.Sprint(r.DeltaMilli), fmt.Sprint(r.Type),
-			m.Reason, r.ReferenceType, r.ReferenceID, lotHash(m.LotCode, m.LotExpiresOn)),
-		Movements: []domain.Movement{m},
+			m.Reason, r.ReferenceType, r.ReferenceID, lotHash(m.LotCode, m.LotExpiresOn), fmt.Sprint(r.FromBlocked)),
+		Movements: moves,
 	}, s.eventsFor)
 	if err != nil {
 		return m, err
+	}
+	for _, mv := range res.Movements {
+		if mv.Type == r.Type {
+			return mv, nil
+		}
 	}
 	return res.Movements[0], nil
 }
@@ -363,7 +384,37 @@ func (s *Inventory) ExpireReservations(ctx context.Context, limit int) (int, err
 	return n, nil
 }
 
-// ListLots: lotes de un producto (F16.4).
-func (s *Inventory) ListLots(ctx context.Context, tenantID, productID, warehouseID string, includeEmpty bool) ([]domain.Lot, error) {
-	return s.store.ListLots(ctx, tenantID, productID, warehouseID, includeEmpty)
+// LotsRequest: lotes de un producto (F16.4) o, con OnlyExpiring, los vencidos o por vencer de
+// todos los productos según los días de aviso del comercio (F16.10).
+type LotsRequest struct {
+	ProductID    string
+	WarehouseID  string
+	IncludeEmpty bool
+	OnlyExpiring bool
+}
+
+// ListLots devuelve los lotes y los días de aviso con que se marcan «Vence pronto».
+func (s *Inventory) ListLots(ctx context.Context, tenantID string, r LotsRequest) ([]domain.Lot, int, error) {
+	st, err := s.store.Settings(ctx, tenantID)
+	if err != nil {
+		return nil, 0, err
+	}
+	until := domain.Today(s.now()).AddDate(0, 0, st.ExpiryAlertDays)
+	lots, err := s.store.ListLots(ctx, tenantID, store.LotFilter{ProductID: r.ProductID, WarehouseID: r.WarehouseID,
+		IncludeEmpty: r.IncludeEmpty, OnlyExpiring: r.OnlyExpiring, Until: until})
+	return lots, st.ExpiryAlertDays, err
+}
+
+// Settings lee los parámetros de inventario del comercio (F16.10).
+func (s *Inventory) Settings(ctx context.Context, tenantID string) (domain.Settings, error) {
+	return s.store.Settings(ctx, tenantID)
+}
+
+// UpdateSettings valida y guarda los parámetros (F16.10).
+func (s *Inventory) UpdateSettings(ctx context.Context, c Caller, st domain.Settings) (domain.Settings, error) {
+	st.TenantID = c.TenantID
+	if err := st.Validate(); err != nil {
+		return st, err
+	}
+	return s.store.SaveSettings(ctx, st, c.UserID, s.now())
 }

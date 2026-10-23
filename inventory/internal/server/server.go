@@ -52,6 +52,10 @@ func toStatus(err error) error {
 		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "código de lote inválido")
 	case errors.Is(err, domain.ErrOutOfStock):
 		return ErrorInfo(codes.FailedPrecondition, "OUT_OF_STOCK", "no hay existencia suficiente")
+	case errors.Is(err, domain.ErrExceedsBlocked):
+		return ErrorInfo(codes.FailedPrecondition, "EXCEEDS_BLOCKED", "no hay tanta existencia bloqueada")
+	case errors.Is(err, domain.ErrInvalidSettings):
+		return ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "los días de aviso van de 1 a 365")
 	case errors.Is(err, domain.ErrReasonRequired):
 		return ErrorInfo(codes.InvalidArgument, "MOVEMENT_REASON_REQUIRED", "indica el motivo del ajuste")
 	case errors.Is(err, domain.ErrInvalidMovementType), errors.Is(err, domain.ErrServiceOnly):
@@ -146,35 +150,71 @@ func dateTS(d *time.Time) *timestamppb.Timestamp {
 	return timestamppb.New(time.Date(d.Year(), d.Month(), d.Day(), 5, 0, 0, 0, time.UTC))
 }
 
-func lotPB(l domain.Lot, today time.Time) *pb.Lot {
+func lotPB(l domain.Lot, today time.Time, alertDays int) *pb.Lot {
 	return &pb.Lot{LotId: l.ID, ProductId: l.ProductID, WarehouseId: l.WarehouseID, Code: l.Code,
-		ExpiresAt: dateTS(l.ExpiresOn), OnHandMilli: l.OnHandMilli, Expired: l.Expired(today)}
+		ExpiresAt: dateTS(l.ExpiresOn), OnHandMilli: l.OnHandMilli, Expired: l.Expired(today),
+		BlockedMilli: l.BlockedMilli, ExpiresSoon: l.ExpiresSoon(today, alertDays)}
 }
 
-// ListLots devuelve los lotes de un producto, primero los que vencen antes (F16.4, R5).
+// ListLots devuelve los lotes de un producto, primero los que vencen antes (F16.4, R5); con
+// only_expiring, los vencidos o por vencer de todos los productos (F16.10).
 func (s *Server) ListLots(ctx context.Context, req *pb.ListLotsRequest) (*pb.ListLotsResponse, error) {
 	a, err := authorize(ctx, "inventory:read")
 	if err != nil {
 		return nil, err
 	}
-	if _, err := uuid.Parse(req.GetProductId()); err != nil {
+	if _, err := uuid.Parse(req.GetProductId()); err != nil && !(req.GetOnlyExpiring() && req.GetProductId() == "") {
 		return nil, ErrorInfo(codes.InvalidArgument, "INVALID_REQUEST", "producto inválido")
 	}
-	lots, err := s.svc.ListLots(ctx, a.TenantID, req.GetProductId(), req.GetWarehouseId(), req.GetIncludeEmpty())
+	lots, days, err := s.svc.ListLots(ctx, a.TenantID, service.LotsRequest{ProductID: req.GetProductId(),
+		WarehouseID: req.GetWarehouseId(), IncludeEmpty: req.GetIncludeEmpty(), OnlyExpiring: req.GetOnlyExpiring()})
 	if err != nil {
 		return nil, toStatus(err)
 	}
 	out := &pb.ListLotsResponse{}
 	today := domain.Today(time.Now())
 	for _, l := range lots {
-		out.Lots = append(out.Lots, lotPB(l, today))
+		out.Lots = append(out.Lots, lotPB(l, today, days))
 	}
 	return out, nil
 }
 
+func settingsPB(st domain.Settings) *pb.InventorySettings {
+	return &pb.InventorySettings{ExpiryAlertDays: int32(st.ExpiryAlertDays)}
+}
+
+// GetInventorySettings: parámetros de inventario del comercio (F16.10).
+func (s *Server) GetInventorySettings(ctx context.Context, _ *pb.GetInventorySettingsRequest) (*pb.InventorySettings, error) {
+	a, err := authorize(ctx, "inventory:read")
+	if err != nil {
+		return nil, err
+	}
+	st, err := s.svc.Settings(ctx, a.TenantID)
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return settingsPB(st), nil
+}
+
+// UpdateInventorySettings fija los días de aviso de vencimiento (F16.10). Es un reemplazo: repetirlo
+// con el mismo contenido deja el mismo resultado.
+func (s *Server) UpdateInventorySettings(ctx context.Context, req *pb.UpdateInventorySettingsRequest) (*pb.InventorySettings, error) {
+	a, err := authorize(ctx, "inventory:adjust")
+	if err != nil {
+		return nil, err
+	}
+	st, err := s.svc.UpdateSettings(ctx, caller(a), domain.Settings{
+		ExpiryAlertDays: int(req.GetSettings().GetExpiryAlertDays())})
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return settingsPB(st), nil
+}
+
 func levelPB(l domain.Level) *pb.StockLevel {
 	return &pb.StockLevel{ProductId: l.ProductID, WarehouseId: l.WarehouseID, OnHandMilli: l.OnHandMilli,
-		ReservedMilli: l.ReservedMilli, AvailableMilli: l.Available(), ReorderPointMilli: l.ReorderPointMilli}
+		ReservedMilli: l.ReservedMilli, AvailableMilli: l.Available(), ReorderPointMilli: l.ReorderPointMilli,
+		BlockedMilli: l.BlockedMilli}
 }
 
 func warehousePB(w domain.Warehouse) *pb.Warehouse {
@@ -194,7 +234,7 @@ func (s *Server) AdjustStock(ctx context.Context, req *pb.AdjustStockRequest) (*
 		IdempotencyKey: req.GetIdempotencyKey(), ProductID: req.GetProductId(), WarehouseID: req.GetWarehouseId(),
 		DeltaMilli: req.GetDeltaMilli(), Type: domain.MovementType(req.GetType()), Reason: req.GetReason(),
 		ReferenceType: req.GetReference().GetType(), ReferenceID: req.GetReference().GetId(),
-		LotCode: req.GetLotCode(), LotExpiresOn: optTime(req.GetLotExpiresAt()),
+		LotCode: req.GetLotCode(), LotExpiresOn: optTime(req.GetLotExpiresAt()), FromBlocked: req.GetFromBlocked(),
 	})
 	if err != nil {
 		return nil, toStatus(err)

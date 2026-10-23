@@ -16,12 +16,12 @@ import (
 // Se resuelven dentro de la transacción que ya bloqueó la existencia (bodega, producto) en
 // lockLevels, así que dos movimientos del mismo producto nunca reparten el mismo lote a la vez.
 
-const lotCols = `id, tenant_id, warehouse_id, product_id, code, expires_on::timestamp, on_hand_milli`
+const lotCols = `id, tenant_id, warehouse_id, product_id, code, expires_on::timestamp, on_hand_milli, blocked_milli`
 
 func scanLot(row pgx.Row) (domain.Lot, error) {
 	var l domain.Lot
 	var exp *time.Time
-	err := row.Scan(&l.ID, &l.TenantID, &l.WarehouseID, &l.ProductID, &l.Code, &exp, &l.OnHandMilli)
+	err := row.Scan(&l.ID, &l.TenantID, &l.WarehouseID, &l.ProductID, &l.Code, &exp, &l.OnHandMilli, &l.BlockedMilli)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return l, domain.ErrLotNotFound
 	}
@@ -81,6 +81,9 @@ func withLot(m domain.Movement, l domain.Lot, delta int64, first bool) domain.Mo
 func resolveLots(ctx context.Context, tx pgx.Tx, tenantID string, m domain.Movement, now time.Time,
 	mirror map[string][]domain.Allocation) ([]domain.Movement, error) {
 	today := domain.Today(now)
+	if !m.Type.Physical() {
+		return resolveBlock(ctx, tx, tenantID, m, now)
+	}
 	if m.DeltaMilli > 0 {
 		if m.Type == domain.TransferIn && m.LotCode == "" {
 			if allocs := mirror[m.ProductID]; len(allocs) > 0 {
@@ -136,8 +139,8 @@ func resolveLots(ctx context.Context, tx pgx.Tx, tenantID string, m domain.Movem
 		if m.Type == domain.Sale && lot.Expired(today) {
 			return nil, domain.ErrLotExpired
 		}
-		if lot.OnHandMilli < qty {
-			return nil, domain.ErrOutOfStock
+		if lot.Free() < qty {
+			return nil, domain.ErrOutOfStock // F16.10: lo bloqueado del lote no sale
 		}
 		if err := addToLot(ctx, tx, lot.ID, -qty, now); err != nil {
 			return nil, err
@@ -192,13 +195,58 @@ func resolveLots(ctx context.Context, tx pgx.Tx, tenantID string, m domain.Movem
 	return out, nil
 }
 
-// ListLots devuelve los lotes de un producto (de una bodega o de todas), primero los que vencen.
-func (s *Store) ListLots(ctx context.Context, tenantID, productID, warehouseID string, includeEmpty bool) ([]domain.Lot, error) {
+// resolveBlock aplica BLOCK o UNBLOCK (F16.10) al lote indicado: BLOCK solo toma lo libre del
+// lote y UNBLOCK no libera más de lo bloqueado. Sin código, un producto con lotes exige el lote
+// (RequireLot); sin lotes, el bloqueo queda solo en la existencia agregada.
+func resolveBlock(ctx context.Context, tx pgx.Tx, tenantID string, m domain.Movement, now time.Time) ([]domain.Movement, error) {
+	if m.LotCode == "" {
+		if m.RequireLot {
+			return nil, domain.ErrLotRequired
+		}
+		return []domain.Movement{m}, nil
+	}
+	lot, err := scanLot(tx.QueryRow(ctx, `SELECT `+lotCols+` FROM lots
+		WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND code = $4 FOR UPDATE`,
+		tenantID, m.WarehouseID, m.ProductID, m.LotCode))
+	if err != nil {
+		return nil, err
+	}
+	if m.Type == domain.Block && lot.Free() < m.DeltaMilli {
+		return nil, domain.ErrOutOfStock
+	}
+	if m.Type == domain.Unblock && lot.BlockedMilli < -m.DeltaMilli {
+		return nil, domain.ErrExceedsBlocked
+	}
+	if _, err := tx.Exec(ctx, `UPDATE lots SET blocked_milli = blocked_milli + $2, updated_at = $3 WHERE id = $1`,
+		lot.ID, m.DeltaMilli, now); err != nil {
+		return nil, fmt.Errorf("block lot: %w", err)
+	}
+	return []domain.Movement{withLot(m, lot, m.DeltaMilli, true)}, nil
+}
+
+// LotFilter elige qué lotes listar. Con OnlyExpiring, el producto es opcional y salen los lotes
+// con existencia vencidos o que vencen hasta Until (inclusive), de todos los productos.
+type LotFilter struct {
+	ProductID    string
+	WarehouseID  string
+	IncludeEmpty bool
+	OnlyExpiring bool
+	Until        time.Time
+}
+
+// ListLots devuelve los lotes (de una bodega o de todas), primero los que vencen.
+func (s *Store) ListLots(ctx context.Context, tenantID string, f LotFilter) ([]domain.Lot, error) {
 	var out []domain.Lot
+	var until any
+	if f.OnlyExpiring {
+		until = f.Until.UTC().Format("2006-01-02")
+	}
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT `+lotCols+` FROM lots
-			WHERE product_id = $1 AND ($2 = '' OR warehouse_id::text = $2) AND ($3 OR on_hand_milli > 0)
-			ORDER BY expires_on NULLS LAST, code, warehouse_id`, productID, warehouseID, includeEmpty)
+			WHERE ($1 = '' OR product_id::text = $1) AND ($2 = '' OR warehouse_id::text = $2) AND ($3 OR on_hand_milli > 0)
+			  AND ($4::date IS NULL OR (expires_on IS NOT NULL AND expires_on <= $4::date AND on_hand_milli > 0))
+			ORDER BY expires_on NULLS LAST, code, warehouse_id LIMIT 500`,
+			f.ProductID, f.WarehouseID, f.IncludeEmpty, until)
 		if err != nil {
 			return fmt.Errorf("list lots: %w", err)
 		}
@@ -213,4 +261,41 @@ func (s *Store) ListLots(ctx context.Context, tenantID, productID, warehouseID s
 		return rows.Err()
 	})
 	return out, err
+}
+
+// ── Parámetros del comercio (F16.10) ───────────────────────────────────────────────────────
+
+// Settings lee los parámetros de inventario; sin fila, los valores por defecto.
+func (s *Store) Settings(ctx context.Context, tenantID string) (domain.Settings, error) {
+	out := domain.Settings{TenantID: tenantID, ExpiryAlertDays: domain.DefaultExpiryAlertDays}
+	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		err := tx.QueryRow(ctx, `SELECT expiry_alert_days FROM settings WHERE tenant_id = $1`, tenantID).
+			Scan(&out.ExpiryAlertDays)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("read inventory settings: %w", err)
+		}
+		return nil
+	})
+	return out, err
+}
+
+// SaveSettings guarda los parámetros (último que escribe gana; es idempotente por contenido).
+func (s *Store) SaveSettings(ctx context.Context, st domain.Settings, actorID string, now time.Time) (domain.Settings, error) {
+	var actor any
+	if actorID != "" {
+		actor = actorID
+	}
+	err := s.inTenant(ctx, st.TenantID, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO settings (tenant_id, expiry_alert_days, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4) ON CONFLICT (tenant_id) DO UPDATE SET expiry_alert_days = EXCLUDED.expiry_alert_days,
+			updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at`,
+			st.TenantID, st.ExpiryAlertDays, actor, now); err != nil {
+			return fmt.Errorf("save inventory settings: %w", err)
+		}
+		return nil
+	})
+	return st, err
 }
