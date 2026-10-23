@@ -336,6 +336,19 @@ var commerceRoutes = []Route{
 		NewResponse: func() proto.Message { return &pb.Sale{} },
 	},
 	{
+		// F17.11: configuración de caja. La lee quien vende; la cambia quien administra la caja.
+		Method: "GET", Path: "/v1/pos/settings", RPC: "/plentypay.pos.v1.Pos/GetPosSettings",
+		Backend: BackendPos, RequireAuth: true, Permission: "pos:sell|pos:settings:manage",
+		NewRequest:  func() proto.Message { return &pb.GetPosSettingsRequest{} },
+		NewResponse: func() proto.Message { return &pb.PosSettings{} },
+	},
+	{
+		Method: "PUT", Path: "/v1/pos/settings", RPC: "/plentypay.pos.v1.Pos/UpdatePosSettings",
+		Backend: BackendPos, RequireAuth: true, Idempotency: true, Permission: "pos:settings:manage",
+		NewRequest:  func() proto.Message { return &pb.UpdatePosSettingsRequest{} },
+		NewResponse: func() proto.Message { return &pb.PosSettings{} },
+	},
+	{
 		Method: "GET", Path: "/v1/pos/sales", RPC: "/plentypay.pos.v1.Pos/ListSales",
 		Backend: BackendPos, RequireAuth: true, Permission: "pos:sell",
 		QueryParams: map[string]string{"session_id": "session_id", "status": "status", "from": "range.from",

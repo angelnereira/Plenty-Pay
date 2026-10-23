@@ -25,6 +25,7 @@ func TestF15_F17_CommerceMutationsCarryIdempotencyKey(t *testing.T) {
 		{"POST", "/v1/inventory/adjustments", func(m proto.Message) string { return m.(*pb.AdjustStockRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/inventory/transfers", func(m proto.Message) string { return m.(*pb.TransferStockRequest).GetIdempotencyKey() }},
 		{"PUT", "/v1/inventory/settings", func(m proto.Message) string { return m.(*pb.UpdateInventorySettingsRequest).GetIdempotencyKey() }},
+		{"PUT", "/v1/pos/settings", func(m proto.Message) string { return m.(*pb.UpdatePosSettingsRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/pos/sessions", func(m proto.Message) string { return m.(*pb.OpenCashSessionRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/pos/sessions/" + pid + "/close", func(m proto.Message) string { return m.(*pb.CloseCashSessionRequest).GetIdempotencyKey() }},
 		{"POST", "/v1/pos/sales", func(m proto.Message) string { return m.(*pb.CreateSaleRequest).GetIdempotencyKey() }},
@@ -172,5 +173,25 @@ func TestF16_12_CloseShortReasonAndDamagedDecode(t *testing.T) {
 	}
 	if l := msg.(*pb.ReceiveGoodsRequest).GetLines()[0]; l.GetDamagedMilli() != 2000 {
 		t.Fatalf("línea = %v", l)
+	}
+}
+
+// F17.11: la configuración de caja viaja con sus enums y su versión.
+func TestF17_11_PosSettingsDecode(t *testing.T) {
+	r := route(t, "PUT", "/v1/pos/settings")
+	req := httptest.NewRequest("PUT", "/v1/pos/settings", strings.NewReader(
+		`{"settings":{"checkout_preference":"CHECKOUT_PREFERENCE_AUTO_THRESHOLD","auto_threshold_minor":"5000","cash_enabled":true,"enabled_rails":["PAYMENT_RAIL_WALLET"],"receipt_footer":"Gracias","max_discount_bps":1000,"version":3}}`))
+	req.Header.Set("Idempotency-Key", "k-0123456789abcdef")
+	msg, err := r.DecodeRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := msg.(*pb.UpdatePosSettingsRequest).GetSettings()
+	if s.GetCheckoutPreference() != pb.CheckoutPreference_CHECKOUT_PREFERENCE_AUTO_THRESHOLD || s.GetMaxDiscountBps() != 1000 ||
+		s.GetVersion() != 3 || len(s.GetEnabledRails()) != 1 {
+		t.Fatalf("settings = %v", s)
+	}
+	if r := route(t, "GET", "/v1/pos/settings"); r.Permission != "pos:sell|pos:settings:manage" {
+		t.Fatalf("GET: %q", r.Permission)
 	}
 }

@@ -155,9 +155,10 @@ Convenciones: `{id}` = UUIDv7; listas aceptan `?page_size=&page_token=`; mutacio
 |---|---|---|
 | POST `/v1/pos/sessions` · `/v1/pos/sessions/{id}/close` · GET `/{id}` | Open/Close/GetCashSession | `pos:session:manage` |
 | POST `/v1/pos/sessions/{id}/cash-movements` | RecordCashMovement | `pos:session:manage` |
-| POST `/v1/pos/sales` · PATCH `/{id}` · POST `/{id}/park` · `/{id}/resume` | Create/Update/Park/ResumeSale | `pos:sell` (+ `pos:discount:apply` si hay descuento) |
+| POST `/v1/pos/sales` · PATCH `/{id}` · POST `/{id}/park` · `/{id}/resume` | Create/Update/Park/ResumeSale | `pos:sell` (+ `pos:discount:apply` si el descuento pasa el tope de la configuración de caja) |
 | POST `/v1/pos/sales/{id}/checkout` | pos.Checkout | `pos:sell` |
 | POST `/v1/pos/sales/{id}/void` · `/{id}/refund` 🔒 | VoidSale · RefundSale | `pos:void` · `pos:refund` |
+| GET/PUT `/v1/pos/settings` | Get/UpdatePosSettings (F17.11, R14 de pos) | `pos:sell` o `pos:settings:manage` / `pos:settings:manage` |
 | GET `/v1/pos/sales` · `/{id}` · `/{id}/receipt` | ListSales · GetSale · GetReceipt | `pos:sell` |
 | POST `/v1/pos/sync` | SyncOfflineSales | `pos:sell` |
 | GET/PUT `/v1/pos/settings` | Get/UpdatePosSettings | `pos:sell` / `pos:settings:manage` |
