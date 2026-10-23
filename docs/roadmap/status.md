@@ -277,6 +277,7 @@ Regla: un módulo sin servicio desplegado muestra su estado vacío (AGENTS.md §
 | F16.14 inventory consume `catalog.product.changed` (hueco 2) | 📋 | Paso nuevo (2026-10-23): ficha en [`execution/ola-2-documento-y-aviso.md`](execution/ola-2-documento-y-aviso.md#f1614--inventory-consume-catalogproductchanged) y [`lifecycles.md`](lifecycles.md) §5. |
 | F16.15 Devolución al proveedor | 📋 | Paso nuevo (2026-10-23); depende de F16.12 ✅. Ficha en [`execution/ola-4-vuelta-del-producto.md`](execution/ola-4-vuelta-del-producto.md#f1615--devolución-al-proveedor). |
 | F16.16 Verificación diaria de invariantes de inventario | 📋 | Paso nuevo (2026-10-23). Ficha en [`execution/ola-2-documento-y-aviso.md`](execution/ola-2-documento-y-aviso.md#f1616--verificación-diaria-de-invariantes-de-inventario). |
+| F16.17 Cuentas por pagar a proveedores (opcional por comercio) | 📋 | Paso nuevo (2026-10-23) tras resolver Q-55 («configurable»). Ficha en [`execution/ola-4-vuelta-del-producto.md`](execution/ola-4-vuelta-del-producto.md#f1617--cuentas-por-pagar-a-proveedores-opcional). |
 
 ## F17 — Punto de venta
 

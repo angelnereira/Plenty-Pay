@@ -43,7 +43,7 @@ R10 en `inventory/SPEC.md` y §8.12 en `domain-model.md` (estado `CLOSED_SHORT`)
 2. **Ola 2 en paralelo** ([fichas](execution/ola-2-documento-y-aviso.md)): dar servidor a notifications (F20.1–F20.2) destraba avisos, factura por correo y el hueco 1 (invitaciones que no se entregan).
 3. F16.13 (historial de compras) queda en la ola 4; el costo de lo vendido sigue ⛔ Q-52.
 
-Decisiones abiertas nuevas: Q-55 (pagos a proveedores) y Q-56 (remesa del ITBMS de la plataforma). Antes de la ola 5 hace falta un ADR sobre geolocalización (GeoStream o PostGIS). Antes de la ola 6, corregir el comentario de `PostMemoEntryRequest.kind` (T8 = puntos, T9 = crédito según `domain-model.md`).
+Decisión abierta nueva: Q-56 (remesa del ITBMS de la plataforma; el dueño indicó periodicidad mensual, falta plantilla, responsable y confirmación del contador). Q-55 quedó resuelta el 2026-10-23: cuentas por pagar a proveedores **configurables por comercio** (paso F16.17, ola 4). Antes de la ola 5 hace falta un ADR sobre geolocalización (GeoStream o PostGIS). Antes de la ola 6, corregir el comentario de `PostMemoEntryRequest.kind` (T8 = puntos, T9 = crédito según `domain-model.md`).
 
 ## 4. Comandos
 | Para | Comando |

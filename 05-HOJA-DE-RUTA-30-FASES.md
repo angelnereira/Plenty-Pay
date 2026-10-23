@@ -343,6 +343,7 @@ Fichas ejecutables de los pasos abiertos de F15 (25 campos): [`docs/roadmap/comm
 | F16.14 | inventory consume `catalog.product.changed` (hueco 2 de `event-chains.md`) | inventory, catalog | El punto de reorden llega a inventory en ≤ 30 s, una vez aunque el evento se repita | L2 |
 | F16.15 | Devolución al proveedor (depende de F16.12) | inventory, flutter_app | Nunca más de lo recibido de la orden; R1 y bloqueado = Σ siguen cuadrando | L2 |
 | F16.16 | Verificación diaria de invariantes de inventario | inventory, observability | Base sana → 0 violaciones; una diferencia sembrada se detecta y alerta | L2 |
+| F16.17 | Cuentas por pagar a proveedores, opcional por comercio (Q-55 resuelta) | inventory, flutter_app | Módulo apagado no cambia nada; saldo del proveedor = Σ deudas − Σ pagos, sin pagar dos veces | L2 |
 
 Fichas ejecutables (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §A y §B. Fichas de ejecución de F16.14–F16.16: [`docs/roadmap/execution/`](docs/roadmap/execution/README.md).
 

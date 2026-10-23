@@ -12,8 +12,7 @@
 | Q-10 | Conector bancario para pagar a comercios | T6 bancario (F12.4) | negocio + banco |
 | Q-11 | PAC y reglas vigentes del SFEP | factura válida (F13, F30.3) | negocio + contador |
 | Q-53 | Dominio público para `/t/<código>` | F23.5, QR leídos con la cámara | dueño |
-| Q-55 | ¿PlentyPay registra/paga deudas del comercio con proveedores? | P1/M6 de compras | producto |
-| Q-56 | Remesa del ITBMS cobrado sobre comisiones (plantilla y periodicidad) | M8 | contador + legal |
+| Q-56 | Remesa del ITBMS cobrado sobre comisiones: periodicidad **mensual** (respuesta parcial del dueño, ◐); faltan plantilla y responsable | M8 | contador + legal |
 
 ## 2. Pasos
 
@@ -58,7 +57,7 @@ Nivel L4 · **Bloqueo** Q-03. El adaptador queda oculto por bandera hasta tener 
 ### M8 · Remesa del ITBMS de la plataforma
 Nivel L2 · **Bloqueo** Q-56.
 - **Problema**: `TAX_PAYABLE` (ITBMS cobrado sobre las comisiones de PlentyPay) solo crece: no hay plantilla de asiento para su pago a la DGI.
-- **Qué hace un agente**: nada en código. Prepara la propuesta para la decisión: plantilla candidata `D TAX_PAYABLE x · C BANK_CASH x` con clave `taxremit:<período>`, periodicidad (mensual, día 15 del mes siguiente según la norma que se confirme) y reporte del período que cuadra con F13.8. La plantilla se agrega a `domain-model.md` §5.2 **solo** cuando Q-56 se responda.
+- **Qué hace un agente**: nada en código contable hasta que el contador confirme. Ya se sabe (respuesta parcial del dueño, 2026-10-23) que la periodicidad es **mensual**: se modela como parámetro `legal.pa.itbms.remittance_period` con valor por defecto mensual y vencimiento el día 15 del mes siguiente (N-FIS-11 ◐), configurable, nunca constante en código. Prepara la propuesta para la decisión: plantilla candidata `D TAX_PAYABLE x · C BANK_CASH x` con clave `taxremit:<período>`, quién la ejecuta y el reporte mensual que cuadra con F13.8. La plantilla se agrega a `domain-model.md` §5.2 **solo** cuando Q-56 se responda.
 
 ### F13.8 · Factura de comisiones de PlentyPay
 Nivel L4 · Estado 📝 (reabierto).

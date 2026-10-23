@@ -10,7 +10,7 @@ _Escrito el 2026-10-23 con el estado verificado ese día (v0.13.0)._
 - Cada fila dice **qué falta exactamente**, el paso que lo hace (`F<nn>.<m>`), su estado (✅ hecho · 📝 parcial · 📋 pendiente · ⛔ bloqueado) y su criterio de terminado.
 - Los **puntos de contacto** (§3) son los lugares donde los dos ciclos se tocan: una venta mueve a la vez existencias y dinero, y ahí es donde un fallo deja inconsistencias. Son lo primero que se prueba.
 - **Cómo ejecutar cada paso** (archivos, contrato, migración, pruebas con nombre, comandos, despliegue, guion L4): [`execution/`](execution/README.md), una ficha por paso, en el orden de las olas de §4.
-- Los **pasos nuevos** que este documento propone tienen ficha corta en §5 y fila 📋 en `status.md`. Las **decisiones** que no puede tomar un agente están en `open-questions.md` (Q-55, Q-56).
+- Los **pasos nuevos** que este documento propone tienen ficha corta en §5 y fila 📋 en `status.md`. Las **decisiones** que no puede tomar un agente están en `open-questions.md` (Q-56, con respuesta parcial: mensual; Q-55 resuelta).
 
 ### Estado por etapa (2026-10-23)
 
@@ -58,7 +58,7 @@ El comercio decide qué comprar, a quién y a qué costo.
 | ITBMS por línea en la orden y total con impuesto | F16.5 (pendiente de S-INV-05) | 📋 | La orden muestra subtotal, ITBMS por tasa y total, con la tasa vigente leída de `legal.pa.*` |
 | Enviar la orden al proveedor por correo con PDF | F20.2 + S-INV-05 | 📋 | El proveedor recibe el PDF; el envío queda registrado; sin notifications la acción no aparece |
 | Historial de compras y **costo de adquisición** por producto | F16.13 | 📋 (costo de lo vendido ⛔ Q-52) | Último costo y costo promedio de compra visibles por producto; el costo de lo vendido espera Q-52 |
-| **Pago al proveedor** (cuentas por pagar del comercio) | — | ⛔ **Q-55** | Decisión de producto: ¿PlentyPay registra o paga deudas del comercio con sus proveedores? |
+| **Cuentas por pagar a proveedores**, opcional por comercio (Q-55 resuelta: configurable) | **F16.17** (nuevo) | 📋 | Con el módulo activo, cada recepción deja la deuda con el proveedor; el comercio registra sus pagos y ve lo pendiente por proveedor y vencimiento. Con el módulo apagado, nada cambia |
 
 ### P2 · Recepción (inventory · compras)
 La mercancía llega y entra al inventario con su lote, su estado y su documento.
@@ -261,11 +261,11 @@ Cada ola cierra un tramo de punta a punta en producción. Dentro de cada ola el 
 1. **Ola 1 · Lo que ya se vende queda cerrado** (P5, M2, M7, sin dependencias nuevas): F16.11 (cámara), F17.5 L4, F17.3 reporte Z, F17.11, F17.12 + F16.9 (sucursal), F17.13, F15.8 y F15.9 L4, F15.10 y F17.10 (integration_test), F11.6 y F17.9 L4 del reintegro al saldo. → [`execution/ola-1-venta-cerrada.md`](execution/ola-1-venta-cerrada.md)
 2. **Ola 2 · El hecho se documenta y se avisa** (P6, P3, M8): desplegar notifications (F20.1–F20.8; cierra el hueco 1), F15.13, F13.3, F13.5 (con la decisión del hueco 3), F13.6, F13.9; F16.14; F16.16. → [`execution/ola-2-documento-y-aviso.md`](execution/ola-2-documento-y-aviso.md)
 3. **Ola 3 · El dinero sale hacia el comercio** (M4–M6, M9): F10.6, F10.7, F12.4–F12.8, F10.8. → [`execution/ola-3-dinero-al-comercio.md`](execution/ola-3-dinero-al-comercio.md)
-4. **Ola 4 · El producto completa su vuelta** (P1, P2, P8): F16.13 (sin costo de lo vendido hasta Q-52), ITBMS y envío de la orden de compra, F16.15, F17.20, F17.14, F15.1, F15.2, F15.11, F15.12, F15.3, F15.5. → [`execution/ola-4-vuelta-del-producto.md`](execution/ola-4-vuelta-del-producto.md)
+4. **Ola 4 · El producto completa su vuelta** (P1, P2, P8): F16.13 (sin costo de lo vendido hasta Q-52), ITBMS y envío de la orden de compra, F16.17 (cuentas por pagar opcionales), F16.15, F17.20, F17.14, F15.1, F15.2, F15.11, F15.12, F15.3, F15.5. → [`execution/ola-4-vuelta-del-producto.md`](execution/ola-4-vuelta-del-producto.md)
 5. **Ola 5 · Entrega a domicilio** (P7): ADR de geolocalización, F14.*, F18.1–F18.8 (requiere F14/F15 cerrados; mapa ⛔ Q-49). → [`execution/ola-5-entrega.md`](execution/ola-5-entrega.md)
 6. **Ola 6 · Fidelización y crédito** (M2): F17.6, F17.15–F17.17 (activación ⛔ Q-45), F19.6 (nómina T10). → [`execution/ola-6-fidelizacion-y-credito.md`](execution/ola-6-fidelizacion-y-credito.md)
 7. **Ola 7 · Análisis** (P9): F21.1–F21.10. → [`execution/ola-7-analisis.md`](execution/ola-7-analisis.md)
-8. **Ola 8 · Dinero real** (M0, M6, M8): Q-02, Q-03, Q-10, Q-11, Q-53, Q-55, Q-56 resueltas → F11.8, F23.2–F23.6, riel bancario, PAC real, F13.8, remesa del ITBMS; F28 y F30. → [`execution/ola-8-dinero-real.md`](execution/ola-8-dinero-real.md)
+8. **Ola 8 · Dinero real** (M0, M6, M8): Q-02, Q-03, Q-10, Q-11, Q-53, Q-56 resueltas → F11.8, F23.2–F23.6, riel bancario, PAC real, F13.8, remesa del ITBMS; F28 y F30. → [`execution/ola-8-dinero-real.md`](execution/ola-8-dinero-real.md)
 
 ## 5. Pasos nuevos propuestos (fichas cortas)
 
@@ -274,9 +274,10 @@ Cada ola cierra un tramo de punta a punta en producción. Dentro de cada ola el 
 | **F16.14** inventory consume `catalog.product.changed` | Registrar el producto rastreable, su bandera de lotes y su punto de reorden al crearlo o editarlo (hueco 2) | inventory (consumidor durable con `processed_events`), catalog (el evento lleva el mínimo) | F15.1, F16.6 | Crear un producto con mínimo 5 deja su punto de reorden en inventory en ≤ 30 s, una vez aunque el evento llegue dos veces | L2 con NATS efímero; consumidor idempotente |
 | **F16.15** Devolución al proveedor | Movimiento `RETURN_TO_SUPPLIER` (enum aditivo) que saca existencia —de lo bloqueado si viene de un dañado— con referencia a la orden y nota del proveedor | inventory (contrato, dominio, store), S-INV-05 acción «Devolver al proveedor» | F16.12 | Lo devuelto sale de la existencia y del lote; R1 y bloqueado = Σ siguen cuadrando; nunca más de lo recibido de esa orden | L1 de signo y tope; L2 de tope concurrente y lote |
 | **F16.16** Verificación diaria de invariantes de inventario | Job que recalcula `on_hand`, bloqueado y Σ lotes contra los movimientos por (bodega, producto) | inventory (job + métrica `pp_inventory_invariant_violations_total` + alerta) | F16.10 | En una base sana la métrica es 0; una diferencia sembrada en la prueba se detecta y se registra con bodega y producto | L2 con base efímera |
+| **F16.17** Cuentas por pagar a proveedores (opcional por comercio, Q-55) | Con el módulo activo, cada recepción crea la deuda con el proveedor (costo × recibido, menos devoluciones); pagos registrados contra ella; saldo por proveedor y vencimiento por días de crédito | inventory (compras) | F16.13 (líneas de recepción con costo) | Con el módulo apagado nada cambia; con el módulo activo, saldo del proveedor = Σ recepciones − Σ devoluciones − Σ pagos, sin pagar dos veces la misma deuda | L1 del saldo; L2 de concurrencia de pagos |
 | **F17.20** Devolución al lote original | pos guarda el lote de cada línea al descontar (de la respuesta de inventory) y el RETURN reingresa a ese lote | pos (campo aditivo por línea), inventory (RETURN con lote) | F16.4, F17.9 | Vender 3 de un lote y devolver 1 deja ese lote con +1; un producto sin lotes no cambia | L2 en pos e inventory |
 
 ## 6. Decisiones abiertas que este documento agrega
 
-- **Q-55** · Pagos a proveedores: ¿PlentyPay solo registra la compra (inventario y costo) o también la deuda con el proveedor y su pago (cuentas por pagar, pago desde la billetera del comercio)? Afecta P1 y M6.
-- **Q-56** · ITBMS cobrado por PlentyPay sobre sus comisiones: plantilla de asiento para remesarlo (TAX_PAYABLE → BANK_CASH), periodicidad y responsable. Afecta M8.
+- **Q-55** · Pagos a proveedores — **resuelta el 2026-10-23: configurable por comercio** (módulo opcional, apagado por defecto). Se ejecuta como F16.17.
+- **Q-56** · ITBMS cobrado por PlentyPay sobre sus comisiones: plantilla de asiento para remesarlo (TAX_PAYABLE → BANK_CASH), periodicidad y responsable. Afecta M8. **Respuesta parcial (2026-10-23)**: mensual según el dueño (coherente con N-FIS-11 ◐); falta plantilla, responsable y confirmación del contador.

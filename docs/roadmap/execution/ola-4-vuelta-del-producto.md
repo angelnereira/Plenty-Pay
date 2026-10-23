@@ -7,6 +7,7 @@
 | 1 | [F16.13](#f1613--historial-de-compras-y-costo-de-adquisición) Historial de compras y costo | inventory, app | L2 | F16.5 ✅ | costo de lo vendido ⛔ Q-52 |
 | 2 | [Orden de compra con ITBMS y envío](#s-inv-05--itbms-por-línea-y-envío-al-proveedor) | inventory, notifications, app | L2 | F20.2 (envío) | — |
 | 3 | [F16.15](#f1615--devolución-al-proveedor) Devolución al proveedor | inventory, app | L2 | F16.12 ✅ | — |
+| 3b | [F16.17](#f1617--cuentas-por-pagar-a-proveedores-opcional) Cuentas por pagar a proveedores (opcional) | inventory, app | L2 | F16.13, F16.15 | — (Q-55 resuelta) |
 | 4 | [F17.20](#f1720--devolución-al-lote-original) Devolución al lote original | pos, inventory | L2 | F16.4 ✅, F17.9 | — |
 | 5 | [F17.14](#f1714--correcciones-posteriores-a-la-venta) Correcciones posteriores a la venta | flutter_app, pos | L1 | F17.9, F13.5 | — |
 | 6 | [F15.1](#f151--variantes-y-precio-por-sucursal) Variantes y precio por sucursal | catalog, inventory, pos, orders, app | L2 | — | — |
@@ -49,6 +50,18 @@ Ficha corta: [`../lifecycles.md`](../lifecycles.md) §5 · Ciclo P2 · Nivel L2 
 - **Permisos**: `inventory:purchase:manage`.
 - **Pruebas**: L1 `TestF16_15_ReturnSignAndCap`; L2 `TestL2_F16_15_ReturnFromBlockedKeepsR1`, `TestL2_F16_15_ConcurrentReturnsNeverExceedReceived`.
 - **Terminado cuando**: el criterio de la ficha corta.
+
+### F16.17 · Cuentas por pagar a proveedores (opcional)
+Ciclo P1 · M6 · Nivel L2 · Estado 📋 (paso nuevo; Q-55 resuelta el 2026-10-23: **configurable por comercio**).
+- **Precedencia**: F16.13 (líneas de recepción con costo) y F16.15 (devoluciones que reducen la deuda).
+- **Decisión vigente**: módulo **opcional, apagado por defecto**. Con el módulo apagado nada cambia: la compra se registra igual (existencias y costo). Con el módulo activo, PlentyPay lleva la deuda del comercio con cada proveedor y los pagos que el comercio **registra** (pago hecho por fuera: transferencia, cheque, efectivo). Pagar al proveedor **desde la billetera** del comercio movería dinero en el ledger (no hay plantilla para pagar a quien no es usuario de PlentyPay): queda fuera de este paso y, si se quiere, es una pregunta nueva con su plantilla (como Q-56).
+- **Resultado observable**: el dueño activa «Cuentas por pagar» (S-INV-07, actualizar la ficha); cada recepción crea la deuda (Σ costo × recibido, ITBMS si la orden lo trae); una devolución al proveedor la reduce; el dueño registra un pago con fecha, medio y referencia; ve por proveedor lo pendiente y lo vencido según los días de crédito.
+- **Contrato** (`inventory.proto`, aditivo): `InventorySettings.payables_enabled = 2`; `Supplier.credit_days = …` (siguiente libre); `rpc ListPayables(ListPayablesRequest) returns (ListPayablesResponse)` (por proveedor: `owed`, `paid`, `balance`, `overdue`); `rpc RecordSupplierPayment(RecordSupplierPaymentRequest) returns (SupplierPayment)` con `idempotency_key`, `supplier_id`, `amount`, `paid_on`, `method` (`TRANSFER|CHECK|CASH|OTHER`), `reference` (≤ 60), `note`.
+- **Datos**: `supplier_payables(id, tenant_id, supplier_id, purchase_order_id, receipt_id, amount_minor, due_on, created_at)` (una por recepción, inmutable; las devoluciones crean una fila negativa), `supplier_payments(id, tenant_id, supplier_id, amount_minor, paid_on, method, reference, note, created_by, idempotency_key UNIQUE, created_at)` inmutable (un pago equivocado se corrige con otro de signo contrario y motivo, nunca se borra).
+- **Reglas**: saldo del proveedor = Σ deudas − Σ pagos; un pago no puede dejar el saldo negativo salvo que se marque «anticipo» (decisión menor del paso: si hay duda, no permitir y preguntar); montos en centavos; vencimiento = fecha de recepción + `credit_days`.
+- **Permisos**: ver y registrar pagos: `inventory:purchase:manage`; activar el módulo: `inventory:purchase:manage` (o uno nuevo `inventory:payables:manage` si se quiere separar funciones: agregarlo a identity y al glosario en el mismo cambio).
+- **Pruebas**: L1 `TestF16_17_BalanceIsDebtsMinusPayments`; L2 `TestL2_F16_17_ModuleOffChangesNothing`, `TestL2_F16_17_ReceiptCreatesPayableOnce`, `TestL2_F16_17_ConcurrentPaymentsNeverOverpay`, `TestL2_F16_17_ReturnReducesPayable`.
+- **Terminado cuando**: el criterio de [`../lifecycles.md`](../lifecycles.md) §5 (F16.17) con L2.
 
 ### F17.20 · Devolución al lote original
 Ficha corta: [`../lifecycles.md`](../lifecycles.md) §5 · Ciclo P8 · Nivel L2 · Estado 📋 (paso nuevo; nota abierta de F17.9: «Volver al lote original queda pendiente»).
