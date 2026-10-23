@@ -63,6 +63,7 @@ void main() {
       'GET /v1/inventory/warehouses': (_) => json(warehousesBody),
       'GET /v1/catalog/products': (_) => json(productsBody),
       'GET /v1/inventory/stock': (_) => json({'levels': <Object>[]}),
+      'GET /v1/inventory/lots': (_) => json({'lots': <Object>[]}),
       'GET /v1/me/permissions': (_) => json({
             'role': 'cashier',
             'enabled_modules': ['inventory'],

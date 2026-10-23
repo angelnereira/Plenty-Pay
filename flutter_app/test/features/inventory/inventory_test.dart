@@ -29,6 +29,7 @@ void main() {
             ],
             'page': {'next_page_token': ''},
           }),
+      'GET /v1/inventory/lots': (_) => json({'lots': <Object>[]}),
     });
     await tester.pumpWidget(harness(InventoryScreen(api: api)));
     await tester.pumpAndSettle();

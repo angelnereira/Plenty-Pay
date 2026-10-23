@@ -76,14 +76,24 @@ Botón primario "Guardar". Acción secundaria "Archivar" (C-05; el producto deja
 
 | Id | Componente | Texto visible | Comportamiento y validación |
 |---|---|---|---|
-| e1 | Tarjetas de alerta | {n} por agotarse · {n} agotados · {n} lotes por vencer | Filtran la lista |
+| e1 | Tarjetas de alerta | {n} por agotarse · {n} agotados · {n} lotes por vencer | Filtran la lista. F16.10: «lotes por vencer» cuenta los lotes con existencia vencidos o que vencen dentro de los días de aviso del comercio (`GET /v1/inventory/lots?only_expiring=true`) y deja en la lista los productos de esos lotes |
 | e2 | Selector | Bodega | "Todas" suma |
 | e3 | Buscador y escáner | — | — |
-| e4 | Tabla | Producto · Disponible · Reservado · En camino · Mínimo · Días de cobertura | Cantidades con su unidad SI. Negativo en `error` |
-| e5 | Menú | Ajustar · Transferir · Órdenes de compra · Proveedores · Sugerencias de reorden · Exportar | Según permiso: `inventory:adjust`, `inventory:purchase:manage` o `inventory:receive` (órdenes), `inventory:purchase:manage` (proveedores), `inventory:read` (sugerencias). *Pendiente*: Exportar |
+| e4 | Tabla | Producto · Disponible · Reservado · Bloqueado · En camino · Mínimo · Días de cobertura | Cantidades con su unidad SI. Negativo en `error`. F16.10: «Bloqueado» solo si es mayor que 0; el disponible ya lo descuenta |
+| e5 | Menú | Ajustar · Transferir · Órdenes de compra · Proveedores · Sugerencias de reorden · Aviso de vencimiento · Exportar | Según permiso: `inventory:adjust`, `inventory:purchase:manage` o `inventory:receive` (órdenes), `inventory:purchase:manage` (proveedores), `inventory:read` (sugerencias), `inventory:adjust` (aviso). *Pendiente*: Exportar |
+| e6 | Diálogo «Aviso de vencimiento» (F16.10) | «Avisar cuando un lote venza en» · campo «Días» · «Cancelar» · «Guardar» | Entero de 1 a 365 (sin fijar: 30). `PUT /v1/inventory/settings`. Fuera de rango: «Indica de 1 a 365 días.» |
 
 ### S-INV-02 · `/inventory/:variant` · Detalle de existencias
-Interruptor "Mostrar en el marketplace" del producto (mismo comportamiento que S-CAT-02, con `catalog:listing:manage`). Existencias por bodega; lotes con fecha de vencimiento (F16.4: «Lote {código}» · bodega · «Vence el {fecha con mes en texto}» o «Sin vencimiento» · existencia; vencidos con la etiqueta "Vencido" en `error` y los que vencen en 30 días con "Vence pronto" en `warning`, nunca solo color; sin lotes: "Sin lotes con existencia."); cada movimiento muestra su lote; movimientos con fecha, tipo (Recepción, Venta, Ajuste, Transferencia, Devolución, Baja), cantidad con signo, saldo, documento de origen enlazado y usuario; cobertura en días según velocidad de venta.
+Interruptor "Mostrar en el marketplace" del producto (mismo comportamiento que S-CAT-02, con `catalog:listing:manage`). Existencias por bodega; lotes con fecha de vencimiento (F16.4: «Lote {código}» · bodega · «Vence el {fecha con mes en texto}» o «Sin vencimiento» · existencia; vencidos con la etiqueta "Vencido" en `error` y los que vencen en 30 días con "Vence pronto" en `warning`, nunca solo color; sin lotes: "Sin lotes con existencia."); cada movimiento muestra su lote; movimientos con fecha, tipo (Recepción, Venta, Ajuste, Transferencia, Devolución, Baja, Bloqueo, Desbloqueo), cantidad con signo, saldo, documento de origen enlazado y usuario; cobertura en días según velocidad de venta.
+
+**Existencia bloqueada (F16.10).** Cada bodega muestra «Reservado {n}» y, si hay, «Bloqueado {n}»; cada lote, «Bloqueado {n}» si hay. «Vence pronto» usa los días de aviso del comercio (S-INV-01 e6), no un valor fijo. Con `inventory:adjust`, tocar una bodega (producto sin lotes) o un lote (producto con lotes: bloquear exige el lote) abre un menú:
+
+| Id | Componente | Texto visible | Comportamiento y validación |
+|---|---|---|---|
+| b1 | Menú | Bloquear · Desbloquear · Dar de baja lo bloqueado | Las dos últimas solo si hay algo bloqueado |
+| b2 | Diálogo: campo | Cantidad | Mayor que 0; hasta lo disponible (bloquear) o lo bloqueado (desbloquear y baja). Lo bloqueado no se vende, no se reserva ni se transfiere |
+| b3 | Diálogo: selector | Motivo | Daño, En revisión, Retiro del fabricante, Vencimiento, Otro + texto. Obligatorio |
+| b4 | Diálogo: acción | Bloquear · Desbloquear · Dar de baja | La baja pide confirmación (C-05: «Una baja no se edita ni se borra.»). Errores: `OUT_OF_STOCK` «No hay existencia suficiente.», `EXCEEDS_BLOCKED` «No hay tanta existencia bloqueada.» |
 
 ### S-INV-03 · `/inventory/adjust` · Ajuste
 `inventory:adjust`

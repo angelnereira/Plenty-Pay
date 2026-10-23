@@ -20,6 +20,7 @@ String catalogErrorMessage(AppLocalizations l10n, Object error) {
     'ALREADY_EXISTS' => l10n.error_ALREADY_EXISTS,
     'INVALID_REQUEST' => l10n.error_INVALID_REQUEST,
     'OUT_OF_STOCK' => l10n.error_OUT_OF_STOCK,
+    'EXCEEDS_BLOCKED' => l10n.error_EXCEEDS_BLOCKED,
     'LOT_REQUIRED' => l10n.error_LOT_REQUIRED,
     'LOT_EXPIRED' => l10n.error_LOT_EXPIRED,
     'LOT_NOT_FOUND' => l10n.error_LOT_NOT_FOUND,

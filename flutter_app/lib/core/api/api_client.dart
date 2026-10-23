@@ -806,6 +806,7 @@ class ApiClient {
           String reason = '',
           String lotCode = '',
           DateTime? lotExpiresOn,
+          bool fromBlocked = false,
           required String idempotencyKey}) =>
       _post('/v1/inventory/adjustments',
           data: {
@@ -816,6 +817,8 @@ class ApiClient {
             if (reason.isNotEmpty) 'reason': reason,
             if (lotCode.isNotEmpty) 'lot_code': lotCode,
             if (lotExpiresOn != null) 'lot_expires_at': lotDateWire(lotExpiresOn),
+            // F16.10: WRITE_OFF de lo bloqueado (el servidor escribe UNBLOCK + WRITE_OFF).
+            if (fromBlocked) 'from_blocked': true,
           },
           idempotencyKey: idempotencyKey);
 
@@ -837,13 +840,30 @@ class ApiClient {
           idempotencyKey: idempotencyKey);
 
   /// F16.4: lotes de un producto, primero los que vencen antes.
+  /// F16.10: con [onlyExpiring], los lotes vencidos o por vencer de todos los productos
+  /// ([productId] vacío).
   Future<Map<String, dynamic>> listLots(String productId,
-          {String warehouseId = '', bool includeEmpty = false}) =>
+          {String warehouseId = '',
+          bool includeEmpty = false,
+          bool onlyExpiring = false}) =>
       _get('/v1/inventory/lots', queryParameters: {
-        'product_id': productId,
+        if (productId.isNotEmpty) 'product_id': productId,
         if (warehouseId.isNotEmpty) 'warehouse_id': warehouseId,
         if (includeEmpty) 'include_empty': 'true',
+        if (onlyExpiring) 'only_expiring': 'true',
       });
+
+  /// F16.10: días de aviso de vencimiento del comercio.
+  Future<Map<String, dynamic>> getInventorySettings() =>
+      _get('/v1/inventory/settings');
+
+  Future<Map<String, dynamic>> updateInventorySettings(
+          {required int expiryAlertDays, required String idempotencyKey}) =>
+      _put('/v1/inventory/settings',
+          data: {
+            'settings': {'expiry_alert_days': expiryAlertDays}
+          },
+          idempotencyKey: idempotencyKey);
 
   Future<Map<String, dynamic>> listMovements(
           {String productId = '',

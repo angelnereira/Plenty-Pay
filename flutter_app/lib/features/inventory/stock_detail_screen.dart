@@ -12,6 +12,7 @@ import '../../core/format/dates.dart';
 import '../../core/widgets/status_chip.dart';
 import '../wallet/wallet_data.dart' show walletDateTime;
 import 'inventory_data.dart';
+import 'stock_block_dialog.dart';
 import 'stock_adjust_screen.dart';
 
 /// Lo que muestra el detalle.
@@ -38,13 +39,16 @@ String movementLabel(AppLocalizations l10n, String type) => switch (type) {
       'TRANSFER_IN' => l10n.mov_TRANSFER_IN,
       'RETURN' => l10n.mov_RETURN,
       'WRITE_OFF' => l10n.mov_WRITE_OFF,
+      'BLOCK' => l10n.mov_BLOCK,
+      'UNBLOCK' => l10n.mov_UNBLOCK,
       _ => type,
     };
 
 /// S-INV-02 · `/inventory/:variant` · Detalle de existencias: por bodega, lotes con su vencimiento
-/// (vencidos en `error`, por vencer en 30 días en `warning`, F16.4), movimientos con fecha, tipo,
-/// lote, cantidad con signo y motivo, e interruptor "Mostrar en el marketplace". La cobertura en
-/// días llega con F16.6 en S-INV-08.
+/// (vencidos en `error`, por vencer en `warning` según los días de aviso del comercio, F16.4 y
+/// F16.10), lo bloqueado por bodega y por lote con su menú b1 (bloquear, desbloquear, dar de baja
+/// lo bloqueado; `inventory:adjust`), movimientos con fecha, tipo, lote, cantidad con signo y
+/// motivo, e interruptor "Mostrar en el marketplace". La cobertura en días está en S-INV-08.
 class StockDetailScreen extends StatefulWidget {
   const StockDetailScreen(
       {super.key, required this.api, required this.product});
@@ -57,7 +61,25 @@ class StockDetailScreen extends StatefulWidget {
 
 class _StockDetailScreenState extends State<StockDetailScreen> {
   late Future<StockDetail> _future = _load();
+  late final Future<Permissions> _perms = widget.api.permissions();
+  bool _canAdjust = false;
   bool _changed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _perms.then((p) {
+      if (mounted) setState(() => _canAdjust = p.can('inventory:adjust'));
+    }, onError: (Object _) {});
+  }
+
+  Future<void> _block(BlockTarget target) async {
+    final done = await showBlockMenu(context, api: widget.api, target: target);
+    if (done) {
+      _changed = true;
+      _reload();
+    }
+  }
 
   Future<StockDetail> _load() async {
     final warehouses = await loadWarehouses(widget.api);
@@ -144,8 +166,19 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                               ListTile(
                                 title: Text(
                                     names[l.warehouseId] ?? l10n.invWarehouse),
-                                subtitle: Text(
-                                    '${l10n.invReserved}: ${formatQty(l.reservedMilli, unit)}'),
+                                subtitle: Text([
+                                  '${l10n.invReserved}: ${formatQty(l.reservedMilli, unit)}',
+                                  if (l.blockedMilli > 0)
+                                    '${l10n.invBlocked}: ${formatQty(l.blockedMilli, unit)}',
+                                ].join(' · ')),
+                                // F16.10 b1: sin lotes se bloquea por bodega; con lotes, por lote.
+                                onTap: _canAdjust && !widget.product.tracksLots
+                                    ? () => _block(BlockTarget(
+                                        product: widget.product,
+                                        warehouseId: l.warehouseId,
+                                        freeMilli: l.availableMilli,
+                                        blockedMilli: l.blockedMilli))
+                                    : null,
                                 trailing: Text(
                                     formatQty(l.availableMilli, unit),
                                     style: theme.textTheme.titleMedium
@@ -174,7 +207,15 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                 _LotTile(
                                     lot: lot,
                                     unit: unit,
-                                    warehouse: names[lot.warehouseId] ?? ''),
+                                    warehouse: names[lot.warehouseId] ?? '',
+                                    onTap: _canAdjust
+                                        ? () => _block(BlockTarget(
+                                            product: widget.product,
+                                            warehouseId: lot.warehouseId,
+                                            freeMilli: lot.freeMilli,
+                                            blockedMilli: lot.blockedMilli,
+                                            lotCode: lot.code))
+                                        : null),
                             ]),
                           ),
                         ],
@@ -222,24 +263,30 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 }
 
-/// Un lote: código, bodega y vencimiento con el mes en texto; vencido en `error`, por vencer en
-/// 30 días en `warning` (S-INV-02). El estado también va en texto, no solo en color.
+/// Un lote: código, bodega y vencimiento con el mes en texto; vencido en `error`, por vencer
+/// (días de aviso del comercio, F16.10) en `warning` y lo bloqueado (S-INV-02). El estado también
+/// va en texto, no solo en color.
 class _LotTile extends StatelessWidget {
   const _LotTile(
-      {required this.lot, required this.unit, required this.warehouse});
+      {required this.lot,
+      required this.unit,
+      required this.warehouse,
+      this.onTap});
   final LotItem lot;
   final String unit;
   final String warehouse;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).toString();
-    final soon = lot.expiresWithin(30, DateTime.now());
-    final tone =
-        lot.expired ? StatusTone.error : (soon ? StatusTone.warning : null);
+    final tone = lot.expired
+        ? StatusTone.error
+        : (lot.expiresSoon ? StatusTone.warning : null);
     return ListTile(
+      onTap: onTap,
       title: Text(l10n.invLotLabel(lot.code)),
       subtitle: Wrap(
         spacing: AppTokens.spacingSm,
@@ -251,6 +298,8 @@ class _LotTile extends StatelessWidget {
             lot.expiresOn == null
                 ? l10n.invLotNoExpiry
                 : l10n.invLotExpires(longDate(lot.expiresOn!, locale)),
+            if (lot.blockedMilli > 0)
+              '${l10n.invBlocked}: ${formatQty(lot.blockedMilli, unit)}',
           ].join(' · ')),
           if (tone != null)
             StatusChip(

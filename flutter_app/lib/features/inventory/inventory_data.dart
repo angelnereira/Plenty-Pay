@@ -15,7 +15,8 @@ class StockItem {
       required this.onHandMilli,
       required this.reservedMilli,
       required this.availableMilli,
-      required this.reorderPointMilli});
+      required this.reorderPointMilli,
+      this.blockedMilli = 0});
 
   factory StockItem.fromJson(Map<String, dynamic> j) => StockItem(
         productId: j['product_id'] as String? ?? '',
@@ -24,6 +25,7 @@ class StockItem {
         reservedMilli: _milli(j['reserved_milli']),
         availableMilli: _milli(j['available_milli']),
         reorderPointMilli: _milli(j['reorder_point_milli']),
+        blockedMilli: _milli(j['blocked_milli']),
       );
 
   final String productId;
@@ -32,6 +34,9 @@ class StockItem {
   final int reservedMilli;
   final int availableMilli;
   final int reorderPointMilli;
+
+  /// F16.10: físico que no se vende; `availableMilli` ya lo descuenta.
+  final int blockedMilli;
 
   bool get isOut => availableMilli <= 0;
   bool get isLow =>
@@ -155,6 +160,7 @@ List<StockItem> sumByProduct(List<StockItem> levels) {
             reservedMilli: p.reservedMilli + l.reservedMilli,
             availableMilli: p.availableMilli + l.availableMilli,
             reorderPointMilli: p.reorderPointMilli + l.reorderPointMilli,
+            blockedMilli: p.blockedMilli + l.blockedMilli,
           );
   }
   return by.values.toList();
@@ -168,12 +174,18 @@ class LotItem {
       required this.code,
       required this.onHandMilli,
       required this.expired,
-      this.expiresOn});
+      this.expiresOn,
+      this.productId = '',
+      this.blockedMilli = 0,
+      this.expiresSoon = false});
 
   factory LotItem.fromJson(Map<String, dynamic> j) {
     final exp = DateTime.tryParse(j['expires_at'] as String? ?? '');
     return LotItem(
       id: j['lot_id'] as String? ?? '',
+      productId: j['product_id'] as String? ?? '',
+      blockedMilli: _milli(j['blocked_milli']),
+      expiresSoon: j['expires_soon'] as bool? ?? false,
       warehouseId: j['warehouse_id'] as String? ?? '',
       code: j['code'] as String? ?? '',
       onHandMilli: _milli(j['on_hand_milli']),
@@ -191,13 +203,16 @@ class LotItem {
   final int onHandMilli;
   final bool expired;
   final DateTime? expiresOn;
+  final String productId;
 
-  /// Vence dentro de [days] días (y aún no venció): se muestra en `warning`.
-  bool expiresWithin(int days, DateTime today) =>
-      !expired &&
-      expiresOn != null &&
-      !expiresOn!.isAfter(DateTime(today.year, today.month, today.day)
-          .add(Duration(days: days)));
+  /// F16.10: parte bloqueada del lote (no se vende).
+  final int blockedMilli;
+
+  /// F16.10: no vencido y vence dentro de los días de aviso del comercio (lo decide el servidor).
+  final bool expiresSoon;
+
+  /// Lo que se puede bloquear o vender del lote.
+  int get freeMilli => onHandMilli - blockedMilli;
 }
 
 Future<List<LotItem>> loadLots(ApiClient api, String productId,
@@ -209,4 +224,21 @@ Future<List<LotItem>> loadLots(ApiClient api, String productId,
         .cast<Map<String, dynamic>>())
       LotItem.fromJson(l)
   ];
+}
+
+/// F16.10: lotes con existencia vencidos o por vencer de todos los productos (S-INV-01 e1).
+Future<List<LotItem>> loadExpiringLots(ApiClient api) async {
+  final body = await api.listLots('', onlyExpiring: true);
+  return [
+    for (final l in (body['lots'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>())
+      LotItem.fromJson(l)
+  ];
+}
+
+/// F16.10: días de aviso de vencimiento (1–365; sin fijar, 30).
+Future<int> loadExpiryAlertDays(ApiClient api) async {
+  final body = await api.getInventorySettings();
+  final v = body['expiry_alert_days'];
+  return v is int ? v : int.tryParse('$v') ?? 30;
 }

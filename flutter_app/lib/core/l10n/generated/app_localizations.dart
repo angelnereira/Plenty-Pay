@@ -8498,6 +8498,138 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No puedes devolver más de lo vendido.'**
   String get error_EXCEEDS_SOLD_QTY;
+
+  /// No description provided for @invBlocked.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloqueado'**
+  String get invBlocked;
+
+  /// No description provided for @invExpiringCard.
+  ///
+  /// In es, this message translates to:
+  /// **'{n, plural, =1{1 lote por vencer} other{{n} lotes por vencer}}'**
+  String invExpiringCard(int n);
+
+  /// No description provided for @mov_BLOCK.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloqueo'**
+  String get mov_BLOCK;
+
+  /// No description provided for @mov_UNBLOCK.
+  ///
+  /// In es, this message translates to:
+  /// **'Desbloqueo'**
+  String get mov_UNBLOCK;
+
+  /// No description provided for @invBlockAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloquear'**
+  String get invBlockAction;
+
+  /// No description provided for @invUnblockAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Desbloquear'**
+  String get invUnblockAction;
+
+  /// No description provided for @invWriteOffBlockedAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Dar de baja lo bloqueado'**
+  String get invWriteOffBlockedAction;
+
+  /// No description provided for @invWriteOffShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Dar de baja'**
+  String get invWriteOffShort;
+
+  /// No description provided for @invBlockTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloquear existencia'**
+  String get invBlockTitle;
+
+  /// No description provided for @invUnblockTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Desbloquear existencia'**
+  String get invUnblockTitle;
+
+  /// No description provided for @invQtyUpTo.
+  ///
+  /// In es, this message translates to:
+  /// **'Hasta {qty}'**
+  String invQtyUpTo(String qty);
+
+  /// No description provided for @invBlockReason_REVIEW.
+  ///
+  /// In es, this message translates to:
+  /// **'En revisión'**
+  String get invBlockReason_REVIEW;
+
+  /// No description provided for @invBlockReason_RECALL.
+  ///
+  /// In es, this message translates to:
+  /// **'Retiro del fabricante'**
+  String get invBlockReason_RECALL;
+
+  /// No description provided for @invWriteOffConfirmTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Dar de baja lo bloqueado?'**
+  String get invWriteOffConfirmTitle;
+
+  /// No description provided for @invWriteOffConfirmBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Una baja no se edita ni se borra.'**
+  String get invWriteOffConfirmBody;
+
+  /// No description provided for @invBlockDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Existencia actualizada.'**
+  String get invBlockDone;
+
+  /// No description provided for @invExpiryAlertTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Aviso de vencimiento'**
+  String get invExpiryAlertTitle;
+
+  /// No description provided for @invExpiryAlertLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Avisar cuando un lote venza en'**
+  String get invExpiryAlertLabel;
+
+  /// No description provided for @invDays.
+  ///
+  /// In es, this message translates to:
+  /// **'Días'**
+  String get invDays;
+
+  /// No description provided for @invExpiryAlertInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Indica de 1 a 365 días.'**
+  String get invExpiryAlertInvalid;
+
+  /// No description provided for @invExpiryAlertSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Aviso de vencimiento guardado.'**
+  String get invExpiryAlertSaved;
+
+  /// No description provided for @error_EXCEEDS_BLOCKED.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay tanta existencia bloqueada.'**
+  String get error_EXCEEDS_BLOCKED;
 }
 
 class _AppLocalizationsDelegate

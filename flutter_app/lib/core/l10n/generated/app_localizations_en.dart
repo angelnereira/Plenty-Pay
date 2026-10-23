@@ -4683,4 +4683,81 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get error_EXCEEDS_SOLD_QTY => 'You cannot refund more than was sold.';
+
+  @override
+  String get invBlocked => 'Blocked';
+
+  @override
+  String invExpiringCard(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n lots expiring',
+      one: '1 lot expiring',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mov_BLOCK => 'Block';
+
+  @override
+  String get mov_UNBLOCK => 'Unblock';
+
+  @override
+  String get invBlockAction => 'Block';
+
+  @override
+  String get invUnblockAction => 'Unblock';
+
+  @override
+  String get invWriteOffBlockedAction => 'Write off blocked stock';
+
+  @override
+  String get invWriteOffShort => 'Write off';
+
+  @override
+  String get invBlockTitle => 'Block stock';
+
+  @override
+  String get invUnblockTitle => 'Unblock stock';
+
+  @override
+  String invQtyUpTo(String qty) {
+    return 'Up to $qty';
+  }
+
+  @override
+  String get invBlockReason_REVIEW => 'Under review';
+
+  @override
+  String get invBlockReason_RECALL => 'Manufacturer recall';
+
+  @override
+  String get invWriteOffConfirmTitle => 'Write off the blocked stock?';
+
+  @override
+  String get invWriteOffConfirmBody =>
+      'A write-off cannot be edited or deleted.';
+
+  @override
+  String get invBlockDone => 'Stock updated.';
+
+  @override
+  String get invExpiryAlertTitle => 'Expiry alert';
+
+  @override
+  String get invExpiryAlertLabel => 'Alert when a lot expires within';
+
+  @override
+  String get invDays => 'Days';
+
+  @override
+  String get invExpiryAlertInvalid => 'Enter 1 to 365 days.';
+
+  @override
+  String get invExpiryAlertSaved => 'Expiry alert saved.';
+
+  @override
+  String get error_EXCEEDS_BLOCKED => 'There isn\'t that much blocked stock.';
 }

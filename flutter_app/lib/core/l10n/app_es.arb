@@ -2214,5 +2214,41 @@
     }
   },
   "stepUpOpPosRefund": "Devolución en caja",
-  "error_EXCEEDS_SOLD_QTY": "No puedes devolver más de lo vendido."
+  "error_EXCEEDS_SOLD_QTY": "No puedes devolver más de lo vendido.",
+  "invBlocked": "Bloqueado",
+  "invExpiringCard": "{n, plural, =1{1 lote por vencer} other{{n} lotes por vencer}}",
+  "@invExpiringCard": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "mov_BLOCK": "Bloqueo",
+  "mov_UNBLOCK": "Desbloqueo",
+  "invBlockAction": "Bloquear",
+  "invUnblockAction": "Desbloquear",
+  "invWriteOffBlockedAction": "Dar de baja lo bloqueado",
+  "invWriteOffShort": "Dar de baja",
+  "invBlockTitle": "Bloquear existencia",
+  "invUnblockTitle": "Desbloquear existencia",
+  "invQtyUpTo": "Hasta {qty}",
+  "@invQtyUpTo": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "invBlockReason_REVIEW": "En revisión",
+  "invBlockReason_RECALL": "Retiro del fabricante",
+  "invWriteOffConfirmTitle": "¿Dar de baja lo bloqueado?",
+  "invWriteOffConfirmBody": "Una baja no se edita ni se borra.",
+  "invBlockDone": "Existencia actualizada.",
+  "invExpiryAlertTitle": "Aviso de vencimiento",
+  "invExpiryAlertLabel": "Avisar cuando un lote venza en",
+  "invDays": "Días",
+  "invExpiryAlertInvalid": "Indica de 1 a 365 días.",
+  "invExpiryAlertSaved": "Aviso de vencimiento guardado.",
+  "error_EXCEEDS_BLOCKED": "No hay tanta existencia bloqueada."
 }

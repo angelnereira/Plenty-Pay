@@ -4692,6 +4692,82 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get error_EXCEEDS_SOLD_QTY => 'No puedes devolver más de lo vendido.';
+
+  @override
+  String get invBlocked => 'Bloqueado';
+
+  @override
+  String invExpiringCard(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n lotes por vencer',
+      one: '1 lote por vencer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mov_BLOCK => 'Bloqueo';
+
+  @override
+  String get mov_UNBLOCK => 'Desbloqueo';
+
+  @override
+  String get invBlockAction => 'Bloquear';
+
+  @override
+  String get invUnblockAction => 'Desbloquear';
+
+  @override
+  String get invWriteOffBlockedAction => 'Dar de baja lo bloqueado';
+
+  @override
+  String get invWriteOffShort => 'Dar de baja';
+
+  @override
+  String get invBlockTitle => 'Bloquear existencia';
+
+  @override
+  String get invUnblockTitle => 'Desbloquear existencia';
+
+  @override
+  String invQtyUpTo(String qty) {
+    return 'Hasta $qty';
+  }
+
+  @override
+  String get invBlockReason_REVIEW => 'En revisión';
+
+  @override
+  String get invBlockReason_RECALL => 'Retiro del fabricante';
+
+  @override
+  String get invWriteOffConfirmTitle => '¿Dar de baja lo bloqueado?';
+
+  @override
+  String get invWriteOffConfirmBody => 'Una baja no se edita ni se borra.';
+
+  @override
+  String get invBlockDone => 'Existencia actualizada.';
+
+  @override
+  String get invExpiryAlertTitle => 'Aviso de vencimiento';
+
+  @override
+  String get invExpiryAlertLabel => 'Avisar cuando un lote venza en';
+
+  @override
+  String get invDays => 'Días';
+
+  @override
+  String get invExpiryAlertInvalid => 'Indica de 1 a 365 días.';
+
+  @override
+  String get invExpiryAlertSaved => 'Aviso de vencimiento guardado.';
+
+  @override
+  String get error_EXCEEDS_BLOCKED => 'No hay tanta existencia bloqueada.';
 }
 
 /// The translations for Spanish Castilian, as used in Panama (`es_PA`).

@@ -4,7 +4,9 @@ import 'package:plentypay/features/catalog/catalog_data.dart';
 import 'package:plentypay/features/catalog/catalog_screen.dart';
 import 'package:plentypay/features/catalog/categories_screen.dart';
 import 'package:plentypay/features/catalog/product_screen.dart';
+import 'package:plentypay/features/inventory/expiry_alert_dialog.dart';
 import 'package:plentypay/features/inventory/inventory_screen.dart';
+import 'package:plentypay/features/inventory/stock_block_dialog.dart';
 import 'package:plentypay/features/inventory/purchase_orders_screen.dart';
 import 'package:plentypay/features/inventory/purchase_receive_screen.dart';
 import 'package:plentypay/features/inventory/purchasing_data.dart';
@@ -66,10 +68,17 @@ void main() {
         }),
     'GET /v1/inventory/stock': (_) => json({
           'levels': [
-            {'product_id': cafeId, 'warehouse_id': 'w-1', 'on_hand_milli': '1234000', 'available_milli': '1234000', 'reorder_point_milli': '5000'},
+            {'product_id': cafeId, 'warehouse_id': 'w-1', 'on_hand_milli': '1234000', 'available_milli': '1000000', 'blocked_milli': '234000', 'reorder_point_milli': '5000'},
           ],
           'page': {'next_page_token': ''},
         }),
+    'GET /v1/inventory/lots': (_) => json({
+          'lots': [
+            {'lot_id': 'lot-1', 'product_id': cafeId, 'warehouse_id': 'w-2', 'code': 'BOQ-2026-OCT-TOSTADO-MEDIO', 'expires_at': '2026-11-02T05:00:00Z',
+             'on_hand_milli': '1234000', 'blocked_milli': '234000', 'expires_soon': true},
+          ]
+        }),
+    'GET /v1/inventory/settings': (_) => json({'expiry_alert_days': 45}),
     'GET /v1/inventory/movements': (_) => json({'movements': <Object>[]}),
     'GET /v1/me/permissions': (_) => json({
           'role': 'owner',
@@ -114,6 +123,17 @@ void main() {
     'editor de producto publicado': () => ProductScreen(api: fakeApi(routes), product: ProductItem.fromJson({...product(cafeId, 'Café de altura de Boquete tostado medio 250 g', 1850), 'listed_in_marketplace': true})),
     'detalle de existencias': () => StockDetailScreen(api: fakeApi(routes), product: ProductItem.fromJson({...product(cafeId, 'Café de altura de Boquete tostado medio 250 g', 1850), 'listed_in_marketplace': true})),
     'existencias': () => InventoryScreen(api: fakeApi(routes)),
+    'bloquear existencia': () => Scaffold(
+        body: BlockDialog(
+            api: fakeApi(routes),
+            action: BlockAction.writeOff,
+            target: BlockTarget(
+                product: ProductItem.fromJson(product(cafeId, 'Café de altura de Boquete tostado medio 250 g', 1850)),
+                warehouseId: 'w-2',
+                freeMilli: 1000000,
+                blockedMilli: 234000,
+                lotCode: 'BOQ-2026-OCT-TOSTADO-MEDIO'))),
+    'aviso de vencimiento': () => Scaffold(body: ExpiryAlertDialog(api: fakeApi(routes))),
     'ajuste': () => StockAdjustScreen(api: fakeApi(routes)),
     'transferencia': () => StockTransferScreen(api: fakeApi(routes)),
     'bodegas': () => WarehousesScreen(api: fakeApi(routes)),
