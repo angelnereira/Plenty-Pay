@@ -2,7 +2,7 @@
 
 Entrada para retomar el trabajo sin reconstruir el contexto. **No es un diario**: se reescribe al cerrar cada paso. Las reglas viven en [`AGENTS.md`](../../AGENTS.md); el estado con evidencia, en [`status.md`](status.md); las fichas de los pasos comerciales, en [`commerce-plan.md`](commerce-plan.md).
 
-_Última actualización: 2026-10-23, tras F16.10 y F16.12 (cerrados) y F16.11 (escáner; falta la prueba con cámara)._
+_Última actualización: 2026-10-23, tras F16.10 y F16.12 (cerrados), F16.11 (falta la prueba con cámara) y la hoja de ruta por ciclos de vida con plan de ejecución por olas._
 
 ## 1. Estado verificado
 - Versión publicada: ver el último tag (`git ls-remote --tags origin | tail -1`); F17.4 salió en `v0.7.0`.
@@ -37,7 +37,13 @@ Hecho y probado con lector simulado en el Pixel: regla C-27 (`docs/ux/functional
 R10 en `inventory/SPEC.md` y §8.12 en `domain-model.md` (estado `CLOSED_SHORT`). Migración `inventory/migrations/0006_receipt_issues` aplicada (respaldo `~/plentypay-backups/inventory-before-0006-*.sql.gz`). Lógica en `inventory/internal/domain/purchasing.go` (`Receive`, `CloseReason`), `inventory/internal/store/purchasing.go` (`ReceiptHook`, `UpdatePurchaseOrderStatus` con `StatusChange`, `insertIssue`) y `inventory/internal/service/purchasing.go` (BLOCK `OnArrival`). App: `purchase_receive_screen.dart` (Dañado) y `purchase_orders_screen.dart` (`_CloseShortDialog`).
 
 ## 3. Siguiente paso recomendado
-**F16.13 · Historial de compras y costo de adquisición** ([ficha](commerce-plan.md#f1613--historial-de-compras-y-costo-de-adquisición)). Ojo: el costo de lo vendido está ⛔ por Q-52; implementa solo lo que la ficha permite sin esa respuesta y deja el resto citado. Si prefieres otra rama, en caja quedan F17.11 (configuración de caja) y F17.12 (sucursal en cajas y ventas), sin bloqueos.
+**Entrada para cualquier agente**: [`lifecycles.md`](lifecycles.md) (mapa por ciclo de vida del producto y del dinero) y [`execution/README.md`](execution/README.md) (procedimiento común + una ficha por paso abierto, por olas). Toma el primer paso de la ola más baja cuyo precedente esté ✅ y que no requiera a una persona:
+
+1. **Ola 1** ([fichas](execution/ola-1-venta-cerrada.md)): F17.11 configuración de caja → F16.9 sucursal en bodegas → F17.12 sucursal en cajas → F17.3 reporte Z → F17.13 cambio de turno. Las L4 de F17.5, F11.6, F17.9, F15.8, F15.9 necesitan una segunda cuenta con saldo sandbox (ver la ficha). F16.11 necesita a una persona frente al teléfono.
+2. **Ola 2 en paralelo** ([fichas](execution/ola-2-documento-y-aviso.md)): dar servidor a notifications (F20.1–F20.2) destraba avisos, factura por correo y el hueco 1 (invitaciones que no se entregan).
+3. F16.13 (historial de compras) queda en la ola 4; el costo de lo vendido sigue ⛔ Q-52.
+
+Decisiones abiertas nuevas: Q-55 (pagos a proveedores) y Q-56 (remesa del ITBMS de la plataforma). Antes de la ola 5 hace falta un ADR sobre geolocalización (GeoStream o PostGIS). Antes de la ola 6, corregir el comentario de `PostMemoEntryRequest.kind` (T8 = puntos, T9 = crédito según `domain-model.md`).
 
 ## 4. Comandos
 | Para | Comando |

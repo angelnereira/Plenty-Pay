@@ -340,8 +340,11 @@ Fichas ejecutables de los pasos abiertos de F15 (25 campos): [`docs/roadmap/comm
 | F16.11 | Escáner en inventario (cámara y lector HID, antirrebote) | flutter_app | Doble lectura cuenta una vez; L4 en dispositivo físico | L4 |
 | F16.12 | Incidencias y diferencias de recepción; cerrar orden con faltante (depende de F16.10) | inventory, flutter_app | Lo dañado no queda disponible | L2 |
 | F16.13 | Historial de compras y costo de adquisición (costo de lo vendido ⛔ Q-52) | inventory, flutter_app | Coincide con las recepciones | L2 |
+| F16.14 | inventory consume `catalog.product.changed` (hueco 2 de `event-chains.md`) | inventory, catalog | El punto de reorden llega a inventory en ≤ 30 s, una vez aunque el evento se repita | L2 |
+| F16.15 | Devolución al proveedor (depende de F16.12) | inventory, flutter_app | Nunca más de lo recibido de la orden; R1 y bloqueado = Σ siguen cuadrando | L2 |
+| F16.16 | Verificación diaria de invariantes de inventario | inventory, observability | Base sana → 0 violaciones; una diferencia sembrada se detecta y alerta | L2 |
 
-Fichas ejecutables (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §A y §B.
+Fichas ejecutables (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §A y §B. Fichas de ejecución de F16.14–F16.16: [`docs/roadmap/execution/`](docs/roadmap/execution/README.md).
 
 ## F17 — Punto de venta
 
@@ -371,6 +374,7 @@ Fichas ejecutables (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/c
 | F17.17 | Canje de puntos en el cobro | pos, payments-core, flutter_app | `INSUFFICIENT_POINTS`; nunca saldo negativo | L4 |
 | F17.18 | Cupones y tarjetas de regalo | pos, payments-core | ⛔ Q-48 | — |
 | F17.19 | Propinas | pos, fiscal-invoicing | ⛔ Q-21 | — |
+| F17.20 | Devolución al lote original (nota abierta de F17.9) | pos, inventory | Vender de un lote y devolver con reingreso deja ese lote con lo devuelto | L2 |
 
 Fichas ejecutables (25 campos): [`docs/roadmap/commerce-plan.md`](docs/roadmap/commerce-plan.md) §C, §D y §H. F17.4 se cierra con estacionar/retomar (ficha detallada en ese documento).
 

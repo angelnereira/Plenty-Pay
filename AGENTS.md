@@ -4,7 +4,7 @@ Este repositorio **se gobierna por su documentación** (ADR 0010). Tu trabajo es
 
 ## 1. Orden de lectura obligatorio antes de tocar código
 1. `README.md` → `ARCHITECTURE.md` (estado real de cada contenedor).
-2. `docs/roadmap/status.md` → qué fase está en curso y qué paso te toca. **No adelantes fases**: cada paso tiene precedencia en `05-HOJA-DE-RUTA-30-FASES.md` y `docs/roadmap/phase-matrix.md`.
+2. `docs/roadmap/status.md` → qué fase está en curso y qué paso te toca. **No adelantes fases**: cada paso tiene precedencia en `05-HOJA-DE-RUTA-30-FASES.md` y `docs/roadmap/phase-matrix.md`. La ficha de ejecución del paso (archivos, migraciones, pruebas, comandos, L4) está en `docs/roadmap/execution/` (olas según `docs/roadmap/lifecycles.md`); no decide nada nuevo: si difiere de su fuente, manda la fuente.
 3. El `SPEC.md` del contenedor que vas a tocar (y el `.proto` de su contrato en `network-contracts/proto/`). En su sección 5, la línea **Cumplimiento normativo** lista las reglas `N-…` que ese contenedor debe implementar.
 4. Los estándares que aplican: `docs/standards/` (siempre: `grpc-conventions.md`, `data-standards.md`, `security-standards.md`, `testing-strategy.md`, `observability-standards.md`; por lenguaje: `go-standards.md` | `rust-standards.md` | `flutter-standards.md`).
 5. `docs/glossary.md` antes de nombrar cualquier cosa (campo, estado, `reason`, variable, subject, atributo de telemetría): si el nombre existe, se usa tal cual. `docs/domain/domain-model.md` si tocas dinero, estados o permisos. Sus vectores de prueba son obligatorios.
