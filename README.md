@@ -1,6 +1,37 @@
+<div align="center">
+
+<img src="flutter_app/web/icons/Icon-192.png" alt="PlentyPay" width="96" height="96">
+
 # PlentyPay
 
-Una sola plataforma para que un negocio venda, cobre en cualquier forma de pago, controle inventario, entregue, pague a su equipo, facture ante la DGI y entienda sus números — y para que cualquier persona pague, reciba dinero y compre en un marketplace compartido. Descripción de producto sin tecnicismos: [`00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md`](00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md).
+**Vende. Cobra. Entrega. Factura. Entiende tus números.**<br>
+Una sola plataforma de comercio y pagos para Panamá — del mostrador al marketplace.
+
+![Versión](https://img.shields.io/badge/app-v0.17.0-D32D2F?style=for-the-badge)
+![Rust](https://img.shields.io/badge/Rust-n%C3%BAcleo%20de%20dinero-000000?style=for-the-badge&logo=rust&logoColor=white)
+![Go](https://img.shields.io/badge/Go-servicios-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![Flutter](https://img.shields.io/badge/Flutter-una%20sola%20app-02569B?style=for-the-badge&logo=flutter&logoColor=white)
+![Sandbox](https://img.shields.io/badge/pagos-sandbox%20%C2%B7%20sin%20dinero%20real-F59E0B?style=for-the-badge)
+
+[Producto](00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md) · [Arquitectura](ARCHITECTURE.md) · [Hoja de ruta](05-HOJA-DE-RUTA-30-FASES.md) · [Estado con evidencia](docs/roadmap/status.md) · [Decisiones (ADR)](docs/adr/README.md)
+
+*Creado y dirigido por [Angel Nereira](https://github.com/angelnereira)*
+
+</div>
+
+---
+
+## Qué es
+
+Un negocio vende, cobra en cualquier forma de pago, controla inventario, entrega, paga a su equipo y factura ante la DGI. Una persona paga, recibe dinero y compra en un marketplace compartido. Todo en **una app** (Android, iOS, Linux, Windows, macOS y Web) sobre **23 contenedores** aislados, con el dinero en un núcleo **Rust** de doble entrada. Descripción de producto sin tecnicismos: [`00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md`](00-PLENTYPAY-BLUEPRINT-FUNCIONAL.md).
+
+| | |
+|---|---|
+| **Dinero exacto** | Enteros en centavos, doble entrada, holds y reversos; nunca `float`. |
+| **Gobernado por documentos** | ADR → dominio → norma → SPEC → código (ADR 0010). |
+| **Cumplimiento por diseño** | Reglas `N-…` de Panamá y estándares ISO; ningún valor legal en el código. |
+| **Observable** | Logs estructurados, trazas W3C y `request_id` en cada fallo. |
+| **Sin proveedor de nube** | Todo código abierto; Compose hoy, Kubernetes + OpenTofu como objetivo. |
 
 > **Estado (2026-10-24, app v0.17.0)**: en producción corren **13 servicios de aplicación** — identity, api-gateway, ledger, payments-core, settlement (Rust), fiscal-invoicing, catalog, inventory, pos, orders, security, infra-management y web — sobre la pila de datos y observabilidad completa, con la app Flutter conectada a ellos. Los rieles de pago externos y el PAC están en **sandbox/simulador: nada mueve dinero real**. **Sin servidor** (solo especificados, sus módulos muestran «Disponible próximamente»): logistics, geolocation, payroll, notifications y analytics-bi. Evidencia por paso: [`docs/roadmap/status.md`](docs/roadmap/status.md) · continuidad: [`docs/roadmap/continuity.md`](docs/roadmap/continuity.md) · auditoría: [`docs/audits/2026-10-21-comercio-estado-real.md`](docs/audits/2026-10-21-comercio-estado-real.md).
 
@@ -257,3 +288,25 @@ Verificaciones (CI las corre en cada PR):
 (cd scripts/ledger-tests && npm install && npm test)   # especificación ejecutable del ledger
 ```
 App: ver [`flutter_app/README.md`](flutter_app/README.md).
+
+---
+
+## Autoría
+
+<table>
+<tr>
+<td width="96" align="center"><img src="flutter_app/web/icons/Icon-192.png" width="72" alt="PlentyPay"></td>
+<td>
+
+**Angel Nereira** — autor, arquitecto y responsable del producto.<br>
+Concibió PlentyPay y tomó sus decisiones de arquitectura, de dominio y de cumplimiento (ver los [ADR](docs/adr/README.md)); la implementación se desarrolla con asistencia de Claude Code bajo esas decisiones y deja constancia en cada commit.
+
+[GitHub · @angelnereira](https://github.com/angelnereira) · [contact@angelnereira.com](mailto:contact@angelnereira.com)
+
+</td>
+</tr>
+</table>
+
+© 2026 Angel Nereira. Todos los derechos reservados hasta que se defina la licencia (pregunta abierta Q-17 en [`docs/open-questions.md`](docs/open-questions.md)).
+
+<div align="center"><sub>PlentyPay · hecho en Panamá 🇵🇦 · pagos en sandbox: nada mueve dinero real</sub></div>
